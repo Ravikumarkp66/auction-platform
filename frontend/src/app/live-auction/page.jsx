@@ -75,7 +75,7 @@ function LiveAuctionContent() {
   const BID_COOLDOWN = 600; 
 
   useEffect(() => {
-    const s = io("http://localhost:5000")
+    const s = io(process.env.NEXT_PUBLIC_API_URL)
     setSocket(s)
     return () => s.disconnect()
   }, [])
@@ -86,7 +86,7 @@ function LiveAuctionContent() {
       return
     }
 
-    fetch(`http://localhost:5000/api/tournaments/${tournamentId}`)
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournaments/${tournamentId}`)
       .then(res => res.ok ? res.json() : Promise.reject("Failed to load"))
       .then(data => {
         if (!data || !data.tournament) throw new Error("Tournament not found")
@@ -326,7 +326,7 @@ function LiveAuctionContent() {
 
     try {
       setLoading(true);
-      const res = await fetch("http://localhost:5000/api/upload", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/upload`, {
         method: "POST",
         body: formData
       });
@@ -350,7 +350,7 @@ function LiveAuctionContent() {
       const isNumberField = ['basePrice', 'age'].includes(field);
       const valueToSend = isNumberField ? Number(newValue) : newValue;
       
-      const res = await fetch(`http://localhost:5000/api/players/${id}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/players/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ [field]: valueToSend })
@@ -373,7 +373,7 @@ function LiveAuctionContent() {
   const handleTeamNameUpdate = async (id, field, newValue) => {
     if (!newValue.trim() && field === "name") return setEditingTeamId(null);
     try {
-      const res = await fetch(`http://localhost:5000/api/tournaments/teams/${id}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournaments/teams/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ [field]: newValue })

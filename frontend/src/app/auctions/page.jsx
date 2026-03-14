@@ -20,7 +20,7 @@ export default function AuctionsPage() {
 
   const fetchTournaments = async () => {
     try {
-      const response = await fetch("http://localhost:5000/api/tournaments");
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournaments`);
       
       if (response.ok) {
         const data = await response.json();

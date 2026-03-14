@@ -10,7 +10,7 @@ export default function OverlayPage() {
 
   useEffect(() => {
     // Only connect if we're in the browser environment
-    const s = io(process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:5000")
+    const s = io(process.env.NEXT_PUBLIC_API_URL)
     setSocket(s)
 
     s.on("auctionUpdate", (data) => {

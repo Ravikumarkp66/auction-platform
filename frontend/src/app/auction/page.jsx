@@ -75,7 +75,7 @@ export default function AuctionDashboard() {
   }, [])
 
   const fetchTournaments = () => {
-    fetch("http://localhost:5000/api/tournaments")
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournaments`)
       .then(res => res.ok ? res.json() : Promise.reject("Offline"))
       .then(data => {
         setPastTournaments(data)
@@ -218,7 +218,7 @@ export default function AuctionDashboard() {
 
     try {
       setLoading(true);
-      const res = await fetch("http://localhost:5000/api/upload", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/upload`, {
         method: "POST",
         body: formData
       });
@@ -241,7 +241,7 @@ export default function AuctionDashboard() {
 
     setLoading(true)
     try {
-      const res = await fetch("http://localhost:5000/api/tournaments", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournaments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
