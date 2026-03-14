@@ -1,0 +1,320 @@
+export const translations = {
+  en: {
+    navbar: {
+      home: "Home",
+      services: "Services",
+      tournaments: "Past Tournaments",
+      auction: "Live Auction",
+      about: "About",
+      contact: "Contact",
+      bookMe: "Book Me",
+    },
+    hero: {
+      title1: "Professional Auctioneer &",
+      title2: "Cricket Commentator",
+      subtitle: "Elevating local cricket tournaments with high-energy player auctions and immersive live commentary. Bring professional standards to your next big event.",
+      bookBtn: "Book Tournament",
+      viewBtn: "View Services",
+    },
+    home: {
+      aboutTitle: "About Me",
+      aboutHeading: "Elevating the Game Experience",
+      aboutDesc: "With over 5 years of experience in local and regional cricket, I bring the professional stadium atmosphere directly to your local tournaments. From high-stakes player auctions to thrilling ball-by-ball commentary.",
+      readMore: "Read full story \u2192",
+      servicesTitle: "Premier Services",
+      servicesDesc: "Everything you need to make your tournament a massive success.",
+      tournamentsTitle: "Recent Tournaments",
+      tournamentsDesc: "Highlights from previous successful events.",
+      viewAll: "View All \u2192",
+      viewAllBtn: "View All Tournaments \u2192",
+      ctaTitle1: "Ready to upgrade your tournament?",
+      ctaTitle2: "Book my services today.",
+      ctaBook: "Book Now",
+      ctaContact: "Contact Me"
+    },
+    services: {
+      title1: "Professional",
+      title2: "Services",
+      subtitle: "Comprehensive solutions to elevate your cricket tournament from local matches to professional-level events.",
+      customTitle: "Need a custom package?",
+      customDesc: "Hosting a multi-day tournament or need both auction and commentary services for the entire event? Let's discuss a customized package that fits your budget.",
+      customBtn: "Contact for Custom Quote",
+      auctionTitle: "Player Auction Hosting",
+      auctionDesc: "Professional IPL-style auction experience with dynamic presentation, engaging bidding wars, and complete team squad management graphics.",
+      commTitle: "Live Match Commentary",
+      commDesc: "High-energy commentary available in multiple languages including English, Hindi, and regional languages. Expert analysis and crowd engagement guaranteed."
+    },
+    tournaments: {
+      title1: "Past",
+      title2: "Tournaments",
+      subtitle: "A showcase of the local and regional leagues where I've delivered professional auction and commentary experiences."
+    },
+    booking: {
+      title1: "Book",
+      title2: "My Services",
+      subtitle: "Fill out the form below to check availability and get a quote for your upcoming tournament.",
+      formName: "Tournament Name",
+      formNamePlaceholder: "e.g. Summer Blast T20",
+      formLocation: "Location / Ground",
+      formDate: "Expected Date",
+      formTeams: "Number of Teams",
+      formPhone: "Contact Phone Number",
+      formServices: "Services Needed",
+      formAuction: "Player Auction",
+      formComm: "Live Commentary",
+      formMessage: "Message / Special Requirements",
+      formMessagePlaceholder: "Tell me more about your tournament...",
+      formSubmit: "Submit Booking Request"
+    },
+    about: {
+      title1: "About",
+      title2: "Me",
+      subtitle: "Voice of the Game. Master of the Gavel.",
+      p1: "What started as a passion for the gentleman's game has evolved into a professional career spanning over 5 years. I specialize in bringing the grand, stadium-like atmosphere to local and regional cricket tournaments across the country.",
+      p2: "My journey began with simple live commentary for community matches. Today, I host full-scale, IPL-style player auctions creating an electric atmosphere even before the first ball is bowled.",
+      p3: "I believe that every tournament, regardless of its scale, deserves professional execution. By combining energetic ball-by-ball commentary with flawless auction management, I ensure that players feel like superstars and audiences remain captivated throughout the event.",
+      statsAuctions: "Auctions Hosted",
+      statsMatches: "Matches Called"
+    },
+    contact: {
+      title1: "Get in",
+      title2: "Touch",
+      subtitle: "Ready to take your tournament to the next level? Reach out directly via any of the channels below.",
+      infoTitle: "Contact Information",
+      phone: "Phone",
+      whatsapp: "WhatsApp",
+      msgNow: "Message Now",
+      email: "Email",
+      socialTitle: "Social Media",
+      msgTitle: "Send a quick message",
+      msgDesc: "For detailed quotes, please use the Booking Form.",
+      formName: "Name",
+      formEmail: "Email",
+      formMessage: "Message",
+      formSubmit: "Send Message"
+    },
+    footer: {
+      desc: "Professional cricket commentary and auction hosting services for local and regional tournaments.",
+      quickLinks: "Quick Links",
+      connect: "Connect",
+      rights: "All rights reserved."
+    },
+    common: {
+      startingFrom: "Starting from",
+      perMatch: "/ match",
+      perDay: "/ day"
+    }
+  },
+  hi: {
+    navbar: {
+      home: "होम",
+      services: "सेवाएं",
+      tournaments: "पिछले टूर्नामेंट",
+      auction: "लाइव नीलामी",
+      about: "हमारे बारे में",
+      contact: "संपर्क करें",
+      bookMe: "मुझे बुक करें",
+    },
+    hero: {
+      title1: "प्रोफेशनल ऑक्शनियर और",
+      title2: "क्रिकेट कमेंटेटर",
+      subtitle: "ऊर्जावान प्लेयर नीलामी और लाइव कमेंट्री के साथ स्थानीय क्रिकेट टूर्नामेंट को पेशेवर स्तर पर ले जाएं। अपने अगले बड़े आयोजन को एक शानदार अनुभव बनाएं।",
+      bookBtn: "टूर्नामेंट बुक करें",
+      viewBtn: "सेवाएं देखें",
+    },
+    home: {
+      aboutTitle: "मेरे बारे में",
+      aboutHeading: "खेल के अनुभव को बेहतर बनाना",
+      aboutDesc: "स्थानीय और क्षेत्रीय क्रिकेट में 5 साल से अधिक के अनुभव के साथ, मैं सीधे आपके स्थानीय टूर्नामेंट में स्टेडियम का जीवंत माहौल लाता हूं। हाई-स्टेक नीलामी से लेकर रोमांचक गेंद-दर-गेंद कमेंट्री तक।",
+      readMore: "पूरी कहानी पढ़ें \u2192",
+      servicesTitle: "प्रमुख सेवाएं",
+      servicesDesc: "आपके टूर्नामेंट को सफल बनाने के लिए जो कुछ भी चाहिए।",
+      tournamentsTitle: "हाल के टूर्नामेंट",
+      tournamentsDesc: "पिछले सफल आयोजनों की झलकियां।",
+      viewAll: "सभी देखें \u2192",
+      viewAllBtn: "सभी टूर्नामेंट देखें \u2192",
+      ctaTitle1: "क्या आप अपने टूर्नामेंट को अपग्रेड करने के लिए तैयार हैं?",
+      ctaTitle2: "आज ही मेरी सेवाएं बुक करें।",
+      ctaBook: "अभी बुक करें",
+      ctaContact: "संपर्क करें"
+    },
+    services: {
+      title1: "प्रोफेशनल",
+      title2: "सेवाएं",
+      subtitle: "आपके क्रिकेट टूर्नामेंट को स्थानीय मैचों से पेशेवर स्तर के आयोजनों तक ले जाने के लिए व्यापक समाधान।",
+      customTitle: "क्या आपको एक कस्टम पैकेज चाहिए?",
+      customDesc: "क्या आप बहु-दिवसीय टूर्नामेंट आयोजित कर रहे हैं या पूरे आयोजन के लिए नीलामी और कमेंट्री दोनों की आवश्यकता है? आइए आपके बजट के अनुकूल पैकेज पर चर्चा करें।",
+      customBtn: "कस्टम उद्धरण के लिए संपर्क करें",
+      auctionTitle: "प्लेयर ऑक्शन होस्टिंग",
+      auctionDesc: "शानदार प्रस्तुति, रोमांचक बोली और पूरी टीम स्क्वॉड प्रबंधन ग्राफिक्स के साथ आईपीएल-शैली नीलामी का पेशेवर अनुभव।",
+      commTitle: "लाइव मैच कमेंट्री",
+      commDesc: "हिंदी, अंग्रेजी और क्षेत्रीय भाषाओं में उपलब्ध ऊर्जावान कमेंट्री। विशेषज्ञ विश्लेषण और दर्शकों का मनोरंजन सुनिश्चित।"
+    },
+    tournaments: {
+      title1: "पिछले",
+      title2: "टूर्नामेंट",
+      subtitle: "स्थानीय और क्षेत्रीय लीगों की झलक, जहां मैंने पेशेवर नीलामी और कमेंट्री का अनुभव प्रदान किया है।"
+    },
+    booking: {
+      title1: "मेरी सेवाएं",
+      title2: "बुक करें",
+      subtitle: "उपलब्धता की जांच करने और अपने आगामी टूर्नामेंट के लिए उद्धरण प्राप्त करने के लिए नीचे दिया गया फॉर्म भरें।",
+      formName: "टूर्नामेंट का नाम",
+      formNamePlaceholder: "उदा. समर ब्लास्ट टी20",
+      formLocation: "स्थान / मैदान",
+      formDate: "संभावित तिथि",
+      formTeams: "टीमों की संख्या",
+      formPhone: "संपर्क नंबर",
+      formServices: "आवश्यक सेवाएं",
+      formAuction: "प्लेयर ऑक्शन",
+      formComm: "लाइव कमेंट्री",
+      formMessage: "संदेश / विशेष आवश्यकताएं",
+      formMessagePlaceholder: "मुझे अपने टूर्नामेंट के बारे में और बताएं...",
+      formSubmit: "बुकिंग अनुरोध सबमिट करें"
+    },
+    about: {
+      title1: "मेरे",
+      title2: "बारे में",
+      subtitle: "खेल की आवाज़। मंच का मास्टर।",
+      p1: "सज्जनों के खेल के लिए जुनून के रूप में जो शुरू हुआ, वह 5 से अधिक वर्षों में फैले एक पेशेवर करियर में विकसित हो गया है। मैं देश भर में स्थानीय और क्षेत्रीय क्रिकेट टूर्नामेंटों में भव्य, स्टेडियम जैसा माहौल लाने में माहिर हूं।",
+      p2: "मेरी यात्रा सामुदायिक मैचों के लिए सरल लाइव कमेंट्री से शुरू हुई थी। आज, मैं पूर्ण पैमाने पर, आईपीएल शैली की खिलाड़ी नीलामियों की मेजबानी करता हूं, जो पहली गेंद फेंके जाने से पहले ही एक उत्साहपूर्ण माहौल तैयार करती हैं।",
+      p3: "मेरा मानना ​​है कि हर टूर्नामेंट, चाहे उसका पैमाना कुछ भी हो, पेशेवर निष्पादन का हकदार है। निर्दोष नीलामी प्रबंधन के साथ ऊर्जावान गेंद-दर-गेंद कमेंट्री को मिलाकर, मैं यह सुनिश्चित करता हूं कि खिलाड़ी सुपरस्टार की तरह महसूस करें और दर्शक पूरे आयोजन के दौरान मंत्रमुग्ध रहें।",
+      statsAuctions: "आयोजित नीलामियां",
+      statsMatches: "कवर किए गए मैच"
+    },
+    contact: {
+      title1: "संपर्क",
+      title2: "करें",
+      subtitle: "अपने टूर्नामेंट को अगले स्तर पर ले जाने के लिए तैयार हैं? नीचे दिए गए किसी भी चैनल के माध्यम से सीधे संपर्क करें।",
+      infoTitle: "संपर्क जानकारी",
+      phone: "फ़ोन",
+      whatsapp: "व्हाट्सएप",
+      msgNow: "संदेश भेजें",
+      email: "ईमेल",
+      socialTitle: "सोशल मीडिया",
+      msgTitle: "त्वरित संदेश भेजें",
+      msgDesc: "विस्तृत उद्धरण के लिए, कृपया बुकिंग फॉर्म का उपयोग करें।",
+      formName: "नाम",
+      formEmail: "ईमेल",
+      formMessage: "संदेश",
+      formSubmit: "संदेश भेजें"
+    },
+    footer: {
+      desc: "स्थानीय और क्षेत्रीय टूर्नामेंटों के लिए पेशेवर क्रिकेट कमेंट्री और नीलामी होस्टिंग सेवाएं।",
+      quickLinks: "त्वरित लिंक",
+      connect: "जुड़ें",
+      rights: "सर्वाधिकार सुरक्षित।"
+    },
+    common: {
+      startingFrom: "शुरुआती कीमत",
+      perMatch: "/ मैच",
+      perDay: "/ दिन"
+    }
+  },
+  kn: {
+    navbar: {
+      home: "ಮುಖಪುಟ",
+      services: "ಸೇವೆಗಳು",
+      tournaments: "ಹಿಂದಿನ ಪಂದ್ಯಾವಳಿಗಳು",
+      auction: "ಲೈವ್ ಹರಾಜು",
+      about: "ನಮ್ಮ ಬಗ್ಗೆ",
+      contact: "ಸಂಪರ್ಕಿಸಿ",
+      bookMe: "ನನ್ನನ್ನು ಬುಕ್ ಮಾಡಿ",
+    },
+    hero: {
+      title1: "ವೃತ್ತಿಪರ ಹರಾಜುದಾರ ಮತ್ತು",
+      title2: "ಕ್ರಿಕೆಟ್ ಕಾಮೆಂಟೇಟರ್",
+      subtitle: "ಅತ್ಯುನ್ನತ ಶಕ್ತಿಯ ಆಟಗಾರರ ಹರಾಜು ಮತ್ತು ನೇರ ಕಾಮೆಂಟರಿಯೊಂದಿಗೆ ಸ್ಥಳೀಯ ಕ್ರಿಕೆಟ್ ಪಂದ್ಯಾವಳಿಗಳನ್ನು ವೃತ್ತಿಪರ ಮಟ್ಟಕ್ಕೆ ಕೊಂಡೊಯ್ಯುವುದು.",
+      bookBtn: "ಪಂದ್ಯಾವಳಿಯನ್ನು ಬುಕ್ ಮಾಡಿ",
+      viewBtn: "ಸೇವೆಗಳನ್ನು ವೀಕ್ಷಿಸಿ",
+    },
+    home: {
+      aboutTitle: "ನನ್ನ ಬಗ್ಗೆ",
+      aboutHeading: "ಆಟದ ಅನುಭವವನ್ನು ಹೆಚ್ಚಿಸುವುದು",
+      aboutDesc: "ಸ್ಥಳೀಯ ಮತ್ತು ಪ್ರಾದೇಶಿಕ ಕ್ರಿಕೆಟ್‌ನಲ್ಲಿ 5 ವರ್ಷಗಳಿಗಿಂತ ಹೆಚ್ಚಿನ ಅನುಭವದೊಂದಿಗೆ, ನಾನು ನೇರವಾಗಿ ನಿಮ್ಮ ಸ್ಥಳೀಯ ಪಂದ್ಯಾವಳಿಗಳಿಗೆ ಸ್ಟೇಡಿಯಂನ ವಾತಾವರಣವನ್ನು ತರುತ್ತೇನೆ. ಹೈ-ಸ್ಟೇಕ್ಸ್ ಹರಾಜಿನಿಂದ ರೋಮಾಂಚಕ ಕಾಮೆಂಟರಿಯವರೆಗೆ.",
+      readMore: "ಪೂರ್ಣ ಕಥೆಯನ್ನು ಓದಿ \u2192",
+      servicesTitle: "ಪ್ರಮುಖ ಸೇವೆಗಳು",
+      servicesDesc: "ನಿಮ್ಮ ಪಂದ್ಯಾವಳಿಯನ್ನು ಬೃಹತ್ ಯಶಸ್ಸನ್ನಾಗಿಸಲು ಬೇಕಾದ ಎಲ್ಲವೂ.",
+      tournamentsTitle: "ಇತ್ತೀಚಿನ ಪಂದ್ಯಾವಳಿಗಳು",
+      tournamentsDesc: "ಹಿಂದಿನ ಯಶಸ್ವಿ ಕಾರ್ಯಕ್ರಮಗಳ ಮುಖ್ಯಾಂಶಗಳು.",
+      viewAll: "ಎಲ್ಲವನ್ನೂ ವೀಕ್ಷಿಸಿ \u2192",
+      viewAllBtn: "ಎಲ್ಲಾ ಪಂದ್ಯಾವಳಿಗಳನ್ನು ವೀಕ್ಷಿಸಿ \u2192",
+      ctaTitle1: "ನಿಮ್ಮ ಪಂದ್ಯಾವಳಿಯನ್ನು ಅಪ್‌ಗ್ರೇಡ್ ಮಾಡಲು ಸಿದ್ಧರಿದ್ದೀರಾ?",
+      ctaTitle2: "ಇಂದು ನನ್ನ ಸೇವೆಗಳನ್ನು ಬುಕ್ ಮಾಡಿ.",
+      ctaBook: "ಈಗ ಬುಕ್ ಮಾಡಿ",
+      ctaContact: "ನನ್ನನ್ನು ಸಂಪರ್ಕಿಸಿ"
+    },
+    services: {
+      title1: "ವೃತ್ತಿಪರ",
+      title2: "ಸೇವೆಗಳು",
+      subtitle: "ನಿಮ್ಮ ಕ್ರಿಕೆಟ್ ಪಂದ್ಯಾವಳಿಯನ್ನು ಸ್ಥಳೀಯ ಪಂದ್ಯಗಳಿಂದ ವೃತ್ತಿಪರ-ಮಟ್ಟದ ಈವೆಂಟ್‌ಗಳಿಗೆ ಏರಿಸಲು ಸಮಗ್ರ ಪರಿಹಾರಗಳು.",
+      customTitle: "ಕಸ್ಟಮ್ ಪ್ಯಾಕೇಜ್ ಬೇಕೇ?",
+      customDesc: "ಹಲವಾರು ದಿನಗಳ ಪಂದ್ಯಾವಳಿಯನ್ನು ಆಯೋಜಿಸುತ್ತಿದ್ದೀರಾ ಅಥವಾ ಸಂಪೂರ್ಣ ಈವೆಂಟ್‌ಗೆ ಹರಾಜು ಮತ್ತು ಕಾಮೆಂಟರಿ ಎರಡೂ ಸೇವೆಗಳು ಬೇಕೇ? ಬಜೆಟ್‌ಗೆ ಸರಿಹೊಂದುವ ಪ್ಯಾಕೇಜ್ ಅನ್ನು ಚರ್ಚಿಸೋಣ.",
+      customBtn: "ಕಸ್ಟಮ್ ಕೋಟ್‌ಗಾಗಿ ಸಂಪರ್ಕಿಸಿ",
+      auctionTitle: "ಪ್ಲೇಯರ್ ಆಕ್ಷನ್ ಹೋಸ್ಟಿಂಗ್",
+      auctionDesc: "ಡೈನಾಮಿಕ್ ಪ್ರಸ್ತುತಿ, ಆಕರ್ಷಕ ಬಿಡ್ಡಿಂಗ್ ಮತ್ತು ಸಂಪೂರ್ಣ ತಂಡದ ಸ್ಕ್ವಾಡ್ ನಿರ್ವಹಣೆ ಗ್ರಾಫಿಕ್ಸ್‌ನೊಂದಿಗೆ IPL-ಶೈಲಿಯ ಹರಾಜು ಅನುಭವ.",
+      commTitle: "ಲೈವ್ ಮ್ಯಾಚ್ ಕಾಮೆಂಟರಿ",
+      commDesc: "ಕನ್ನಡ, ಹಿಂದಿ ಮತ್ತು ಇಂಗ್ಲಿಷ್ ಸೇರಿದಂತೆ ಬಹು ಭಾಷೆಗಳಲ್ಲಿ ಕಾಮೆಂಟರಿ ಲಭ್ಯವಿದೆ. ತಜ್ಞರ ವಿಶ್ಲೇಷಣೆ ಖಾತರಿ."
+    },
+    tournaments: {
+      title1: "ಹಿಂದಿನ",
+      title2: "ಪಂದ್ಯಾವಳಿಗಳು",
+      subtitle: "ನಾನು ವೃತ್ತಿಪರ ಹರಾಜು ಮತ್ತು ಕಾಮೆಂಟರಿ ಅನುಭವಗಳನ್ನು ನೀಡಿದ ಸ್ಥಳೀಯ ಮತ್ತು ಪ್ರಾದೇಶಿಕ ಲೀಗ್‌ಗಳ ಪ್ರದರ್ಶನ."
+    },
+    booking: {
+      title1: "ನನ್ನ ಸೇವೆಗಳನ್ನು",
+      title2: "ಬುಕ್ ಮಾಡಿ",
+      subtitle: "ನಿಮ್ಮ ಮುಂಬರುವ ಪಂದ್ಯಾವಳಿಗೆ ಲಭ್ಯತೆಯನ್ನು ಪರಿಶೀಲಿಸಲು ಮತ್ತು ಕೋಟ್ ಪಡೆಯಲು ಈ ಫಾರ್ಮ್ ಅನ್ನು ಭರ್ತಿ ಮಾಡಿ.",
+      formName: "ಪಂದ್ಯಾವಳಿಯ ಹೆಸರು",
+      formNamePlaceholder: "ಉದಾ. ಸಮ್ಮರ್ ಬ್ಲಾಸ್ಟ್ ಟಿ20",
+      formLocation: "ಸ್ಥಳ / ಮೈದಾನ",
+      formDate: "ನಿರೀಕ್ಷಿತ ದಿನಾಂಕ",
+      formTeams: "ತಂಡಗಳ ಸಂಖ್ಯೆ",
+      formPhone: "ಸಂಪರ್ಕ ಸಂಖ್ಯೆ",
+      formServices: "ಅಗತ್ಯವಿರುವ ಸೇವೆಗಳು",
+      formAuction: "ಪ್ಲೇಯರ್ ಆಕ್ಷನ್",
+      formComm: "ಲೈವ್ ಕಾಮೆಂಟರಿ",
+      formMessage: "ಸಂದೇಶ / ವಿಶೇಷ ಅಗತ್ಯಗಳು",
+      formMessagePlaceholder: "ನಿಮ್ಮ ಪಂದ್ಯಾವಳಿಯ ಬಗ್ಗೆ ನನಗೆ ಇನ್ನಷ್ಟು ತಿಳಿಸಿ...",
+      formSubmit: "ಬುಕಿಂಗ್ ವಿನಂತಿಯನ್ನು ಸಲ್ಲಿಸಿ"
+    },
+    about: {
+      title1: "ನನ್ನ",
+      title2: "ಬಗ್ಗೆ",
+      subtitle: "ಆಟದ ಧ್ವನಿ. ಹರಾಜಿನ ಮಾಸ್ಟರ್.",
+      p1: "ಕ್ರಿಕೆಟ್ ಮೇಲಿನ ಒಲವಾಗಿ ಪ್ರಾರಂಭವಾದದ್ದು 5 ವರ್ಷಗಳಿಗಿಂತಲೂ ಹೆಚ್ಚು ಕಾಲ ವ್ಯಾಪಿಸಿರುವ ವೃತ್ತಿಪರ ವೃತ್ತಿಯಾಗಿ ವಿಕಸನಗೊಂಡಿದೆ. ದೇಶದಾದ್ಯಂತ ಸ್ಥಳೀಯ ಮತ್ತು ಪ್ರಾದೇಶಿಕ ಕ್ರಿಕೆಟ್ ಪಂದ್ಯಾವಳಿಗಳಿಗೆ ಭವ್ಯವಾದ, ಸ್ಟೇಡಿಯಂ-ತರಹದ ವಾತಾವರಣವನ್ನು ತರುವುದರಲ್ಲಿ ನಾನು ಪರಿಣತಿ ಹೊಂದಿದ್ದೇನೆ.",
+      p2: "ನನ್ನ ಪ್ರಯಾಣವು ಸಮುದಾಯ ಪಂದ್ಯಗಳಿಗೆ ಸರಳ ಲೈವ್ ಕಾಮೆಂಟರಿಯೊಂದಿಗೆ ಪ್ರಾರಂಭವಾಯಿತು. ಇಂದು, ನಾನು ಮೊದಲನೇ ಚೆಂಡನ್ನು ಬೌಲ್ ಮಾಡುವ ಮೊದಲೇ ವಿದ್ಯುದ್ದೀಕರಿಸುವ ವಾತಾವರಣವನ್ನು ಸೃಷ್ಟಿಸುವ ಪೂರ್ಣ-ಪ್ರಮಾಣದ, ಐಪಿಎಲ್-ಶೈಲಿಯ ಆಟಗಾರರ ಹರಾಜನ್ನು ಆಯೋಜಿಸುತ್ತೇನೆ.",
+      p3: "ಪ್ರತಿಯೊಂದು ಪಂದ್ಯಾವಳಿಯು ಅದರ ಪ್ರಮಾಣವನ್ನು ಲೆಕ್ಕಿಸದೆ ವೃತ್ತಿಪರ ಮರಣದಂಡನೆಗೆ ಅರ್ಹವಾಗಿದೆ ಎಂದು ನಾನು ನಂಬುತ್ತೇನೆ. ದೋಷರಹಿತ ಹರಾಜು ನಿರ್ವಹಣೆಯೊಂದಿಗೆ ಶಕ್ತಿಯುತ ಕಾಮೆಂಟರಿಯನ್ನು ಸಂಯೋಜಿಸುವ ಮೂಲಕ, ಆಟಗಾರರು ಸೂಪರ್‌ಸ್ಟಾರ್‌ಗಳಂತೆ ಭಾವಿಸುವುದನ್ನು ನಾನು ಖಚಿತಪಡಿಸಿಕೊಳ್ಳುತ್ತೇನೆ.",
+      statsAuctions: "ನಡೆಸಿದ ಹರಾಜುಗಳು",
+      statsMatches: "ಕವರ್ ಮಾಡಿದ ಪಂದ್ಯಗಳು"
+    },
+    contact: {
+      title1: "ಸಂಪರ್ಕ",
+      title2: "ಮಾಡಿ",
+      subtitle: "ನಿಮ್ಮ ಪಂದ್ಯಾವಳಿಯನ್ನು ಮುಂದಿನ ಹಂತಕ್ಕೆ ಕೊಂಡೊಯ್ಯಲು ಸಿದ್ಧರಿದ್ದೀರಾ? ಕೆಳಗಿನ ಯಾವುದೇ ಚಾನಲ್‌ಗಳ ಮೂಲಕ ನೇರವಾಗಿ ತಲುಪಿ.",
+      infoTitle: "ಸಂಪರ್ಕ ಮಾಹಿತಿ",
+      phone: "ಫೋನ್",
+      whatsapp: "ವಾಟ್ಸಾಪ್",
+      msgNow: "ಮಸೇಜ್ ಮಾಡಿ",
+      email: "ಇಮೇಲ್",
+      socialTitle: "ಸಾಮಾಜಿಕ ಮಾಧ್ಯಮ",
+      msgTitle: "ತ್ವರಿತ ಸಂದೇಶ ಕಳುಹಿಸಿ",
+      msgDesc: "ವಿವರವಾದ ಉಲ್ಲೇಖಗಳಿಗಾಗಿ, ದಯವಿಟ್ಟು ಬುಕಿಂಗ್ ಫಾರ್ಮ್ ಬಳಸಿ.",
+      formName: "ಹೆಸರು",
+      formEmail: "ಇಮೇಲ್",
+      formMessage: "ಸಂದೇಶ",
+      formSubmit: "ಸಂದೇಶ ಕಳುಹಿಸಿ"
+    },
+    footer: {
+      desc: "ಸ್ಥಳೀಯ ಮತ್ತು ಪ್ರಾದೇಶಿಕ ಪಂದ್ಯಾವಳಿಗಳಿಗೆ ವೃತ್ತಿಪರ ಕ್ರಿಕೆಟ್ ಕಾಮೆಂಟರಿ ಮತ್ತು ಹರಾಜು ಹೋಸ್ಟ್ ಸೇವೆಗಳು.",
+      quickLinks: "ತ್ವರಿತ ಲಿಂಕ್‌ಗಳು",
+      connect: "ಸಂಪರ್ಕಿಸಿ",
+      rights: "ಎಲ್ಲಾ ಹಕ್ಕುಗಳನ್ನು ಕಾಯ್ದಿರಿಸಲಾಗಿದೆ."
+    },
+    common: {
+      startingFrom: "ಪ್ರಾರಂಭಿಕ ಬೆಲೆ",
+      perMatch: "/ ಪಂದ್ಯಕ್ಕೆ",
+      perDay: "/ ದಿನಕ್ಕೆ"
+    }
+  }
+};

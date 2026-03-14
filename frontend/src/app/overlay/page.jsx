@@ -1,0 +1,555 @@
+"use client"
+
+import { useEffect, useState } from "react"
+import { io } from "socket.io-client"
+import Image from "next/image"
+
+export default function OverlayPage() {
+  const [auction, setAuction] = useState(null)
+  const [socket, setSocket] = useState(null)
+
+  useEffect(() => {
+    // Only connect if we're in the browser environment
+    const s = io(process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:5000")
+    setSocket(s)
+
+    s.on("auctionUpdate", (data) => {
+      setAuction(data)
+    })
+
+    return () => s.disconnect()
+  }, [])
+
+  if (!auction || !auction.player) {
+    return (
+      <div className="min-h-screen bg-[#0a0f18] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-6">
+          <div className="w-24 h-24 border-8 border-slate-800 border-t-emerald-500 rounded-full animate-spin"></div>
+          <p className="text-slate-500 font-black animate-pulse text-4xl uppercase tracking-[0.5em]">
+            WAITING FOR BROADCAST
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  const { player, currentBid, highestBidder, highestBidderLogo, tournamentName, teams, roundHistory } = auction
+  const normalizedStatus = (player?.status || "").toString().trim().toLowerCase()
+  const isSold = normalizedStatus === "sold"
+  const isUnsold = normalizedStatus === "unsold"
+  const bidAmount = Number(currentBid || 0)
+  const baseAmount = Number(player?.basePrice || 0)
+  const soldAmount = Number((player?.soldPrice ?? currentBid) || 0)
+
+  return (
+    <div className="h-dvh w-[100vw] bg-[#0a0f18] text-white flex flex-col overflow-hidden font-sans selection:bg-transparent relative">
+      {/* Dynamic Background Effects */}
+      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
+        <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-emerald-900/20 blur-[150px]"></div>
+        <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-blue-900/20 blur-[150px]"></div>
+        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10 mix-blend-overlay"></div>
+      </div>
+
+      <div className="relative z-10 flex flex-col w-full h-dvh md:h-[calc(100vh-72px)] p-4 md:p-6 lg:p-10 gap-5 mx-auto max-w-[1920px] pb-[env(safe-area-inset-bottom)]">
+
+        <div className="md:hidden flex items-center justify-between bg-slate-900/80 backdrop-blur-xl border border-slate-800 px-4 py-3 rounded-2xl shadow-2xl shrink-0">
+          <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/30 px-3 py-1.5 rounded-full">
+            <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-[pulse_1s_ease-in-out_infinite] shadow-[0_0_12px_rgba(239,68,68,0.8)]"></span>
+            <span className="text-red-500 font-black uppercase tracking-widest text-xs">LIVE</span>
+          </div>
+          <div className="text-slate-300 font-black uppercase tracking-[0.25em] text-xs truncate max-w-[65%] text-right">
+            {tournamentName || "PC-26 AUCTION"}
+          </div>
+        </div>
+
+        <section className="md:hidden flex flex-col gap-4 min-h-0 overflow-y-auto pr-1">
+          <div className="grid grid-cols-[96px_1fr] gap-4 bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-2xl p-4 shadow-xl">
+            <div className="relative w-24 h-32 rounded-xl overflow-hidden border border-slate-800/80" style={{ background: 'radial-gradient(ellipse at center, #14213d 0%, #080c14 100%)' }}>
+              <Image
+                src={player.image || player.imageUrl || player.placeholder}
+                alt={player.name}
+                fill
+                sizes="96px"
+                className={`object-contain transition-all duration-700 ${
+                  normalizedStatus !== 'available' && normalizedStatus !== 'auction'
+                    ? 'grayscale opacity-50'
+                    : ''
+                }`}
+                unoptimized
+              />
+            </div>
+            <div className="min-w-0">
+              <div className="text-emerald-400/80 font-black uppercase tracking-[0.35em] text-[10px]">Player</div>
+              <div className="font-black uppercase text-white leading-tight text-lg truncate">{player.name}</div>
+              <div className="text-slate-400 font-bold uppercase tracking-wider text-xs mt-1 truncate">
+                {player.role}{player.age ? ` • ${player.age}` : ""}{(player.village || player.town) ? ` • ${(player.village || player.town)}` : ""}
+              </div>
+              {isSold && (
+                <div className="mt-2 inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/25 px-3 py-1.5 rounded-full">
+                  <span className="text-emerald-300 font-black uppercase tracking-widest text-[10px]">SOLD</span>
+                </div>
+              )}
+              {isUnsold && (
+                <div className="mt-2 inline-flex items-center gap-2 bg-red-500/10 border border-red-500/25 px-3 py-1.5 rounded-full">
+                  <span className="text-red-300 font-black uppercase tracking-widest text-[10px]">UNSOLD</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-2xl p-4 shadow-xl text-center">
+            {isSold ? (
+              <>
+                <div className="font-black uppercase tracking-[0.45em] text-[10px] text-emerald-400">FINAL PRICE</div>
+                <div className="mt-2 font-black tabular-nums leading-none" style={{ fontSize: 'clamp(42px, 10vw, 64px)', color: '#34d399', textShadow: '0 0 22px rgba(52,211,153,0.35)' }}>
+                  ₹{soldAmount.toLocaleString()}
+                </div>
+              </>
+            ) : isUnsold ? (
+              <>
+                <div className="font-black uppercase tracking-[0.45em] text-[10px] text-red-400">STATUS</div>
+                <div className="mt-2 font-black tabular-nums leading-none" style={{ fontSize: 'clamp(32px, 8vw, 44px)', color: '#f87171', textShadow: '0 0 18px rgba(248,113,113,0.25)' }}>
+                  UNSOLD
+                </div>
+              </>
+            ) : (
+              <>
+                <div className={`font-black uppercase tracking-[0.45em] text-[10px] ${
+                  bidAmount > 0 && bidAmount > baseAmount
+                    ? 'text-emerald-400'
+                    : 'text-slate-500'
+                }`}> {bidAmount > 0 && bidAmount > baseAmount ? "CURRENT BID" : "BASE PRICE"}</div>
+                <div className="mt-2 font-black tabular-nums leading-none" style={{ fontSize: 'clamp(42px, 10vw, 64px)', color: bidAmount > 0 ? '#34d399' : '#94a3b8', textShadow: bidAmount > 0 ? '0 0 22px rgba(52,211,153,0.35)' : '0 0 18px rgba(148,163,184,0.18)' }}>
+                  ₹{(bidAmount > 0 ? bidAmount : baseAmount).toLocaleString()}
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-2xl p-4 shadow-xl">
+            <div className="text-slate-500 font-black uppercase tracking-[0.4em] text-[10px] text-center">{isSold ? "SOLD TO" : "LEADING TEAM"}</div>
+            {highestBidder ? (
+              <div className="mt-3 flex items-center justify-center gap-3">
+                <div className={`w-11 h-11 rounded-xl p-1 shrink-0 border ${isSold ? 'bg-emerald-500/10 border-emerald-500/25' : 'bg-black/40 border-white/10'}`}>
+                  {highestBidderLogo
+                    ? <img src={highestBidderLogo} className="w-full h-full object-contain" alt="leading" />
+                    : <div className="text-lg flex items-center justify-center h-full">🛡️</div>
+                  }
+                </div>
+                <div className="font-black uppercase text-white tracking-tight text-lg truncate max-w-[75%]">{highestBidder}</div>
+              </div>
+            ) : (
+              <div className="mt-3 border border-dashed border-slate-800/80 rounded-xl flex items-center justify-center py-3 opacity-60">
+                <p className="text-slate-500 font-black text-xs uppercase tracking-[0.3em]">Awaiting Bids</p>
+              </div>
+            )}
+          </div>
+
+          <details className="bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-2xl shadow-xl overflow-hidden">
+            <summary className="cursor-pointer select-none px-4 py-3 flex items-center justify-between">
+              <span className="text-emerald-400 text-[10px] font-black uppercase tracking-[0.35em]">Bid History</span>
+              <span className="text-slate-500 text-xs font-black uppercase tracking-widest">{roundHistory?.length ? `${Math.min(roundHistory.length, 5)}` : "0"}</span>
+            </summary>
+            <div className="px-4 pb-4">
+              {(!roundHistory || roundHistory.length === 0) ? (
+                <p className="text-slate-500 font-bold uppercase tracking-wider text-xs">Opening bid pending…</p>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {roundHistory.slice(0, 5).map((h, i) => (
+                    <div key={i} className={`flex items-center justify-between gap-3 px-3 py-2 rounded-xl border ${
+                      i === 0
+                        ? 'bg-emerald-500/10 border-emerald-500/25'
+                        : 'bg-black/20 border-white/5 opacity-80'
+                    }`}>
+                      <div className="min-w-0">
+                        <div className={`text-[10px] font-black uppercase tracking-widest ${i === 0 ? 'text-emerald-300' : 'text-slate-400'}`}>{h.team}</div>
+                      </div>
+                      <div className={`font-black tabular-nums ${i === 0 ? 'text-emerald-400' : 'text-slate-500'}`}>₹{h.bid.toLocaleString()}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </details>
+        </section>
+        
+        {/* SECTION 1: TOP BAR */}
+        <header className="hidden md:flex justify-between items-center bg-slate-900/80 backdrop-blur-xl border border-slate-800 pl-8 pr-6 py-4 rounded-3xl shadow-2xl shrink-0">
+          <h1 className="text-3xl font-black uppercase tracking-[0.4em] text-slate-300 drop-shadow-md">
+            {tournamentName || "PC-26 AUCTION"}
+          </h1>
+          <div className="flex items-center gap-3 bg-red-500/10 border border-red-500/30 px-5 py-2 rounded-full">
+            <span className="w-4 h-4 rounded-full bg-red-500 animate-[pulse_1s_ease-in-out_infinite] shadow-[0_0_15px_rgba(239,68,68,0.8)]"></span>
+            <span className="text-red-500 font-black uppercase tracking-widest text-lg drop-shadow-[0_0_5px_rgba(239,68,68,0.5)]">LIVE</span>
+          </div>
+        </header>
+
+        {/* SECTION 2: TEAM STRIP */}
+        <section className="hidden md:flex shrink-0 gap-3 overflow-x-hidden">
+          {teams && teams.length > 0 ? (
+            <div className="flex-1 grid gap-3 shrink-0 transition-all duration-500" style={{ gridTemplateColumns: `repeat(${Math.max(teams.length, 1)}, minmax(0, 1fr))` }}>
+              {teams.map(team => {
+                const isBidding = team.name === highestBidder;
+                return (
+                  <div
+                    /* key includes highestBidder so the animation class re-mounts & replays every time this team wins a bid */
+                    key={isBidding ? `${team.id}-bidding-${highestBidder}` : team.id}
+                    className={`flex flex-col overflow-hidden relative min-w-0 ${isBidding ? 'team-bid-active' : 'transition-all duration-300'}`}
+                    style={{
+                      background: isBidding
+                        ? 'linear-gradient(160deg, rgba(16,185,129,0.18) 0%, rgba(10,15,24,0.92) 100%)'
+                        : 'rgba(10,15,24,0.65)',
+                      border: isBidding
+                        ? '2px solid rgba(52,211,153,0.7)'
+                        : '1.5px solid rgba(71,85,105,0.3)',
+                      borderRadius: '1.25rem',
+                      /* 4-layer shadow: near glow + wide bloom + inset sheen — projector visible */
+                      boxShadow: isBidding
+                        ? '0 0 0 1px rgba(52,211,153,0.15), 0 0 20px rgba(52,211,153,0.45), 0 0 60px rgba(52,211,153,0.2), inset 0 0 24px rgba(52,211,153,0.08)'
+                        : '0 2px 12px rgba(0,0,0,0.5)',
+                      /* static scale maintained after animation ends */
+                      ...(isBidding ? {} : { transform: 'scale(1)' }),
+                      /* dim non-active cards so active one pops by contrast */
+                      opacity: isBidding ? 1 : (highestBidder ? 0.72 : 1),
+                      zIndex: isBidding ? 3 : 1,
+                    }}
+                  >
+                    {/* Top glow bar — thicker when active */}
+                    <div
+                      className="absolute top-0 inset-x-0 transition-all duration-300"
+                      style={{
+                        height: isBidding ? '3px' : '1px',
+                        background: isBidding
+                          ? 'linear-gradient(90deg, transparent, #34d399, transparent)'
+                          : 'linear-gradient(90deg, transparent, rgba(71,85,105,0.4), transparent)',
+                        boxShadow: isBidding ? '0 0 12px rgba(52,211,153,0.9)' : 'none',
+                      }}
+                    ></div>
+
+                    {/* BIDDING badge — appears only on active card */}
+                    {isBidding && (
+                      <div className="absolute top-2 right-2 bg-emerald-500 text-black text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-md shadow-[0_0_8px_rgba(52,211,153,0.8)] leading-none">
+                        BIDDING ▲
+                      </div>
+                    )}
+
+                    {/* Logo + Name row */}
+                    <div className="flex items-center gap-2.5 px-3 pt-3 pb-2">
+                      {/* Logo with continuous glow pulse when active */}
+                      <div
+                        className={`w-14 h-14 rounded-xl overflow-hidden p-1 shrink-0 flex items-center justify-center transition-all duration-300 ${
+                          isBidding
+                            ? 'bg-emerald-500/10 border border-emerald-500/40 logo-bid-active'
+                            : 'bg-black/40 border border-white/5'
+                        }`}
+                      >
+                        {team.logoUrl
+                          ? <img src={team.logoUrl} className="w-full h-full object-contain" alt="logo" />
+                          : <div className={`text-2xl flex items-center justify-center h-full ${isBidding ? 'logo-bid-active' : ''}`}>🛡️</div>
+                        }
+                      </div>
+                      <span className={`text-sm font-black uppercase tracking-wide leading-tight truncate ${
+                        isBidding ? 'text-emerald-300' : 'text-slate-400'
+                      }`}>{team.shortName || team.name}</span>
+                    </div>
+
+                    {/* Stats row */}
+                    <div className="flex justify-between items-end px-3 pb-3">
+                      <div>
+                        <p className={`text-[9px] font-black uppercase tracking-widest mb-0.5 ${isBidding ? 'text-emerald-600' : 'text-slate-700'}`}>Purse</p>
+                        <p className={`text-base font-black tabular-nums ${
+                          isBidding ? 'text-emerald-400' : 'text-amber-400/80'
+                        }`}>₹{(team.remainingBudget || 0).toLocaleString()}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className={`text-[9px] font-black uppercase tracking-widest mb-0.5 ${isBidding ? 'text-emerald-600' : 'text-slate-700'}`}>Left</p>
+                        <p className={`text-base font-black ${
+                          team.playersCount >= team.maxPlayers
+                            ? 'text-red-400'
+                            : isBidding ? 'text-white' : 'text-slate-400'
+                        }`}>{team.maxPlayers - (team.playersCount || 0)}</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="h-[110px] w-full bg-slate-900/50 rounded-2xl border border-slate-800 flex items-center justify-center">
+               <span className="text-slate-600 font-bold uppercase tracking-widest text-sm">Teams Loading...</span>
+            </div>
+          )}
+        </section>
+
+        {/* SECTION 3: MAIN AUCTION AREA */}
+        <section className="hidden md:grid flex-1 grid-cols-[1fr_1.3fr_1.4fr] gap-5 min-h-0 items-stretch w-full">
+          
+          {/* Left Column: Player Image */}
+          <div className="w-full h-full flex items-center justify-center relative min-h-0">
+            <div
+              className="relative w-full h-full max-w-[360px] rounded-[2.5rem] overflow-hidden border-4 border-slate-800/80 shadow-2xl flex items-center justify-center"
+              style={{
+                /* Dark radial bg — makes letterbox areas around 'contain' image look intentional */
+                background: 'radial-gradient(ellipse at center, #14213d 0%, #080c14 100%)',
+                aspectRatio: '3 / 4',
+              }}
+            >
+              {/* SOLD stamp */}
+              {isSold && (
+                <div className="absolute inset-0 z-20 bg-black/60 backdrop-blur-sm flex items-center justify-center animate-in zoom-in duration-500">
+                  <div className="border-[12px] border-emerald-500 bg-black/80 px-8 py-4 rounded-3xl rotate-[-15deg] shadow-[0_0_80px_rgba(16,185,129,0.8)]">
+                    <span className="text-emerald-500 text-6xl font-black italic uppercase text-center block leading-none">SOLD</span>
+                  </div>
+                </div>
+              )}
+              {/* UNSOLD stamp */}
+              {isUnsold && (
+                <div className="absolute inset-0 z-20 bg-black/60 backdrop-blur-sm flex items-center justify-center animate-in zoom-in duration-500">
+                  <div className="border-[12px] border-red-600 bg-black/80 px-8 py-4 rounded-3xl rotate-[-15deg] shadow-[0_0_80px_rgba(220,38,38,0.8)]">
+                    <span className="text-red-600 text-6xl font-black italic uppercase text-center block leading-none">UNSOLD</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Player photo — object-contain so FULL image always shows, never cropped */}
+              <Image
+                src={player.image || player.imageUrl || player.placeholder}
+                alt={player.name}
+                fill
+                sizes="33vw"
+                className={`object-contain transition-all duration-700 ${
+                  normalizedStatus !== 'available' && normalizedStatus !== 'auction'
+                    ? 'grayscale opacity-50'
+                    : ''
+                }`}
+                unoptimized
+              />
+
+              {/* Subtle corner vignette — frames the photo without hiding any part of it */}
+              <div className="absolute inset-0 z-10 pointer-events-none rounded-[2.5rem]"
+                style={{ boxShadow: 'inset 0 0 60px rgba(0,0,0,0.55)' }}
+              ></div>
+            </div>
+          </div>
+
+
+          {/* Center Column: Player Details */}
+          <div className="flex flex-col justify-center h-full px-4 min-w-0">
+             <div className="space-y-8 w-full min-w-0 flex flex-col items-center text-center">
+                <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-6 py-2 rounded-full w-fit uppercase font-black tracking-[0.4em] text-sm shadow-lg mb-2">
+                  Player Lot
+                </div>
+                
+                <div className="w-full">
+                  <h2
+                    className="font-black uppercase text-white drop-shadow-2xl tracking-tight text-center leading-[1.1]"
+                    style={{
+                      fontSize: 'clamp(2.2rem, 4.5vw, 4rem)',
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden',
+                      overflowWrap: 'break-word',
+                      wordBreak: 'break-word',
+                    }}
+                  >
+                    {player.name}
+                  </h2>
+                </div>
+                
+                <div className="grid grid-cols-1 gap-5 w-full max-w-[80%]">
+                   <div className="bg-slate-900/80 border-l-8 border-emerald-400 p-5 rounded-2xl shadow-xl flex flex-col items-center">
+                      <p className="text-slate-500 font-bold uppercase tracking-[0.3em] text-xs mb-1">Role</p>
+                      <p className="text-3xl font-black text-white uppercase">{player.role}</p>
+                   </div>
+                   
+                   <div className="flex gap-5 w-full">
+                      <div className="bg-slate-900/80 border-l-8 border-blue-400 p-5 rounded-2xl shadow-xl flex-1 flex flex-col items-center min-w-0">
+                         <p className="text-slate-500 font-bold uppercase tracking-[0.3em] text-xs mb-1">Origin</p>
+                         <p className="text-2xl font-black text-blue-100 uppercase truncate w-full">{player.village || player.town}</p>
+                      </div>
+                      <div className="bg-slate-900/80 border-l-8 border-amber-400 p-5 rounded-2xl shadow-xl w-[140px] shrink-0 flex flex-col items-center">
+                         <p className="text-slate-500 font-bold uppercase tracking-[0.3em] text-xs mb-1">Age</p>
+                         <p className="text-3xl font-black text-amber-100 uppercase">{player.age}</p>
+                      </div>
+                   </div>
+                </div>
+             </div>
+          </div>
+
+          {/* Right Column: BID HERO PANEL */}
+          <div className="relative rounded-[2.5rem] overflow-hidden h-full flex flex-col items-center justify-center text-center border border-emerald-500/15 shadow-[0_0_80px_rgba(0,255,150,0.07)] backdrop-blur-xl" style={{ background: 'radial-gradient(ellipse at 50% 40%, rgba(16,185,129,0.12) 0%, rgba(10,15,24,0.95) 65%)' }}>
+            
+            {/* Corner accent lines */}
+            <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-emerald-400/60 to-transparent"></div>
+            <div className="absolute bottom-0 inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-emerald-400/30 to-transparent"></div>
+
+            {isSold ? (
+              <div className="relative z-10 flex flex-col items-center w-full px-6 animate-in zoom-in-95 fade-in duration-500">
+                {/* Sold glow burst */}
+                <div className="absolute inset-0 bg-emerald-500/5 blur-3xl rounded-full scale-75"></div>
+                
+                <p className="text-emerald-400/70 font-black uppercase tracking-[0.5em] text-sm mb-3">Final Price</p>
+                
+                <div
+                  className="font-black text-white tabular-nums leading-none"
+                  style={{ fontSize: 'clamp(80px, 11vw, 140px)', textShadow: '0 0 40px rgba(52,211,153,0.5), 0 0 80px rgba(52,211,153,0.2)' }}
+                >
+                  ₹{soldAmount.toLocaleString()}
+                </div>
+
+                <div className="mt-8 w-full px-4">
+                  <p className="text-slate-400/70 font-bold uppercase tracking-[0.4em] text-sm mb-3">Sold To</p>
+                  <div className="flex items-center gap-4 bg-black/40 border border-white/8 px-6 py-4 rounded-2xl shadow-2xl w-full justify-center">
+                    {highestBidderLogo && (
+                      <div className="w-14 h-14 bg-white/5 rounded-xl p-1.5 shrink-0 border border-white/10">
+                        <img src={highestBidderLogo} className="w-full h-full object-contain" alt="winner" />
+                      </div>
+                    )}
+                    <span className="text-2xl xl:text-3xl font-black uppercase text-white tracking-tight truncate">{highestBidder}</span>
+                  </div>
+                </div>
+              </div>
+
+            ) : isUnsold ? (
+              <div className="relative z-10 flex flex-col items-center animate-in zoom-in-95 fade-in duration-500 px-6">
+                <div className="w-20 h-20 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-5 shadow-[0_0_40px_rgba(239,68,68,0.2)]">
+                  <span className="text-4xl">🚫</span>
+                </div>
+                <h1 className="font-black text-red-500 uppercase italic leading-none" style={{ fontSize: 'clamp(60px,8vw,100px)', textShadow: '0 0 40px rgba(220,38,38,0.5)' }}>UNSOLD</h1>
+                <p className="text-red-400/40 uppercase tracking-[0.4em] text-base mt-5 font-bold">Returned to Pool</p>
+              </div>
+
+            ) : (
+              <div className="relative z-10 w-full flex flex-col items-center h-full justify-center px-4 py-6">
+                
+                {/* Label */}
+                <p className={`font-black uppercase tracking-[0.5em] text-sm mb-4 ${
+                  bidAmount > 0 && bidAmount > baseAmount
+                    ? 'text-emerald-400'
+                    : 'text-slate-500'
+                }`}>
+                  {bidAmount > 0 && bidAmount > baseAmount ? "Current Bid" : "Base Price"}
+                </p>
+
+                {/* HERO NUMBER — the whole point of this panel */}
+                <div className="relative flex items-start justify-center w-full">
+                  {/* Radial glow behind the number */}
+                  <div
+                    className="absolute inset-0 rounded-full blur-[60px] transition-all duration-700"
+                    style={{ background: bidAmount > 0 ? 'radial-gradient(circle, rgba(52,211,153,0.28) 0%, transparent 70%)' : 'radial-gradient(circle, rgba(100,116,139,0.15) 0%, transparent 70%)' }}
+                  ></div>
+
+                  <div
+                    className="relative z-10 font-black tabular-nums leading-none bid-hero-number"
+                    style={{
+                      fontSize: 'clamp(90px, 13vw, 160px)',
+                      color: bidAmount > 0 ? '#34d399' : '#64748b',
+                      textShadow: bidAmount > 0
+                        ? '0 0 20px rgba(52,211,153,0.6), 0 0 60px rgba(52,211,153,0.3), 0 0 120px rgba(52,211,153,0.1)'
+                        : '0 0 20px rgba(100,116,139,0.3)',
+                    }}
+                  >
+                    <span
+                      className="inline-block align-top"
+                      style={{ fontSize: '45%', opacity: 0.55, marginTop: '0.15em', marginRight: '0.05em' }}
+                    >₹</span>{(bidAmount > 0 ? bidAmount : baseAmount).toLocaleString()}
+                  </div>
+                </div>
+
+                {/* Leading team chip */}
+                <div className="mt-auto pt-6 w-full">
+                  {highestBidder ? (
+                    <div className="flex flex-col items-center w-full">
+                      <p className="text-slate-600 font-bold uppercase tracking-[0.4em] text-xs mb-2">Leading Team</p>
+                      <div className="flex items-center gap-4 bg-black/40 border border-emerald-500/15 px-5 py-3 rounded-2xl shadow-2xl justify-center w-full max-w-[95%]">
+                        <div className="w-12 h-12 bg-black/60 rounded-xl p-1 shrink-0 border border-white/10">
+                          {highestBidderLogo
+                            ? <img src={highestBidderLogo} className="w-full h-full object-contain" alt="leading" />
+                            : <div className="text-xl flex items-center justify-center h-full">🛡️</div>
+                          }
+                        </div>
+                        <span className="text-xl xl:text-2xl font-black uppercase text-white truncate tracking-tight">{highestBidder}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="border-2 border-dashed border-slate-800/80 rounded-2xl flex items-center justify-center py-4 opacity-40 w-full">
+                      <p className="text-slate-500 font-black text-base uppercase tracking-[0.3em]">Awaiting Bids</p>
+                    </div>
+                  )}
+                </div>
+
+              </div>
+            )}
+          </div>
+        </section>
+
+      {/* SECTION 4: BID HISTORY — Fixed Bottom Broadcast Ticker */}
+
+      </div>
+
+      {/* ── FIXED BOTTOM BROADCAST TICKER ── Pinned to viewport bottom edge, full width, 72px tall */}
+      <div
+        style={{
+          position: 'fixed',
+          bottom: '0px',
+          left: '0',
+          right: '0',
+          height: '72px',
+          zIndex: 50,
+        }}
+        className="hidden md:block bg-[#0a0f18]/97 backdrop-blur-xl border-t border-emerald-500/20 shadow-[0_-4px_30px_rgba(0,0,0,0.7)]"
+      >
+        <div className="flex items-center h-full px-8 gap-6 max-w-[1920px] mx-auto">
+          {/* Label */}
+          <div className="flex items-center gap-3 border-r border-slate-700/60 pr-6 shrink-0">
+            <div className="w-8 h-8 bg-emerald-500/15 rounded-lg flex items-center justify-center border border-emerald-500/30">
+              <span className="text-base">🏏</span>
+            </div>
+            <div className="leading-none">
+              <p className="text-emerald-400 text-[10px] font-black uppercase tracking-[0.35em]">Bid History</p>
+              <p className="text-slate-500 text-[9px] font-bold uppercase tracking-wider mt-0.5">Last 5 bids</p>
+            </div>
+          </div>
+
+          {/* Bids Ticker */}
+          <div className="flex-1 flex items-center gap-4 overflow-hidden">
+            {(!roundHistory || roundHistory.length === 0) ? (
+              <p className="text-slate-600 font-black uppercase tracking-widest text-sm italic">Opening bid pending…</p>
+            ) : (
+              roundHistory.slice(0, 5).map((h, i) => (
+                <div
+                  key={i}
+                  className={`flex items-center gap-3 px-4 py-2 rounded-xl border shrink-0 transition-all duration-300 ${
+                    i === 0
+                      ? 'bg-emerald-500/12 border-emerald-500/35 shadow-[0_0_10px_rgba(52,211,153,0.15)]'
+                      : 'bg-black/20 border-white/5 opacity-50'
+                  }`}
+                >
+                  <span className={`text-[9px] font-black tracking-widest uppercase ${
+                    i === 0 ? 'text-emerald-400' : 'text-slate-600'
+                  }`}>#{roundHistory.length - i}</span>
+                  <span className={`font-bold text-sm uppercase max-w-[120px] truncate ${
+                    i === 0 ? 'text-white' : 'text-slate-400'
+                  }`}>{h.team}</span>
+                  <span className={`font-black text-base tabular-nums ${
+                    i === 0 ? 'text-emerald-400' : 'text-slate-500'
+                  }`}>₹{Number(h.bid || 0).toLocaleString()}</span>
+                  {i < roundHistory.slice(0, 5).length - 1 && (
+                    <span className="text-slate-700 font-black ml-1 shrink-0">→</span>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Live pulse dot */}
+          <div className="shrink-0 flex items-center gap-2 border-l border-slate-700/60 pl-6">
+            <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]"></span>
+            <span className="text-red-400 text-[10px] font-black uppercase tracking-widest">Live</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
