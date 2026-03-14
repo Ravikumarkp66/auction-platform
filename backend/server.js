@@ -22,6 +22,11 @@ app.use(express.json());
 app.use(cors());
 app.use('/uploads', express.static('uploads'));
 
+// Root route
+app.get("/", (req, res) => {
+  res.send("CricArena Backend Running 🚀");
+});
+
 // Socket.io connection
 io.on("connection", (socket) => {
   console.log("Client connected to Socket.io:", socket.id);
