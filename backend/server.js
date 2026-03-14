@@ -19,7 +19,10 @@ mongoose.connect(process.env.MONGO_URI)
   .catch(err => console.log(err));
 
 app.use(express.json());
-app.use(cors());
+app.use(cors({
+  origin: "*",
+  credentials: true
+}));
 app.use('/uploads', express.static('uploads'));
 
 // Root route
