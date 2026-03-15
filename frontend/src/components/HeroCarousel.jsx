@@ -5,11 +5,11 @@ import { useEffect } from "react"
 // import Image from "next/image"
 
 const images = [
-  { img: "https://picsum.photos/seed/hero1/640/480.jpg", name: "Makenahalli Premier League", location: "Makenahalli", year: "2025", teams: "10 Teams" },
-  { img: "https://picsum.photos/seed/hero2/640/480.jpg", name: "Jakanachari Cup", location: "Tumkur", year: "2024", teams: "10 Teams" },
-  { img: "https://picsum.photos/seed/hero3/640/480.jpg", name: "Chettanahalli Premier League", location: "Chettanahalli", year: "2024", teams: "10 Teams" },
-  { img: "https://picsum.photos/seed/hero4/640/480.jpg", name: "Koratagere Premier League", location: "Koratagere", year: "2025", teams: "10 Teams" },
-  { img: "https://picsum.photos/seed/hero5/640/480.jpg", name: "Makenahalli Premier League", location: "Makenahalli", year: "2025", teams: "10 Teams" }
+  { img: "/tournaments/t1_v2.jpg", name: "Makenahalli Premier League", location: "Makenahalli", year: "2025", teams: "10 Teams" },
+  { img: "/tournaments/t2_v2.jpg", name: "Jakanachari Cup", location: "Tumkur", year: "2024", teams: "10 Teams" },
+  { img: "/tournaments/t3_v2.jpg", name: "Chettanahalli Premier League", location: "Chettanahalli", year: "2024", teams: "10 Teams" },
+  { img: "/tournaments/t4_v2.jpg", name: "Koratagere Premier League", location: "Koratagere", year: "2025", teams: "10 Teams" },
+  { img: "/tournaments/t5_v2.jpg", name: "Makenahalli Premier League", location: "Makenahalli", year: "2025", teams: "10 Teams" }
 ]
 
 export default function HeroCarousel() {
