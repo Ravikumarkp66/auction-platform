@@ -83,10 +83,12 @@ const playerRoutes = require("./routes/playerRoutes");
 const tournamentRoutes = require("./routes/tournamentRoutes");
 const uploadRoutes = require("./routes/uploadRoutes");
 const healthRoutes = require("./routes/healthRoutes");
+const tournamentImageRoutes = require("./routes/tournamentImageRoutes");
 app.use("/api/players", playerRoutes);
 app.use("/api/tournaments", tournamentRoutes);
 app.use("/api/upload", uploadRoutes);
 app.use("/api/health", healthRoutes);
+app.use("/api/tournament-images", tournamentImageRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
