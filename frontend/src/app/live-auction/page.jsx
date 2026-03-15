@@ -75,9 +75,40 @@ function LiveAuctionContent() {
   const BID_COOLDOWN = 600; 
 
   useEffect(() => {
-    const s = io(process.env.NEXT_PUBLIC_API_URL)
+    const s = io(process.env.NEXT_PUBLIC_API_URL, {
+      transports: ['websocket', 'polling'], // Fallback to polling
+      timeout: 10000,
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionAttempts: 5,
+      maxReconnectionAttempts: 5
+    })
+    
     setSocket(s)
-    return () => s.disconnect()
+
+    // Connection events
+    s.on('connect', () => {
+      console.log('Live auction socket connected successfully')
+    })
+
+    s.on('disconnect', (reason) => {
+      console.log('Live auction socket disconnected:', reason)
+      if (reason === 'io server disconnect') {
+        s.connect()
+      }
+    })
+
+    s.on('connect_error', (error) => {
+      console.error('Live auction socket connection error:', error)
+      setTimeout(() => {
+        s.connect()
+      }, 2000)
+    })
+
+    return () => {
+      console.log('Cleaning up live auction socket connection')
+      s.disconnect()
+    }
   }, [])
 
   useEffect(() => {

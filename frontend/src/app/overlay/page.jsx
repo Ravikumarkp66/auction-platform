@@ -11,6 +11,7 @@ export default function OverlayPage() {
   const router = useRouter()
   const [auction, setAuction] = useState(null)
   const [socket, setSocket] = useState(null)
+  const [connectionStatus, setConnectionStatus] = useState('disconnected') // connected, disconnected, connecting
 
   // Redirect logged-in users away from overlay
   useEffect(() => {
@@ -19,6 +20,59 @@ export default function OverlayPage() {
       return
     }
   }, [status, router])
+
+  // Connect to socket for unauthenticated users
+  useEffect(() => {
+    // Only connect if user is not authenticated
+    if (status === "unauthenticated") {
+      setConnectionStatus('connecting')
+      const s = io(process.env.NEXT_PUBLIC_API_URL, {
+        transports: ['websocket', 'polling'], // Fallback to polling
+        timeout: 10000,
+        reconnection: true,
+        reconnectionDelay: 1000,
+        reconnectionAttempts: 5,
+        maxReconnectionAttempts: 5
+      })
+      
+      setSocket(s)
+
+      // Connection events
+      s.on('connect', () => {
+        console.log('Socket connected successfully')
+        setConnectionStatus('connected')
+      })
+
+      s.on('disconnect', (reason) => {
+        console.log('Socket disconnected:', reason)
+        setConnectionStatus('disconnected')
+        if (reason === 'io server disconnect') {
+          // Server disconnected, reconnect manually
+          s.connect()
+        }
+      })
+
+      s.on('connect_error', (error) => {
+        console.error('Socket connection error:', error)
+        setConnectionStatus('disconnected')
+        // Try to reconnect after a delay
+        setTimeout(() => {
+          s.connect()
+        }, 2000)
+      })
+
+      s.on("auctionUpdate", (data) => {
+        console.log('Received auction update:', data)
+        setAuction(data)
+      })
+
+      return () => {
+        console.log('Cleaning up socket connection')
+        setConnectionStatus('disconnected')
+        s.disconnect()
+      }
+    }
+  }, [status])
 
   // Show loading while checking auth
   if (status === "loading") {
@@ -53,20 +107,6 @@ export default function OverlayPage() {
       </div>
     )
   }
-
-  useEffect(() => {
-    // Only connect if user is not authenticated
-    if (status === "unauthenticated") {
-      const s = io(process.env.NEXT_PUBLIC_API_URL)
-      setSocket(s)
-
-      s.on("auctionUpdate", (data) => {
-        setAuction(data)
-      })
-
-      return () => s.disconnect()
-    }
-  }, [status])
 
   if (!auction || !auction.player) {
     return (
