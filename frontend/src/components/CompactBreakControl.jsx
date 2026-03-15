@@ -34,17 +34,6 @@ export default function CompactBreakControl({ socket, onBreakStart, onBreakEnd }
     if (socket) {
       socket.emit('breakTime', breakData)
     }
-
-    // Create URL with break parameters
-    const params = new URLSearchParams({
-      break: breakType,
-      duration: Math.ceil(totalSeconds / 60).toString(),
-      ...(breakType === 'custom' && customReason && { reason: customReason })
-    })
-
-    // Open overlay in new window with break parameters
-    const overlayUrl = `/overlay?tournament=pc-26&${params.toString()}`
-    window.open(overlayUrl, '_blank')
     
     setIsBreakActive(true)
     setRemainingTime(totalSeconds)
