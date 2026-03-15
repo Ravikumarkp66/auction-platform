@@ -10,6 +10,30 @@ export default function AuctionDashboard() {
   const router = useRouter()
   const { data: session, status } = useSession()
   
+  // Dashboard & Navigation State - Move all hooks to top
+  const [pastTournaments, setPastTournaments] = useState([])
+  const [backendError, setBackendError] = useState(false)
+  const [showCreateForm, setShowCreateForm] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [step, setStep] = useState(1)
+  const [errors, setErrors] = useState({})
+  
+  // New Tournament Logic State
+  const [config, setConfig] = useState({ 
+    name: "", 
+    organizerName: "",
+    organizerLogo: "",
+    numTeams: 10,
+    iconsPerTeam: 1,
+    baseBudget: 100000,
+    defaultBasePrice: 1000,
+    squadSize: 15,
+    auctionSlots: 120
+  })
+  const [teams, setTeams] = useState([])
+  const [players, setPlayers] = useState([])
+  const [iconPlayers, setIconPlayers] = useState([])
+  
   // Redirect non-admin users
   useEffect(() => {
     if (status === "loading") return
@@ -19,6 +43,24 @@ export default function AuctionDashboard() {
       return
     }
   }, [session, status, router])
+
+  // Fetch tournaments data
+  useEffect(() => {
+    fetchTournaments()
+  }, [])
+
+  const fetchTournaments = () => {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournaments`)
+      .then(res => res.ok ? res.json() : Promise.reject("Offline"))
+      .then(data => {
+        setPastTournaments(data)
+        setBackendError(false)
+      })
+      .catch(err => {
+        console.error("Dashboard fetch error:", err)
+        setBackendError(true)
+      })
+  }
 
   if (status === "loading") {
     return (
@@ -44,48 +86,8 @@ export default function AuctionDashboard() {
       </div>
     )
   }
-  
-  // Dashboard & Navigation State
-  const [pastTournaments, setPastTournaments] = useState([])
-  const [backendError, setBackendError] = useState(false)
-  const [showCreateForm, setShowCreateForm] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [step, setStep] = useState(1)
-  const [errors, setErrors] = useState({})
-  
-  // New Tournament Logic State
-  const [config, setConfig] = useState({ 
-    name: "", 
-    organizerName: "",
-    organizerLogo: "",
-    numTeams: 8,
-    iconsPerTeam: 1,
-    baseBudget: 1000000,
-    defaultBasePrice: 10000,
-    squadSize: 11
-  })
-  const [teams, setTeams] = useState([])
-  const [iconPlayers, setIconPlayers] = useState([])
-  const [players, setPlayers] = useState([])
 
   const STEP_TOTAL = 6;
-
-  useEffect(() => {
-    fetchTournaments()
-  }, [])
-
-  const fetchTournaments = () => {
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournaments`)
-      .then(res => res.ok ? res.json() : Promise.reject("Offline"))
-      .then(data => {
-        setPastTournaments(data)
-        setBackendError(false)
-      })
-      .catch(err => {
-        console.error("Dashboard fetch error:", err)
-        setBackendError(true)
-      })
-  }
 
   // Robust Excel Mapping Helper
   const findValue = (row, possibleKeys) => {
@@ -359,6 +361,13 @@ export default function AuctionDashboard() {
 
   return (
     <div className="min-h-screen bg-[#0f172a] text-white font-sans selection:bg-emerald-500/30">
+      {/* Back Button */}
+      <div className="sticky top-4 z-50 flex justify-start">
+        <Link href="/" className="bg-emerald-600 hover:bg-emerald-500 px-4 py-2 rounded-xl text-sm font-bold transition-all border border-emerald-500 whitespace-nowrap backdrop-blur-md min-h-[40px] flex items-center shadow-lg m-4">
+          ← Back to Home
+        </Link>
+      </div>
+      
       {/* Background Decor */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-emerald-500/10 blur-[120px] rounded-full" />

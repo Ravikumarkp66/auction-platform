@@ -15,7 +15,7 @@ export default function OverlayPage() {
   // Redirect logged-in users away from overlay
   useEffect(() => {
     if (status === "authenticated") {
-      router.push("/auctions")
+      router.push("/auction"); // Redirect to admin auction page, not public auctions
       return
     }
   }, [status, router])
@@ -47,7 +47,7 @@ export default function OverlayPage() {
           <div>
             <h2 className="text-2xl font-bold text-white mb-2">Already Logged In</h2>
             <p className="text-slate-400 mb-4">The overlay page is for public viewing only. As an admin, you're being redirected to the auction management page.</p>
-            <p className="text-emerald-400 font-medium">Redirecting to auctions...</p>
+            <p className="text-emerald-400 font-medium">Redirecting to auction management...</p>
           </div>
         </div>
       </div>

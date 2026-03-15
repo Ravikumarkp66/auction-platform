@@ -426,8 +426,8 @@ function LiveAuctionContent() {
       {/* HEADER - Responsive Layout */}
       <div className="mb-4 pb-4 border-b border-slate-800">
         <div className="flex items-center justify-between mb-3">
-          <Link href="/" className="bg-slate-800/50 hover:bg-slate-700 px-4 py-2 rounded-xl text-xs font-bold transition-all border border-slate-700 whitespace-nowrap backdrop-blur-md min-h-[40px] flex items-center">
-            ← Home
+          <Link href="/auctions" className="bg-emerald-600 hover:bg-emerald-500 px-4 py-2 rounded-xl text-sm font-bold transition-all border border-emerald-500 whitespace-nowrap backdrop-blur-md min-h-[40px] flex items-center shadow-lg">
+            ← Back to Auctions
           </Link>
           
           <div className="flex items-center gap-2">
