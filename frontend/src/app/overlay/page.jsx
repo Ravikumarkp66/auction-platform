@@ -1,24 +1,72 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useSession } from "next-auth/react"
+import { useRouter } from "next/navigation"
 import { io } from "socket.io-client"
 import Image from "next/image"
 
 export default function OverlayPage() {
+  const { data: session, status } = useSession()
+  const router = useRouter()
   const [auction, setAuction] = useState(null)
   const [socket, setSocket] = useState(null)
 
+  // Redirect logged-in users away from overlay
   useEffect(() => {
-    // Only connect if we're in the browser environment
-    const s = io(process.env.NEXT_PUBLIC_API_URL)
-    setSocket(s)
+    if (status === "authenticated") {
+      router.push("/auctions")
+      return
+    }
+  }, [status, router])
 
-    s.on("auctionUpdate", (data) => {
-      setAuction(data)
-    })
+  // Show loading while checking auth
+  if (status === "loading") {
+    return (
+      <div className="min-h-screen bg-[#0a0f18] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-6">
+          <div className="w-24 h-24 border-8 border-slate-800 border-t-emerald-500 rounded-full animate-spin"></div>
+          <p className="text-slate-500 font-black animate-pulse text-4xl uppercase tracking-[0.5em]">
+            LOADING
+          </p>
+        </div>
+      </div>
+    )
+  }
 
-    return () => s.disconnect()
-  }, [])
+  // Show message for authenticated users before redirect
+  if (status === "authenticated") {
+    return (
+      <div className="min-h-screen bg-[#0a0f18] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-6 text-center max-w-md mx-auto px-6">
+          <div className="w-16 h-16 bg-emerald-500/20 rounded-full flex items-center justify-center">
+            <svg className="w-8 h-8 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-white mb-2">Already Logged In</h2>
+            <p className="text-slate-400 mb-4">The overlay page is for public viewing only. As an admin, you're being redirected to the auction management page.</p>
+            <p className="text-emerald-400 font-medium">Redirecting to auctions...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  useEffect(() => {
+    // Only connect if user is not authenticated
+    if (status === "unauthenticated") {
+      const s = io(process.env.NEXT_PUBLIC_API_URL)
+      setSocket(s)
+
+      s.on("auctionUpdate", (data) => {
+        setAuction(data)
+      })
+
+      return () => s.disconnect()
+    }
+  }, [status])
 
   if (!auction || !auction.player) {
     return (
