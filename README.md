@@ -60,11 +60,11 @@ KP/
 └── .gitignore
 ```
 
-## 🛠️ Installation & Setup
+## 🛠️ Development Setup
 
 ### Prerequisites
 - Node.js 18+ 
-- MongoDB
+- MongoDB (local or Atlas)
 - Git
 
 ### 1. Clone the Repository
@@ -79,7 +79,7 @@ cd backend
 npm install
 ```
 
-Create `.env` file:
+Create `.env` file (see backend/.env.example):
 ```bash
 MONGO_URI=mongodb://localhost:27017/auction-platform
 PORT=5000
@@ -92,12 +92,13 @@ cd frontend
 npm install
 ```
 
-Create `.env.local` file:
+Create `.env.local` file (see frontend/ENV_EXAMPLE.md):
 ```bash
-GOOGLE_CLIENT_ID=your_google_client_id
-GOOGLE_CLIENT_SECRET=your_google_client_secret
+NEXT_PUBLIC_API_URL=http://localhost:5000
 NEXTAUTH_URL=http://localhost:3000
-NEXTAUTH_SECRET=your_nextauth_secret
+NEXTAUTH_SECRET=your-secret-here
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
 ```
 
 ### 4. Start Development Servers
@@ -110,6 +111,83 @@ npm run dev
 cd frontend
 npm run dev
 ```
+
+## 🚀 Deployment Guide
+
+### Environment Variables Setup
+
+#### Backend Environment Variables
+Create `.env` file in backend directory:
+```bash
+# Required
+MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/auction-platform
+PORT=5000
+NODE_ENV=production
+
+# Optional (for better security)
+FRONTEND_URL=https://your-vercel-app.vercel.app
+
+# Future AWS S3 Integration
+AWS_ACCESS_KEY_ID=your-aws-access-key
+AWS_SECRET_ACCESS_KEY=your-aws-secret-key
+AWS_REGION=us-east-1
+AWS_S3_BUCKET=your-s3-bucket-name
+```
+
+#### Frontend Environment Variables
+Create `.env.local` file in frontend directory:
+```bash
+# Required
+NEXT_PUBLIC_API_URL=https://your-backend-url.onrender.com
+NEXTAUTH_URL=https://your-vercel-app.vercel.app
+NEXTAUTH_SECRET=your-nextauth-secret-key
+
+# Required for Google OAuth
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+```
+
+### Deployment Steps
+
+#### 1. MongoDB Atlas Setup
+1. Create cluster at [MongoDB Atlas](https://cloud.mongodb.com/)
+2. Create database user with strong password
+3. Whitelist all IP addresses (0.0.0.0/0) for Render
+4. Get connection string and update `MONGO_URI`
+
+#### 2. Backend Deployment (Render)
+1. Connect GitHub repository to Render
+2. Set environment variables in Render dashboard
+3. Choose Node.js service type
+4. Build command: `npm install`
+5. Start command: `npm start`
+6. Deploy automatically on push to main branch
+
+#### 3. Frontend Deployment (Vercel)
+1. Connect GitHub repository to Vercel
+2. Set environment variables in Vercel dashboard
+3. Build command: `npm run build`
+4. Output directory: `.next`
+5. Deploy automatically on push to main branch
+
+#### 4. Google OAuth Setup
+1. Go to [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
+2. Create OAuth 2.0 Client ID
+3. Add authorized redirect URIs:
+   - Development: `http://localhost:3000/api/auth/callback/google`
+   - Production: `https://your-vercel-app.vercel.app/api/auth/callback/google`
+4. Copy credentials to environment variables
+
+### Production Features Implemented
+
+✅ **WebSocket Support**: Properly configured for Render
+✅ **Rate Limiting**: 100 requests per 15 minutes per IP
+✅ **Error Handling**: Comprehensive error middleware
+✅ **Graceful Shutdown**: Proper cleanup on SIGTERM/SIGINT
+✅ **MongoDB Retry Logic**: Automatic reconnection on failure
+✅ **CORS Security**: Configurable origin restrictions
+✅ **Health Check**: `/api/health` endpoint for monitoring
+✅ **Environment Variables**: Properly documented and secured
 
 ## 🌐 Deployment
 
