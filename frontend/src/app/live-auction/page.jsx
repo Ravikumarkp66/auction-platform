@@ -6,6 +6,8 @@ import { useSession } from "next-auth/react"
 import Link from "next/link"
 import Image from "next/image"
 import { io } from "socket.io-client"
+import BreakControlPanel from '../../components/BreakControlPanel'
+import CompactBreakControl from '../../components/CompactBreakControl'
 
 function LiveAuctionContent() {
   const searchParams = useSearchParams()
@@ -88,7 +90,7 @@ function LiveAuctionContent() {
 
     // Connection events
     s.on('connect', () => {
-      console.log('Live auction socket connected successfully')
+      // Socket connected for live auction control panel
     })
 
     s.on('disconnect', (reason) => {
@@ -1038,6 +1040,17 @@ function LiveAuctionContent() {
         </div>
 
       </div>
+      
+      {/* Compact Break Control - Fixed Top Right */}
+      <CompactBreakControl 
+        socket={socket}
+        onBreakStart={(breakData) => {
+          console.log('Break started:', breakData)
+        }}
+        onBreakEnd={() => {
+          console.log('Break ended')
+        }}
+      />
     </div>
   )
 }

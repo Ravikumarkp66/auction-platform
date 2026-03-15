@@ -31,6 +31,9 @@ const io = new Server(server, {
   }
 });
 
+// In-memory break status shared between admin and overlay
+let currentBreak = null;
+
 // MongoDB connection with retry logic
 const connectDB = async () => {
   try {
@@ -71,6 +74,42 @@ io.on("connection", (socket) => {
   // When admin sends an update, broadcast to all other clients (overlay)
   socket.on("auctionUpdate", (data) => {
     socket.broadcast.emit("auctionUpdate", data);
+  });
+
+  // Admin starts a break – broadcast to viewers and store state
+  socket.on("breakTime", (data) => {
+    const now = Date.now();
+    // Prefer exact seconds from admin if provided
+    const totalSeconds = data.totalSeconds || (data.duration * 60);
+    const endTime = data.endTime || now + (totalSeconds * 1000);
+
+    currentBreak = {
+      type: data.type,
+      duration: data.duration,
+      totalSeconds,
+      customReason: data.customReason || null,
+      startTime: data.startTime || now,
+      endTime,
+      isActive: true,
+    };
+
+    socket.broadcast.emit("breakTime", currentBreak);
+  });
+
+  // Admin ends a break – clear state and notify viewers
+  socket.on("breakTimeEnd", () => {
+    currentBreak = null;
+    socket.broadcast.emit("breakTimeEnd");
+  });
+
+  // Overlay asks for current break status when it connects
+  socket.on("getBreakStatus", () => {
+    if (currentBreak && currentBreak.endTime > Date.now()) {
+      socket.emit("breakStatus", currentBreak);
+    } else {
+      currentBreak = null;
+      socket.emit("breakStatus", { isActive: false });
+    }
   });
 
   socket.on("disconnect", () => {

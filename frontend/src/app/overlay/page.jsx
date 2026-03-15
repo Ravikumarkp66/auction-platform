@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useSession } from "next-auth/react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { io } from "socket.io-client"
 import Image from "next/image"
 
@@ -12,6 +12,104 @@ export default function OverlayPage() {
   const [auction, setAuction] = useState(null)
   const [socket, setSocket] = useState(null)
   const [connectionStatus, setConnectionStatus] = useState('disconnected') // connected, disconnected, connecting
+  const [breakTime, setBreakTime] = useState(null) // { type: 'lunch' | 'tea' | 'short', duration: number, endTime: number }
+  const [language, setLanguage] = useState('en') // 'en' | 'kn'
+  const [breakNow, setBreakNow] = useState(Date.now()) // ticking reference for smooth countdown
+
+  // Note: Breaks are now driven only by socket events from the admin panel,
+  // not by URL query parameters, to avoid accidental unsynchronised breaks.
+
+  // Load break state from localStorage on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedBreak = localStorage.getItem('overlayBreakState')
+      if (savedBreak) {
+        try {
+          const breakData = JSON.parse(savedBreak)
+          const endTime = breakData.endTime
+          
+          // Only restore if break hasn't ended
+          if (endTime > Date.now()) {
+            setBreakTime(breakData)
+          } else {
+            // Clean up expired break
+            localStorage.removeItem('overlayBreakState')
+          }
+        } catch (error) {
+          localStorage.removeItem('overlayBreakState')
+        }
+      }
+      
+      // Also check sessionStorage for immediate break state
+      const currentBreak = sessionStorage.getItem('currentBreakState')
+      if (currentBreak) {
+        try {
+          const breakData = JSON.parse(currentBreak)
+          if (breakData.endTime > Date.now()) {
+            setBreakTime(breakData)
+          } else {
+            sessionStorage.removeItem('currentBreakState')
+          }
+        } catch (error) {
+          sessionStorage.removeItem('currentBreakState')
+        }
+      }
+    }
+  }, [])
+
+  // Save break state to both storage methods when it changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      if (breakTime) {
+        localStorage.setItem('overlayBreakState', JSON.stringify(breakTime))
+        sessionStorage.setItem('currentBreakState', JSON.stringify(breakTime))
+      } else {
+        localStorage.removeItem('overlayBreakState')
+        sessionStorage.removeItem('currentBreakState')
+      }
+    }
+  }, [breakTime])
+
+  // Auto-cleanup expired breaks
+  useEffect(() => {
+    if (breakTime && breakTime.endTime <= Date.now()) {
+      setBreakTime(null)
+      localStorage.removeItem('overlayBreakState')
+      sessionStorage.removeItem('currentBreakState')
+    }
+  }, [breakTime])
+
+  // Check for expired breaks periodically
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (breakTime && breakTime.endTime <= Date.now()) {
+        setBreakTime(null)
+        localStorage.removeItem('overlayBreakState')
+        sessionStorage.removeItem('currentBreakState')
+      }
+    }, 1000) // Check every second
+
+    return () => clearInterval(interval)
+  }, [breakTime])
+
+  // Language switching effect for break display
+  useEffect(() => {
+    if (breakTime) {
+      // smooth 1-second ticking for countdown
+      const tick = setInterval(() => {
+        setBreakNow(Date.now())
+      }, 1000)
+
+      const interval = setInterval(() => {
+        setLanguage(prev => prev === 'en' ? 'kn' : 'en')
+      }, 3000) // Switch every 3 seconds
+      
+      return () => {
+        clearInterval(interval)
+        clearInterval(tick)
+      }
+    }
+  }, [breakTime])
 
   // Redirect logged-in users away from overlay
   useEffect(() => {
@@ -39,12 +137,11 @@ export default function OverlayPage() {
 
       // Connection events
       s.on('connect', () => {
-        console.log('Socket connected successfully')
         setConnectionStatus('connected')
+        s.emit('getBreakStatus') // Request current break status
       })
 
       s.on('disconnect', (reason) => {
-        console.log('Socket disconnected:', reason)
         setConnectionStatus('disconnected')
         if (reason === 'io server disconnect') {
           // Server disconnected, reconnect manually
@@ -52,22 +149,65 @@ export default function OverlayPage() {
         }
       })
 
-      s.on('connect_error', (error) => {
-        console.error('Socket connection error:', error)
+      s.on('connect_error', () => {
         setConnectionStatus('disconnected')
-        // Try to reconnect after a delay
         setTimeout(() => {
           s.connect()
         }, 2000)
       })
 
       s.on("auctionUpdate", (data) => {
-        console.log('Received auction update:', data)
         setAuction(data)
       })
 
+      // Listen for break time events from backend (driven by admin panel)
+      s.on("breakTime", (data) => {
+        const breakData = {
+          type: data.type,
+          duration: data.duration,
+          endTime: data.endTime,
+          customReason: data.customReason,
+          startTime: data.startTime
+        }
+        setBreakTime(breakData)
+        
+        // Save to both storage methods
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('overlayBreakState', JSON.stringify(breakData))
+          sessionStorage.setItem('currentBreakState', JSON.stringify(breakData))
+        }
+      })
+
+      // Listen for break status updates (for users joining late)
+      s.on("breakStatus", (data) => {
+        if (data.isActive && data.endTime) {
+          const breakData = {
+            type: data.type,
+            duration: data.duration,
+            endTime: data.endTime,
+            customReason: data.customReason,
+            startTime: data.startTime
+          }
+          setBreakTime(breakData)
+          
+          // Save to both storage methods
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('overlayBreakState', JSON.stringify(breakData))
+            sessionStorage.setItem('currentBreakState', JSON.stringify(breakData))
+          }
+        }
+      })
+
+      s.on("breakTimeEnd", () => {
+        setBreakTime(null)
+        // Clear both storage methods when break ends
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('overlayBreakState')
+          sessionStorage.removeItem('currentBreakState')
+        }
+      })
+
       return () => {
-        console.log('Cleaning up socket connection')
         setConnectionStatus('disconnected')
         s.disconnect()
       }
@@ -108,7 +248,75 @@ export default function OverlayPage() {
     )
   }
 
+  // Show break time if active (takes priority over everything)
+  if (breakTime) {
+    // Remaining time in seconds, derived from shared endTime and ticking reference
+    const remainingSeconds = Math.max(0, Math.floor((breakTime.endTime - breakNow) / 1000))
+    const remainingMinutes = Math.floor(remainingSeconds / 60)
+    const displaySeconds = remainingSeconds % 60
+    
+    const translations = {
+      en: {
+        breakTime: 'BREAK TIME',
+        lunchBreak: 'Lunch Break',
+        teaBreak: 'Tea Break',
+        shortBreak: 'Short Break',
+        technicalBreak: 'Technical Break',
+        customBreak: 'Custom Break',
+        weWillBeBack: 'We will be back in',
+        minutes: 'minutes'
+      },
+      kn: {
+        breakTime: 'ವಿರಾಮ ಸಮಯ',
+        lunchBreak: 'ಊಟದ ವಿರಾಮ',
+        teaBreak: 'ಚಹಾ ವಿರಾಮ',
+        shortBreak: 'ಸಣ್ಣ ವಿರಾಮ',
+        technicalBreak: 'ತಾಂತ್ರಿಕ ವಿರಾಮ',
+        customBreak: 'ಕಸ್ಟಮ್ ವಿರಾಮ',
+        weWillBeBack: 'ನಾವು ಹಿಂದಿರುಗುತ್ತೇವೆ',
+        minutes: 'ನಿಮಿಷಗಳಲ್ಲಿ'
+      }
+    }
+    
+    const t = translations[language]
+    const breakTypeMap = {
+      'lunch': t.lunchBreak,
+      'tea': t.teaBreak,
+      'short': t.shortBreak,
+      'technical': t.technicalBreak,
+      'custom': breakTime.customReason || t.customBreak
+    }
+    const breakTypeLabel = breakTypeMap[breakTime.type] || t.customBreak
+    
+    return (
+      <div className="min-h-screen bg-[#0a0f18] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-6 text-center max-w-md mx-auto px-6">
+          <div className="w-16 h-16 bg-orange-500/20 rounded-full flex items-center justify-center animate-pulse">
+            <svg className="w-8 h-8 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+          </div>
+          <div>
+            <h2 className="text-3xl font-bold text-orange-400 mb-2 transition-all duration-500 ease-in-out">
+              {t.breakTime}
+            </h2>
+            <p className="text-orange-300 text-xl mb-4 transition-all duration-500 ease-in-out">
+              {breakTypeLabel}
+            </p>
+            <div className="text-5xl font-mono font-bold text-white mb-4">
+              {remainingMinutes.toString().padStart(2, '0')}:{displaySeconds.toString().padStart(2, '0')}
+            </div>
+            <p className="text-white text-2xl font-bold transition-all duration-500 ease-in-out">
+              {t.weWillBeBack} {Math.ceil(remainingSeconds / 60)} {t.minutes}
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   if (!auction || !auction.player) {
+
     return (
       <div className="min-h-screen bg-[#0a0f18] flex items-center justify-center">
         <div className="flex flex-col items-center gap-6">
@@ -130,7 +338,7 @@ export default function OverlayPage() {
   const soldAmount = Number((player?.soldPrice ?? currentBid) || 0)
 
   return (
-    <div className="h-dvh w-[100vw] bg-[#0a0f18] text-white flex flex-col overflow-hidden font-sans selection:bg-transparent relative">
+      <div className="h-dvh w-[100vw] bg-[#0a0f18] text-white flex flex-col overflow-hidden font-sans selection:bg-transparent relative">
       {/* Dynamic Background Effects */}
       <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-emerald-900/20 blur-[150px]"></div>
       <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-blue-900/20 blur-[150px]"></div>
