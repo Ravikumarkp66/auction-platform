@@ -2,6 +2,13 @@
 const nextConfig = {
   images: {
     domains: ["avatar.iran.liara.run", "api.dicebear.com"],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**',
+      },
+    ],
+    unoptimized: true,
   },
 };
 
