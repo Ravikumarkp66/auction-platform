@@ -1,6 +1,6 @@
 "use client"
 
-import Image from "next/image"
+// import Image from "next/image"
 
 const images = [
   { img: "/next.svg", name: "Makenahalli Premier League", location: "Makenahalli", year: "2025", teams: "10 Teams" },
@@ -19,11 +19,10 @@ export default function TournamentScroller() {
             key={index}
             className="relative h-48 w-80 flex-shrink-0 rounded-2xl overflow-hidden group shadow-lg border border-slate-800"
           >
-            <Image
+            <img
               src={data.img}
               alt={data.name}
-              fill
-              className="object-cover group-hover:scale-110 transition-transform duration-700"
+              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
             />
             
             {/* Dark Gradient Overlay */}

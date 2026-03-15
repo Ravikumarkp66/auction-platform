@@ -2,7 +2,7 @@
 
 import useEmblaCarousel from "embla-carousel-react"
 import { useEffect } from "react"
-import Image from "next/image"
+// import Image from "next/image"
 
 const images = [
   { img: "/next.svg", name: "Makenahalli Premier League", location: "Makenahalli", year: "2025", teams: "10 Teams" },
@@ -32,11 +32,10 @@ export default function HeroCarousel() {
           {images.map((data, index) => (
             <div className="min-w-full p-2" key={index}>
               <div className="relative h-[320px] sm:h-[400px] md:h-[480px] w-full rounded-xl overflow-hidden cursor-pointer group bg-slate-900 border border-slate-800">
-                <Image
+                <img
                   src={data.img}
                   alt={data.name}
-                  fill
-                  className="object-cover object-center group-hover:scale-105 transition duration-700"
+                  className="w-full h-full object-cover object-center group-hover:scale-105 transition duration-700"
                 />
                 
                 {/* Dark Gradient Overlay for Text Readability */}
