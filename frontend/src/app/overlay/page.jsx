@@ -132,15 +132,14 @@ export default function OverlayPage() {
   return (
     <div className="h-dvh w-[100vw] bg-[#0a0f18] text-white flex flex-col overflow-hidden font-sans selection:bg-transparent relative">
       {/* Dynamic Background Effects */}
-      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
-        <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-emerald-900/20 blur-[150px]"></div>
-        <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-blue-900/20 blur-[150px]"></div>
-        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10 mix-blend-overlay"></div>
-      </div>
+      <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-emerald-900/20 blur-[150px]"></div>
+      <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-blue-900/20 blur-[150px]"></div>
+      <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10 mix-blend-overlay"></div>
 
-      <div className="relative z-10 flex flex-col w-full h-dvh md:h-[calc(100vh-72px)] p-4 md:p-6 lg:p-10 gap-5 mx-auto max-w-[1920px] pb-[env(safe-area-inset-bottom)]">
+      <div className="relative z-10 flex flex-col w-full h-dvh p-4 md:p-6 lg:p-10 gap-5 mx-auto max-w-[1920px] pb-[env(safe-area-inset-bottom)]">
 
-        <div className="md:hidden flex items-center justify-between bg-slate-900/80 backdrop-blur-xl border border-slate-800 px-4 py-3 rounded-2xl shadow-2xl shrink-0">
+        {/* Header - Always visible */}
+        <div className="flex items-center justify-between bg-slate-900/80 backdrop-blur-xl border border-slate-800 px-4 py-3 rounded-2xl shadow-2xl shrink-0">
           <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/30 px-3 py-1.5 rounded-full">
             <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-[pulse_1s_ease-in-out_infinite] shadow-[0_0_12px_rgba(239,68,68,0.8)]"></span>
             <span className="text-red-500 font-black uppercase tracking-widest text-xs">LIVE</span>
@@ -150,38 +149,38 @@ export default function OverlayPage() {
           </div>
         </div>
 
-        <section className="md:hidden flex flex-col gap-4 min-h-0 overflow-y-auto pr-1">
-          <div className="grid grid-cols-[96px_1fr] gap-4 bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-2xl p-4 shadow-xl">
-            <div className="relative w-24 h-32 rounded-xl overflow-hidden border border-slate-800/80" style={{ background: 'radial-gradient(ellipse at center, #14213d 0%, #080c14 100%)' }}>
-              <Image
-                src={player.image || player.imageUrl || player.placeholder}
-                alt={player.name}
-                fill
-                sizes="96px"
-                className={`object-contain transition-all duration-700 ${
-                  normalizedStatus !== 'available' && normalizedStatus !== 'auction'
-                    ? 'grayscale opacity-50'
-                    : ''
-                }`}
-                unoptimized
-              />
-            </div>
-            <div className="min-w-0">
-              <div className="text-emerald-400/80 font-black uppercase tracking-[0.35em] text-[10px]">Player</div>
-              <div className="font-black uppercase text-white leading-tight text-lg truncate">{player.name}</div>
-              <div className="text-slate-400 font-bold uppercase tracking-wider text-xs mt-1 truncate">
-                {player.role}{player.age ? ` • ${player.age}` : ""}{(player.village || player.town) ? ` • ${(player.village || player.town)}` : ""}
+        {/* Main Content - Responsive Grid */}
+        <section className="flex flex-col lg:flex-row gap-6 min-h-0 flex-1">
+          
+          {/* Player Card - Mobile First */}
+          <div className="lg:hidden flex flex-col gap-4">
+            <div className="grid grid-cols-[120px_1fr] gap-4 bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-2xl p-4 shadow-xl">
+              <div className="relative w-30 h-40 rounded-xl overflow-hidden border border-slate-800/80" style={{ background: 'radial-gradient(ellipse at center, #14213d 0%, #080c14 100%)' }}>
+                <Image
+                  src={player.image || player.imageUrl || player.placeholder}
+                  alt={player.name}
+                  fill
+                  sizes="120px"
+                  className={`object-contain transition-all duration-700 ${
+                    normalizedStatus !== 'available' && normalizedStatus !== 'auction'
+                      ? 'grayscale opacity-50'
+                      : ''
+                  }`}
+                  unoptimized
+                />
               </div>
-              {isSold && (
-                <div className="mt-2 inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/25 px-3 py-1.5 rounded-full">
-                  <span className="text-emerald-300 font-black uppercase tracking-widest text-[10px]">SOLD</span>
+              <div className="min-w-0">
+                <div className="text-emerald-400/80 font-black uppercase tracking-[0.35em] text-[10px]">Player</div>
+                <div className="font-black uppercase text-white leading-tight text-xl truncate">{player.name}</div>
+                <div className="text-slate-400 font-bold uppercase tracking-wider text-sm mt-1 truncate">
+                  {player.role}{player.age ? ` • ${player.age}` : ""}{(player.village || player.town) ? ` • ${(player.village || player.town)}` : ""}
                 </div>
-              )}
-              {isUnsold && (
-                <div className="mt-2 inline-flex items-center gap-2 bg-red-500/10 border border-red-500/25 px-3 py-1.5 rounded-full">
-                  <span className="text-red-300 font-black uppercase tracking-widest text-[10px]">UNSOLD</span>
-                </div>
-              )}
+                {isSold && (
+                  <div className="mt-2 inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/25 px-3 py-1.5 rounded-full">
+                    <span className="text-emerald-300 font-black uppercase tracking-widest text-[10px]">SOLD</span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
