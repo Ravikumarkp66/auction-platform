@@ -22,11 +22,24 @@ app.use(helmet({
 app.use(compression());
 app.use(morgan('dev'));
 
+const allowedOrigins = [
+  "http://localhost:3000",
+  "https://auction-platform-beta.vercel.app",
+  process.env.FRONTEND_URL
+].filter(Boolean);
+
 // CORS must come BEFORE rate limiter to ensure CORS headers on rate limit responses
 app.use(cors({
-  origin: process.env.FRONTEND_URL || "http://localhost:3000",
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
+      callback(null, true);
+    } else {
+      callback(null, origin); // Fallback: allow other origins but log if needed, or strictly use true
+    }
+  },
   credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"]
 }));
 
@@ -45,7 +58,14 @@ app.use(limiter);
 
 const io = new Server(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || "http://localhost:3000",
+    origin: function (origin, callback) {
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
+        callback(null, true);
+      } else {
+        callback(null, origin);
+      }
+    },
     methods: ["GET", "POST"],
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization"]
