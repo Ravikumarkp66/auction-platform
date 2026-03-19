@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useRouter, useParams, useSearchParams } from "next/navigation"
 import { useSession } from "next-auth/react"
 import Link from "next/link"
@@ -83,7 +83,7 @@ const PlayerRow = ({ title, players, icon }) => {
   );
 };
 
-export default function TeamSquadPage() {
+function TeamSquadContent() {
   const router = useRouter()
   const params = useParams()
   const searchParams = useSearchParams()
@@ -491,5 +491,17 @@ export default function TeamSquadPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function TeamSquadPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="text-white">Loading...</div>
+      </div>
+    }>
+      <TeamSquadContent />
+    </Suspense>
   )
 }
