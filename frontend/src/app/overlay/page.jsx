@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { io } from "socket.io-client"
 import Image from "next/image"
+import AuctionOverlayNew from '../../components/AuctionOverlayNew'
 
 export default function OverlayPage() {
   const { data: session, status } = useSession()
@@ -15,6 +16,7 @@ export default function OverlayPage() {
   const [breakTime, setBreakTime] = useState(null) // { type: 'lunch' | 'tea' | 'short', duration: number, endTime: number }
   const [language, setLanguage] = useState('en') // 'en' | 'kn'
   const [breakNow, setBreakNow] = useState(Date.now()) // ticking reference for smooth countdown
+  const [focusMode, setFocusMode] = useState(false) // Focus mode toggle
 
   // Note: Breaks are now driven only by socket events from the admin panel,
   // not by URL query parameters, to avoid accidental unsynchronised breaks.
@@ -219,7 +221,7 @@ export default function OverlayPage() {
     return (
       <div className="min-h-screen bg-[#0a0f18] flex items-center justify-center">
         <div className="flex flex-col items-center gap-6">
-          <div className="w-24 h-24 border-8 border-slate-800 border-t-emerald-500 rounded-full animate-spin"></div>
+          <div className="w-24 h-24 border-8 border-slate-800 border-t-violet-500 rounded-full animate-spin"></div>
           <p className="text-slate-500 font-black animate-pulse text-4xl uppercase tracking-[0.5em]">
             LOADING
           </p>
@@ -233,15 +235,15 @@ export default function OverlayPage() {
     return (
       <div className="min-h-screen bg-[#0a0f18] flex items-center justify-center">
         <div className="flex flex-col items-center gap-6 text-center max-w-md mx-auto px-6">
-          <div className="w-16 h-16 bg-emerald-500/20 rounded-full flex items-center justify-center">
-            <svg className="w-8 h-8 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="w-16 h-16 bg-violet-500/20 rounded-full flex items-center justify-center">
+            <svg className="w-8 h-8 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
             </svg>
           </div>
           <div>
             <h2 className="text-2xl font-bold text-white mb-2">Already Logged In</h2>
             <p className="text-slate-400 mb-4">The overlay page is for public viewing only. As an admin, you're being redirected to the auction management page.</p>
-            <p className="text-emerald-400 font-medium">Redirecting to auction management...</p>
+            <p className="text-violet-400 font-medium">Redirecting to auction management...</p>
           </div>
         </div>
       </div>
@@ -267,14 +269,14 @@ export default function OverlayPage() {
         minutes: 'minutes'
       },
       kn: {
-        breakTime: 'ವಿರಾಮ ಸಮಯ',
-        lunchBreak: 'ಊಟದ ವಿರಾಮ',
-        teaBreak: 'ಚಹಾ ವಿರಾಮ',
-        shortBreak: 'ಸಣ್ಣ ವಿರಾಮ',
-        technicalBreak: 'ತಾಂತ್ರಿಕ ವಿರಾಮ',
-        customBreak: 'ಕಸ್ಟಮ್ ವಿರಾಮ',
-        weWillBeBack: 'ನಾವು ಹಿಂದಿರುಗುತ್ತೇವೆ',
-        minutes: 'ನಿಮಿಷಗಳಲ್ಲಿ'
+        breakTime: '????? ???',
+        lunchBreak: '??? ?????',
+        teaBreak: '??? ?????',
+        shortBreak: '???? ?????',
+        technicalBreak: '???????? ?????',
+        customBreak: '?????? ?????',
+        weWillBeBack: '???? ???????????????',
+        minutes: '???????????'
       }
     }
     
@@ -289,47 +291,174 @@ export default function OverlayPage() {
     const breakTypeLabel = breakTypeMap[breakTime.type] || t.customBreak
     
     return (
-      <div className="min-h-screen bg-[#0a0f18] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-6 text-center max-w-md mx-auto px-6">
-          <div className="w-16 h-16 bg-orange-500/20 rounded-full flex items-center justify-center animate-pulse">
-            <svg className="w-8 h-8 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-            </svg>
+      <div 
+        className="min-h-screen w-full flex items-center justify-center relative overflow-hidden"
+        style={{
+          backgroundImage: 'url(/splash-screen.png)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat'
+        }}
+      >
+        {/* Subtle golden glow overlay */}
+        <div 
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: 'radial-gradient(circle at 50% 60%, rgba(255,200,0,0.15), transparent 60%)'
+          }}
+        />
+        
+        {/* Timer Box - Embedded into logo, positioned below badge */}
+        <div 
+          className="absolute text-center"
+          style={{
+            top: '70%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            padding: '14px 28px',
+            background: 'rgba(30, 15, 0, 0.35)',
+            backdropFilter: 'blur(12px)',
+            border: '1px solid rgba(255, 200, 0, 0.25)',
+            borderRadius: '20px',
+            boxShadow: '0 0 40px rgba(255, 180, 0, 0.5), inset 0 0 12px rgba(255, 200, 0, 0.25)',
+            animation: 'breathe 2.5s ease-in-out infinite'
+          }}
+        >
+          {/* Outer glow halo */}
+          <div 
+            className="absolute pointer-events-none"
+            style={{
+              inset: '-20px',
+              background: 'radial-gradient(circle, rgba(255,200,0,0.25), transparent 70%)',
+              zIndex: -1,
+              filter: 'blur(20px)'
+            }}
+          />
+          {/* Break Type */}
+          <p 
+            className="text-amber-300 text-xs font-black uppercase tracking-[0.3em] mb-1"
+            style={{
+              textShadow: '0 0 10px rgba(0,0,0,0.8), 0 2px 4px rgba(0,0,0,0.9)'
+            }}
+          >
+            {breakTypeLabel}
+          </p>
+          
+          {/* Countdown Timer */}
+          <div 
+            className="font-mono font-black"
+            style={{
+              fontSize: '72px',
+              fontWeight: 900,
+              letterSpacing: '2px',
+              color: '#fff',
+              textShadow: '0 0 20px rgba(0,0,0,0.9), 0 0 40px rgba(255,200,0,1), 0 2px 4px rgba(0,0,0,0.8)'
+            }}
+          >
+            {remainingMinutes.toString().padStart(2, '0')}:{displaySeconds.toString().padStart(2, '0')}
           </div>
-          <div>
-            <h2 className="text-3xl font-bold text-orange-400 mb-2 transition-all duration-500 ease-in-out">
-              {t.breakTime}
-            </h2>
-            <p className="text-orange-300 text-xl mb-4 transition-all duration-500 ease-in-out">
-              {breakTypeLabel}
-            </p>
-            <div className="text-5xl font-mono font-bold text-white mb-4">
-              {remainingMinutes.toString().padStart(2, '0')}:{displaySeconds.toString().padStart(2, '0')}
-            </div>
-            <p className="text-white text-2xl font-bold transition-all duration-500 ease-in-out">
-              {t.weWillBeBack} {Math.ceil(remainingSeconds / 60)} {t.minutes}
-            </p>
-          </div>
+          
+          {/* We will be back */}
+          <p 
+            className="text-white text-xs font-black uppercase tracking-[0.2em] mt-1"
+            style={{
+              textShadow: '0 0 10px rgba(0,0,0,0.8), 0 2px 4px rgba(0,0,0,0.9)'
+            }}
+          >
+            {t.weWillBeBack}
+          </p>
         </div>
+        
+        {/* Breathe animation */}
+        <style jsx>{`
+          @keyframes breathe {
+            0% {
+              transform: translate(-50%, -50%) scale(1);
+            }
+            50% {
+              transform: translate(-50%, -50%) scale(1.04);
+            }
+            100% {
+              transform: translate(-50%, -50%) scale(1);
+            }
+          }
+        `}</style>
       </div>
     )
   }
 
   if (!auction || !auction.player) {
-
+    // Waiting state - same golden background, different text
     return (
-      <div className="min-h-screen bg-[#0a0f18] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-6">
-          <div className="w-24 h-24 border-8 border-slate-800 border-t-emerald-500 rounded-full animate-spin"></div>
-          <p className="text-slate-500 font-black animate-pulse text-4xl uppercase tracking-[0.5em]">
+      <div 
+        className="min-h-screen w-full flex items-center justify-center relative overflow-hidden"
+        style={{
+          backgroundImage: 'url(/splash-screen.png)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat'
+        }}
+      >
+        {/* Waiting text with blinking dot */}
+        <div 
+          className="text-center"
+          style={{
+            animation: 'fadePulse 2s infinite ease-in-out'
+          }}
+        >
+          <p 
+            className="text-white font-black uppercase tracking-[6px] flex items-center justify-center gap-3"
+            style={{
+              fontSize: '28px',
+              textShadow: '0 0 10px rgba(255,255,255,0.4), 0 0 20px rgba(255,200,0,0.5)'
+            }}
+          >
+            <span 
+              className="w-3 h-3 rounded-full"
+              style={{
+                backgroundColor: '#00ffcc',
+                animation: 'blink 1s infinite',
+                boxShadow: '0 0 10px #00ffcc'
+              }}
+            />
             WAITING FOR BROADCAST
           </p>
         </div>
+        
+        {/* Animations */}
+        <style jsx>{`
+          @keyframes fadePulse {
+            0% { opacity: 0.5; }
+            50% { opacity: 1; }
+            100% { opacity: 0.5; }
+          }
+          @keyframes blink {
+            0%, 100% { opacity: 0; }
+            50% { opacity: 1; }
+          }
+        `}</style>
       </div>
     )
   }
 
   const { player, currentBid, highestBidder, highestBidderLogo, tournamentName, teams, roundHistory } = auction
+
+  // Use the new premium overlay component
+  return (
+    <AuctionOverlayNew
+      player={player}
+      teams={teams}
+      currentBid={currentBid}
+      highestBidder={highestBidder}
+      highestBidderLogo={highestBidderLogo}
+      tournamentName={tournamentName}
+      roundHistory={roundHistory}
+    />
+  )
+}
+
+// Old overlay function - kept for reference
+function OldOverlay() {
   const normalizedStatus = (player?.status || "").toString().trim().toLowerCase()
   const isSold = normalizedStatus === "sold"
   const isUnsold = normalizedStatus === "unsold"
@@ -340,7 +469,7 @@ export default function OverlayPage() {
   return (
       <div className="h-dvh w-[100vw] bg-[#0a0f18] text-white flex flex-col overflow-hidden font-sans selection:bg-transparent relative">
       {/* Dynamic Background Effects */}
-      <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-emerald-900/20 blur-[150px]"></div>
+      <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-violet-900/20 blur-[150px]"></div>
       <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-blue-900/20 blur-[150px]"></div>
       <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10 mix-blend-overlay"></div>
 
@@ -378,14 +507,14 @@ export default function OverlayPage() {
                 />
               </div>
               <div className="min-w-0">
-                <div className="text-emerald-400/80 font-black uppercase tracking-[0.35em] text-[10px]">Player</div>
+                <div className="text-violet-400/80 font-black uppercase tracking-[0.35em] text-[10px]">Player</div>
                 <div className="font-black uppercase text-white leading-tight text-xl truncate">{player.name}</div>
                 <div className="text-slate-400 font-bold uppercase tracking-wider text-sm mt-1 truncate">
                   {player.role}{player.age ? ` • ${player.age}` : ""}{(player.village || player.town) ? ` • ${(player.village || player.town)}` : ""}
                 </div>
                 {isSold && (
-                  <div className="mt-2 inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/25 px-3 py-1.5 rounded-full">
-                    <span className="text-emerald-300 font-black uppercase tracking-widest text-[10px]">SOLD</span>
+                  <div className="mt-2 inline-flex items-center gap-2 bg-violet-500/10 border border-violet-500/25 px-3 py-1.5 rounded-full">
+                    <span className="text-violet-300 font-black uppercase tracking-widest text-[10px]">SOLD</span>
                   </div>
                 )}
               </div>
@@ -395,9 +524,9 @@ export default function OverlayPage() {
           <div className="bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-2xl p-4 shadow-xl text-center">
             {isSold ? (
               <>
-                <div className="font-black uppercase tracking-[0.45em] text-[10px] text-emerald-400">FINAL PRICE</div>
+                <div className="font-black uppercase tracking-[0.45em] text-[10px] text-violet-400">FINAL PRICE</div>
                 <div className="mt-2 font-black tabular-nums leading-none" style={{ fontSize: 'clamp(42px, 10vw, 64px)', color: '#34d399', textShadow: '0 0 22px rgba(52,211,153,0.35)' }}>
-                  ₹{soldAmount.toLocaleString()}
+                  ?{soldAmount.toLocaleString()}
                 </div>
               </>
             ) : isUnsold ? (
@@ -411,11 +540,11 @@ export default function OverlayPage() {
               <>
                 <div className={`font-black uppercase tracking-[0.45em] text-[10px] ${
                   bidAmount > 0 && bidAmount > baseAmount
-                    ? 'text-emerald-400'
+                    ? 'text-violet-400'
                     : 'text-slate-500'
                 }`}> {bidAmount > 0 && bidAmount > baseAmount ? "CURRENT BID" : "BASE PRICE"}</div>
                 <div className="mt-2 font-black tabular-nums leading-none" style={{ fontSize: 'clamp(42px, 10vw, 64px)', color: bidAmount > 0 ? '#34d399' : '#94a3b8', textShadow: bidAmount > 0 ? '0 0 22px rgba(52,211,153,0.35)' : '0 0 18px rgba(148,163,184,0.18)' }}>
-                  ₹{(bidAmount > 0 ? bidAmount : baseAmount).toLocaleString()}
+                  ?{(bidAmount > 0 ? bidAmount : baseAmount).toLocaleString()}
                 </div>
               </>
             )}
@@ -425,10 +554,10 @@ export default function OverlayPage() {
             <div className="text-slate-500 font-black uppercase tracking-[0.4em] text-[10px] text-center">{isSold ? "SOLD TO" : "LEADING TEAM"}</div>
             {highestBidder ? (
               <div className="mt-3 flex items-center justify-center gap-3">
-                <div className={`w-11 h-11 rounded-xl p-1 shrink-0 border ${isSold ? 'bg-emerald-500/10 border-emerald-500/25' : 'bg-black/40 border-white/10'}`}>
+                <div className={`w-11 h-11 rounded-xl p-1 shrink-0 border ${isSold ? 'bg-violet-500/10 border-violet-500/25' : 'bg-black/40 border-white/10'}`}>
                   {highestBidderLogo
                     ? <img src={highestBidderLogo} className="w-full h-full object-contain" alt="leading" />
-                    : <div className="text-lg flex items-center justify-center h-full">🛡️</div>
+                    : <div className="text-lg flex items-center justify-center h-full">???</div>
                   }
                 </div>
                 <div className="font-black uppercase text-white tracking-tight text-lg truncate max-w-[75%]">{highestBidder}</div>
@@ -442,7 +571,7 @@ export default function OverlayPage() {
 
           <details className="bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-2xl shadow-xl overflow-hidden">
             <summary className="cursor-pointer select-none px-4 py-3 flex items-center justify-between">
-              <span className="text-emerald-400 text-[10px] font-black uppercase tracking-[0.35em]">Bid History</span>
+              <span className="text-violet-400 text-[10px] font-black uppercase tracking-[0.35em]">Bid History</span>
               <span className="text-slate-500 text-xs font-black uppercase tracking-widest">{roundHistory?.length ? `${Math.min(roundHistory.length, 5)}` : "0"}</span>
             </summary>
             <div className="px-4 pb-4">
@@ -453,13 +582,13 @@ export default function OverlayPage() {
                   {roundHistory.slice(0, 5).map((h, i) => (
                     <div key={i} className={`flex items-center justify-between gap-3 px-3 py-2 rounded-xl border ${
                       i === 0
-                        ? 'bg-emerald-500/10 border-emerald-500/25'
+                        ? 'bg-violet-500/10 border-violet-500/25'
                         : 'bg-black/20 border-white/5 opacity-80'
                     }`}>
                       <div className="min-w-0">
-                        <div className={`text-[10px] font-black uppercase tracking-widest ${i === 0 ? 'text-emerald-300' : 'text-slate-400'}`}>{h.team}</div>
+                        <div className={`text-[10px] font-black uppercase tracking-widest ${i === 0 ? 'text-violet-300' : 'text-slate-400'}`}>{h.team}</div>
                       </div>
-                      <div className={`font-black tabular-nums ${i === 0 ? 'text-emerald-400' : 'text-slate-500'}`}>₹{h.bid.toLocaleString()}</div>
+                      <div className={`font-black tabular-nums ${i === 0 ? 'text-violet-400' : 'text-slate-500'}`}>?{h.bid.toLocaleString()}</div>
                     </div>
                   ))}
                 </div>
@@ -523,8 +652,8 @@ export default function OverlayPage() {
 
                     {/* BIDDING badge — appears only on active card */}
                     {isBidding && (
-                      <div className="absolute top-2 right-2 bg-emerald-500 text-black text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-md shadow-[0_0_8px_rgba(52,211,153,0.8)] leading-none">
-                        BIDDING ▲
+                      <div className="absolute top-2 right-2 bg-violet-500 text-black text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-md shadow-[0_0_8px_rgba(52,211,153,0.8)] leading-none">
+                        BIDDING ?
                       </div>
                     )}
 
@@ -534,30 +663,30 @@ export default function OverlayPage() {
                       <div
                         className={`w-14 h-14 rounded-xl overflow-hidden p-1 shrink-0 flex items-center justify-center transition-all duration-300 ${
                           isBidding
-                            ? 'bg-emerald-500/10 border border-emerald-500/40 logo-bid-active'
+                            ? 'bg-violet-500/10 border border-violet-500/40 logo-bid-active'
                             : 'bg-black/40 border border-white/5'
                         }`}
                       >
                         {team.logoUrl
                           ? <img src={team.logoUrl} className="w-full h-full object-contain" alt="logo" />
-                          : <div className={`text-2xl flex items-center justify-center h-full ${isBidding ? 'logo-bid-active' : ''}`}>🛡️</div>
+                          : <div className={`text-2xl flex items-center justify-center h-full ${isBidding ? 'logo-bid-active' : ''}`}>???</div>
                         }
                       </div>
                       <span className={`text-sm font-black uppercase tracking-wide leading-tight truncate ${
-                        isBidding ? 'text-emerald-300' : 'text-slate-400'
+                        isBidding ? 'text-violet-300' : 'text-slate-400'
                       }`}>{team.shortName || team.name}</span>
                     </div>
 
                     {/* Stats row */}
                     <div className="flex justify-between items-end px-3 pb-3">
                       <div>
-                        <p className={`text-[9px] font-black uppercase tracking-widest mb-0.5 ${isBidding ? 'text-emerald-600' : 'text-slate-700'}`}>Purse</p>
+                        <p className={`text-[9px] font-black uppercase tracking-widest mb-0.5 ${isBidding ? 'text-violet-600' : 'text-slate-700'}`}>Purse</p>
                         <p className={`text-base font-black tabular-nums ${
-                          isBidding ? 'text-emerald-400' : 'text-amber-400/80'
-                        }`}>₹{(team.remainingBudget || 0).toLocaleString()}</p>
+                          isBidding ? 'text-violet-400' : 'text-amber-400/80'
+                        }`}>?{(team.remainingBudget || 0).toLocaleString()}</p>
                       </div>
                       <div className="text-right">
-                        <p className={`text-[9px] font-black uppercase tracking-widest mb-0.5 ${isBidding ? 'text-emerald-600' : 'text-slate-700'}`}>Left</p>
+                        <p className={`text-[9px] font-black uppercase tracking-widest mb-0.5 ${isBidding ? 'text-violet-600' : 'text-slate-700'}`}>Left</p>
                         <p className={`text-base font-black ${
                           team.playersCount >= team.maxPlayers
                             ? 'text-red-400'
@@ -592,8 +721,8 @@ export default function OverlayPage() {
               {/* SOLD stamp */}
               {isSold && (
                 <div className="absolute inset-0 z-20 bg-black/60 backdrop-blur-sm flex items-center justify-center animate-in zoom-in duration-500">
-                  <div className="border-[12px] border-emerald-500 bg-black/80 px-8 py-4 rounded-3xl rotate-[-15deg] shadow-[0_0_80px_rgba(16,185,129,0.8)]">
-                    <span className="text-emerald-500 text-6xl font-black italic uppercase text-center block leading-none">SOLD</span>
+                  <div className="border-[12px] border-violet-500 bg-black/80 px-8 py-4 rounded-3xl rotate-[-15deg] shadow-[0_0_80px_rgba(16,185,129,0.8)]">
+                    <span className="text-violet-500 text-6xl font-black italic uppercase text-center block leading-none">SOLD</span>
                   </div>
                 </div>
               )}
@@ -631,7 +760,7 @@ export default function OverlayPage() {
           {/* Center Column: Player Details */}
           <div className="flex flex-col justify-center h-full px-4 min-w-0">
              <div className="space-y-8 w-full min-w-0 flex flex-col items-center text-center">
-                <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-6 py-2 rounded-full w-fit uppercase font-black tracking-[0.4em] text-sm shadow-lg mb-2">
+                <div className="bg-violet-500/10 border border-violet-500/20 text-violet-400 px-6 py-2 rounded-full w-fit uppercase font-black tracking-[0.4em] text-sm shadow-lg mb-2">
                   Player Lot
                 </div>
                 
@@ -653,7 +782,7 @@ export default function OverlayPage() {
                 </div>
                 
                 <div className="grid grid-cols-1 gap-5 w-full max-w-[80%]">
-                   <div className="bg-slate-900/80 border-l-8 border-emerald-400 p-5 rounded-2xl shadow-xl flex flex-col items-center">
+                   <div className="bg-slate-900/80 border-l-8 border-violet-400 p-5 rounded-2xl shadow-xl flex flex-col items-center">
                       <p className="text-slate-500 font-bold uppercase tracking-[0.3em] text-xs mb-1">Role</p>
                       <p className="text-3xl font-black text-white uppercase">{player.role}</p>
                    </div>
@@ -673,24 +802,24 @@ export default function OverlayPage() {
           </div>
 
           {/* Right Column: BID HERO PANEL */}
-          <div className="relative rounded-[2.5rem] overflow-hidden h-full flex flex-col items-center justify-center text-center border border-emerald-500/15 shadow-[0_0_80px_rgba(0,255,150,0.07)] backdrop-blur-xl" style={{ background: 'radial-gradient(ellipse at 50% 40%, rgba(16,185,129,0.12) 0%, rgba(10,15,24,0.95) 65%)' }}>
+          <div className="relative rounded-[2.5rem] overflow-hidden h-full flex flex-col items-center justify-center text-center border border-violet-500/15 shadow-[0_0_80px_rgba(0,255,150,0.07)] backdrop-blur-xl" style={{ background: 'radial-gradient(ellipse at 50% 40%, rgba(16,185,129,0.12) 0%, rgba(10,15,24,0.95) 65%)' }}>
             
             {/* Corner accent lines */}
-            <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-emerald-400/60 to-transparent"></div>
-            <div className="absolute bottom-0 inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-emerald-400/30 to-transparent"></div>
+            <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-violet-400/60 to-transparent"></div>
+            <div className="absolute bottom-0 inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-violet-400/30 to-transparent"></div>
 
             {isSold ? (
               <div className="relative z-10 flex flex-col items-center w-full px-6 animate-in zoom-in-95 fade-in duration-500">
                 {/* Sold glow burst */}
-                <div className="absolute inset-0 bg-emerald-500/5 blur-3xl rounded-full scale-75"></div>
+                <div className="absolute inset-0 bg-violet-500/5 blur-3xl rounded-full scale-75"></div>
                 
-                <p className="text-emerald-400/70 font-black uppercase tracking-[0.5em] text-sm mb-3">Final Price</p>
+                <p className="text-violet-400/70 font-black uppercase tracking-[0.5em] text-sm mb-3">Final Price</p>
                 
                 <div
                   className="font-black text-white tabular-nums leading-none"
                   style={{ fontSize: 'clamp(80px, 11vw, 140px)', textShadow: '0 0 40px rgba(52,211,153,0.5), 0 0 80px rgba(52,211,153,0.2)' }}
                 >
-                  ₹{soldAmount.toLocaleString()}
+                  ?{soldAmount.toLocaleString()}
                 </div>
 
                 <div className="mt-8 w-full px-4">
@@ -709,7 +838,7 @@ export default function OverlayPage() {
             ) : isUnsold ? (
               <div className="relative z-10 flex flex-col items-center animate-in zoom-in-95 fade-in duration-500 px-6">
                 <div className="w-20 h-20 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-5 shadow-[0_0_40px_rgba(239,68,68,0.2)]">
-                  <span className="text-4xl">🚫</span>
+                  <span className="text-4xl">??</span>
                 </div>
                 <h1 className="font-black text-red-500 uppercase italic leading-none" style={{ fontSize: 'clamp(60px,8vw,100px)', textShadow: '0 0 40px rgba(220,38,38,0.5)' }}>UNSOLD</h1>
                 <p className="text-red-400/40 uppercase tracking-[0.4em] text-base mt-5 font-bold">Returned to Pool</p>
@@ -721,7 +850,7 @@ export default function OverlayPage() {
                 {/* Label */}
                 <p className={`font-black uppercase tracking-[0.5em] text-sm mb-4 ${
                   bidAmount > 0 && bidAmount > baseAmount
-                    ? 'text-emerald-400'
+                    ? 'text-violet-400'
                     : 'text-slate-500'
                 }`}>
                   {bidAmount > 0 && bidAmount > baseAmount ? "Current Bid" : "Base Price"}
@@ -748,7 +877,7 @@ export default function OverlayPage() {
                     <span
                       className="inline-block align-top"
                       style={{ fontSize: '45%', opacity: 0.55, marginTop: '0.15em', marginRight: '0.05em' }}
-                    >₹</span>{(bidAmount > 0 ? bidAmount : baseAmount).toLocaleString()}
+                    >?</span>{(bidAmount > 0 ? bidAmount : baseAmount).toLocaleString()}
                   </div>
                 </div>
 
@@ -757,11 +886,11 @@ export default function OverlayPage() {
                   {highestBidder ? (
                     <div className="flex flex-col items-center w-full">
                       <p className="text-slate-600 font-bold uppercase tracking-[0.4em] text-xs mb-2">Leading Team</p>
-                      <div className="flex items-center gap-4 bg-black/40 border border-emerald-500/15 px-5 py-3 rounded-2xl shadow-2xl justify-center w-full max-w-[95%]">
+                      <div className="flex items-center gap-4 bg-black/40 border border-violet-500/15 px-5 py-3 rounded-2xl shadow-2xl justify-center w-full max-w-[95%]">
                         <div className="w-12 h-12 bg-black/60 rounded-xl p-1 shrink-0 border border-white/10">
                           {highestBidderLogo
                             ? <img src={highestBidderLogo} className="w-full h-full object-contain" alt="leading" />
-                            : <div className="text-xl flex items-center justify-center h-full">🛡️</div>
+                            : <div className="text-xl flex items-center justify-center h-full">???</div>
                           }
                         </div>
                         <span className="text-xl xl:text-2xl font-black uppercase text-white truncate tracking-tight">{highestBidder}</span>
@@ -783,7 +912,7 @@ export default function OverlayPage() {
 
       </div>
 
-      {/* ── FIXED BOTTOM BROADCAST TICKER ── Pinned to viewport bottom edge, full width, 72px tall */}
+      {/* -- FIXED BOTTOM BROADCAST TICKER -- Pinned to viewport bottom edge, full width, 72px tall */}
       <div
         style={{
           position: 'fixed',
@@ -793,16 +922,16 @@ export default function OverlayPage() {
           height: '72px',
           zIndex: 50,
         }}
-        className="hidden md:block bg-[#0a0f18]/97 backdrop-blur-xl border-t border-emerald-500/20 shadow-[0_-4px_30px_rgba(0,0,0,0.7)]"
+        className="hidden md:block bg-[#0a0f18]/97 backdrop-blur-xl border-t border-violet-500/20 shadow-[0_-4px_30px_rgba(0,0,0,0.7)]"
       >
         <div className="flex items-center h-full px-8 gap-6 max-w-[1920px] mx-auto">
           {/* Label */}
           <div className="flex items-center gap-3 border-r border-slate-700/60 pr-6 shrink-0">
-            <div className="w-8 h-8 bg-emerald-500/15 rounded-lg flex items-center justify-center border border-emerald-500/30">
-              <span className="text-base">🏏</span>
+            <div className="w-8 h-8 bg-violet-500/15 rounded-lg flex items-center justify-center border border-violet-500/30">
+              <span className="text-base">??</span>
             </div>
             <div className="leading-none">
-              <p className="text-emerald-400 text-[10px] font-black uppercase tracking-[0.35em]">Bid History</p>
+              <p className="text-violet-400 text-[10px] font-black uppercase tracking-[0.35em]">Bid History</p>
               <p className="text-slate-500 text-[9px] font-bold uppercase tracking-wider mt-0.5">Last 5 bids</p>
             </div>
           </div>
@@ -817,21 +946,21 @@ export default function OverlayPage() {
                   key={i}
                   className={`flex items-center gap-3 px-4 py-2 rounded-xl border shrink-0 transition-all duration-300 ${
                     i === 0
-                      ? 'bg-emerald-500/12 border-emerald-500/35 shadow-[0_0_10px_rgba(52,211,153,0.15)]'
+                      ? 'bg-violet-500/12 border-violet-500/35 shadow-[0_0_10px_rgba(52,211,153,0.15)]'
                       : 'bg-black/20 border-white/5 opacity-50'
                   }`}
                 >
                   <span className={`text-[9px] font-black tracking-widest uppercase ${
-                    i === 0 ? 'text-emerald-400' : 'text-slate-600'
+                    i === 0 ? 'text-violet-400' : 'text-slate-600'
                   }`}>#{roundHistory.length - i}</span>
                   <span className={`font-bold text-sm uppercase max-w-[120px] truncate ${
                     i === 0 ? 'text-white' : 'text-slate-400'
                   }`}>{h.team}</span>
                   <span className={`font-black text-base tabular-nums ${
-                    i === 0 ? 'text-emerald-400' : 'text-slate-500'
-                  }`}>₹{Number(h.bid || 0).toLocaleString()}</span>
+                    i === 0 ? 'text-violet-400' : 'text-slate-500'
+                  }`}>?{Number(h.bid || 0).toLocaleString()}</span>
                   {i < roundHistory.slice(0, 5).length - 1 && (
-                    <span className="text-slate-700 font-black ml-1 shrink-0">→</span>
+                    <span className="text-slate-700 font-black ml-1 shrink-0">?</span>
                   )}
                 </div>
               ))

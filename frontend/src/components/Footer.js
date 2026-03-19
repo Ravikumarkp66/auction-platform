@@ -18,7 +18,7 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
           <div>
             <span className="text-white font-bold text-2xl tracking-tight">
-              Auction<span className="text-emerald-500">Pro</span>
+              Auction<span className="text-violet-500">Pro</span>
             </span>
             <p className="mt-4 text-gray-400 text-sm">
               {t.footer.desc}
@@ -27,17 +27,29 @@ export default function Footer() {
           <div>
             <h3 className="text-white font-semibold text-lg mb-4">{t.footer.quickLinks}</h3>
             <ul className="space-y-2">
-              <li><Link href="/" className="text-gray-400 hover:text-emerald-400 text-sm transition-colors">{t.navbar.home}</Link></li>
-              <li><Link href="/services" className="text-gray-400 hover:text-emerald-400 text-sm transition-colors">{t.navbar.services}</Link></li>
-              <li><Link href="/tournaments" className="text-gray-400 hover:text-emerald-400 text-sm transition-colors">{t.navbar.tournaments}</Link></li>
+              <li><Link href="/" className="text-gray-400 hover:text-violet-400 text-sm transition-colors">{t.navbar.home}</Link></li>
+              <li><Link href="/services" className="text-gray-400 hover:text-violet-400 text-sm transition-colors">{t.navbar.services}</Link></li>
+              <li><Link href="/tournaments" className="text-gray-400 hover:text-violet-400 text-sm transition-colors">{t.navbar.tournaments}</Link></li>
             </ul>
           </div>
           <div>
-            <h3 className="text-white font-semibold text-lg mb-4">{t.footer.connect}</h3>
-            <ul className="space-y-2">
-              <li><Link href="/about" className="text-gray-400 hover:text-emerald-400 text-sm transition-colors">{t.footer.aboutMe || t.navbar.about}</Link></li>
-              <li><Link href="/contact" className="text-gray-400 hover:text-emerald-400 text-sm transition-colors">{t.navbar.contact}</Link></li>
-              <li><Link href="/booking" className="text-emerald-400 hover:text-emerald-300 font-semibold text-sm transition-colors">{t.navbar.bookMe}</Link></li>
+            <h3 className="text-white font-semibold text-lg mb-4">Contact</h3>
+            <ul className="space-y-3">
+              <li className="flex items-center gap-2">
+                <span className="text-violet-500">📞</span>
+                <a href="tel:+918147089330" className="text-gray-400 hover:text-violet-400 text-sm transition-colors">
+                  +91 81470 89330
+                </a>
+              </li>
+              <li className="flex items-center gap-2">
+                <svg className="w-5 h-5 text-violet-500" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zM5.838 12a6.162 6.162 0 1112.324 0 6.162 6.162 0 01-12.324 0zM12 16a4 4 0 110-8 4 4 0 010 8zm4.965-10.405a1.44 1.44 0 112.881.001 1.44 1.44 0 01-2.881-.001z"/>
+                </svg>
+                <a href="https://www.instagram.com/lakshmish_virat/" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-violet-400 text-sm transition-colors">
+                  @lakshmish_virat
+                </a>
+              </li>
+              <li><Link href="/booking" className="text-violet-400 hover:text-violet-300 font-semibold text-sm transition-colors">{t.navbar.bookMe}</Link></li>
             </ul>
           </div>
         </div>

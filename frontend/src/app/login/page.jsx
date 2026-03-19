@@ -47,7 +47,7 @@ export default function LoginPage() {
         {/* Header */}
         <div className="p-8 border-b border-slate-700">
           <h1 className="text-3xl font-bold text-white text-center mb-2">
-            Auction<span className="text-emerald-500">Pro</span>
+            Auction<span className="text-violet-500">Pro</span>
           </h1>
           <p className="text-slate-400 text-center">
             {isLogin ? "Sign in to your account" : "Create your account"}
@@ -101,7 +101,7 @@ export default function LoginPage() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
                 placeholder="Enter your email"
                 required
               />
@@ -115,7 +115,7 @@ export default function LoginPage() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
                 placeholder="Enter your password"
                 required
               />
@@ -130,21 +130,13 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-emerald-600 text-white rounded-lg px-4 py-3 font-medium hover:bg-emerald-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-violet-600 text-white rounded-lg px-4 py-3 font-medium hover:bg-violet-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? "Signing in..." : "Sign In"}
             </button>
           </form>
 
-          {/* Admin Credentials Note */}
-          <div className="p-4 bg-slate-700/50 rounded-lg border border-slate-600">
-            <p className="text-xs text-slate-400 font-medium mb-2">Demo Credentials:</p>
-            <div className="space-y-1 text-xs">
-              <p><strong>Admin:</strong> admin.15feblsrbp@gmail.com</p>
-              <p><strong>Password:</strong> 15feblsrbp@mar15</p>
-              <p className="text-slate-500 mt-2">Any other email/password creates a user account</p>
-            </div>
-          </div>
+          {/* Admin credentials note removed for security */}
         </div>
       </div>
     </div>

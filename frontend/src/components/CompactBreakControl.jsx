@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 
-export default function CompactBreakControl({ socket, onBreakStart, onBreakEnd }) {
+export default function CompactBreakControl({ socket, onBreakStart, onBreakEnd, onViewSquads }) {
   const [showModal, setShowModal] = useState(false)
   const [breakType, setBreakType] = useState('lunch')
   const [customReason, setCustomReason] = useState('')
@@ -30,7 +30,7 @@ export default function CompactBreakControl({ socket, onBreakStart, onBreakEnd }
       totalSeconds
     }
 
-    // Notify backend via Socket.io so overlay can react in real time (with exact seconds)
+    // Emit break event via socket to all connected clients (including overlay)
     if (socket) {
       socket.emit('breakTime', breakData)
     }
@@ -71,8 +71,18 @@ export default function CompactBreakControl({ socket, onBreakStart, onBreakEnd }
 
   return (
     <>
-      {/* Break Button */}
-      <div className="fixed top-20 right-4 z-50">
+      {/* Control Buttons - Now inline with header */}
+      <div className="flex items-center gap-2">
+        {/* View Squads Button */}
+        <button
+          onClick={onViewSquads}
+          className="bg-sky-500 hover:bg-sky-600 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2 transition-all"
+        >
+          <span className="text-xl">👥</span>
+          <span className="font-bold text-sm">View Squads</span>
+        </button>
+        
+        {/* Break Button */}
         {!isBreakActive ? (
           <button
             onClick={() => setShowModal(true)}

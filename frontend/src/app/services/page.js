@@ -11,7 +11,7 @@ export default function ServicesPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
           <h1 className="text-4xl font-extrabold text-white sm:text-5xl md:text-6xl tracking-tight mb-4">
-            {t.services.title1} <span className="text-emerald-500">{t.services.title2}</span>
+            {t.services.title1} <span className="text-violet-500">{t.services.title2}</span>
           </h1>
           <p className="mt-4 text-xl text-gray-400 max-w-3xl mx-auto">
             {t.services.subtitle}
@@ -38,7 +38,7 @@ export default function ServicesPage() {
           <p className="text-gray-400 mb-8 max-w-2xl mx-auto">
             {t.services.customDesc}
           </p>
-          <a href="/contact" className="inline-block bg-slate-800 text-emerald-400 hover:text-emerald-300 hover:bg-slate-700 px-8 py-3 rounded-lg font-bold border border-emerald-500/30 transition-all">
+          <a href="/contact" className="inline-block bg-slate-800 text-violet-400 hover:text-violet-300 hover:bg-slate-700 px-8 py-3 rounded-lg font-bold border border-violet-500/30 transition-all">
             {t.services.customBtn}
           </a>
         </div>

@@ -9,7 +9,7 @@ export const initialTeams = [
   { id: 2, name: "Team B", totalBudget: 50000, remainingBudget: 50000, players: [], color: "bg-purple-600" },
   { id: 3, name: "Team C", totalBudget: 50000, remainingBudget: 50000, players: [], color: "bg-orange-600" },
   { id: 4, name: "Team D", totalBudget: 50000, remainingBudget: 50000, players: [], color: "bg-red-600" },
-  { id: 5, name: "Team E", totalBudget: 50000, remainingBudget: 50000, players: [], color: "bg-emerald-600" },
+  { id: 5, name: "Team E", totalBudget: 50000, remainingBudget: 50000, players: [], color: "bg-violet-600" },
   { id: 6, name: "Team F", totalBudget: 50000, remainingBudget: 50000, players: [], color: "bg-yellow-600" },
 ];
 

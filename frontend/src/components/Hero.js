@@ -19,19 +19,19 @@ export default function Hero() {
               <div className="sm:text-center lg:text-left lg:w-1/2">
                 <h1 className="text-3xl sm:text-5xl md:text-6xl tracking-tight font-extrabold text-white">
                   <span className="block">{t.hero.title1}</span>{' '}
-                  <span className="block text-emerald-500 xl:inline">{t.hero.title2}</span>
+                  <span className="block text-violet-500 xl:inline">{t.hero.title2}</span>
                 </h1>
                 <p className="mt-5 text-base text-gray-400 sm:text-lg sm:max-w-xl sm:mx-auto md:text-xl lg:mx-0">
                   {t.hero.subtitle}
                 </p>
                 <div className="mt-8 sm:mt-10 sm:flex sm:justify-center lg:justify-start">
                   <div className="rounded-md shadow">
-                    <Link href="/booking" className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-bold rounded-md text-slate-900 bg-emerald-500 hover:bg-emerald-400 md:py-4 md:text-lg transition-colors shadow-lg shadow-emerald-500/40">
+                    <Link href="/booking" className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-bold rounded-md text-slate-900 bg-violet-500 hover:bg-violet-400 md:py-4 md:text-lg transition-colors shadow-lg shadow-violet-500/40">
                       {t.hero.bookBtn}
                     </Link>
                   </div>
                   <div className="mt-3 sm:mt-0 sm:ml-3">
-                    <Link href="/services" className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-emerald-400 bg-slate-800 hover:bg-slate-700 md:py-4 md:text-lg transition-colors">
+                    <Link href="/services" className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-violet-400 bg-slate-800 hover:bg-slate-700 md:py-4 md:text-lg transition-colors">
                       {t.hero.viewBtn}
                     </Link>
                   </div>
@@ -51,7 +51,7 @@ export default function Hero() {
       
       {/* Background Graphic (Subtle) */}
       <div className="absolute inset-y-0 right-0 w-1/2 pointer-events-none hidden lg:block">
-        <div className="absolute inset-0 bg-gradient-to-l from-emerald-900/10 to-transparent"></div>
+        <div className="absolute inset-0 bg-gradient-to-l from-violet-900/10 to-transparent"></div>
       </div>
     </div>
   );

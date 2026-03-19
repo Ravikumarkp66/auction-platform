@@ -40,7 +40,8 @@ export default function AuthButton() {
       <button
         type="button"
         onClick={() => setIsModalOpen(true)}
-        className="text-xs px-3 py-2 rounded-md bg-emerald-600 text-white font-bold hover:bg-emerald-500 transition-colors"
+        className="text-xs px-3 py-2 rounded-md bg-violet-600 text-white font-bold hover:bg-violet-500 transition-colors"
+        data-auth-button="signin"
       >
         Sign in
       </button>

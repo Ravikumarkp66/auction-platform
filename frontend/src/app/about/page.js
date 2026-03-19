@@ -11,7 +11,7 @@ export default function AboutPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-16 items-center flex-col-reverse">
           <div>
             <h1 className="text-4xl font-extrabold text-white sm:text-5xl tracking-tight mb-6">
-              {t.about.title1} <span className="text-emerald-500">{t.about.title2}</span>
+              {t.about.title1} <span className="text-violet-500">{t.about.title2}</span>
             </h1>
             <h2 className="text-2xl font-bold text-gray-300 mb-6">
               {t.about.subtitle}
@@ -24,18 +24,18 @@ export default function AboutPage() {
             
             <div className="mt-10 pt-10 border-t border-slate-800 flex justify-start space-x-12">
               <div>
-                <p className="text-4xl font-extrabold text-emerald-500">50+</p>
+                <p className="text-4xl font-extrabold text-violet-500">50+</p>
                 <p className="mt-2 text-sm font-medium text-gray-400 uppercase tracking-widest">{t.about.statsAuctions}</p>
               </div>
               <div>
-                <p className="text-4xl font-extrabold text-emerald-500">200+</p>
+                <p className="text-4xl font-extrabold text-violet-500">200+</p>
                 <p className="mt-2 text-sm font-medium text-gray-400 uppercase tracking-widest">{t.about.statsMatches}</p>
               </div>
             </div>
           </div>
           
           <div className="relative">
-            <div className="absolute inset-0 bg-emerald-500 rounded-2xl transform translate-x-4 translate-y-4 opacity-20"></div>
+            <div className="absolute inset-0 bg-violet-500 rounded-2xl transform translate-x-4 translate-y-4 opacity-20"></div>
             <img 
               src="https://images.unsplash.com/photo-1517466787929-c77441865324?q=80&w=800&auto=format&fit=crop" 
               alt="Commentator in action" 

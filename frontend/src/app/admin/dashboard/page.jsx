@@ -37,7 +37,7 @@ export default function AdminDashboard() {
       description: "Start a new tournament",
       icon: PlusCircle,
       href: "/admin/create-tournament",
-      color: "bg-emerald-500",
+      color: "bg-violet-500",
     },
     {
       title: "Live Tournaments",
@@ -60,8 +60,8 @@ export default function AdminDashboard() {
       title: "Total Tournaments",
       value: stats.totalTournaments,
       icon: Trophy,
-      color: "text-emerald-500",
-      bgColor: "bg-emerald-500/10",
+      color: "text-violet-500",
+      bgColor: "bg-violet-500/10",
     },
     {
       title: "Live Now",
@@ -131,7 +131,7 @@ export default function AdminDashboard() {
                     <Icon className="w-6 h-6 text-white" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-lg font-medium text-white group-hover:text-emerald-400 transition-colors">
+                    <h3 className="text-lg font-medium text-white group-hover:text-violet-400 transition-colors">
                       {action.title}
                     </h3>
                     <p className="text-sm text-slate-400 mt-1">{action.description}</p>
@@ -151,7 +151,7 @@ export default function AdminDashboard() {
         <div className="p-6">
           <div className="space-y-4">
             <div className="flex items-center space-x-4">
-              <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+              <div className="w-2 h-2 bg-violet-500 rounded-full"></div>
               <div className="flex-1">
                 <p className="text-sm text-white">Village Premier League started</p>
                 <p className="text-xs text-slate-400">2 minutes ago</p>

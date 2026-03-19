@@ -12,13 +12,15 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className="dark">
-      <body className="bg-slate-900 text-slate-50 min-h-screen flex flex-col font-sans antialiased">
+      <body className="main-container text-slate-50 min-h-screen flex flex-col font-sans antialiased">
         <AuthProvider>
           <LanguageProvider>
-            <Navbar />
-            <main className="flex-grow">
-              {children}
-            </main>
+            <div className="app flex flex-col min-h-screen w-full">
+              <Navbar />
+              <main className="flex-grow">
+                {children}
+              </main>
+            </div>
           </LanguageProvider>
         </AuthProvider>
       </body>

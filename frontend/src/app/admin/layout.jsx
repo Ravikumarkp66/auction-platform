@@ -74,7 +74,7 @@ export default function AdminLayout({ children }) {
           <div className="flex h-16 items-center justify-between px-6 border-b border-slate-700">
             <Link href="/admin/dashboard" className="flex items-center">
               <span className="text-xl font-bold text-white">
-                Auction<span className="text-emerald-500">Pro</span>
+                Auction<span className="text-violet-500">Pro</span>
               </span>
             </Link>
             <button
@@ -106,7 +106,7 @@ export default function AdminLayout({ children }) {
           {/* User section */}
           <div className="border-t border-slate-700 p-4">
             <div className="flex items-center mb-3">
-              <div className="w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center">
+              <div className="w-8 h-8 bg-violet-500 rounded-full flex items-center justify-center">
                 <span className="text-white text-sm font-medium">
                   {session.user?.name?.[0]?.toUpperCase()}
                 </span>

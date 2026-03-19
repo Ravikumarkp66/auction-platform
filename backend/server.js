@@ -5,16 +5,36 @@ require("dotenv").config();
 const http = require("http");
 const { Server } = require("socket.io");
 
-// Rate limiting
+// Middlewares
+const helmet = require('helmet');
+const compression = require('compression');
+const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 
 const app = express();
 const server = http.createServer(app);
 
-// Rate limiting middleware
+// Security and Performance
+app.use(helmet({ 
+  crossOriginResourcePolicy: false, // Allow images to be loaded from other origins if needed
+  contentSecurityPolicy: false // Disable CSP if it causes issues with S3 images initially, but recommend configuring in prod
+}));
+app.use(compression());
+app.use(morgan('dev'));
+
+// CORS must come BEFORE rate limiter to ensure CORS headers on rate limit responses
+app.use(cors({
+  origin: process.env.FRONTEND_URL || "http://localhost:3000",
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+  allowedHeaders: ["Content-Type", "Authorization"]
+}));
+
+// Rate limiting middleware - disabled for development
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
+  max: 1000, // Higher limit for development
+  skip: (req) => process.env.NODE_ENV === 'development', // Skip in development
   message: {
     success: false,
     message: 'Too many requests from this IP, please try again later.'
@@ -25,14 +45,21 @@ app.use(limiter);
 
 const io = new Server(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || "*",
+    origin: process.env.FRONTEND_URL || "http://localhost:3000",
     methods: ["GET", "POST"],
-    credentials: true
-  }
+    credentials: true,
+    allowedHeaders: ["Content-Type", "Authorization"]
+  },
+  transports: ['websocket', 'polling'], // Support both WebSocket and polling
+  pingTimeout: 60000,
+  pingInterval: 25000
 });
 
 // In-memory break status shared between admin and overlay
 let currentBreak = null;
+
+// In-memory auction state shared between admin and overlay
+let currentAuctionState = null;
 
 // MongoDB connection with retry logic
 const connectDB = async () => {
@@ -54,13 +81,7 @@ const connectDB = async () => {
 connectDB();
 
 app.use(express.json());
-app.use(cors({
-  origin: process.env.FRONTEND_URL || "*",
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
-  allowedHeaders: ["Content-Type", "Authorization"]
-}));
-app.use('/uploads', express.static('uploads'));
+
 
 // Root route
 app.get("/", (req, res) => {
@@ -73,7 +94,15 @@ io.on("connection", (socket) => {
 
   // When admin sends an update, broadcast to all other clients (overlay)
   socket.on("auctionUpdate", (data) => {
+    currentAuctionState = data; // Store latest auction state
     socket.broadcast.emit("auctionUpdate", data);
+  });
+
+  // Overlay asks for current auction state when it connects
+  socket.on("getAuctionState", () => {
+    if (currentAuctionState) {
+      socket.emit("auctionUpdate", currentAuctionState);
+    }
   });
 
   // Admin starts a break – broadcast to viewers and store state
@@ -123,11 +152,15 @@ const tournamentRoutes = require("./routes/tournamentRoutes");
 const uploadRoutes = require("./routes/uploadRoutes");
 const healthRoutes = require("./routes/healthRoutes");
 const tournamentImageRoutes = require("./routes/tournamentImageRoutes");
+const teamRoutes = require("./routes/teamRoutes");
+const backgroundRoutes = require("./routes/backgroundRoutes");
 app.use("/api/players", playerRoutes);
 app.use("/api/tournaments", tournamentRoutes);
 app.use("/api/upload", uploadRoutes);
 app.use("/api/health", healthRoutes);
 app.use("/api/tournament-images", tournamentImageRoutes);
+app.use("/api/teams", teamRoutes);
+app.use("/api/backgrounds", backgroundRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

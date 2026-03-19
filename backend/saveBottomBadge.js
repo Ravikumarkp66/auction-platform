@@ -1,0 +1,39 @@
+const mongoose = require('mongoose');
+const dotenv = require('dotenv');
+
+dotenv.config();
+
+const BackgroundSchema = new mongoose.Schema({
+  name: { type: String, required: true, unique: true },
+  imageUrl: { type: String, required: true },
+  isActive: { type: Boolean, default: true }
+});
+
+const Background = mongoose.models.Background || mongoose.model('Background', BackgroundSchema);
+
+async function saveBottomBadge() {
+  try {
+    await mongoose.connect(process.env.MONGO_URI);
+    console.log('Connected to MongoDB');
+
+    const badge = {
+      name: 'bottom-badge',
+      imageUrl: '/badges/badge.png',
+      isActive: true
+    };
+
+    await Background.findOneAndUpdate(
+      { name: badge.name },
+      badge,
+      { upsert: true, new: true }
+    );
+
+    console.log('Bottom badge saved/updated successfully');
+    process.exit(0);
+  } catch (err) {
+    console.error('Error saving bottom badge:', err);
+    process.exit(1);
+  }
+}
+
+saveBottomBadge();

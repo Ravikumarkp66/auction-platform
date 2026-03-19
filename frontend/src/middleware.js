@@ -19,6 +19,7 @@ export default withAuth(
           '/auction',
           '/auctions',
           '/auction/live',
+          '/live-auction',
           '/overlay',
           '/api/auth',
           '/login'

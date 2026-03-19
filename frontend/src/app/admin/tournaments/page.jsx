@@ -2,48 +2,57 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Trophy, Play, Eye, Edit, Trash2, Users, Calendar } from "lucide-react";
+import { Trophy, Play, Eye, Edit, Trash2, Users, Calendar, RotateCcw } from "lucide-react";
 
 export default function TournamentsPage() {
   const [tournaments, setTournaments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [resetting, setResetting] = useState(null);
 
   useEffect(() => {
-    // Mock data - in production, this would come from API
-    const mockTournaments = [
-      {
-        id: "1",
-        name: "Village Premier League",
-        status: "live",
-        teams: 8,
-        players: 120,
-        createdAt: "2024-03-15",
-        currentBid: 45000,
-        currentPlayer: "Rohit Kumar"
-      },
-      {
-        id: "2",
-        name: "College Cup Auction",
-        status: "upcoming",
-        teams: 6,
-        players: 90,
-        createdAt: "2024-03-14"
-      },
-      {
-        id: "3",
-        name: "Corporate Championship",
-        status: "upcoming",
-        teams: 10,
-        players: 150,
-        createdAt: "2024-03-13"
-      }
-    ];
-    
-    setTimeout(() => {
-      setTournaments(mockTournaments);
-      setLoading(false);
-    }, 1000);
+    fetchTournaments();
   }, []);
+
+  const fetchTournaments = async () => {
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournaments`);
+      if (res.ok) {
+        const data = await res.json();
+        setTournaments(data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch tournaments:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resetAuction = async (tournamentId) => {
+    if (!confirm("Are you sure you want to reset the auction?\n\nThis will:\n- Keep icon players in their teams\n- Reset all sold players back to auction pool\n- Reset all team budgets to ₹10,000\n\nThis action cannot be undone!")) {
+      return;
+    }
+
+    setResetting(tournamentId);
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournaments/${tournamentId}/reset`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" }
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        alert(`Auction reset successfully!\n\n- ${data.iconPlayersRetained} icon players retained\n- ${data.auctionPlayersReset} auction players reset\n- ${data.teamsReset} teams reset`);
+        fetchTournaments(); // Refresh the list
+      } else {
+        alert("Failed to reset auction");
+      }
+    } catch (err) {
+      console.error("Error resetting auction:", err);
+      alert("Error resetting auction");
+    } finally {
+      setResetting(null);
+    }
+  };
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -52,7 +61,7 @@ export default function TournamentsPage() {
       case "upcoming":
         return "bg-blue-500/10 text-blue-400 border-blue-500/20";
       case "completed":
-        return "bg-green-500/10 text-green-400 border-green-500/20";
+        return "bg-violet-500/10 text-violet-400 border-violet-500/20";
       default:
         return "bg-slate-500/10 text-slate-400 border-slate-500/20";
     }
@@ -89,7 +98,7 @@ export default function TournamentsPage() {
         </div>
         <Link
           href="/admin/create-tournament"
-          className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-500 transition-colors flex items-center gap-2"
+          className="px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-500 transition-colors flex items-center gap-2"
         >
           <Trophy className="w-4 h-4" />
           Create Tournament
@@ -129,8 +138,8 @@ export default function TournamentsPage() {
                   </div>
                 </div>
                 <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-emerald-500/10 rounded-lg">
-                    <Trophy className="w-5 h-5 text-emerald-400" />
+                  <div className="p-2 bg-violet-500/10 rounded-lg">
+                    <Trophy className="w-5 h-5 text-violet-400" />
                   </div>
                   <div>
                     <p className="text-sm text-slate-400">Players</p>
@@ -146,7 +155,7 @@ export default function TournamentsPage() {
                   <p className="text-white">
                     Current Player: {tournament.currentPlayer}
                   </p>
-                  <p className="text-emerald-400 font-semibold">
+                  <p className="text-violet-400 font-semibold">
                     Current Bid: ₹{tournament.currentBid.toLocaleString()}
                   </p>
                 </div>
@@ -175,7 +184,7 @@ export default function TournamentsPage() {
                 
                 {tournament.status === "upcoming" && (
                   <>
-                    <button className="flex-1 px-3 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-500 transition-colors flex items-center justify-center gap-2 text-sm">
+                    <button className="flex-1 px-3 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-500 transition-colors flex items-center justify-center gap-2 text-sm">
                       <Play className="w-4 h-4" />
                       Start Tournament
                     </button>
@@ -202,6 +211,16 @@ export default function TournamentsPage() {
                   </>
                 )}
                 
+                {/* Reset Auction Button */}
+                <button 
+                  onClick={() => resetAuction(tournament._id)}
+                  disabled={resetting === tournament._id}
+                  className="px-3 py-2 bg-amber-600/10 text-amber-400 rounded-lg hover:bg-amber-600/20 transition-colors flex items-center justify-center disabled:opacity-50"
+                  title="Reset Auction (Keep icon players, reset sold players)"
+                >
+                  <RotateCcw className={`w-4 h-4 ${resetting === tournament._id ? 'animate-spin' : ''}`} />
+                </button>
+                
                 <button className="px-3 py-2 bg-red-600/10 text-red-400 rounded-lg hover:bg-red-600/20 transition-colors flex items-center justify-center">
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -218,7 +237,7 @@ export default function TournamentsPage() {
           <p className="text-slate-400 mb-4">Create your first tournament to get started</p>
           <Link
             href="/admin/create-tournament"
-            className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-500 transition-colors inline-flex items-center gap-2"
+            className="px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-500 transition-colors inline-flex items-center gap-2"
           >
             <Trophy className="w-4 h-4" />
             Create Tournament

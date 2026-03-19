@@ -133,7 +133,7 @@ export default function CreateTournament() {
               type="text"
               value={tournament.name}
               onChange={(e) => setTournament({...tournament, name: e.target.value})}
-              className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
               placeholder="Enter tournament name"
             />
           </div>
@@ -145,7 +145,7 @@ export default function CreateTournament() {
             <textarea
               value={tournament.description}
               onChange={(e) => setTournament({...tournament, description: e.target.value})}
-              className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
               rows={3}
               placeholder="Enter tournament description"
             />
@@ -164,19 +164,19 @@ export default function CreateTournament() {
               type="text"
               value={newTeam.name}
               onChange={(e) => setNewTeam({...newTeam, name: e.target.value})}
-              className="flex-1 px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              className="flex-1 px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
               placeholder="Team name"
             />
             <input
               type="text"
               value={newTeam.logo}
               onChange={(e) => setNewTeam({...newTeam, logo: e.target.value})}
-              className="flex-1 px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              className="flex-1 px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
               placeholder="Logo URL (optional)"
             />
             <button
               onClick={addTeam}
-              className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-500 transition-colors"
+              className="px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-500 transition-colors"
             >
               <Plus className="w-5 h-5" />
             </button>
@@ -214,13 +214,13 @@ export default function CreateTournament() {
               type="text"
               value={newPlayer.name}
               onChange={(e) => setNewPlayer({...newPlayer, name: e.target.value})}
-              className="px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              className="px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
               placeholder="Player name"
             />
             <select
               value={newPlayer.role}
               onChange={(e) => setNewPlayer({...newPlayer, role: e.target.value})}
-              className="px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              className="px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
             >
               <option value="Batsman">Batsman</option>
               <option value="Bowler">Bowler</option>
@@ -231,7 +231,7 @@ export default function CreateTournament() {
               type="number"
               value={newPlayer.age}
               onChange={(e) => setNewPlayer({...newPlayer, age: e.target.value})}
-              className="px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              className="px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
               placeholder="Age"
               min="15"
               max="50"
@@ -240,14 +240,14 @@ export default function CreateTournament() {
               type="number"
               value={newPlayer.basePrice}
               onChange={(e) => setNewPlayer({...newPlayer, basePrice: e.target.value})}
-              className="px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              className="px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
               placeholder="Base Price"
               min="1000"
             />
           </div>
           <button
             onClick={addPlayer}
-            className="w-full px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-500 transition-colors flex items-center justify-center gap-2"
+            className="w-full px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-500 transition-colors flex items-center justify-center gap-2"
           >
             <Plus className="w-4 h-4" />
             Add Player
@@ -281,7 +281,7 @@ export default function CreateTournament() {
         <button
           onClick={handleCreateTournament}
           disabled={loading}
-          className="flex-1 px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          className="flex-1 px-6 py-3 bg-violet-600 text-white rounded-lg hover:bg-violet-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
           <Save className="w-5 h-5" />
           {loading ? "Creating..." : "Create Tournament"}

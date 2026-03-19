@@ -6,15 +6,19 @@ import { useLanguage } from '../context/LanguageContext';
 import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import AuthButton from './AuthButton';
+import AuthModal from './AuthModal';
 
 export default function Navbar() {
   const { language, changeLanguage, t } = useLanguage();
   const { data: session } = useSession();
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  const [languageDropdownOpen, setLanguageDropdownOpen] = useState(false);
 
   // Hide navbar on these app-specific screens
-  if (pathname === '/auction' || pathname === '/live-auction' || pathname === '/overlay') {
+  if (pathname === '/auction' || pathname === '/live-auction' || pathname === '/overlay' || pathname.startsWith('/team/')) {
     return null;
   }
 
@@ -22,22 +26,25 @@ export default function Navbar() {
 
   // Dynamic nav links based on user role
   const navLinks = [
-    { href: '/', label: t.navbar.home },
-    { href: '/services', label: t.navbar.services },
-    { href: '/about', label: t.navbar.about },
-    { href: '/contact', label: t.navbar.contact },
-    // Show Live Auction to all users (they can view overlay)
-    { href: '/live-auction', label: '🔴 Live Auction', isLive: true }
+    { href: '/', label: 'Home' },
+    { href: '/services', label: 'Services' },
+    { href: '/about', label: 'About' },
+    // Show Live Auction to all users - goes to auctions list page
+    { 
+      href: '/auctions', 
+      label: '🔴 Live Auction', 
+      isLive: true 
+    }
   ];
 
   return (
     <nav className="bg-slate-900/80 backdrop-blur-xl border-b border-slate-800/50 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Logo */}
-          <div className="flex-shrink-0">
+          {/* Desktop Logo - Hidden on Mobile */}
+          <div className="hidden md:flex flex-shrink-0">
             <Link href="/" className="text-white font-bold text-xl tracking-tight" onClick={() => setMenuOpen(false)}>
-              Auction<span className="text-emerald-500">Pro</span>
+              Auction<span className="text-violet-500">Pro</span>
             </Link>
           </div>
 
@@ -47,11 +54,11 @@ export default function Navbar() {
               <Link
                 key={link.href}
                 href={link.href}
-                className={`hover:text-emerald-400 transition-colors text-sm font-medium px-4 py-2 ${
+                className={`hover:text-violet-400 transition-colors text-sm font-medium px-4 py-2 ${
                   link.isLive 
                     ? 'text-red-400 font-bold' 
                     : isActive(link.href) 
-                      ? 'text-emerald-400' 
+                      ? 'text-violet-400' 
                       : 'text-gray-300'
                 }`}
               >
@@ -73,7 +80,7 @@ export default function Navbar() {
                     key={lang}
                     onClick={() => changeLanguage(lang)}
                     className={`w-full text-left px-4 py-2 text-sm hover:bg-slate-700 transition-colors first:rounded-t-xl last:rounded-b-xl ${
-                      language === lang ? 'bg-emerald-500/20 text-emerald-400' : 'text-gray-300'
+                      language === lang ? 'bg-violet-500/20 text-violet-400' : 'text-gray-300'
                     }`}
                   >
                     {lang === 'en' ? 'English' : lang === 'hi' ? 'Hindi' : 'Kannada'}
@@ -82,69 +89,51 @@ export default function Navbar() {
               </div>
             </div>
 
-            {/* Profile Dropdown */}
-            <div className="relative group">
-              <button className="flex items-center gap-2 text-gray-300 hover:text-white text-sm font-medium transition-colors">
-                👤 {session?.user?.name || 'Profile'} ▼
-              </button>
-              <div className="absolute right-0 mt-2 w-40 bg-slate-800 border border-slate-700 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
-                <Link href="/profile" className="block px-4 py-2 text-sm hover:bg-slate-700 text-gray-300 transition-colors first:rounded-t-xl">
-                  Profile
-                </Link>
-                {session?.user?.role === 'admin' && (
-                  <Link href="/auction" className="block px-4 py-2 text-sm hover:bg-slate-700 text-gray-300 transition-colors">
-                    My Auctions
-                  </Link>
-                )}
-                <Link href="/settings" className="block px-4 py-2 text-sm hover:bg-slate-700 text-gray-300 transition-colors">
-                  Settings
-                </Link>
-                <div className="border-t border-slate-700">
-                  <AuthButton />
-                </div>
-              </div>
-            </div>
+            {/* Simple Sign In/Out Button */}
+            <AuthButton />
           </div>
 
           {/* Mobile Header */}
-          <div className="md:hidden flex items-center justify-between w-full">
-            {/* Logo */}
+          <div className="md:hidden flex items-center justify-between w-full px-1">
+            {/* Logo - Extremely small */}
             <div className="flex-shrink-0">
-              <Link href="/" className="text-white font-bold text-xl tracking-tight" onClick={() => setMenuOpen(false)}>
-                Auction<span className="text-emerald-500">Pro</span>
+              <Link href="/" className="text-white font-bold text-sm tracking-tight" onClick={() => setMenuOpen(false)}>
+                A<span className="text-violet-500">P</span>
               </Link>
             </div>
 
-            {/* Mobile Right Side */}
-            <div className="flex items-center gap-3">
-              {/* Live Auction Button - Show to all users */}
-              <Link
-                href="/live-auction"
-                onClick={() => setMenuOpen(false)}
-                className="bg-red-600 hover:bg-red-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-all"
+            {/* Mobile Right Side - Minimal buttons */}
+            <div className="flex items-center gap-0.5">
+              {/* Signin Button - Tiny */}
+              <button
+                onClick={() => setIsModalOpen(true)}
+                className="bg-violet-600 hover:bg-violet-500 text-white w-5 h-5 rounded text-xs flex items-center justify-center transition-all flex-shrink-0"
+                title="Sign In"
               >
-                🔴 Live
-              </Link>
+                🔐
+              </button>
 
-              {/* Mobile menu button */}
+              {/* Mobile menu button - Tiny */}
               <button
                 onClick={() => setMenuOpen(prev => !prev)}
-                className="w-10 h-10 flex flex-col items-center justify-center gap-[5px] rounded-xl bg-slate-800 border border-slate-700 hover:bg-slate-700 transition-all"
+                className="w-5 h-5 flex flex-col items-center justify-center gap-[0.5px] rounded bg-slate-800 border border-slate-700 hover:bg-slate-700 transition-all flex-shrink-0"
                 aria-label="Toggle menu"
               >
-                <span className={`block w-5 h-0.5 bg-white rounded-full transition-all duration-300 ${menuOpen ? 'rotate-45 translate-y-[7px]' : ''}`}></span>
-                <span className={`block w-5 h-0.5 bg-white rounded-full transition-all duration-300 ${menuOpen ? 'opacity-0 scale-x-0' : ''}`}></span>
-                <span className={`block w-5 h-0.5 bg-white rounded-full transition-all duration-300 ${menuOpen ? '-rotate-45 -translate-y-[7px]' : ''}`}></span>
+                <span className={`block w-2 h-0.5 bg-white rounded-full transition-all duration-300 ${menuOpen ? 'rotate-45 translate-y-[2.5px]' : ''}`}></span>
+                <span className={`block w-2 h-0.5 bg-white rounded-full transition-all duration-300 ${menuOpen ? 'opacity-0 scale-x-0' : ''}`}></span>
+                <span className={`block w-2 h-0.5 bg-white rounded-full transition-all duration-300 ${menuOpen ? '-rotate-45 -translate-y-[2.5px]' : ''}`}></span>
               </button>
             </div>
           </div>
         </div>
 
         {/* Mobile Dropdown Menu */}
-        <div className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${menuOpen ? 'max-h-[400px] opacity-100' : 'max-h-0 opacity-0'}`}>
-          <div className="bg-slate-900/98 backdrop-blur-xl border-t border-slate-800/50 px-4 pt-3 pb-5 space-y-1">
+        <div className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${
+          menuOpen ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'
+        }`}>
+          <div className="bg-slate-900/98 backdrop-blur-xl border-t border-slate-800/50 px-4 pt-3 pb-5 space-y-1 max-h-[500px] overflow-y-auto">
             
-            {/* Regular Navigation Links */}
+            {/* Mobile Navigation Links */}
             {navLinks.map(link => (
               <Link
                 key={link.href}
@@ -152,7 +141,7 @@ export default function Navbar() {
                 onClick={() => setMenuOpen(false)}
                 className={`flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all min-h-[48px] ${
                   isActive(link.href)
-                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                    ? 'bg-violet-500/10 text-violet-400 border border-violet-500/20'
                     : 'text-gray-300 hover:bg-slate-800 hover:text-white border border-transparent'
                 }`}
               >
@@ -162,10 +151,6 @@ export default function Navbar() {
 
             {/* Mobile Profile Section */}
             <div className="border-t border-slate-800/50 pt-4 mt-4 space-y-2">
-              <div className="flex items-center gap-2 px-4 py-2 text-gray-400 text-sm">
-                👤 {session?.user?.name || 'Guest'}
-              </div>
-              
               {/* Mobile Language Switcher */}
               <div className="px-4 py-2">
                 <div className="text-xs text-gray-500 mb-2">Language</div>
@@ -176,7 +161,7 @@ export default function Navbar() {
                       onClick={() => changeLanguage(lang)}
                       className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase transition-colors ${
                         language === lang 
-                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
+                          ? 'bg-violet-500/20 text-violet-400 border border-violet-500/30' 
                           : 'bg-slate-800 text-gray-400 hover:text-white border border-slate-700'
                       }`}
                     >
@@ -185,15 +170,13 @@ export default function Navbar() {
                   ))}
                 </div>
               </div>
-
-              {/* Mobile Auth */}
-              <div className="px-4 py-2">
-                <AuthButton />
-              </div>
             </div>
           </div>
         </div>
       </div>
+      
+      {/* Auth Modal */}
+      <AuthModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </nav>
   );
 }

@@ -139,7 +139,7 @@ export default function BreakControlPanel({ socket, onBreakStart, onBreakEnd }) 
                 value={customReason}
                 onChange={(e) => setCustomReason(e.target.value)}
                 placeholder="Enter custom break reason..."
-                className="w-full px-4 py-2 bg-slate-800 border border-slate-600 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500"
+                className="w-full px-4 py-2 bg-slate-800 border border-slate-600 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:border-violet-500"
               />
             </div>
           )}
@@ -158,7 +158,7 @@ export default function BreakControlPanel({ socket, onBreakStart, onBreakEnd }) 
                   max="120"
                   value={minutes}
                   onChange={(e) => setMinutes(Math.max(0, Math.min(120, parseInt(e.target.value) || 0)))}
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-xl text-white text-center focus:outline-none focus:border-emerald-500"
+                  className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-xl text-white text-center focus:outline-none focus:border-violet-500"
                 />
               </div>
               <div className="text-2xl text-slate-400 pb-6">:</div>
@@ -170,7 +170,7 @@ export default function BreakControlPanel({ socket, onBreakStart, onBreakEnd }) 
                   max="59"
                   value={seconds}
                   onChange={(e) => setSeconds(Math.max(0, Math.min(59, parseInt(e.target.value) || 0)))}
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-xl text-white text-center focus:outline-none focus:border-emerald-500"
+                  className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-xl text-white text-center focus:outline-none focus:border-violet-500"
                 />
               </div>
             </div>
@@ -189,7 +189,7 @@ export default function BreakControlPanel({ socket, onBreakStart, onBreakEnd }) 
                     setMinutes(mins)
                     setSeconds(0)
                   }}
-                  className="px-3 py-1 bg-slate-800 border border-slate-600 rounded-lg text-xs text-slate-300 hover:border-emerald-500 hover:text-emerald-400 transition-all"
+                  className="px-3 py-1 bg-slate-800 border border-slate-600 rounded-lg text-xs text-slate-300 hover:border-violet-500 hover:text-violet-400 transition-all"
                 >
                   {mins}m
                 </button>
@@ -236,7 +236,7 @@ export default function BreakControlPanel({ socket, onBreakStart, onBreakEnd }) 
           <button
             onClick={endBreak}
             disabled={!socket}
-            className="w-full py-3 bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 disabled:from-slate-600 disabled:to-slate-700 disabled:opacity-50 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2"
+            className="w-full py-3 bg-gradient-to-r from-violet-500 to-violet-500 hover:from-violet-600 hover:to-violet-600 disabled:from-slate-600 disabled:to-slate-700 disabled:opacity-50 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2"
           >
             <span>✅</span>
             End Break Early

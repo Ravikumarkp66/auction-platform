@@ -44,20 +44,21 @@ export default function AuthModal({ isOpen, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="bg-slate-900 rounded-xl shadow-2xl w-full max-w-md mx-4 border border-slate-700">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-700">
-          <h2 className="text-xl font-bold text-white">
-            {isLogin ? "Sign In" : "Sign Up"}
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-white transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm">
+      <div className="flex items-center justify-center min-h-screen p-4">
+        <div className="bg-slate-900 rounded-xl shadow-2xl w-full max-w-md border border-slate-700 transform transition-all">
+          {/* Header */}
+          <div className="flex items-center justify-between p-6 border-b border-slate-700">
+            <h2 className="text-xl font-bold text-white">
+              {isLogin ? "Sign In" : "Sign Up"}
+            </h2>
+            <button
+              onClick={onClose}
+              className="text-slate-400 hover:text-white transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
 
         {/* Body */}
         <div className="p-6 space-y-4">
@@ -106,7 +107,7 @@ export default function AuthModal({ isOpen, onClose }) {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
                 placeholder="Enter your email"
                 required
               />
@@ -120,7 +121,7 @@ export default function AuthModal({ isOpen, onClose }) {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
                 placeholder="Enter your password"
                 required
               />
@@ -135,21 +136,15 @@ export default function AuthModal({ isOpen, onClose }) {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-emerald-600 text-white rounded-lg px-4 py-3 font-medium hover:bg-emerald-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-violet-600 text-white rounded-lg px-4 py-3 font-medium hover:bg-violet-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? "Signing in..." : "Sign In"}
             </button>
           </form>
 
-          {/* Admin Credentials Note */}
-          <div className="p-3 bg-slate-800/50 rounded-lg border border-slate-700">
-            <p className="text-xs text-slate-400">
-              <strong>Admin Access:</strong><br />
-              Email: admin.15feblsrbp@gmail.com<br />
-              Password: 15feblsrbp@mar15
-            </p>
-          </div>
+          {/* Admin Credentials Note removed for security */}
         </div>
+      </div>
       </div>
     </div>
   );

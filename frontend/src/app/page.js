@@ -1,7 +1,6 @@
 "use client";
 
 import Hero from "@/components/Hero";
-import TournamentScroller from "@/components/TournamentScroller";
 import ServicesCard from "@/components/ServicesCard";
 import Footer from "@/components/Footer";
 import Link from "next/link";
@@ -10,7 +9,6 @@ export default function Home() {
   return (
     <>
       <Hero />
-      <TournamentScroller />
       
       {/* Services Section */}
       <section className="py-20 bg-slate-950">
@@ -37,17 +35,17 @@ export default function Home() {
       </section>
 
       {/* CTA Section */}
-      <section className="bg-emerald-600">
+      <section className="bg-violet-600">
         <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:py-16 lg:px-8 lg:flex lg:items-center lg:justify-between">
           <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white">
             <span className="block">Ready to host your</span>
-            <span className="block text-emerald-900 mt-2">next tournament?</span>
+            <span className="block text-violet-900 mt-2">next tournament?</span>
           </h2>
           <div className="mt-8 flex lg:mt-0 lg:flex-shrink-0">
             <div className="inline-flex rounded-md shadow">
               <Link 
                 href="/contact" 
-                className="inline-flex items-center justify-center px-5 py-3 border border-transparent text-base font-bold rounded-md text-emerald-600 bg-white hover:bg-gray-50 transition-colors"
+                className="inline-flex items-center justify-center px-5 py-3 border border-transparent text-base font-bold rounded-md text-violet-600 bg-white hover:bg-gray-50 transition-colors"
               >
                 Contact Us
               </Link>

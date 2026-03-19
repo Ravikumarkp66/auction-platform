@@ -15,14 +15,15 @@ const authOptions = {
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
+        const adminEmails = ["lakshmish4638@gmail.com", "mreducator4566@gmail.com"];
         // Check for admin credentials
         if (
-          credentials.email === "admin.15feblsrbp@gmail.com" &&
-          credentials.password === "15feblsrbp@mar15"
+          adminEmails.includes(credentials.email) &&
+          credentials.password === "15FEBLSRBP"
         ) {
           return {
-            id: "1",
-            email: "admin.15feblsrbp@gmail.com",
+            id: credentials.email,
+            email: credentials.email,
             name: "Admin",
             role: "admin"
           };
@@ -30,8 +31,12 @@ const authOptions = {
         
         // For demo purposes, create a regular user
         if (credentials.email && credentials.password) {
+          // If they used an admin email but wrong password, reject them
+          if (adminEmails.includes(credentials.email)) {
+            return null;
+          }
           return {
-            id: "2",
+            id: credentials.email,
             email: credentials.email,
             name: credentials.email.split('@')[0],
             role: "user"
@@ -49,7 +54,8 @@ const authOptions = {
   callbacks: {
     async jwt({ token, user, account }) {
       if (user) {
-        token.role = user.role;
+        const adminEmails = ["lakshmish4638@gmail.com", "mreducator4566@gmail.com"];
+        token.role = user.role || (adminEmails.includes(user.email) ? "admin" : "user");
         token.picture = user.picture || account?.picture;
       }
       return token;
