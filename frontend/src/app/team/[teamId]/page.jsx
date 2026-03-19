@@ -96,20 +96,36 @@ function TeamSquadContent() {
   const teamId = params.teamId
   const tournamentId = searchParams.get('tournament')
   const [squadBg, setSquadBg] = useState('/backgrounds/squad-bg.jpg')
+  const [squadBadgeUrl, setSquadBadgeUrl] = useState('/badges/squad-badge.png')
+  const [badgeUrl, setBadgeUrl] = useState('/badges/badge.png')
 
   useEffect(() => {
-    const fetchBg = async () => {
+    const fetchImages = async () => {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/backgrounds/squad_bg`)
-        if (res.ok) {
-          const data = await res.json()
+        const bgRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/backgrounds/squad_bg`)
+        if (bgRes.ok) {
+          const data = await bgRes.json()
           if (data.imageUrl) setSquadBg(data.imageUrl)
         }
-      } catch (err) {
-        console.warn("Could not fetch custom squad background")
-      }
+      } catch (err) { }
+      
+      try {
+        const squadBadgeRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/backgrounds/squad_badge`)
+        if (squadBadgeRes.ok) {
+          const data = await squadBadgeRes.json()
+          if (data.imageUrl) setSquadBadgeUrl(data.imageUrl)
+        }
+      } catch (err) { }
+      
+      try {
+        const badgeRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/backgrounds/badge`)
+        if (badgeRes.ok) {
+          const data = await badgeRes.json()
+          if (data.imageUrl) setBadgeUrl(data.imageUrl)
+        }
+      } catch (err) { }
     }
-    fetchBg()
+    fetchImages()
   }, [])
 
   const downloadSquad = async () => {
@@ -239,12 +255,14 @@ function TeamSquadContent() {
 
       {/* TOURNAMENT BADGES (EXTREME RIGHT POSITIONING) */}
       <img 
-        src="/badges/squad-badge.png" 
+        src={squadBadgeUrl}
+        crossOrigin="anonymous" 
         alt="Tournament Badge" 
         className="badge-top"
       />
       <img 
-        src="/badges/badge.png" 
+        src={badgeUrl}
+        crossOrigin="anonymous" 
         alt="Creator Logo" 
         className="badge-bottom"
       />

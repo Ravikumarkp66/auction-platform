@@ -1,6 +1,6 @@
 import './globals.css';
 import Navbar from '../components/Navbar';
-
+import DynamicBackground from '../components/DynamicBackground';
 import { LanguageProvider } from '../context/LanguageContext';
 import AuthProvider from '../components/AuthProvider';
 
@@ -13,6 +13,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" className="dark">
       <body className="main-container text-slate-50 min-h-screen flex flex-col font-sans antialiased">
+        <DynamicBackground />
         <AuthProvider>
           <LanguageProvider>
             <div className="app flex flex-col min-h-screen w-full">

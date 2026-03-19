@@ -12,11 +12,26 @@ export default function OverlayPage() {
   const router = useRouter()
   const [auction, setAuction] = useState(null)
   const [socket, setSocket] = useState(null)
-  const [connectionStatus, setConnectionStatus] = useState('disconnected') // connected, disconnected, connecting
-  const [breakTime, setBreakTime] = useState(null) // { type: 'lunch' | 'tea' | 'short', duration: number, endTime: number }
-  const [language, setLanguage] = useState('en') // 'en' | 'kn'
-  const [breakNow, setBreakNow] = useState(Date.now()) // ticking reference for smooth countdown
-  const [focusMode, setFocusMode] = useState(false) // Focus mode toggle
+  const [connectionStatus, setConnectionStatus] = useState('disconnected')
+  const [breakTime, setBreakTime] = useState(null)
+  const [language, setLanguage] = useState('en')
+  const [breakNow, setBreakNow] = useState(Date.now())
+  const [focusMode, setFocusMode] = useState(false)
+  const [splashUrl, setSplashUrl] = useState('/splash-screen.png')
+
+  // Load the splash screen from S3/MongoDB on mount
+  useEffect(() => {
+    const fetchSplash = async () => {
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/backgrounds/splash_screen`)
+        if (res.ok) {
+          const data = await res.json()
+          if (data.imageUrl) setSplashUrl(data.imageUrl)
+        }
+      } catch { }
+    }
+    fetchSplash()
+  }, [])
 
   // Note: Breaks are now driven only by socket events from the admin panel,
   // not by URL query parameters, to avoid accidental unsynchronised breaks.
@@ -294,7 +309,7 @@ export default function OverlayPage() {
       <div 
         className="min-h-screen w-full flex items-center justify-center relative overflow-hidden"
         style={{
-          backgroundImage: 'url(/splash-screen.png)',
+          backgroundImage: `url('${splashUrl}')`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat'
@@ -393,7 +408,7 @@ export default function OverlayPage() {
       <div 
         className="min-h-screen w-full flex items-center justify-center relative overflow-hidden"
         style={{
-          backgroundImage: 'url(/splash-screen.png)',
+          backgroundImage: `url('${splashUrl}')`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat'
