@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const https = require("https");
+const http = require("http");
 
 // Extracts Google Drive file ID from any Drive URL format
 const extractDriveId = (url) => {
@@ -19,7 +20,8 @@ const extractDriveId = (url) => {
 const fetchUrl = (url, res, redirectCount = 0) => {
   if (redirectCount > 5) return res.status(500).send("Too many redirects");
 
-  const req = https.get(url, {
+  const protocol = url.startsWith("https") ? https : http;
+  const req = protocol.get(url, {
     headers: {
       // Pretend to be a browser — this bypasses Drive's server-block
       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",

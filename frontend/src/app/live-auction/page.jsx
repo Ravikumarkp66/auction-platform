@@ -9,6 +9,7 @@ import { io } from "socket.io-client"
 import BreakControlPanel from '../../components/BreakControlPanel'
 import CompactBreakControl from '../../components/CompactBreakControl'
 import SplashScreen from '../../components/SplashScreen'
+import ImageCropperModal from '../../components/ImageCropperModal'
 import { uploadToS3 } from "../../lib/uploadToS3"
 
 // Module-level socket instance to persist across React re-renders in development
@@ -68,6 +69,7 @@ function LiveAuctionContent() {
   const [bidIncrement, setBidIncrement] = useState(100)
   const [socket, setSocket] = useState(null)
   const [showBreakModal, setShowBreakModal] = useState(false)
+  const [showImageEditor, setShowImageEditor] = useState(false)
 
   // Edge Case 1: Debounce / Cooldown
   const BID_COOLDOWN = 600;
@@ -816,6 +818,36 @@ function LiveAuctionContent() {
     }
   }
 
+  const handleImageSave = async (newUrl) => {
+    if (!player) return
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/players/${player.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageUrl: newUrl })
+      })
+      if (res.ok) {
+        // Update local state immediately
+        setPlayers(prev => prev.map(p => p.id === player.id ? { ...p, image: newUrl, imageUrl: newUrl, photo: { ...p.photo, s3: newUrl } } : p))
+        
+        // Broadcast to other devices
+        if (socket) {
+          socket.emit('auctionUpdate', {
+            player: { ...player, image: newUrl, imageUrl: newUrl, photo: { ...player.photo, s3: newUrl } },
+            currentBid,
+            highestBidder,
+            tournamentName: config.name,
+            teams,
+            roundHistory,
+            timestamp: Date.now()
+          })
+        }
+        console.log("✅ Player photo updated and synchronized")
+      }
+    } catch (err) {
+      console.error("Failed to save cropped image:", err)
+    }
+  }
   const handleTeamNameUpdate = async (id, field, newValue) => {
     if (!newValue.trim() && field === "name") return setEditingTeamId(null);
     try {
@@ -1122,20 +1154,27 @@ function LiveAuctionContent() {
                         </div>
                       )}
 
-                      {/* Photo Edit Overlay */}
-                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover/photo:opacity-100 transition-opacity flex flex-col items-center justify-center p-4 text-center">
-                        <label className="cursor-pointer bg-white/10 hover:bg-white/20 border border-white/20 px-4 py-2 rounded-xl backdrop-blur-md transition-all flex items-center gap-2 group/btn">
-                          <span className="text-[10px] font-black uppercase tracking-widest text-white">Upload New Photo</span>
-                          <input
-                            type="file"
-                            className="hidden"
-                            accept="image/*"
-                            onChange={(e) => handleImageUpload(e, (url) => handlePlayerUpdate(player.id, 'imageUrl', url))}
-                          />
-                          <span className="group-hover/btn:scale-110 transition-transform">📸</span>
-                        </label>
-                        <p className="text-[8px] text-slate-400 mt-2 font-bold uppercase tracking-widest italic">Supports JPG, PNG, WEBP</p>
-                      </div>
+                        {/* Photo Edit Overlay */}
+                        <div className="absolute inset-0 bg-black/80 opacity-0 group-hover/photo:opacity-100 transition-all duration-300 flex flex-col items-center justify-center p-4 text-center gap-3">
+                          <button 
+                            onClick={() => setShowImageEditor(true)}
+                            className="w-full bg-violet-600 hover:bg-violet-500 text-white px-4 py-2.5 rounded-xl backdrop-blur-md transition-all flex items-center justify-center gap-2 group/btn shadow-lg"
+                          >
+                            <span className="text-[10px] font-black uppercase tracking-widest">View & Crop</span>
+                            <span className="group-hover/btn:scale-125 transition-transform text-xs">✂️</span>
+                          </button>
+                          
+                          <label className="w-full cursor-pointer bg-white/10 hover:bg-white/20 border border-white/20 px-4 py-2.5 rounded-xl backdrop-blur-md transition-all flex items-center justify-center gap-2 group/btn">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-white">Upload New</span>
+                            <input
+                              type="file"
+                              className="hidden"
+                              accept="image/*"
+                              onChange={(e) => handleImageUpload(e, (url) => handlePlayerUpdate(player.id, 'imageUrl', url))}
+                            />
+                            <span className="group-hover/btn:rotate-12 transition-transform text-xs">📸</span>
+                          </label>
+                        </div>
 
                       {/* STAMP OVERLAY */}
                       {player.status === "sold" && (
@@ -1463,7 +1502,11 @@ function LiveAuctionContent() {
 
                         <button
                           onClick={unsoldPlayer}
-                          className="sm:w-[30%] bg-red-600 hover:bg-red-500 py-3 rounded-xl font-black border-2 border-red-400/30 shadow-lg text-white text-base md:text-lg italic uppercase active:scale-95 transition-all flex items-center justify-center gap-2"
+                          disabled={currentBid > 0}
+                          className={`sm:w-[30%] py-3 rounded-xl font-black border-2 shadow-lg text-white text-base md:text-lg italic uppercase active:scale-95 transition-all flex items-center justify-center gap-2 ${currentBid > 0
+                            ? "bg-slate-800/50 text-slate-600 border-slate-700 opacity-50 cursor-not-allowed"
+                            : "bg-red-600 hover:bg-red-500 border-red-400/30"
+                            }`}
                         >
                           <span className="text-base opacity-70">🚫</span>
                           <span>UNSOLD</span>
@@ -1518,6 +1561,15 @@ function LiveAuctionContent() {
         </div>
 
       </div>
+      {/* Image Editor Modal */}
+      {showImageEditor && player && (
+        <ImageCropperModal
+          imageUrl={player.photo?.drive || player.photo?.s3 || player.imageUrl || player.image}
+          onSave={handleImageSave}
+          onClose={() => setShowImageEditor(false)}
+          folder="players"
+        />
+      )}
     </div>
   )
 }
