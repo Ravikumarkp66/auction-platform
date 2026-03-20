@@ -135,6 +135,42 @@ const calculateAge = (dob) => {
   }
 };
 
+const ROLE_MAP = {
+  // Batsman variants
+  bat: "Batsman", batter: "Batsman", batting: "Batsman",
+  batsman: "Batsman", batsmen: "Batsman", "ಬ್ಯಾಟ್ಸ್ಮನ್": "Batsman",
+  
+  // Bowler variants
+  bowl: "Bowler", bowler: "Bowler", bowling: "Bowler", "ಬೌಲರ್": "Bowler",
+  
+  // All-Rounder variants
+  "all-rounder": "All-Rounder", allrounder: "All-Rounder", "all rounder": "All-Rounder",
+  ar: "All-Rounder", "ಅಲ್ ರೌಂಡರ್": "All-Rounder", "ಆಲ್ ರೌಂಡರ್": "All-Rounder",
+  
+  // Wicket Keeper variants
+  "wicket keeper": "Wicket Keeper", wicketkeeper: "Wicket Keeper",
+  wk: "Wicket Keeper", keeper: "Wicket Keeper", "ವಿಕೆಟ್ ಕೀಪರ್": "Wicket Keeper",
+  
+  // WK-Batsman variants
+  "wk-batsman": "WK-Batsman", "wk batsman": "WK-Batsman", wkbatsman: "WK-Batsman",
+  "wicket keeper batsman": "WK-Batsman", "keeper batsman": "WK-Batsman",
+};
+
+const normalizeRole = (raw) => {
+  if (!raw) return "All-Rounder";
+  const key = String(raw).toLowerCase().trim().replace(/\s+/g, " ");
+  // Exact match first
+  if (ROLE_MAP[key]) return ROLE_MAP[key];
+  // Partial match
+  for (const [k, v] of Object.entries(ROLE_MAP)) {
+    if (key.includes(k)) return v;
+  }
+  // Passthrough if it's already a valid role
+  const valid = ["Batsman","Bowler","All-Rounder","Wicket Keeper","WK-Batsman"];
+  const found = valid.find(v => v.toLowerCase() === key);
+  return found || "All-Rounder";
+};
+
 // ─────────────────────────────────────────────────────────────
 // PROGRESS BAR
 // ─────────────────────────────────────────────────────────────
@@ -460,19 +496,19 @@ export default function CreateTournamentWizard() {
 
         // 2. Extract Icons (Filter: Name + Image)
         const iconRows = rawRows.filter(row => {
-          const name = findValue(row, ["player name", "playerName", "icon", "name", "athlete"]);
-          const img = findValue(row, ["imageUrl", "photo", "image", "link", "url", "icon image"]);
+          const name = findValue(row, ["player name", "playerName", "icon", "name", "athlete", "ಆಟಗಾರನ ಹೆಸರು"]);
+          const img = findValue(row, ["imageUrl", "photo", "image", "link", "url", "icon image", "ಭಾವಚಿತ್ರ"]);
           return name && img;
         });
 
         if (iconRows.length > 0) {
           const importedIcons = iconRows.map(row => ({
-            name:     findValue(row, ["player name", "playerName", "icon", "name", "athlete"]),
-            role:     findValue(row, ["playing role", "role", "type", "position", "skill"]) || "All-Rounder",
-            village:  findValue(row, ["village", "town", "city"]) || "-",
-            age:      calculateAge(findValue(row, ["dob", "birth"])) || findValue(row, ["age"]) || "-",
-            imageUrl: fixUrl(findValue(row, ["imageUrl", "photo", "image", "link", "url", "icon image"])),
-            teamName: findValue(row, ["team", "teamName", "team name"])
+            name:     findValue(row, ["player name", "playerName", "icon", "name", "athlete", "ಆಟಗಾರನ ಹೆಸರು"]),
+            role:     normalizeRole(findValue(row, ["playing role", "role", "skill", "player role", "category", "type", "position", "ಪಾತ್ರ", "ಸ್ಥಾನ"])),
+            village:  findValue(row, ["village", "town", "city", "ಗ್ರಾಮ", "ಸ್ಥಳ"]) || "-",
+            age:      calculateAge(findValue(row, ["dob", "birth"])) || findValue(row, ["age", "ವಯಸ್ಸು"]) || "-",
+            imageUrl: fixUrl(findValue(row, ["imageUrl", "photo", "image", "link", "url", "icon image", "ಭಾವಚಿತ್ರ"])),
+            teamName: findValue(row, ["team", "teamName", "team name", "ತಂಡ"])
           }));
           
           // We will map these to specific slots during transition to Step 3
@@ -641,7 +677,9 @@ export default function CreateTournamentWizard() {
             id: i + 1,
             applicationId: findValue(row, ["applicationId", "application id", "app id", "id", "sl no", "serial", "no", "ಐಡಿ"]) || (i + 1),
             name:         findValue(row, ["player name", "playerName", "name", "player", "ಆಟಗಾರನ ಹೆಸರು"]) || "PLAYER NAME",
-            role:         findValue(row, ["playing role", "role", "skill", "player role", "category", "type", "position", "ಪಾತ್ರ"]) || "All-Rounder",
+            role: normalizeRole(findValue(row, [
+              "playing role", "playerrole", "player role", "role", "skill", "category", "type", "position", "playing style", "batting/bowling", "speciality", "specialty", "ಪಾತ್ರ", "ಸ್ಥಾನ", "ವಿಭಾಗ"
+            ])),
             age:          calcAge || rawAge || "-",
             dob:          dobVal ? (dobVal instanceof Date ? dobVal.toLocaleDateString() : String(dobVal)) : "",
             mobile:       findValue(row, ["mobile", "phone", "contact", "ಮೊಬೈಲ್", "ದೂರವಾಣಿ"]) || "-",
@@ -654,7 +692,9 @@ export default function CreateTournamentWizard() {
           };
         });
 
-        setPlayers(imported);
+        // Force sequential applicationIds regardless of what's in the sheet
+        const reindexed = imported.map((p, i) => ({ ...p, applicationId: i + 1 }));
+        setPlayers(reindexed);
         setErrors({});
       } catch { alert("Invalid player file format"); }
     };
@@ -1078,7 +1118,11 @@ export default function CreateTournamentWizard() {
                       <button
                         onClick={() => {
                           if (window.confirm(`Are you sure you want to delete ${p.name}?`)) {
-                            setPlayers(prev => prev.filter((_, idx) => idx !== i));
+                            setPlayers(prev => {
+                              const updated = prev.filter((_, idx) => idx !== i);
+                              // Re-index all applicationIds sequentially
+                              return updated.map((pl, seq) => ({ ...pl, applicationId: seq + 1 }));
+                            });
                           }
                         }}
                         className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-all flex items-center justify-center group/del"

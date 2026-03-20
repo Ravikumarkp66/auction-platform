@@ -3,6 +3,23 @@ const router = express.Router();
 const Player = require("../models/Player");
 const Team = require("../models/Team");
 
+/**
+ * Re-indexes all non-icon players to ensure no gaps in applicationId
+ */
+const reorderApplicationIds = async (tournamentId) => {
+    try {
+        const players = await Player.find({ tournamentId, isIcon: false }).sort({ applicationId: 1 });
+        let current = 1;
+        for (const p of players) {
+            p.applicationId = current++;
+            await p.save();
+        }
+        console.log(`[REORDER] Re-indexed ${players.length} players for tournament ${tournamentId}`);
+    } catch (err) {
+        console.error("[REORDER] Failed:", err.message);
+    }
+};
+
 // Get all players (with populated teams)
 router.get("/", async (req, res) => {
   try {
@@ -165,6 +182,7 @@ router.post("/cleanup-duplicates", async (req, res) => {
 
         if (toDeleteIds.length > 0) {
             await Player.deleteMany({ _id: { $in: toDeleteIds } });
+            await reorderApplicationIds(tournamentId);
         }
 
         res.json({ removed: toDeleteIds.length });
@@ -182,6 +200,7 @@ router.post("/reset-to-baseline", async (req, res) => {
             isIcon: false,
             applicationId: { $gt: 94 }
         });
+        await reorderApplicationIds(tournamentId);
         res.json({ removed: result.deletedCount });
     } catch (err) {
         res.status(500).json({ message: err.message });
@@ -230,6 +249,22 @@ router.patch("/:id", async (req, res) => {
   }
 });
 
+
+// Delete player with re-indexing
+router.delete("/:id", async (req, res) => {
+    try {
+        const player = await Player.findById(req.params.id);
+        if (!player) return res.status(404).json({ message: "Player not found" });
+        const tid = player.tournamentId;
+
+        await Player.findByIdAndDelete(req.params.id);
+        if (!player.isIcon) await reorderApplicationIds(tid);
+        
+        res.json({ message: "Player deleted and indices updated" });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
 
 module.exports = router;
 

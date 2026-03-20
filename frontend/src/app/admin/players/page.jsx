@@ -114,7 +114,7 @@ export default function PlayersRegistry() {
 
             const players = data.map(row => ({
                 name: findValue(row, ["player name", "playerName", "name", "player", "ಆಟಗಾರನ ಹೆಸರು"]) || "PLAYER NAME",
-                role: findValue(row, ["playing role", "role", "skill", "player role", "category", "type", "position", "ಪಾತ್ರ"]) || "All-Rounder",
+                role: findValue(row, ["playing role", "role", "skill", "player role", "category", "type", "position", "ಪಾತ್ರ", "ಸ್ಥಾನ"]) || "All-Rounder",
                 mobile: findValue(row, ["mobile", "phone", "contact", "ಮೊಬೈಲ್", "ದೂರವಾಣಿ"]) || "-",
                 battingStyle: findValue(row, ["batting", "battingStyle", "style", "ಬ್ಯಾಟಿಂಗ್"]) || "Right Hand",
                 bowlingStyle: findValue(row, ["bowling", "bowlingStyle", "ಬೌಲಿಂಗ್"]) || "-",
@@ -180,6 +180,21 @@ export default function PlayersRegistry() {
         fetchData();
       }
     } catch (err) { alert("Update failed"); }
+  };
+
+  const handleDeletePlayer = async (id) => {
+    if (!confirm("Are you sure you want to delete this athlete? The list will be re-indexed automatically.")) return;
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/players/${id}`, {
+        method: "DELETE"
+      });
+      if (res.ok) {
+        alert("Athlete deleted and list re-indexed!");
+        fetchData();
+      }
+    } catch (err) {
+      alert("Delete failed");
+    }
   };
 
   const filtered = players.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -305,7 +320,10 @@ export default function PlayersRegistry() {
                      ) : "—"}
                   </td>
                   <td className="px-6 py-4 text-right">
-                     <button onClick={() => openManageModal(p)} className="p-2 bg-white/5 hover:bg-violet-600 text-slate-400 hover:text-white rounded-xl transition-all"><MousePointer2 className="w-4 h-4" /></button>
+                     <div className="flex items-center justify-end gap-2">
+                        <button onClick={() => openManageModal(p)} className="p-2 bg-white/5 hover:bg-violet-600 text-slate-400 hover:text-white rounded-xl transition-all" title="Manage"><MousePointer2 className="w-4 h-4" /></button>
+                        <button onClick={() => handleDeletePlayer(p._id)} className="p-2 bg-white/5 hover:bg-red-600 text-slate-400 hover:text-white rounded-xl transition-all" title="Delete"><X className="w-4 h-4" /></button>
+                     </div>
                   </td>
                 </tr>
               ))}
