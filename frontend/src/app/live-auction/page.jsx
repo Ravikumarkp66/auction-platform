@@ -41,6 +41,11 @@ function LiveAuctionContent() {
     fetchBg()
   }, [])
   const [currentTournamentId, setCurrentTournamentId] = useState(tournamentId)
+  const [activeAssets, setActiveAssets] = useState({
+    splashUrl: "",
+    backgroundUrl: "/backgrounds/auction-bg.jpg",
+    badges: { leftBadge: "", rightBadge: "" }
+  });
 
   const [config, setConfig] = useState({ name: "", baseBudget: 0, totalTeams: 0 })
   const [teams, setTeams] = useState([])
@@ -109,6 +114,16 @@ function LiveAuctionContent() {
       console.log('Socket disconnected:', reason)
     })
 
+    s.on('playerUpdate', (data) => {
+      console.log('Player update received via socket:', data.id);
+      setPlayers(prev => prev.map(p => {
+        if (p._id === data.id || p.id === data.id) {
+          return { ...p, ...data, photo: data.photo, imageUrl: data.imageUrl };
+        }
+        return p;
+      }));
+    });
+
     s.on('connect_error', (error) => {
       console.error('Socket connection error:', error.message)
     })
@@ -136,29 +151,40 @@ function LiveAuctionContent() {
           }
         }
 
-        if (!targetTournamentId) {
-          setError("No tournament selected. Please choose a tournament from the auctions page.")
-          setLoading(false)
-          return
-        }
+        // If no ID provided, try to find the ACTIVE tournament
+        const fetchUrl = targetTournamentId 
+          ? `${process.env.NEXT_PUBLIC_API_URL}/api/tournaments/${targetTournamentId}`
+          : `${process.env.NEXT_PUBLIC_API_URL}/api/tournaments/status/active`;
 
         const controller = new AbortController()
-        const abortTimer = setTimeout(() => controller.abort(), 10000)
+        const abortTimer = setTimeout(() => controller.abort(), 30000)
 
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournaments/${targetTournamentId}`, {
+        const res = await fetch(fetchUrl, {
           signal: controller.signal
         })
         clearTimeout(abortTimer)
-        if (!res.ok) throw new Error('Tournament not found')
+        if (!res.ok) throw new Error('Tournament not found or no live auction active')
         const data = await res.json()
 
         if (!data || !data.tournament) throw new Error("Tournament not found")
 
+        const tournament = data.tournament;
         setConfig({
-          name: data.tournament.name,
-          baseBudget: data.tournament.baseBudget,
-          totalTeams: data.tournament.numTeams
+          name: tournament.name,
+          baseBudget: tournament.baseBudget,
+          totalTeams: tournament.numTeams
         })
+
+        // Apply Dynamic Assets if they exist
+        if (tournament.assets) {
+           setActiveAssets(prev => ({
+              ...prev,
+              splashUrl: tournament.assets.splashUrl || "",
+              backgroundUrl: tournament.assets.backgroundUrl || "/backgrounds/auction-bg.jpg",
+              badges: tournament.assets.badges || { leftBadge: "", rightBadge: "" }
+           }));
+           if (tournament.assets.backgroundUrl) setAuctionBg(tournament.assets.backgroundUrl);
+        }
 
         // Load teams and players
         setTeams(data.teams.map(t => ({
@@ -273,11 +299,14 @@ function LiveAuctionContent() {
     }
   }, [socket, currentPlayerIndex])
 
+  const player = players[currentPlayerIndex]
+
   // Reset bidding state when player changes
   useEffect(() => {
     setCurrentBid(0)
     setHighestBidder(null)
     setRoundHistory([])
+    if (player) setBidIncrement(player.basePrice || 100)
   }, [currentPlayerIndex])
 
   // Keep overlay synced with latest player/state (including player navigation with no bids yet)
@@ -337,8 +366,6 @@ function LiveAuctionContent() {
 
   // Rest of component logic starts here
 
-  const player = players[currentPlayerIndex]
-
   // Edge Case 7: Only allow bid if player is available
   const canPlaceBid = player && (player.status === "available" || player.status === "auction");
 
@@ -348,11 +375,30 @@ function LiveAuctionContent() {
     if (now - lastBidTime < BID_COOLDOWN) return
     if (!canPlaceBid) return
 
-    const increment = Number(bidIncrement) || 100
-    const newBid = currentBid === 0
-      ? Math.max(player.basePrice, increment)
-      : currentBid + increment
+    const riseAmount = Number(bidIncrement) || 0
+    
+    // Validation 1: No negative or zero bids
+    if (riseAmount <= 0) {
+      alert("Please enter a valid positive bid amount.")
+      return
+    }
 
+    // Validation 2: Ensure it follows base price or current bid rules
+    let newBid = riseAmount
+    if (currentBid === 0) {
+      // First bid must be at least the base price
+      if (riseAmount < player.basePrice) {
+        alert(`The first bid must be at least the base price (₹${player.basePrice.toLocaleString()}).`)
+        return
+      }
+    } else {
+      // Subsequent bids must be higher than current
+      if (riseAmount <= currentBid) {
+        alert(`New bid (₹${riseAmount.toLocaleString()}) must be strictly higher than current bid (₹${currentBid.toLocaleString()}).`)
+        return
+      }
+    }
+    
     // Check if team has enough budget
     const biddingTeam = teams.find(t => t.id === teamId)
     if (biddingTeam.remainingBudget < newBid) {
@@ -361,29 +407,32 @@ function LiveAuctionContent() {
     }
 
     setLastBidTime(now)
-    setCurrentBid(newBid)
+    const bidAmount = newBid 
+    setCurrentBid(bidAmount)
     setHighestBidder(teamId)
     setBidPulse(true)
     setTimeout(() => setBidPulse(false), 400)
 
-    setRoundHistory([{ team: biddingTeam.name, teamId: teamId, bid: newBid }, ...roundHistory])
+    setRoundHistory([{ team: biddingTeam.name, teamId: teamId, bid: bidAmount }, ...roundHistory])
 
     // Broadcast bid to all connected devices via socket
     if (socket) {
       socket.emit('auctionUpdate', {
         player: player,
-        currentBid: newBid,
+        currentBid: bidAmount,
         highestBidder: teamId,
         highestBidderLogo: biddingTeam.logoUrl,
         tournamentName: config.name,
         teams: teams,
-        roundHistory: [{ team: biddingTeam.name, teamId: teamId, bid: newBid }, ...roundHistory],
+        roundHistory: [{ team: biddingTeam.name, teamId: teamId, bid: bidAmount }, ...roundHistory],
         timestamp: Date.now()
       })
     }
 
+    // Auto-prepare next bid price (Current + 100)
+    setBidIncrement(bidAmount + 100)
+
     // Reset increment to default 100 after bid
-    setBidIncrement(100)
   }
 
   // Edge Case 5: Undo Last Bid
@@ -396,9 +445,12 @@ function LiveAuctionContent() {
     if (newHistory.length === 0) {
       setCurrentBid(0)
       setHighestBidder(null)
+      if (player) setBidIncrement(player.basePrice)
     } else {
-      setCurrentBid(newHistory[0].bid)
+      const prevBid = newHistory[0].bid
+      setCurrentBid(prevBid)
       setHighestBidder(newHistory[0].teamId)
+      setBidIncrement(prevBid + 100)
     }
   }
 
@@ -863,11 +915,25 @@ function LiveAuctionContent() {
             </div>
           </div>
 
-          <div className="text-center">
-            <p className="text-[9px] sm:text-[10px] text-violet-500 font-black tracking-[0.4em] mb-0.5 opacity-60 uppercase animate-pulse">Live Broadcast</p>
-            <h1 className="text-lg sm:text-2xl lg:text-4xl font-black tracking-tighter uppercase drop-shadow-2xl leading-tight">
-              {config.name} <span className="text-violet-500 italic font-medium">AUCTION</span>
-            </h1>
+          <div className="flex items-center gap-4 lg:gap-8 grow justify-center">
+            {activeAssets.badges?.leftBadge && (
+              <div className="hidden sm:block w-12 h-12 lg:w-20 lg:h-20 relative">
+                <img src={activeAssets.badges.leftBadge} className="w-full h-full object-contain drop-shadow-2xl" alt="L-Badge" />
+              </div>
+            )}
+            
+            <div className="text-center">
+              <p className="text-[9px] sm:text-[10px] text-violet-500 font-black tracking-[0.4em] mb-0.5 opacity-60 uppercase animate-pulse">Live Broadcast</p>
+              <h1 className="text-lg sm:text-2xl lg:text-4xl font-black tracking-tighter uppercase drop-shadow-2xl leading-tight">
+                {config.name} <span className="text-violet-500 italic font-medium">AUCTION</span>
+              </h1>
+            </div>
+
+            {activeAssets.badges?.rightBadge && (
+              <div className="hidden sm:block w-12 h-12 lg:w-20 lg:h-20 relative">
+                <img src={activeAssets.badges.rightBadge} className="w-full h-full object-contain drop-shadow-2xl" alt="R-Badge" />
+              </div>
+            )}
           </div>
         </div>
 
@@ -1044,9 +1110,16 @@ function LiveAuctionContent() {
                   <div className="w-full md:w-[35%] flex justify-center items-center">
                     <div className="relative group/photo w-[140px] h-[180px] sm:w-[160px] sm:h-[200px] md:w-[180px] md:h-[220px] rounded-xl overflow-hidden border-2 border-slate-700 shadow-2xl bg-slate-800 ring-4 ring-black/20">
                       <Image
-                        src={player.image} alt={player.name} fill className={`object-cover ${player.status !== 'available' ? 'grayscale opacity-50' : ''}`} unoptimized={true}
+                        src={player.photo?.s3 || player.photo?.drive || player.imageUrl || player.image} 
+                        alt={player.name} fill className={`object-cover ${player.status !== 'available' ? 'grayscale opacity-50' : ''}`} unoptimized={true}
                         onError={(e) => { e.target.src = player.placeholder; }}
                       />
+
+                      {player.photo?.status === "pending" && (
+                        <div className="absolute top-2 right-2 bg-violet-600/80 backdrop-blur-md px-2 py-0.5 rounded-full text-[8px] font-black text-white uppercase tracking-widest border border-white/20 animate-pulse">
+                          Processing Image…
+                        </div>
+                      )}
 
                       {/* Photo Edit Overlay */}
                       <div className="absolute inset-0 bg-black/60 opacity-0 group-hover/photo:opacity-100 transition-opacity flex flex-col items-center justify-center p-4 text-center">
@@ -1359,7 +1432,7 @@ function LiveAuctionContent() {
                     <div className="flex flex-col h-full gap-3 min-h-0">
                       {/* BID INCREMENT CONTROL */}
                       <div className="flex items-center gap-2 px-2 shrink-0">
-                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Bid Rise Amount:</span>
+                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Set Next Bid Price:</span>
                         <div className="flex items-center gap-1">
                           <span className="text-slate-600 text-[10px] font-black">₹</span>
                           <input
@@ -1467,20 +1540,35 @@ function LiveAuctionContent() {
   )
 }
 
-function LiveAuctionWithSplash() {
+function LiveAuctionWithSplash({ tournamentId }) {
   const [showSplash, setShowSplash] = useState(true)
   const [fadeOut, setFadeOut] = useState(false)
+  const [tournament, setTournament] = useState(null)
 
   useEffect(() => {
-    // Start fade out after 1.5 seconds
+    const fetchMinimalTournament = async () => {
+      if (!tournamentId) return;
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournaments/${tournamentId}`);
+        if (res.ok) {
+          const data = await res.json();
+          setTournament(data.tournament || data);
+        }
+      } catch (err) { console.error(err); }
+    };
+    fetchMinimalTournament();
+  }, [tournamentId]);
+
+  useEffect(() => {
+    // Start fade out after 2 seconds (allow time for custom assets to load)
     const fadeTimer = setTimeout(() => {
       setFadeOut(true)
-    }, 1500)
+    }, 2500)
 
-    // Remove splash after 2 seconds
+    // Remove splash after 3 seconds
     const removeTimer = setTimeout(() => {
       setShowSplash(false)
-    }, 2000)
+    }, 3200)
 
     return () => {
       clearTimeout(fadeTimer)
@@ -1492,12 +1580,15 @@ function LiveAuctionWithSplash() {
     <>
       {showSplash && (
         <div className={`fixed inset-0 z-[9999] transition-all duration-700 ${fadeOut ? 'opacity-0 scale-110 blur-md' : 'opacity-100 scale-100'}`}>
-          <SplashScreen />
+          <SplashScreen 
+            src={tournament?.assets?.splashUrl} 
+            title={tournament?.name} 
+          />
         </div>
       )}
 
       <div className={`transition-opacity duration-700 ${showSplash ? 'opacity-0' : 'opacity-100'}`}>
-        <LiveAuctionContent />
+        <LiveAuctionContent initialTournament={tournament} />
       </div>
     </>
   )
@@ -1511,7 +1602,14 @@ export default function LiveAuctionPage() {
         <p className="font-black tracking-[0.5em] text-violet-500 animate-pulse uppercase">Syncing Live Data</p>
       </div>
     }>
-      <LiveAuctionWithSplash />
+      <LiveAuctionPageContent />
     </Suspense>
   )
+}
+
+function LiveAuctionPageContent() {
+  const searchParams = useSearchParams()
+  const tournamentId = searchParams.get("id")
+
+  return <LiveAuctionWithSplash tournamentId={tournamentId} />
 }

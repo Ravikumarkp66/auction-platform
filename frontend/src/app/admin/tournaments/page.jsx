@@ -2,16 +2,30 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Trophy, Play, Eye, Edit, Trash2, Users, Calendar, RotateCcw } from "lucide-react";
+import { 
+  Trophy, Play, Eye, Edit, Trash2, Users, 
+  Calendar, RotateCcw, PlusCircle, Clock, 
+  CheckCircle, Zap, ExternalLink, RefreshCw
+} from "lucide-react";
+
+import * as XLSX from "xlsx";
 
 export default function TournamentsPage() {
   const [tournaments, setTournaments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [resetting, setResetting] = useState(null);
+  const [appending, setAppending] = useState(null);
+  const [activating, setActivating] = useState(null);
 
   useEffect(() => {
     fetchTournaments();
-  }, []);
+    const interval = setInterval(() => {
+        // Poll if any tournament is processing images
+        const isProcessing = tournaments.some(t => t.imageProcessing?.status === 'processing');
+        if (isProcessing) fetchTournaments();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [tournaments]);
 
   const fetchTournaments = async () => {
     try {
@@ -28,7 +42,7 @@ export default function TournamentsPage() {
   };
 
   const resetAuction = async (tournamentId) => {
-    if (!confirm("Are you sure you want to reset the auction?\n\nThis will:\n- Keep icon players in their teams\n- Reset all sold players back to auction pool\n- Reset all team budgets to ₹10,000\n\nThis action cannot be undone!")) {
+    if (!confirm("Are you sure you want to reset the auction?\n\nThis will:\n- Keep icon players in their teams\n- Reset all sold players back to auction pool\n- Reset all team budgets\n\nThis action cannot be undone!")) {
       return;
     }
 
@@ -42,7 +56,7 @@ export default function TournamentsPage() {
       if (res.ok) {
         const data = await res.json();
         alert(`Auction reset successfully!\n\n- ${data.iconPlayersRetained} icon players retained\n- ${data.auctionPlayersReset} auction players reset\n- ${data.teamsReset} teams reset`);
-        fetchTournaments(); // Refresh the list
+        fetchTournaments();
       } else {
         alert("Failed to reset auction");
       }
@@ -54,193 +68,325 @@ export default function TournamentsPage() {
     }
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "live":
-        return "bg-red-500/10 text-red-400 border-red-500/20";
-      case "upcoming":
-        return "bg-blue-500/10 text-blue-400 border-blue-500/20";
-      case "completed":
-        return "bg-violet-500/10 text-violet-400 border-violet-500/20";
-      default:
-        return "bg-slate-500/10 text-slate-400 border-slate-500/20";
+  const goLive = async (tournamentId) => {
+    if (!confirm("Make this tournament LIVE? This will archive any other currently live auctions.")) {
+        return;
+    }
+    setActivating(tournamentId);
+    try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournaments/${tournamentId}/go-live`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" }
+        });
+        if (res.ok) {
+            fetchTournaments();
+        } else {
+            alert("Failed to set live");
+        }
+    } catch (err) {
+        console.error("Go live error:", err);
+    } finally {
+        setActivating(null);
     }
   };
 
-  const getStatusIcon = (status) => {
+  const archiveAuction = async (tournamentId) => {
+    if (!confirm("Are you sure you want to mark this auction as COMPLETED? It will no longer show up as a live option.")) {
+        return;
+    }
+    try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournaments/${tournamentId}/archive`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" }
+        });
+        if (res.ok) {
+            fetchTournaments();
+        }
+    } catch (err) {
+        console.error("Archive error:", err);
+    }
+  };
+
+  const handleAppendPlayers = async (tournamentId, e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setAppending(tournamentId);
+    try {
+        const reader = new FileReader();
+        reader.onload = async (ev) => {
+            const wb = XLSX.read(ev.target.result, { type: "binary", cellDates: true });
+            const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+            
+            // Map keys helper (similar to create-tournament)
+            const findValue = (row, keys) => {
+                const rk = Object.keys(row);
+                for (const k of keys) {
+                    const f = rk.find(key => key.toLowerCase().trim() === k.toLowerCase().trim());
+                    if (f) return row[f];
+                }
+                return null;
+            };
+
+            const players = rows.map(row => ({
+                name:         findValue(row, ["player name", "playerName", "name", "player", "ಆಟಗಾರನ ಹೆಸರು"]) || "PLAYER NAME",
+                role:         findValue(row, ["playing role", "role", "skill", "player role", "category", "type", "position", "ಪಾತ್ರ"]) || "All-Rounder",
+                mobile:       findValue(row, ["mobile", "phone", "contact", "ಮೊಬೈಲ್", "ದೂರವಾಣಿ"]) || "-",
+                battingStyle: findValue(row, ["batting", "battingStyle", "style", "ಬ್ಯಾಟಿಂಗ್"]) || "Right Hand",
+                bowlingStyle: findValue(row, ["bowling", "bowlingStyle", "ಬೌಲಿಂಗ್"]) || "-",
+                village:      findValue(row, ["village", "town", "city", "ಗ್ರಾಮ", "ಸ್ಥಳ"]) || "-",
+                basePrice:    Number(findValue(row, ["basePrice", "price", "base price", "amount", "ಮೂಲ ಬೆಲೆ"])) || 100,
+                imageUrl:     findValue(row, ["imageUrl", "photo", "image", "link", "url", "ಭಾವಚಿತ್ರ"]) || "",
+                isIcon:       findValue(row, ["icon", "isIcon", "star"]) === "yes" || findValue(row, ["isIcon"]) === true
+            }));
+
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournaments/${tournamentId}/append-players`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ players })
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                alert(`Successfully added ${data.added} new players! (Skipped ${data.skipped} duplicates)`);
+                fetchTournaments();
+            } else {
+                alert("Failed to append players");
+            }
+            setAppending(null);
+        };
+        reader.readAsBinaryString(file);
+    } catch (err) {
+        console.error("Append error:", err);
+        alert("File error");
+        setAppending(null);
+    }
+  };
+
+  const getStatusMeta = (status) => {
     switch (status) {
+      case "active":
       case "live":
-        return <Play className="w-4 h-4" />;
+        return { 
+          color: "text-red-400", 
+          bg: "bg-red-500/10", 
+          border: "border-red-500/20", 
+          icon: <Zap className="w-3 h-3 animate-pulse" />,
+          label: "Live" 
+        };
       case "upcoming":
-        return <Calendar className="w-4 h-4" />;
+        return { 
+          color: "text-blue-400", 
+          bg: "bg-blue-500/10", 
+          border: "border-blue-500/20", 
+          icon: <Clock className="w-3 h-3" />,
+          label: "Upcoming" 
+        };
       case "completed":
-        return <Trophy className="w-4 h-4" />;
+        return { 
+          color: "text-emerald-400", 
+          bg: "bg-emerald-500/10", 
+          border: "border-emerald-500/20", 
+          icon: <CheckCircle className="w-3 h-3" />,
+          label: "Completed" 
+        };
       default:
-        return null;
+        return { 
+          color: "text-slate-400", 
+          bg: "bg-slate-500/10", 
+          border: "border-slate-500/20", 
+          icon: <Calendar className="w-3 h-3" />,
+          label: status 
+        };
     }
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-white">Loading tournaments...</div>
+      <div className="flex flex-col items-center justify-center h-64 gap-4">
+        <div className="w-10 h-10 border-4 border-violet-500/20 border-t-violet-500 rounded-full animate-spin" />
+        <p className="text-slate-500 font-bold uppercase tracking-widest text-[10px]">Loading Tournaments</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white">Tournaments</h1>
-          <p className="text-slate-400">Manage your auction tournaments</p>
+          <h1 className="text-3xl font-black text-white tracking-tight">
+            Tournaments <span className="text-violet-500">History</span>
+          </h1>
+          <p className="text-slate-500 text-sm mt-1">Manage and monitor all your auction events</p>
         </div>
         <Link
           href="/admin/create-tournament"
-          className="px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-500 transition-colors flex items-center gap-2"
+          className="px-6 py-2.5 bg-gradient-to-r from-violet-600 to-cyan-500 text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-violet-600/20 hover:scale-105 transition-all"
         >
-          <Trophy className="w-4 h-4" />
-          Create Tournament
+          <PlusCircle className="w-4 h-4" />
+          Create New
         </Link>
       </div>
 
-      {/* Tournaments Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {tournaments.map((tournament) => (
-          <div key={tournament.id} className="bg-slate-800 rounded-lg border border-slate-700">
-            {/* Header */}
-            <div className="p-6 border-b border-slate-700">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold text-white">{tournament.name}</h3>
-                  <p className="text-sm text-slate-400 mt-1">
-                    Created on {new Date(tournament.createdAt).toLocaleDateString()}
-                  </p>
+      {/* Grid */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        {tournaments.map((t) => {
+          const meta = getStatusMeta(t.status);
+          const tournamentId = t._id || t.id;
+          return (
+            <div key={tournamentId} className="group relative overflow-hidden rounded-[2rem] border border-white/10 bg-[#111827]/60 backdrop-blur-xl hover:border-white/20 transition-all duration-300">
+              {/* Status Badge */}
+              <div className="absolute top-6 right-6 z-10">
+                <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest ${meta.bg} ${meta.color} ${meta.border}`}>
+                  {meta.icon}
+                  {meta.label}
                 </div>
-                <div className={`flex items-center gap-2 px-3 py-1 rounded-full border text-xs font-medium ${getStatusColor(tournament.status)}`}>
-                  {getStatusIcon(tournament.status)}
-                  {tournament.status.charAt(0).toUpperCase() + tournament.status.slice(1)}
+              </div>
+
+              <div className="p-8">
+                {/* Title Section */}
+                <div className="mb-6 pr-20">
+                  <h3 className="text-xl font-black text-white group-hover:text-violet-400 transition-colors truncate">
+                    {t.name}
+                  </h3>
+                  <div className="flex items-center gap-2 mt-1 text-slate-500 text-xs font-semibold">
+                    <Calendar className="w-3 h-3" />
+                    {new Date(t.createdAt).toLocaleDateString("en-IN", { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </div>
+                </div>
+
+                {/* Stats Row */}
+                <div className="grid grid-cols-3 gap-4 mb-8">
+                  <div className="bg-white/5 rounded-2xl p-4 text-center border border-white/5">
+                    <Users className="w-4 h-4 text-blue-400 mx-auto mb-2" />
+                    <p className="text-lg font-black text-white">{t.numTeams || t.teams || 0}</p>
+                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tighter">Teams</p>
+                  </div>
+                  <div className="bg-white/5 rounded-2xl p-4 text-center border border-white/5">
+                    <Trophy className="w-4 h-4 text-violet-400 mx-auto mb-2" />
+                    <p className="text-lg font-black text-white">{t.players?.length || 0}</p>
+                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tighter">Players</p>
+                  </div>
+                  <div className="bg-white/5 rounded-2xl p-4 text-center border border-white/5">
+                    <RotateCcw className="w-4 h-4 text-amber-400 mx-auto mb-2" />
+                    <p className="text-lg font-black text-white">
+                      ₹{((t.baseBudget || 10000) / 1000).toFixed(0)}k
+                    </p>
+                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tighter">Budget</p>
+                  </div>
+                </div>
+
+                {/* IMAGE PROCESSING PROGRESS */}
+                {t.imageProcessing?.status === "processing" && (
+                  <div className="mb-6 space-y-2">
+                    <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-tighter text-slate-400">
+                      <span>Image Conversion</span>
+                      <span>{t.imageProcessing.completed} / {t.imageProcessing.total}</span>
+                    </div>
+                    <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden border border-white/5">
+                        <div 
+                            className="h-full bg-gradient-to-r from-violet-500 to-cyan-400 transition-all duration-500"
+                            style={{ width: `${(t.imageProcessing.completed / t.imageProcessing.total) * 100}%` }}
+                        />
+                    </div>
+                  </div>
+                )}
+
+                {/* Live Banner */}
+                {t.status === "active" ? (
+                  <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-red-500/10 to-transparent border-l-4 border-red-500">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-black text-red-400 uppercase tracking-widest">Active Auction</p>
+                        <button 
+                          onClick={() => archiveAuction(tournamentId)}
+                          className="text-[9px] text-slate-500 font-bold hover:text-red-400 transition-colors uppercase tracking-tighter underline underline-offset-2"
+                        >
+                          Archive this auction
+                        </button>
+                      </div>
+                      <Zap className="w-4 h-4 text-red-500 animate-pulse" />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mb-6">
+                    <button 
+                      onClick={() => goLive(tournamentId)}
+                      disabled={activating === tournamentId}
+                      className="w-full flex items-center justify-center gap-2 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 rounded-xl font-bold text-[10px] uppercase tracking-wider border border-emerald-500/20 transition-all"
+                    >
+                      {activating === tournamentId ? <Clock className="w-3 h-3 animate-spin"/> : <Play className="w-3 h-3"/>}
+                      Set As Live Auction
+                    </button>
+                  </div>
+                )}
+
+                {/* Actions Footer */}
+                <div className="flex items-center gap-3">
+                  {t.status === "active" ? (
+                    <>
+                      <Link
+                        href={`/live-auction?id=${tournamentId}`}
+                        className="flex-1 flex items-center justify-center gap-2 py-3 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold text-sm shadow-lg shadow-red-600/20 transition-all active:scale-95"
+                      >
+                        <Zap className="w-4 h-4" /> Control
+                      </Link>
+                      <Link
+                        href={`/overlay?id=${tournamentId}`}
+                        className="flex-1 flex items-center justify-center gap-2 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-xl font-bold text-sm transition-all active:scale-95"
+                      >
+                        <Eye className="w-4 h-4" /> View
+                      </Link>
+                    </>
+                  ) : (
+                    <>
+                      <Link
+                        href={`/live-auction?id=${tournamentId}`}
+                        className="flex-1 flex items-center justify-center gap-2 py-3 bg-violet-600 hover:bg-violet-500 text-white rounded-xl font-bold text-sm transition-all active:scale-95"
+                      >
+                        <ExternalLink className="w-4 h-4" /> Open
+                      </Link>
+                      <button className="flex-1 flex items-center justify-center gap-2 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold text-sm transition-all active:scale-95 border border-white/5">
+                        <Edit className="w-4 h-4" /> Edit
+                      </button>
+                    </>
+                  )}
+
+                  <div className="flex shrink-0 gap-2">
+                    <label className="p-3 bg-violet-500/10 text-violet-400 border border-violet-500/20 rounded-xl hover:bg-violet-500/20 transition-all active:scale-95 cursor-pointer" title="Add More Players (Excel)">
+                      {appending === tournamentId ? <RefreshCw className={`w-4 h-4 animate-spin`} /> : <PlusCircle className="w-4 h-4" />}
+                      <input type="file" className="hidden" accept=".xlsx,.xls,.csv" onChange={(e) => handleAppendPlayers(tournamentId, e)} />
+                    </label>
+                    <button 
+                      onClick={() => resetAuction(tournamentId)}
+                      disabled={resetting === tournamentId}
+                      className="p-3 bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded-xl hover:bg-amber-500/20 transition-all active:scale-95 disabled:opacity-50"
+                      title="Reset Auction Pool"
+                    >
+                      <RotateCcw className={`w-4 h-4 ${resetting === tournamentId ? 'animate-spin' : ''}`} />
+                    </button>
+                    <button className="p-3 bg-red-500/10 text-red-500 border border-red-500/20 rounded-xl hover:bg-red-500/20 transition-all active:scale-95">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
-
-            {/* Stats */}
-            <div className="p-6">
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-blue-500/10 rounded-lg">
-                    <Users className="w-5 h-5 text-blue-400" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-slate-400">Teams</p>
-                    <p className="text-lg font-semibold text-white">{tournament.teams}</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-violet-500/10 rounded-lg">
-                    <Trophy className="w-5 h-5 text-violet-400" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-slate-400">Players</p>
-                    <p className="text-lg font-semibold text-white">{tournament.players}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Live Auction Info */}
-              {tournament.status === "live" && (
-                <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
-                  <p className="text-sm text-red-400 font-medium mb-1">Live Auction</p>
-                  <p className="text-white">
-                    Current Player: {tournament.currentPlayer}
-                  </p>
-                  <p className="text-violet-400 font-semibold">
-                    Current Bid: ₹{tournament.currentBid.toLocaleString()}
-                  </p>
-                </div>
-              )}
-
-              {/* Actions */}
-              <div className="flex gap-2">
-                {tournament.status === "live" && (
-                  <>
-                    <Link
-                      href={`/live-auction?tournament=${encodeURIComponent(tournament.name)}`}
-                      className="flex-1 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-500 transition-colors flex items-center justify-center gap-2 text-sm"
-                    >
-                      <Play className="w-4 h-4" />
-                      Control Auction
-                    </Link>
-                    <Link
-                      href={`/overlay?tournament=${encodeURIComponent(tournament.name)}`}
-                      className="flex-1 px-3 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition-colors flex items-center justify-center gap-2 text-sm"
-                    >
-                      <Eye className="w-4 h-4" />
-                      View Overlay
-                    </Link>
-                  </>
-                )}
-                
-                {tournament.status === "upcoming" && (
-                  <>
-                    <button className="flex-1 px-3 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-500 transition-colors flex items-center justify-center gap-2 text-sm">
-                      <Play className="w-4 h-4" />
-                      Start Tournament
-                    </button>
-                    <button className="flex-1 px-3 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition-colors flex items-center justify-center gap-2 text-sm">
-                      <Edit className="w-4 h-4" />
-                      Edit
-                    </button>
-                  </>
-                )}
-                
-                {tournament.status === "completed" && (
-                  <>
-                    <Link
-                      href={`/overlay?tournament=${encodeURIComponent(tournament.name)}`}
-                      className="flex-1 px-3 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition-colors flex items-center justify-center gap-2 text-sm"
-                    >
-                      <Eye className="w-4 h-4" />
-                      View Results
-                    </Link>
-                    <button className="flex-1 px-3 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition-colors flex items-center justify-center gap-2 text-sm">
-                      <Edit className="w-4 h-4" />
-                      Details
-                    </button>
-                  </>
-                )}
-                
-                {/* Reset Auction Button */}
-                <button 
-                  onClick={() => resetAuction(tournament._id)}
-                  disabled={resetting === tournament._id}
-                  className="px-3 py-2 bg-amber-600/10 text-amber-400 rounded-lg hover:bg-amber-600/20 transition-colors flex items-center justify-center disabled:opacity-50"
-                  title="Reset Auction (Keep icon players, reset sold players)"
-                >
-                  <RotateCcw className={`w-4 h-4 ${resetting === tournament._id ? 'animate-spin' : ''}`} />
-                </button>
-                
-                <button className="px-3 py-2 bg-red-600/10 text-red-400 rounded-lg hover:bg-red-600/20 transition-colors flex items-center justify-center">
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {tournaments.length === 0 && (
-        <div className="text-center py-12">
-          <Trophy className="w-12 h-12 text-slate-600 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-white mb-2">No tournaments yet</h3>
-          <p className="text-slate-400 mb-4">Create your first tournament to get started</p>
+        <div className="flex flex-col items-center justify-center py-20 bg-white/5 rounded-[3rem] border-2 border-dashed border-white/10 text-center">
+          <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center text-4xl mb-6 grayscale opacity-50">🏟️</div>
+          <h3 className="text-xl font-black text-white">No Tournaments Found</h3>
+          <p className="text-slate-500 mt-2 max-w-xs mx-auto">You haven&apos;t created any auctions yet. Start by building your first one!</p>
           <Link
             href="/admin/create-tournament"
-            className="px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-500 transition-colors inline-flex items-center gap-2"
+            className="mt-8 px-8 py-3 bg-violet-600 text-white rounded-2xl font-black text-sm shadow-xl shadow-violet-600/20 hover:bg-violet-500 transition-all active:scale-95"
           >
-            <Trophy className="w-4 h-4" />
-            Create Tournament
+            Create Your First Tournament
           </Link>
         </div>
       )}

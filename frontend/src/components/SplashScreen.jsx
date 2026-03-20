@@ -2,7 +2,9 @@
 
 import Image from "next/image";
 
-export default function SplashScreen() {
+export default function SplashScreen({ src, title }) {
+  const displayTitle = title || "Dr. G Parameshwar Cup";
+  const displaySrc = src || "/splash-screen.png";
   return (
     <div className="fixed inset-0 bg-[#0a0f18] flex items-center justify-center overflow-hidden">
       {/* Background glow effect */}
@@ -13,8 +15,8 @@ export default function SplashScreen() {
       <div className="relative z-10 text-center animate-zoomIn">
         <div className="relative w-64 h-64 md:w-80 md:h-80 mx-auto mb-8">
           <Image
-            src="/splash-screen.png"
-            alt="Dr. G Parameshwar Cup"
+            src={displaySrc}
+            alt={displayTitle}
             fill
             className="object-contain drop-shadow-[0_0_40px_rgba(251,191,36,0.5)]"
             unoptimized
@@ -24,7 +26,7 @@ export default function SplashScreen() {
         
         {/* Title */}
         <h1 className="text-3xl md:text-4xl font-black text-amber-400 uppercase tracking-[0.2em] drop-shadow-[0_0_20px_rgba(251,191,36,0.5)]">
-          Dr. G Parameshwar Cup
+          {displayTitle}
         </h1>
         <p className="text-amber-300/60 text-lg mt-2 font-bold uppercase tracking-[0.3em]">
           2026

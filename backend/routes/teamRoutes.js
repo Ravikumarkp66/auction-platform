@@ -6,7 +6,9 @@ const Player = require("../models/Player");
 // Get all teams
 router.get("/", async (req, res) => {
   try {
-    const teams = await Team.find();
+    const { tournamentId } = req.query;
+    const filter = tournamentId ? { tournamentId } : {};
+    const teams = await Team.find(filter);
     res.json(teams);
   } catch (err) {
     res.status(500).json({ message: err.message });

@@ -11,6 +11,11 @@ import { GiCricketBat, GiTargetArrows } from "react-icons/gi"
 import html2canvas from "html2canvas";
 import "./team-squad.css"
 
+const getProxiedUrl = (url) => {
+  if (!url || url.startsWith('blob:') || url.startsWith('data:') || url.startsWith('/')) return url;
+  return `${process.env.NEXT_PUBLIC_API_URL}/api/upload/proxy-image?url=${encodeURIComponent(url)}`;
+};
+
 // Simple Player Display - Profile image with price and name below
 const PlayerItem = ({ player }) => {
   if (!player) return null;
@@ -96,37 +101,12 @@ function TeamSquadContent() {
   const teamId = params.teamId
   const tournamentId = searchParams.get('tournament')
   const [squadBg, setSquadBg] = useState('/backgrounds/squad-bg.jpg')
-  const [squadBadgeUrl, setSquadBadgeUrl] = useState('/badges/squad-badge.png')
-  const [badgeUrl, setBadgeUrl] = useState('/badges/badge.png')
+  const [activeAssets, setActiveAssets] = useState({
+    squadBgUrl: "/backgrounds/squad-bg.jpg",
+    badges: { leftBadge: "/badges/squad-badge.png", rightBadge: "/badges/badge.png" }
+  })
 
-  useEffect(() => {
-    const fetchImages = async () => {
-      try {
-        const bgRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/backgrounds/squad_bg`)
-        if (bgRes.ok) {
-          const data = await bgRes.json()
-          if (data.imageUrl) setSquadBg(data.imageUrl)
-        }
-      } catch (err) { }
-      
-      try {
-        const squadBadgeRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/backgrounds/squad_badge`)
-        if (squadBadgeRes.ok) {
-          const data = await squadBadgeRes.json()
-          if (data.imageUrl) setSquadBadgeUrl(data.imageUrl)
-        }
-      } catch (err) { }
-      
-      try {
-        const badgeRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/backgrounds/badge`)
-        if (badgeRes.ok) {
-          const data = await badgeRes.json()
-          if (data.imageUrl) setBadgeUrl(data.imageUrl)
-        }
-      } catch (err) { }
-    }
-    fetchImages()
-  }, [])
+  // Fetch images logic removed in favor of integrated tournament.assets
 
   const downloadSquad = async () => {
     const element = document.getElementById("squad-download");
@@ -185,6 +165,17 @@ function TeamSquadContent() {
         
         if (res.ok) {
           const tournamentData = await res.json()
+          
+          // Apply Context-Specific Brading
+          if (tournamentData.tournament?.assets) {
+             const tAssets = tournamentData.tournament.assets;
+             setActiveAssets({
+                squadBgUrl: tAssets.squadBgUrl || "/backgrounds/squad-bg.jpg",
+                badges: tAssets.badges || { leftBadge: "/badges/squad-badge.png", rightBadge: "/badges/badge.png" }
+             });
+             setSquadBg(tAssets.squadBgUrl || "/backgrounds/squad-bg.jpg");
+          }
+
           const foundTeam = tournamentData.teams?.find(t => t._id === teamId)
           
           if (foundTeam) {
@@ -249,19 +240,19 @@ function TeamSquadContent() {
   const squad = team.squad || players || []
   return (
     <div className="page-wrapper" style={{
-      background: `url('${squadBg}') center/cover no-repeat fixed`,
+      background: `linear-gradient(rgba(2, 6, 23, 0.4), rgba(2, 6, 23, 0.5)), url('${squadBg}') center/cover no-repeat fixed`,
       color: 'white'
     }}>
 
       {/* TOURNAMENT BADGES (EXTREME RIGHT POSITIONING) */}
       <img 
-        src={squadBadgeUrl}
+        src={activeAssets.badges?.leftBadge || "/badges/squad-badge.png"}
         crossOrigin="anonymous" 
         alt="Tournament Badge" 
         className="badge-top"
       />
       <img 
-        src={badgeUrl}
+        src={activeAssets.badges?.rightBadge || "/badges/badge.png"}
         crossOrigin="anonymous" 
         alt="Creator Logo" 
         className="badge-bottom"
@@ -442,7 +433,7 @@ function TeamSquadContent() {
           width: '1200px',
           height: 'auto',
           minHeight: '1200px',
-          background: `url('${squadBg}') center/cover no-repeat`,
+          background: `url('${getProxiedUrl(squadBg)}') center/cover no-repeat`,
           backgroundColor: '#020617',
           padding: '60px 40px',
           display: 'none',
@@ -467,45 +458,100 @@ function TeamSquadContent() {
             marginBottom: '50px' 
           }}>
             <img 
-              src={team.logo || `https://ui-avatars.com/api/?name=${encodeURIComponent(team.name)}&background=random`} 
+              src={getProxiedUrl(team.logo || `https://ui-avatars.com/api/?name=${encodeURIComponent(team.name)}&background=random`)} 
               crossOrigin="anonymous" 
               style={{ width: '130px', height: '130px', borderRadius: '50%', border: '6px solid #00ffcc', objectFit: 'cover', marginBottom: '15px', backgroundColor: 'rgba(255,255,255,0.1)' }} 
               alt=""
             />
             <h1 style={{ color: 'white', fontSize: '64px', margin: '0', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '4px' }}>{team.name}</h1>
             <div style={{ height: '4px', width: '120px', background: '#00ffcc', margin: '20px auto' }}></div>
-            <p style={{ color: '#00ffcc', fontSize: '32px', margin: '0', fontWeight: '500', letterSpacing: '2px' }}>OFFICIAL SQUAD 2024</p>
+            <p style={{ color: '#00ffcc', fontSize: '32px', margin: '0', fontWeight: '500', letterSpacing: '2px' }}>OFFICIAL SQUAD</p>
           </div>
 
-          {/* Player Grid in Export - 5 columns */}
-          <div style={{ 
-            position: 'relative', 
-            zIndex: 3, 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(5, 1fr)', 
-            gap: '30px 20px',
-            justifyItems: 'center',
-            padding: '0 40px'
-          }}>
-            {squad.map((player, idx) => (
-              <div key={idx} style={{ textAlign: 'center', width: '150px' }}>
-                <div style={{ position: 'relative', display: 'inline-block' }}>
-                  <img 
-                    src={player.imageUrl || player.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(player.name)}&background=random`} 
-                    crossOrigin="anonymous" 
-                    style={{ width: '100px', height: '100px', borderRadius: '50%', border: '3px solid white', objectFit: 'cover', background: 'rgba(255,255,255,0.1)' }} 
-                    alt=""
-                  />
-                  {player.isIcon && (
-                    <div style={{ position: 'absolute', bottom: '0', right: '0', background: '#10b981', color: 'white', fontSize: '10px', padding: '2px 6px', borderRadius: '10px', fontWeight: 'bold' }}>ICON</div>
-                  )}
-                </div>
-                <div style={{ color: 'white', fontWeight: 'bold', fontSize: '18px', marginTop: '10px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{player.name}</div>
-                <div style={{ color: '#00ffcc', fontSize: '14px', fontWeight: 'bold' }}>₹{player.soldPrice?.toLocaleString() || 'RETAINED'}</div>
-                <div style={{ color: '#94a3b8', fontSize: '12px', textTransform: 'uppercase' }}>{player.role || 'Player'}</div>
+          {/* Player Grid in Export - DYNAMIC SCALING based on squad size */}
+          {(() => {
+            const squadSize = squad.length;
+            let columns = 5;
+            let imgSize = '100px';
+            let nameSize = '16px';
+            let metaSize = '13px';
+            let contactSize = '11px';
+            let itemWidth = '160px';
+            let gap = '30px 20px';
+
+            if (squadSize > 15 && squadSize <= 24) {
+              columns = 6;
+              imgSize = '85px';
+              nameSize = '14px';
+              metaSize = '12px';
+              contactSize = '10px';
+              itemWidth = '140px';
+              gap = '25px 15px';
+            } else if (squadSize > 24) {
+              columns = 7;
+              imgSize = '70px';
+              nameSize = '12px';
+              metaSize = '11px';
+              contactSize = '9px';
+              itemWidth = '120px';
+              gap = '20px 10px';
+            }
+
+            return (
+              <div style={{ 
+                position: 'relative', 
+                zIndex: 3, 
+                display: 'grid', 
+                gridTemplateColumns: `repeat(${columns}, 1fr)`, 
+                gap: gap,
+                justifyItems: 'center',
+                padding: '0 40px',
+                width: '100%'
+              }}>
+                {squad.map((player, idx) => (
+                  <div key={idx} style={{ textAlign: 'center', width: itemWidth }}>
+                    <div style={{ position: 'relative', display: 'inline-block' }}>
+                      <img 
+                        src={getProxiedUrl(player.photo?.s3 || player.imageUrl || player.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(player.name)}&background=random`)} 
+                        crossOrigin="anonymous" 
+                        style={{ width: imgSize, height: imgSize, borderRadius: '50%', border: '3px solid white', objectFit: 'cover', background: 'rgba(255,255,255,0.1)' }} 
+                        alt=""
+                      />
+                      {player.isIcon && (
+                        <div style={{ position: 'absolute', bottom: '0', right: '0', background: '#10b981', color: 'white', fontSize: '9px', padding: '1px 5px', borderRadius: '10px', fontWeight: 'bold' }}>ICON</div>
+                      )}
+                    </div>
+                    <div style={{ 
+                      color: 'white', 
+                      fontWeight: '900', 
+                      fontSize: nameSize, 
+                      lineHeight: '1.1',
+                      marginTop: '8px', 
+                      marginBottom: '2px',
+                      height: '34px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      textAlign: 'center',
+                      textTransform: 'uppercase'
+                    }}>{player.name}</div>
+                    
+                    <div style={{ color: '#00ffcc', fontSize: metaSize, fontWeight: 'bold', marginBottom: '2px' }}>
+                      {player.isIcon ? 'RETAINED' : `₹${player.soldPrice?.toLocaleString() || 0}`}
+                    </div>
+                    
+                    <div style={{ color: '#ffffff', fontSize: contactSize, fontWeight: '800', opacity: 0.9, marginBottom: '2px' }}>
+                      {player.mobile || player.phone || 'NO CONTACT'}
+                    </div>
+
+                    <div style={{ color: '#fbbf24', fontSize: contactSize, textTransform: 'uppercase', fontWeight: '900', letterSpacing: '0.5px' }}>
+                      {player.role || 'Player'}
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            );
+          })()}
         </div>
       </div>
     </div>

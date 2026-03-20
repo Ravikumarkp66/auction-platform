@@ -1,153 +1,298 @@
 "use client";
 
 import { useSession, signOut } from "next-auth/react";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import { useEffect, useState, createContext, useContext } from "react";
 import Link from "next/link";
-import { 
-  LayoutDashboard, 
-  PlusCircle, 
-  Trophy, 
-  History, 
-  Settings, 
+import {
+  LayoutDashboard,
+  PlusCircle,
+  Trophy,
+  Users,
+  Zap,
+  Image as ImageIcon,
+  Settings,
   LogOut,
   Menu,
-  X
+  X,
+  ChevronRight,
+  User,
+  Layout,
+  Star,
+  ChevronDown,
+  Check,
+  Palette
 } from "lucide-react";
+
+// Create a Context for the selected Auction
+const AuctionContext = createContext(null);
+
+export const useAuction = () => useContext(AuctionContext);
+
+const navigation = [
+  { name: "Dashboard",      href: "/admin/dashboard",          icon: LayoutDashboard, emoji: "📊" },
+  { name: "Auctions",       href: "/admin/tournaments",        icon: Trophy,          emoji: "🏏" },
+  { name: "Teams",          href: "/admin/teams",              icon: Layout,          emoji: "👥" },
+  { name: "Players",        href: "/admin/players",            icon: User,            emoji: "🧍" },
+  { name: "Icon Players",   href: "/admin/icons",              icon: Star,            emoji: "⭐" },
+  { name: "Live Control",   href: "/live-auction",             icon: Zap,             emoji: "⚡" },
+  { name: "Branding",       href: "/admin/assets",             icon: Palette,         emoji: "🎨" },
+  { name: "Settings",       href: "/admin/settings",           icon: ImageIcon,       emoji: "⚙️" },
+];
 
 export default function AdminLayout({ children }) {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [tournaments, setTournaments] = useState([]);
+  const [selectedAuction, setSelectedAuction] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("selectedAuction");
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch (e) {}
+      }
+    }
+    return null;
+  });
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+
+  const handleSelectAuction = (auction) => {
+    setSelectedAuction(auction);
+    localStorage.setItem("selectedAuction", JSON.stringify(auction));
+    setDropdownOpen(false);
+  };
+
+  async function fetchTournaments() {
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournaments`);
+      const data = await res.json();
+      setTournaments(data);
+      
+      const saved = localStorage.getItem("selectedAuction");
+      if (!saved && data.length > 0) {
+        const active = data.find(t => t.status === "active") || data[0];
+        handleSelectAuction(active);
+      }
+    } catch (err) {}
+  }
+
+  // Fetch all tournaments for the selector
+  useEffect(() => {
+    if (status === "authenticated") {
+      const timeoutId = setTimeout(() => {
+        fetchTournaments();
+      }, 0);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [status]);
 
   useEffect(() => {
     if (status === "loading") return;
-    
-    if (!session) {
-      router.push("/login");
-      return;
-    }
-    
-    if (session.user?.role !== "admin") {
-      router.push("/");
-      return;
-    }
+    if (!session) { router.push("/login"); return; }
+    if (session.user?.role !== "admin") { router.push("/"); return; }
   }, [session, status, router]);
 
   if (status === "loading") {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <div className="text-white">Loading...</div>
+      <div className="min-h-screen bg-[#0B0F2A] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-violet-500/30 border-t-violet-500 rounded-full animate-spin" />
+          <p className="text-slate-400 font-bold tracking-widest uppercase text-xs">Loading Admin</p>
+        </div>
       </div>
     );
   }
 
-  if (!session || session.user?.role !== "admin") {
-    return null;
-  }
+  if (!session || session.user?.role !== "admin") return null;
 
-  const navigation = [
-    { name: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
-    { name: "Create Tournament", href: "/admin/create-tournament", icon: PlusCircle },
-    { name: "Live Tournaments", href: "/admin/tournaments", icon: Trophy },
-    { name: "Past Tournaments", href: "/admin/tournaments/past", icon: History },
-    { name: "Settings", href: "/admin/settings", icon: Settings },
-  ];
+  const initials = session.user?.name?.[0]?.toUpperCase() || "A";
 
   return (
-    <div className="min-h-screen bg-slate-900">
-      {/* Mobile sidebar backdrop */}
-      {sidebarOpen && (
-        <div 
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
+    <AuctionContext.Provider value={{ selectedAuction, setSelectedAuction: handleSelectAuction, allTournaments: tournaments }}>
+      <div className="flex h-screen bg-[#0B0F2A] text-white overflow-hidden">
 
-      {/* Sidebar */}
-      <div className={`
-        fixed inset-y-0 left-0 z-50 w-64 bg-slate-800 border-r border-slate-700 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0
-        ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
-      `}>
-        <div className="flex h-full flex-col">
+        {/* ── Mobile overlay ── */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+
+        {/* ══════════ SIDEBAR ══════════ */}
+        <aside className={`
+          fixed inset-y-0 left-0 z-50 w-64
+          bg-[#0f172a]/90 backdrop-blur-2xl
+          border-r border-white/10
+          flex flex-col
+          transition-transform duration-300 ease-in-out
+          lg:static lg:translate-x-0
+          ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
+        `}>
+
           {/* Logo */}
-          <div className="flex h-16 items-center justify-between px-6 border-b border-slate-700">
-            <Link href="/admin/dashboard" className="flex items-center">
-              <span className="text-xl font-bold text-white">
-                Auction<span className="text-violet-500">Pro</span>
+          <div className="flex items-center justify-between px-6 h-16 border-b border-white/10 shrink-0">
+            <Link href="/admin/dashboard" className="flex items-center gap-2 group">
+              <span className="text-lg font-black tracking-tight group-hover:text-violet-400 transition-colors">
+                🟡 Admin <span className="text-white">Panel</span>
               </span>
             </Link>
             <button
               onClick={() => setSidebarOpen(false)}
-              className="lg:hidden text-slate-400 hover:text-white"
+              className="lg:hidden text-slate-400 hover:text-white transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
 
-          {/* Navigation */}
-          <nav className="flex-1 space-y-1 px-3 py-4">
+          {/* Global Action */}
+          <div className="px-4 py-6">
+            <Link
+              href="/admin/create-tournament"
+              className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl font-black text-xs text-black transition-all
+                bg-gradient-to-r from-violet-400 to-cyan-400
+                shadow-[0_0_15px_rgba(139,92,246,0.3)]
+                hover:shadow-[0_0_25px_rgba(139,92,246,0.6)]
+                hover:scale-105 active:scale-95"
+              onClick={() => setSidebarOpen(false)}
+            >
+              <PlusCircle className="w-4 h-4" /> 🏗️ CREATE AUCTION
+            </Link>
+          </div>
+
+          {/* Nav links */}
+          <nav className="flex-1 px-3 space-y-1 overflow-y-auto custom-scrollbar">
+            <p className="px-5 mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-600">Console</p>
             {navigation.map((item) => {
-              const Icon = item.icon;
+              const isActive = pathname === item.href || (item.href !== "/admin/dashboard" && pathname.startsWith(item.href));
               return (
                 <Link
                   key={item.name}
                   href={item.href}
-                  className="flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors text-slate-300 hover:bg-slate-700 hover:text-white"
                   onClick={() => setSidebarOpen(false)}
+                  className={`
+                    group flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold
+                    transition-all duration-200 relative overflow-hidden
+                    ${isActive
+                      ? "bg-gradient-to-r from-violet-600 to-cyan-500 text-white shadow-[0_0_20px_rgba(139,92,246,0.4)]"
+                      : "text-slate-400 hover:text-white hover:bg-white/5"
+                    }
+                  `}
                 >
-                  <Icon className="mr-3 h-5 w-5" />
-                  {item.name}
+                  <span className="text-base grayscale group-hover:grayscale-0 transition-[filter]">{item.emoji}</span>
+                  <span className="flex-1">{item.name}</span>
+                  {isActive && <ChevronRight className="w-4 h-4 opacity-70" />}
                 </Link>
               );
             })}
           </nav>
 
-          {/* User section */}
-          <div className="border-t border-slate-700 p-4">
-            <div className="flex items-center mb-3">
-              <div className="w-8 h-8 bg-violet-500 rounded-full flex items-center justify-center">
-                <span className="text-white text-sm font-medium">
-                  {session.user?.name?.[0]?.toUpperCase()}
-                </span>
+          {/* User footer */}
+          <div className="shrink-0 border-t border-white/10 p-4 space-y-3">
+            <div className="flex items-center gap-3 px-2">
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-violet-500 to-cyan-500 flex items-center justify-center font-black text-lg shadow-lg shadow-violet-500/30 shrink-0">
+                {initials}
               </div>
-              <div className="ml-3 flex-1">
-                <p className="text-sm font-medium text-white">{session.user?.name}</p>
-                <p className="text-xs text-slate-400">{session.user?.email}</p>
+              <div className="min-w-0">
+                <p className="text-sm font-black text-white truncate">{session.user?.name}</p>
+                <p className="text-[10px] text-yellow-400 font-black uppercase tracking-widest opacity-80">Root Master</p>
               </div>
             </div>
             <button
               onClick={() => signOut({ callbackUrl: "/" })}
-              className="flex items-center w-full px-3 py-2 text-sm font-medium text-slate-300 rounded-lg hover:bg-slate-700 hover:text-white transition-colors"
+              className="flex items-center gap-3 w-full px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest text-slate-500 hover:text-white hover:bg-red-500/10 hover:border-red-500/20 border border-transparent transition-all"
             >
-              <LogOut className="mr-3 h-4 w-4" />
-              Sign out
+              <LogOut className="w-4 h-4" />
+              Sign Out
             </button>
           </div>
+        </aside>
+
+        {/* ══════════ MAIN AREA ══════════ */}
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+          
+          {/* Background glow behind content */}
+          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-violet-600/5 blur-[120px] rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+
+          {/* ── Topbar ── */}
+          <header className="shrink-0 h-16 flex items-center justify-between px-4 lg:px-8
+            border-b border-white/5 bg-[#0B0F2A]/70 backdrop-blur-xl z-30">
+
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="lg:hidden p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-all"
+              >
+                <Menu className="w-6 h-6" />
+              </button>
+              
+              {/* AUCTION SELECTOR (🔥 THE MOST IMPORTANT PIECE) */}
+              <div className="relative">
+                <button 
+                  onClick={() => setDropdownOpen(!dropdownOpen)}
+                  className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all min-w-[200px]"
+                >
+                  <Trophy className="w-4 h-4 text-yellow-400" />
+                  <div className="flex-1 text-left min-w-0">
+                    <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">Selected Auction</p>
+                    <p className="text-xs font-black text-white truncate">{selectedAuction ? selectedAuction.name : "Select Auction"}</p>
+                  </div>
+                  <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {dropdownOpen && (
+                  <div className="absolute top-full left-0 mt-2 w-[280px] bg-[#0f172a] border border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2">
+                    <div className="p-3 bg-white/5 border-b border-white/10">
+                      <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Available Systems</p>
+                    </div>
+                    <div className="max-h-[300px] overflow-y-auto custom-scrollbar">
+                      {tournaments.map((t) => (
+                        <button
+                          key={t._id}
+                          onClick={() => handleSelectAuction(t)}
+                          className="w-full flex items-center justify-between px-4 py-3 hover:bg-violet-600/20 text-left transition-all border-b border-white/5 last:border-0"
+                        >
+                          <div>
+                            <p className="text-sm font-bold text-white leading-tight">{t.name}</p>
+                            <p className="text-[10px] text-slate-500 font-semibold uppercase">{t.status}</p>
+                          </div>
+                          {selectedAuction?._id === t._id && <Check className="w-4 h-4 text-violet-400" />}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4">
+              {/* Live Stats Pill */}
+              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-500/10 border border-red-500/20 group">
+                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                <span className="text-[10px] font-black text-red-500 uppercase tracking-widest">Active Server</span>
+              </div>
+              
+              <Link 
+                href={selectedAuction ? `/live-auction?id=${selectedAuction._id}` : "#"}
+                className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-black
+                  bg-gradient-to-r from-yellow-400 to-yellow-600
+                  shadow-lg shadow-yellow-500/20
+                  hover:scale-105 active:scale-95 transition-all"
+              >
+                Go Live
+              </Link>
+            </div>
+          </header>
+
+          {/* ── Page content ── */}
+          <main className="flex-1 overflow-y-auto p-4 lg:p-10 custom-scrollbar relative z-10">
+            {children}
+          </main>
         </div>
       </div>
-
-      {/* Main content */}
-      <div className="lg:ml-64">
-        {/* Top bar */}
-        <div className="sticky top-0 z-30 bg-slate-800 border-b border-slate-700 lg:hidden">
-          <div className="flex h-16 items-center justify-between px-4">
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="text-slate-400 hover:text-white"
-            >
-              <Menu className="w-6 h-6" />
-            </button>
-            <span className="text-lg font-semibold text-white">Admin Panel</span>
-            <div className="w-6"></div>
-          </div>
-        </div>
-
-        {/* Page content */}
-        <main className="p-4 lg:p-6">
-          {children}
-        </main>
-      </div>
-    </div>
+    </AuctionContext.Provider>
   );
 }

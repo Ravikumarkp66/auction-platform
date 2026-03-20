@@ -13,6 +13,7 @@ function TeamsContent() {
   const [teams, setTeams] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [assets, setAssets] = useState({ backgroundUrl: "" })
 
   const tournamentId = searchParams.get('tournament')
 
@@ -59,6 +60,10 @@ function TeamsContent() {
           console.log('Tournament data:', data)
           
           // API returns { tournament, teams, players }
+          if (data.tournament?.assets) {
+            setAssets(data.tournament.assets);
+          }
+          
           if (data.teams && data.teams.length > 0) {
             console.log('Found teams:', data.teams.length)
             const teamsWithLogos = data.teams.map(team => ({
@@ -141,7 +146,9 @@ function TeamsContent() {
   return (
     <div style={{
       minHeight: '100vh',
-      background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+      background: assets.backgroundUrl 
+        ? `linear-gradient(rgba(15, 23, 42, 0.7), rgba(15, 23, 42, 0.8)), url(${assets.backgroundUrl}) center/cover fixed`
+        : 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
       color: 'white'
     }}>
       {/* Header */}

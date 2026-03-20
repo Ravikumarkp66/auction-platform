@@ -1,9 +1,12 @@
 const TournamentImage = require('../models/TournamentImage');
 
-// Get all tournament images
 const getTournamentImages = async (req, res) => {
   try {
-    const images = await TournamentImage.find({ isActive: true }).sort({ order: 1 });
+    const { tournamentId } = req.query;
+    const filter = { isActive: true };
+    if (tournamentId) filter.tournamentId = tournamentId;
+    
+    const images = await TournamentImage.find(filter).sort({ order: 1 });
     res.json({
       success: true,
       data: images
@@ -20,7 +23,7 @@ const getTournamentImages = async (req, res) => {
 // Create new tournament image
 const createTournamentImage = async (req, res) => {
   try {
-    const { name, location, year, teams, imageUrl, order } = req.body;
+    const { name, location, year, teams, imageUrl, order, tournamentId } = req.body;
     
     const newImage = new TournamentImage({
       name,
@@ -28,7 +31,8 @@ const createTournamentImage = async (req, res) => {
       year,
       teams,
       imageUrl,
-      order: order || 0
+      order: order || 0,
+      tournamentId
     });
 
     const savedImage = await newImage.save();

@@ -31,11 +31,12 @@ const allowedOrigins = [
 // CORS must come BEFORE rate limiter to ensure CORS headers on rate limit responses
 app.use(cors({
   origin: function (origin, callback) {
+    // allow requests with no origin (like mobile apps or curl)
     if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
+    if (allowedOrigins.indexOf(origin) !== -1 || origin.endsWith('.vercel.app')) {
       callback(null, true);
     } else {
-      callback(null, origin); // Fallback: allow other origins but log if needed, or strictly use true
+      callback(null, true); // Fallback to allow but recommend strict in prod
     }
   },
   credentials: true,
@@ -43,18 +44,15 @@ app.use(cors({
   allowedHeaders: ["Content-Type", "Authorization"]
 }));
 
-// Rate limiting middleware - disabled for development
+// Production optimized Rate Limiter
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 1000, // Higher limit for development
-  skip: (req) => process.env.NODE_ENV === 'development', // Skip in development
-  message: {
-    success: false,
-    message: 'Too many requests from this IP, please try again later.'
-  }
+  windowMs: 1 * 60 * 1000, 
+  max: 600, // 600 requests per minute
+  message: { message: "Too many requests from this IP, please try again after a minute" },
+  standardHeaders: true,
+  legacyHeaders: false,
 });
-
-app.use(limiter);
+app.use("/api/", limiter);
 
 const io = new Server(server, {
   cors: {
@@ -74,6 +72,8 @@ const io = new Server(server, {
   pingTimeout: 60000,
   pingInterval: 25000
 });
+const { setIo } = require("./utils/image-processor");
+setIo(io);
 
 // In-memory break status shared between admin and overlay
 let currentBreak = null;
@@ -85,7 +85,7 @@ let currentAuctionState = null;
 const connectDB = async () => {
   try {
     const conn = await mongoose.connect(process.env.MONGO_URI, {
-      serverSelectionTimeoutMS: 5000,
+      serverSelectionTimeoutMS: 10000,
       maxPoolSize: 10,
       retryWrites: true,
       w: 'majority'
@@ -174,6 +174,7 @@ const healthRoutes = require("./routes/healthRoutes");
 const tournamentImageRoutes = require("./routes/tournamentImageRoutes");
 const teamRoutes = require("./routes/teamRoutes");
 const backgroundRoutes = require("./routes/backgroundRoutes");
+const assetRoutes = require("./routes/assetRoutes");
 app.use("/api/players", playerRoutes);
 app.use("/api/tournaments", tournamentRoutes);
 app.use("/api/upload", uploadRoutes);
@@ -181,6 +182,7 @@ app.use("/api/health", healthRoutes);
 app.use("/api/tournament-images", tournamentImageRoutes);
 app.use("/api/teams", teamRoutes);
 app.use("/api/backgrounds", backgroundRoutes);
+app.use("/api/assets", assetRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

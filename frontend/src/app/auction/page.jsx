@@ -264,23 +264,34 @@ export default function AuctionDashboard() {
     )
   }
 
-  const STEP_TOTAL = 6;
+  const STEP_TOTAL = 5;
 
   // Robust Excel Mapping Helper
-  const findValue = (row, possibleKeys) => {
-    const keys = Object.keys(row);
-    // 1. Try exact matches (case-insensitive)
-    for (const pk of possibleKeys) {
-      const found = keys.find(k => k.toLowerCase().trim() === pk.toLowerCase().trim());
-      if (found) return row[found];
-    }
-    // 2. Try partial matches
-    for (const pk of possibleKeys) {
-      const found = keys.find(k => k.toLowerCase().includes(pk.toLowerCase()));
-      if (found) return row[found];
-    }
-    return null;
+  const fixUrl = (url) => {
+  if (!url) return "";
+  if (url.includes("drive.google.com")) {
+    const match = url.match(/\/d\/(.+?)\//);
+    if (match?.[1]) return `https://drive.google.com/uc?export=view&id=${match[1]}`;
+    const idParam = new URLSearchParams(url.split("?")[1]).get("id");
+    if (idParam) return `https://drive.google.com/uc?export=view&id=${idParam}`;
   }
+  return url;
+};
+
+const hasNonEng = (s) => /[^\x00-\x7F]/.test(s);
+
+function findValue(row, keys) {
+  const rowKeys = Object.keys(row);
+  for (const k of keys) {
+    const found = rowKeys.find(rk => rk.toLowerCase().trim() === k.toLowerCase().trim());
+    if (found) return row[found];
+  }
+  for (const k of keys) {
+    const found = rowKeys.find(rk => rk.toLowerCase().includes(k.toLowerCase()) && !rk.toLowerCase().includes("team"));
+    if (found) return row[found];
+  }
+  return null;
+}
 
   const handleTeamsUpload = (e) => {
     const file = e.target.files[0]
@@ -324,12 +335,12 @@ export default function AuctionDashboard() {
         const ws = wb.Sheets[wb.SheetNames[0]]
         const rows = XLSX.utils.sheet_to_json(ws)
         const imported = rows.map((row, index) => ({
-          name: findValue(row, ["icon", "icon name", "player name", "name", "playerName"]) || "",
-          role: findValue(row, ["role", "type", "ಪಾತ್ರ"]) || "All-Rounder",
-          age: findValue(row, ["age", "years", "ವಯಸ್ಸು"]) || "-",
-          village: findValue(row, ["village", "town", "ಗ್ರಾಮ"]) || "-",
-          imageUrl: findValue(row, ["imageUrl", "image", "photo", "link", "photo url"]) || "",
-          teamMatch: findValue(row, ["team", "teamName", "team name", "ತಂಡ"]),
+          name: findValue(row, ["player name", "playerName", "icon", "name"]) || "",
+          role: findValue(row, ["role", "type", "position"]) || "All-Rounder",
+          age: findValue(row, ["age", "years"]) || "-",
+          village: findValue(row, ["village", "town"]) || "-",
+          imageUrl: findValue(row, ["imageUrl", "photo", "image", "link", "url"]) || "",
+          teamMatch: findValue(row, ["team", "teamName", "team name"]),
           teamLogo: findValue(row, ["logo", "team logo", "logo link"])
         })).filter(p => p.name && p.teamMatch);
 
@@ -373,20 +384,42 @@ export default function AuctionDashboard() {
         const wb = XLSX.read(bstr, { type: 'binary' })
         const ws = wb.Sheets[wb.SheetNames[0]]
         const rows = XLSX.utils.sheet_to_json(ws)
-        const imported = rows.map((row, index) => ({
-          id: index + 1,
-          name: findValue(row, ["name", "player name", "playerName", "ಆಟಗಾರನ ಹೆಸರು"]) || "Unknown",
-          role: findValue(row, ["role", "player role", "type", "ಪಾತ್ರ"]) || "All-Rounder",
-          age: findValue(row, ["age", "years", "ವಯಸ್ಸು"]) || "-",
-          dob: findValue(row, ["dob", "date of birth", "birth", "ಹುಟ್ಟಿದ"]),
-          battingStyle: findValue(row, ["batting", "battingStyle", "style", "ಶೈಲಿ"]) || "Right Hand",
-          bowlingStyle: findValue(row, ["bowling", "bowlingStyle"]) || "-",
-          village: findValue(row, ["village", "town", "ಗ್ರಾಮ"]) || "-",
-          basePrice: findValue(row, ["basePrice", "price", "base price", "amount"]) || 100,
-          imageUrl: findValue(row, ["imageUrl", "image", "link", "photo", "image link", "picture", "photo url"]) || "/players/default.png",
-          status: "available"
-        }))
-        setPlayers(imported)
+        const imported = rows.map((row, i) => ({
+          id: i + 1,
+          name:         findValue(row, ["player name", "playerName", "name", "player", "ಆಟಗಾರನ ಹೆಸರು"]) || "PLAYER NAME",
+          role:         findValue(row, ["role", "type", "position", "ಪಾತ್ರ"]) || "All-Rounder",
+          age:          findValue(row, ["age", "years", "ವಯಸ್ಸು"]) || "-",
+          dob:          findValue(row, ["dob", "date of birth", "birth", "ಹುಟ್ಟಿದ ದಿನಾಂಕ"]) || "",
+          battingStyle: findValue(row, ["batting", "battingStyle", "style", "ಬ್ಯಾಟಿಂಗ್"]) || "Right Hand",
+          bowlingStyle: findValue(row, ["bowling", "bowlingStyle", "ಬೌಲಿಂಗ್"]) || "-",
+          village:      findValue(row, ["village", "town", "city", "ಗ್ರಾಮ", "ಸ್ಥಳ"]) || "-",
+          basePrice:    Number(findValue(row, ["basePrice", "price", "base price", "amount", "ಮೂಲ ಬೆಲೆ"])) || config.defaultBasePrice,
+          imageUrl:     fixUrl(findValue(row, ["imageUrl", "photo", "image", "link", "url", "ಭಾವಚಿತ್ರ"])) || "",
+          status:       "available",
+        }));
+        setPlayers(imported);
+
+        // Process Drive URLs via Proxy to S3
+        const API = process.env.NEXT_PUBLIC_API_URL;
+        imported.forEach((p, idx) => {
+          if (p.imageUrl && p.imageUrl.includes("drive.google.com")) {
+            fetch(`${API}/api/upload/proxy-url`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ url: p.imageUrl, folder: "players" })
+            })
+            .then(r => r.json())
+            .then(data => {
+              if (data.s3Url) {
+                setPlayers(prev => {
+                  const next = [...prev];
+                  if (next[idx]) next[idx].imageUrl = data.s3Url;
+                  return next;
+                });
+              }
+            });
+          }
+        });
       } catch (err) {
         alert("Invalid player file format. Supports .xlsx, .xls, and .csv")
       }
@@ -515,13 +548,6 @@ export default function AuctionDashboard() {
         alert("Please provide names for all assigned Icon Players.");
       }
     } else if (step === 4) {
-      if (!config.squadSize || config.squadSize < 1) {
-        alert("Squad size must be at least 1.");
-      } else if (config.squadSize < config.iconsPerTeam) {
-        alert("Squad size cannot be less than the number of icons.");
-      } else {
-        setStep(5);
-      }
     } else if (step === 5) {
       if (players.length === 0) return alert("Please upload the auction players Excel file first.");
       setStep(6);
@@ -922,43 +948,11 @@ export default function AuctionDashboard() {
                 </div>
               )}
 
-              {/* Step 4: Squad Structure */}
+              {/* Step 4: Upload Players */}
               {step === 4 && (
-                <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 text-center">
-                  <div className="text-center">
-                    <h2 className="text-3xl font-black mb-2 uppercase tracking-tight">4. Squad Structure</h2>
-                    <p className="text-slate-400 text-sm">Define how squads will be formed during the auction.</p>
-                  </div>
-
-                  <div className="max-w-md mx-auto bg-slate-900 border border-slate-800 rounded-[2.5rem] p-10 space-y-8 shadow-2xl">
-                     <div>
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-4">Total Squad Size</label>
-                        <div className="flex items-center justify-center gap-6">
-                           <button onClick={() => setConfig({...config, squadSize: Math.max(1, (Number(config.squadSize) || 11) - 1)})} className="w-12 h-12 rounded-2xl bg-slate-800 border border-slate-700 text-2xl font-black hover:bg-slate-700 transition-all">-</button>
-                           <span className="text-6xl font-black text-white">{Number(config.squadSize) || 0}</span>
-                           <button onClick={() => setConfig({...config, squadSize: (Number(config.squadSize) || 11) + 1})} className="w-12 h-12 rounded-2xl bg-white text-slate-900 text-2xl font-black hover:bg-violet-400 hover:text-white transition-all">+</button>
-                        </div>
-                     </div>
-
-                     <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-slate-800/50 p-6 rounded-3xl border border-slate-700/50">
-                           <p className="text-[10px] font-black text-violet-500 uppercase tracking-widest mb-1">Icons</p>
-                           <p className="text-3xl font-black text-white">{config.iconsPerTeam}</p>
-                        </div>
-                         <div className="bg-slate-800/50 p-6 rounded-3xl border border-slate-700/50">
-                            <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-1">Auction Slots</p>
-                            <p className="text-3xl font-black text-white">{(Number(config.squadSize) - Number(config.iconsPerTeam)) || 0}</p>
-                         </div>
-                     </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Step 5: Upload Players */}
-              {step === 5 && (
                 <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
                   <div className="text-center">
-                    <h2 className="text-3xl font-black mb-2 uppercase tracking-tight">5. Auction Players Upload</h2>
+                    <h2 className="text-3xl font-black mb-2 uppercase tracking-tight">4. Auction Players Upload</h2>
                     <p className="text-slate-400 text-sm">Upload the pool of players available for bidding.</p>
                   </div>
 
@@ -976,24 +970,67 @@ export default function AuctionDashboard() {
                   </div>
 
                   {players.length > 0 && (
-                    <div className="bg-violet-500/10 border border-violet-500/20 px-8 py-5 rounded-3xl flex items-center justify-between">
-                       <div className="flex items-center gap-4">
-                          <span className="text-3xl">✅</span>
-                          <div>
-                            <p className="text-white font-black uppercase text-xl">{players.length} Players Loaded</p>
-                            <p className="text-violet-500/60 text-[10px] font-black tracking-widest">READY FOR AUCTION POOL</p>
+                    <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
+                      <div className="grid grid-cols-[80px_1fr_1fr_80px_1fr_120px] px-6 py-4 bg-slate-800/50 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 border-b border-slate-700">
+                        <span>Photo</span><span>Name</span><span>Role</span><span className="text-center">Age</span><span>Village</span><span className="text-right">Price</span>
+                      </div>
+                      <div className="max-h-[500px] overflow-y-auto divide-y divide-slate-800 custom-scrollbar">
+                        {players.map((p, idx) => (
+                          <div key={idx} className="grid grid-cols-[80px_1fr_1fr_80px_1fr_120px] px-6 py-3 items-center hover:bg-white/[0.02] transition-colors gap-4">
+                            {/* Photo Column */}
+                            <label className="relative w-12 h-12 rounded-xl overflow-hidden border border-slate-700 bg-slate-800 flex items-center justify-center cursor-pointer hover:border-violet-500/50 transition-all shrink-0 group">
+                              {p.imageUrl && p.imageUrl !== "/players/default.png"
+                                ? <img src={p.imageUrl} alt="" className="w-full h-full object-cover" />
+                                : <div className="text-xl">📸</div>
+                              }
+                              <input type="file" className="hidden" accept="image/*"
+                                onChange={e => handleImageUpload(e.target.files[0], url => {
+                                  const np = [...players]; np[idx].imageUrl = url; setPlayers(np);
+                                }, "players")} />
+                            </label>
+
+                            {/* Name Editable */}
+                            <input value={p.name}
+                              onChange={e => { const np = [...players]; np[idx].name = e.target.value; setPlayers(np); }}
+                              className={`bg-transparent border-b border-transparent hover:border-slate-700 focus:border-violet-500 text-sm font-bold outline-none w-full py-1 ${hasNonEng(p.name) ? 'text-red-500' : 'text-white'}`} />
+
+                            {/* Role Editable */}
+                            <select value={p.role}
+                              onChange={e => { const np = [...players]; np[idx].role = e.target.value; setPlayers(np); }}
+                              className="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-xs font-semibold text-slate-400 focus:border-violet-500 outline-none w-full">
+                              {["Batsman","Bowler","All-Rounder","Wicket Keeper","WK-Batsman"].map(v => <option key={v}>{v}</option>)}
+                            </select>
+
+                            {/* Age Editable */}
+                            <input value={p.age}
+                              onChange={e => { const np = [...players]; np[idx].age = e.target.value; setPlayers(np); }}
+                              className="bg-transparent border-b border-transparent hover:border-slate-700 focus:border-violet-500 text-xs text-slate-400 font-semibold text-center outline-none w-full py-1" />
+
+                            {/* Village Editable */}
+                            <input value={p.village}
+                              onChange={e => { const np = [...players]; np[idx].village = e.target.value; setPlayers(np); }}
+                              className="bg-transparent border-b border-transparent hover:border-slate-700 focus:border-violet-500 text-xs text-slate-500 outline-none w-full py-1" />
+
+                            {/* Price Editable */}
+                            <div className="flex items-center gap-1 justify-end">
+                              <span className="text-violet-500 text-xs font-bold">₹</span>
+                              <input type="number" value={p.basePrice}
+                                onChange={e => { const np = [...players]; np[idx].basePrice = Number(e.target.value); setPlayers(np); }}
+                                className="bg-transparent border-b border-transparent hover:border-slate-700 focus:border-violet-500 text-xs text-violet-400 font-bold text-right outline-none w-20 py-1" />
+                            </div>
                           </div>
-                       </div>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
               )}
 
-              {/* Step 6: Review */}
-              {step === 6 && (
+              {/* Step 5: Review */}
+              {step === 5 && (
                 <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
                   <div className="text-center">
-                    <h2 className="text-3xl font-black mb-2 uppercase tracking-tight">6. Final Review</h2>
+                    <h2 className="text-3xl font-black mb-2 uppercase tracking-tight">5. Final Review</h2>
                     <p className="text-slate-400 text-sm">Review everything before launching the live auction.</p>
                   </div>
 

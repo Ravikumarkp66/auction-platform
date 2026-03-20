@@ -2,20 +2,45 @@
 
 import { useEffect, useState } from "react"
 import { useSession } from "next-auth/react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { io } from "socket.io-client"
 import Image from "next/image"
 import AuctionOverlayNew from '../../components/AuctionOverlayNew'
+
+function getStoredBreakState() {
+  if (typeof window === 'undefined') {
+    return null
+  }
+
+  const keys = ['currentBreakState', 'overlayBreakState']
+
+  for (const key of keys) {
+    const storage = key === 'currentBreakState' ? sessionStorage : localStorage
+    const raw = storage.getItem(key)
+    if (!raw) continue
+
+    try {
+      const breakData = JSON.parse(raw)
+      if (breakData?.endTime > Date.now()) {
+        return breakData
+      }
+      storage.removeItem(key)
+    } catch {
+      storage.removeItem(key)
+    }
+  }
+
+  return null
+}
 
 export default function OverlayPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const [auction, setAuction] = useState(null)
   const [socket, setSocket] = useState(null)
-  const [connectionStatus, setConnectionStatus] = useState('disconnected')
-  const [breakTime, setBreakTime] = useState(null)
+  const [breakTime, setBreakTime] = useState(() => getStoredBreakState())
   const [language, setLanguage] = useState('en')
-  const [breakNow, setBreakNow] = useState(Date.now())
+  const [breakNow, setBreakNow] = useState(() => Date.now())
   const [focusMode, setFocusMode] = useState(false)
   const [splashUrl, setSplashUrl] = useState('/splash-screen.png')
 
@@ -36,44 +61,6 @@ export default function OverlayPage() {
   // Note: Breaks are now driven only by socket events from the admin panel,
   // not by URL query parameters, to avoid accidental unsynchronised breaks.
 
-  // Load break state from localStorage on mount
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const savedBreak = localStorage.getItem('overlayBreakState')
-      if (savedBreak) {
-        try {
-          const breakData = JSON.parse(savedBreak)
-          const endTime = breakData.endTime
-          
-          // Only restore if break hasn't ended
-          if (endTime > Date.now()) {
-            setBreakTime(breakData)
-          } else {
-            // Clean up expired break
-            localStorage.removeItem('overlayBreakState')
-          }
-        } catch (error) {
-          localStorage.removeItem('overlayBreakState')
-        }
-      }
-      
-      // Also check sessionStorage for immediate break state
-      const currentBreak = sessionStorage.getItem('currentBreakState')
-      if (currentBreak) {
-        try {
-          const breakData = JSON.parse(currentBreak)
-          if (breakData.endTime > Date.now()) {
-            setBreakTime(breakData)
-          } else {
-            sessionStorage.removeItem('currentBreakState')
-          }
-        } catch (error) {
-          sessionStorage.removeItem('currentBreakState')
-        }
-      }
-    }
-  }, [])
-
   // Save break state to both storage methods when it changes
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -84,15 +71,6 @@ export default function OverlayPage() {
         localStorage.removeItem('overlayBreakState')
         sessionStorage.removeItem('currentBreakState')
       }
-    }
-  }, [breakTime])
-
-  // Auto-cleanup expired breaks
-  useEffect(() => {
-    if (breakTime && breakTime.endTime <= Date.now()) {
-      setBreakTime(null)
-      localStorage.removeItem('overlayBreakState')
-      sessionStorage.removeItem('currentBreakState')
     }
   }, [breakTime])
 
@@ -140,7 +118,6 @@ export default function OverlayPage() {
   useEffect(() => {
     // Only connect if user is not authenticated
     if (status === "unauthenticated") {
-      setConnectionStatus('connecting')
       const s = io(process.env.NEXT_PUBLIC_API_URL, {
         transports: ['websocket', 'polling'], // Fallback to polling
         timeout: 10000,
@@ -149,17 +126,16 @@ export default function OverlayPage() {
         reconnectionAttempts: 5,
         maxReconnectionAttempts: 5
       })
-      
-      setSocket(s)
+      const timeoutId = setTimeout(() => {
+        setSocket(s)
+      }, 0)
 
       // Connection events
       s.on('connect', () => {
-        setConnectionStatus('connected')
         s.emit('getBreakStatus') // Request current break status
       })
 
       s.on('disconnect', (reason) => {
-        setConnectionStatus('disconnected')
         if (reason === 'io server disconnect') {
           // Server disconnected, reconnect manually
           s.connect()
@@ -167,7 +143,6 @@ export default function OverlayPage() {
       })
 
       s.on('connect_error', () => {
-        setConnectionStatus('disconnected')
         setTimeout(() => {
           s.connect()
         }, 2000)
@@ -225,7 +200,7 @@ export default function OverlayPage() {
       })
 
       return () => {
-        setConnectionStatus('disconnected')
+        clearTimeout(timeoutId)
         s.disconnect()
       }
     }
@@ -257,7 +232,7 @@ export default function OverlayPage() {
           </div>
           <div>
             <h2 className="text-2xl font-bold text-white mb-2">Already Logged In</h2>
-            <p className="text-slate-400 mb-4">The overlay page is for public viewing only. As an admin, you're being redirected to the auction management page.</p>
+            <p className="text-slate-400 mb-4">The overlay page is for public viewing only. As an admin, you&apos;re being redirected to the auction management page.</p>
             <p className="text-violet-400 font-medium">Redirecting to auction management...</p>
           </div>
         </div>

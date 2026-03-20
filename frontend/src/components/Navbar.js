@@ -68,7 +68,7 @@ export default function Navbar() {
           </div>
 
           {/* Right Side Actions */}
-          <div className="hidden md:flex items-center space-x-4">
+          <div className="hidden md:flex items-center space-x-3">
             {/* Language Switcher Dropdown */}
             <div className="relative group">
               <button className="flex items-center gap-1 text-gray-300 hover:text-white text-sm font-medium transition-colors">
@@ -88,6 +88,20 @@ export default function Navbar() {
                 ))}
               </div>
             </div>
+
+            {/* Admin Panel Button — gold, only for admins */}
+            {session?.user?.role === 'admin' && (
+              <Link
+                href="/admin/dashboard"
+                className="px-4 py-1.5 rounded-lg text-sm font-bold text-black
+                  bg-gradient-to-r from-yellow-400 to-yellow-500
+                  shadow-[0_0_15px_rgba(255,215,0,0.5)]
+                  hover:shadow-[0_0_25px_rgba(255,215,0,0.85)]
+                  hover:scale-105 transition-all duration-200 flex items-center gap-1.5"
+              >
+                ⚡ Admin Panel
+              </Link>
+            )}
 
             {/* Simple Sign In/Out Button */}
             <AuthButton />
@@ -170,6 +184,21 @@ export default function Navbar() {
                   ))}
                 </div>
               </div>
+
+              {/* Mobile Admin Panel Button */}
+              {session?.user?.role === 'admin' && (
+                <Link
+                  href="/admin/dashboard"
+                  onClick={() => setMenuOpen(false)}
+                  className="flex items-center justify-center gap-2 mx-4 py-3 rounded-xl text-sm font-bold text-black
+                    bg-gradient-to-r from-yellow-400 to-yellow-500
+                    shadow-[0_0_15px_rgba(255,215,0,0.4)]
+                    hover:shadow-[0_0_25px_rgba(255,215,0,0.7)]
+                    transition-all duration-200"
+                >
+                  ⚡ Admin Panel
+                </Link>
+              )}
             </div>
           </div>
         </div>

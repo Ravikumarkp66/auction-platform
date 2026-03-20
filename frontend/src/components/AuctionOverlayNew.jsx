@@ -55,7 +55,7 @@ export default function AuctionOverlayNew({
   const handleBottomTab = (tab) => setActiveBottomTab(prev => prev === tab ? null : tab);
 
   // ─── Shared Squad Detail Modal ───────────────────────────────────────────
-  const SquadModal = () => !squadModal ? null : (
+  const renderSquadModal = () => !squadModal ? null : (
     <div
       className="fixed inset-0 z-50 flex items-end md:items-center justify-center"
       style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)' }}
@@ -111,7 +111,7 @@ export default function AuctionOverlayNew({
   );
 
   // ─── Team card (shared between sidebar + bottom sheet) ────────────────────
-  const TeamCard = ({ team, index, onClick }) => {
+  const renderTeamCard = (team, index, onClick) => {
     const isBidding = team._id === highestBidder || team.id === highestBidder;
     const teamName = team.name || team.shortName || ('Team ' + (index + 1));
     return (
@@ -139,7 +139,7 @@ export default function AuctionOverlayNew({
   };
 
   // ─── Bottom Sheet Backdrop ────────────────────────────────────────────────
-  const BottomSheetBackdrop = () => (
+  const renderBottomSheetBackdrop = () => (
     <div
       className="fixed inset-0 z-30"
       style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
@@ -300,7 +300,7 @@ export default function AuctionOverlayNew({
           {/* ── Squads Bottom Sheet ───────────────────────────────────── */}
           {!focusMode && activeBottomTab === 'squads' && (
             <>
-              <BottomSheetBackdrop />
+              {renderBottomSheetBackdrop()}
               <div
                 className="fixed left-0 right-0 z-40 flex flex-col"
                 style={{ bottom: '60px', height: '70vh', background: C.bgCard, borderRadius: '20px 20px 0 0', borderTop: `1px solid ${C.accentBorder}` }}
@@ -311,7 +311,9 @@ export default function AuctionOverlayNew({
                 </div>
                 <div className="flex-1 overflow-y-auto p-3 space-y-2">
                   {teams?.map((team, i) => (
-                    <TeamCard key={team._id || i} team={team} index={i} onClick={() => router.push(`/team/${team._id || team.id}`)} />
+                    <div key={team._id || i}>
+                      {renderTeamCard(team, i, () => router.push(`/team/${team._id || team.id}`))}
+                    </div>
                   ))}
                 </div>
               </div>
@@ -321,7 +323,7 @@ export default function AuctionOverlayNew({
           {/* ── History Bottom Sheet ──────────────────────────────────── */}
           {!focusMode && activeBottomTab === 'history' && (
             <>
-              <BottomSheetBackdrop />
+              {renderBottomSheetBackdrop()}
               <div
                 className="fixed left-0 right-0 z-40 flex flex-col"
                 style={{ bottom: '60px', height: '60vh', background: C.bgCard, borderRadius: '20px 20px 0 0', borderTop: `1px solid ${C.accentBorder}` }}
@@ -401,7 +403,9 @@ export default function AuctionOverlayNew({
               </div>
               <div className="flex-1 overflow-y-auto p-3 space-y-2">
                 {teams?.map((team, i) => (
-                  <TeamCard key={team._id || i} team={team} index={i} onClick={() => router.push(`/team/${team._id || team.id}`)} />
+                  <div key={team._id || i}>
+                    {renderTeamCard(team, i, () => router.push(`/team/${team._id || team.id}`))}
+                  </div>
                 ))}
               </div>
             </aside>
@@ -514,7 +518,7 @@ export default function AuctionOverlayNew({
       )}
 
       {/* Squad detail modal */}
-      <SquadModal />
+      {renderSquadModal()}
     </div>
   );
 }

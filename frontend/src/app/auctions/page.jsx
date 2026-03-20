@@ -31,7 +31,7 @@ export default function AuctionsPage() {
     try {
       // Use a timeout to avoid hanging forever
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 8000);
+      const timeout = setTimeout(() => controller.abort(), 20000);
 
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournaments`, {
         signal: controller.signal

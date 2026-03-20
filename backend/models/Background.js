@@ -13,6 +13,10 @@ const backgroundSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
+  },
+  tournamentId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Tournament'
   }
 }, {
   timestamps: true

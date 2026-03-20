@@ -19,14 +19,115 @@ try {
  *
  * Returns { uploadUrl, fileUrl }
  */
-router.get('/get-upload-url', async (req, res) => {
-  if (!s3 || !process.env.S3_BUCKET || process.env.AWS_ACCESS_KEY === 'your_access_key_here') {
-    return res.status(503).json({ error: 'S3 is not configured. Please set AWS credentials in .env' });
+// ─── Direct URL Proxy to S3 (Convert Drive to S3) ─────────────────────────
+/**
+ * Helper to process a single image URL:
+ * 1. Parse Drive ID if needed
+ * 2. Download from source
+ * 3. Upload specifically to S3
+ */
+const processSingleImage = async (url, folder = "players") => {
+  if (!url) return null;
+  if (!s3 || !process.env.S3_BUCKET) throw new Error("S3 not configured");
+
+  try {
+    // 1. Convert Drive link to robust direct download link
+    let directUrl = url;
+    if (url.includes("drive.google.com")) {
+      let fileId = "";
+      if (url.includes("/d/")) {
+        fileId = url.split("/d/")[1].split("/")[0].split("?")[0].split("#")[0];
+      } else if (url.includes("id=")) {
+        fileId = new URLSearchParams(url.split("?")[1]).get("id");
+      }
+      
+      if (fileId) {
+        directUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+      }
+    }
+
+    // 2. Download Image (follows redirects)
+    const fetchResponse = await fetch(directUrl);
+    if (!fetchResponse.ok) {
+       throw new Error(`Fetch failed: ${fetchResponse.statusText}`);
+    }
+    
+    const arrayBuffer = await fetchResponse.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const contentType = fetchResponse.headers.get("content-type") || "image/jpeg";
+    const ext = contentType.split("/")[1] || "jpg";
+    const key = `${folder}/${Date.now()}_${Math.random().toString(36).substring(2,8)}_proxy.${ext}`;
+
+    // 3. Upload to S3
+    const uploadParams = {
+      Bucket: process.env.S3_BUCKET,
+      Key: key,
+      Body: buffer,
+      ContentType: contentType,
+    };
+
+    await s3.send(new PutObjectCommand(uploadParams));
+    
+    const s3Url = `https://${process.env.S3_BUCKET}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
+    return { originalUrl: url, s3Url, success: true };
+  } catch (err) {
+    console.error(`[PROXY] Failed processing ${url}:`, err.message);
+    return { originalUrl: url, error: err.message, success: false };
+  }
+};
+
+/**
+ * POST /api/upload/proxy-url
+ * Body: { url, folder }
+ * Returns { s3Url }
+ */
+router.post("/proxy-url", async (req, res) => {
+  const { url, folder = "players" } = req.body;
+  const result = await processSingleImage(url, folder);
+  if (result.success) {
+    res.json({ s3Url: result.s3Url });
+  } else {
+    res.status(500).json({ error: result.error });
+  }
+});
+
+/**
+ * POST /api/upload/proxy-batch
+ * Body: { urls: [string], folder: string }
+ * Batch process images (e.g. from Excel imports)
+ */
+router.post("/proxy-batch", async (req, res) => {
+  const { urls, folder = "players" } = req.body;
+  if (!urls || !Array.isArray(urls)) {
+    return res.status(400).json({ error: "urls array is required" });
+  }
+
+  console.log(`[PROXY BATCH] Processing ${urls.length} images...`);
+
+  // Increased concurrency to process batches faster (20 images at a time)
+  const CONCURRENCY = 20;
+  const results = [];
+  
+  for (let i = 0; i < urls.length; i += CONCURRENCY) {
+    const chunk = urls.slice(i, i + CONCURRENCY);
+    const chunkResults = await Promise.all(
+      chunk.map(url => processSingleImage(url, folder))
+    );
+    results.push(...chunkResults);
+    console.log(`[PROXY BATCH] Progress: ${results.length}/${urls.length}`);
+  }
+
+  res.json({ results });
+});
+
+router.get("/get-upload-url", async (req, res) => {
+  if (!s3 || !process.env.S3_BUCKET || process.env.AWS_ACCESS_KEY === "your_access_key_here") {
+    return res.status(503).json({ error: "S3 is not configured. Please set AWS credentials in .env" });
   }
 
   try {
-    const { fileType = 'image/jpeg', folder = 'players' } = req.query;
-    const ext = fileType.split('/')[1] || 'jpg';
+    const { fileType = "image/jpeg", folder = "players" } = req.query;
+    const ext = fileType.split("/")[1] || "jpg";
     const key = `${folder}/${Date.now()}.${ext}`;
 
     const command = new PutObjectCommand({
@@ -39,8 +140,30 @@ router.get('/get-upload-url', async (req, res) => {
 
     res.json({ uploadUrl, fileUrl });
   } catch (err) {
-    console.error('S3 pre-sign error:', err);
-    res.status(500).json({ error: 'Failed to generate upload URL' });
+    console.error("S3 pre-sign error:", err);
+    res.status(500).json({ error: "Failed to generate upload URL" });
+  }
+});
+
+router.get("/proxy-image", async (req, res) => {
+  const { url } = req.query;
+  if (!url) return res.status(400).send("URL is required");
+
+  try {
+    const fetchResponse = await fetch(url);
+    if (!fetchResponse.ok) throw new Error("Fetch failed");
+
+    const contentType = fetchResponse.headers.get("content-type");
+    if (contentType) res.setHeader("Content-Type", contentType);
+
+    // Allow CORS for this proxy
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    
+    const arrayBuffer = await fetchResponse.arrayBuffer();
+    res.send(Buffer.from(arrayBuffer));
+  } catch (err) {
+    console.error("[IMAGE PROXY] Failed:", err.message);
+    res.status(500).send("Failed to proxy image");
   }
 });
 

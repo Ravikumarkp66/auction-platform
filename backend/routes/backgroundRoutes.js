@@ -5,7 +5,11 @@ const Background = require('../models/Background');
 // GET /api/backgrounds - Get all backgrounds
 router.get('/', async (req, res) => {
   try {
-    const backgrounds = await Background.find({ isActive: true });
+    const { tournamentId } = req.query;
+    const filter = { isActive: true };
+    if (tournamentId) filter.tournamentId = tournamentId;
+    
+    const backgrounds = await Background.find(filter);
     res.json(backgrounds);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -23,20 +27,24 @@ router.get('/:name', async (req, res) => {
   }
 });
 
-// POST /api/backgrounds - Create new background (already S3 URL from frontend)
+// POST /api/backgrounds - Create new background
 router.post('/', async (req, res) => {
   try {
-    const { name, imageUrl } = req.body;
+    const { name, imageUrl, tournamentId } = req.body;
     
-    // Check if background with same name exists
-    let background = await Background.findOne({ name });
+    // Check if background with same name exists in this auction context
+    const filter = { name };
+    if (tournamentId) filter.tournamentId = tournamentId;
+    
+    let background = await Background.findOne(filter);
     
     if (background) {
       background.imageUrl = imageUrl;
       background.isActive = true;
+      if (tournamentId) background.tournamentId = tournamentId;
       await background.save();
     } else {
-      background = new Background({ name, imageUrl });
+      background = new Background({ name, imageUrl, tournamentId });
       await background.save();
     }
     

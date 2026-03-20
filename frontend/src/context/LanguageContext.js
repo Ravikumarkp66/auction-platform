@@ -1,22 +1,20 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState } from "react";
 import { translations } from "../data/translations";
 
 const LanguageContext = createContext();
 
 export const LanguageProvider = ({ children }) => {
-  const [language, setLanguage] = useState("en");
-
-  // On mount, load language from localStorage if available (browser only)
-  useEffect(() => {
+  const [language, setLanguage] = useState(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("language");
       if (saved && ["en", "hi", "kn"].includes(saved)) {
-        setLanguage(saved);
+        return saved;
       }
     }
-  }, []);
+    return "en";
+  });
 
   const changeLanguage = (lang) => {
     setLanguage(lang);

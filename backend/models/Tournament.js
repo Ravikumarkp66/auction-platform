@@ -12,6 +12,22 @@ const tournamentSchema = new mongoose.Schema({
   squadSize: { type: Number, default: 11 },
   auctionSlots: { type: Number, default: 9 },
   status: { type: String, enum: ["draft", "active", "completed"], default: "draft" },
+  assets: {
+    splashUrl: { type: String },
+    backgroundUrl: { type: String },
+    teamCardBgUrl: { type: String },
+    squadBgUrl: { type: String },
+    badges: {
+      leftBadge: { type: String },
+      rightBadge: { type: String }
+    }
+  },
+  imageProcessing: {
+    total: { type: Number, default: 0 },
+    completed: { type: Number, default: 0 },
+    failed: { type: Number, default: 0 },
+    status: { type: String, enum: ["idle", "processing", "done"], default: "idle" }
+  }
 }, { timestamps: true });
 
 // Auto-increment shortId logic
