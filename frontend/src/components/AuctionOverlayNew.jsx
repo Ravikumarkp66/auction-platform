@@ -170,7 +170,6 @@ export default function AuctionOverlayNew({
           {tournamentName || 'Parmeshwar Cup 2026'}
         </h1>
 
-        {/* Hide focus button on mobile — it's in bottom nav */}
         {!isMobile && (
           <button
             onClick={() => setFocusMode(!focusMode)}
@@ -188,116 +187,114 @@ export default function AuctionOverlayNew({
       </header>
 
       {/* ══════════════════════════════════════════════════════════════════
-          MOBILE LAYOUT
+          MOBILE LAYOUT (70 / 30 Split)
       ══════════════════════════════════════════════════════════════════ */}
       {isMobile ? (
-        <div className="relative z-10 flex-1 flex flex-col overflow-hidden" style={{ paddingBottom: '60px' }}>
-          {!focusMode ? (
-            <>
-              <div className="flex-1 overflow-y-auto p-4">
-
-            {/* Player Card */}
-            <div className="rounded-2xl overflow-hidden" style={{ background: C.bgCard, border: `1px solid ${C.border}` }}>
-        
-              {/* Image */}
-              <div className="relative w-full" style={{ height: '52vw', maxHeight: '300px' }}>
-                <Image
-                  src={player?.image || player?.imageUrl || '/players/default.png'}
-                  alt={player?.name || 'Player'}
-                  fill className="object-cover" unoptimized
-                />
-                {(isSold || isUnsold) && (
-                  <div className="absolute inset-0 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.55)' }}>
-                    <div
-                      className="px-5 py-2 rounded-xl text-xl font-bold uppercase tracking-widest rotate-[-10deg]"
-                      style={{
-                        background: isSold ? C.accentSoft : 'rgba(239,68,68,0.15)',
-                        border: `2px solid ${isSold ? C.accent : '#ef4444'}`,
-                        color: isSold ? C.accent : '#ef4444'
-                      }}
-                    >{isSold ? 'Sold' : 'Unsold'}</div>
-                  </div>
-                )}
-              </div>
-        
-              {/* Card body */}
-              <div className="p-4">
-                <p className="text-xl font-semibold" style={{ color: C.textPrimary }}>{player?.name}</p>
-                <p className="text-sm mt-0.5 mb-4" style={{ color: C.textSecondary }}>{player?.role}</p>
-        
-                {/* Bid box */}
-                <div className="rounded-xl p-4 text-center" style={{ background: C.accentSoft, border: `1px solid ${C.accentBorder}` }}>
-                  <p className="text-xs font-medium mb-1" style={{ color: C.textSecondary }}>{isSold ? 'Final Price' : 'Current Bid'}</p>
-                  <p className="text-3xl font-bold" style={{ color: C.accent }}>₹{displayBid.toLocaleString()}</p>
+        <div className="relative z-10 flex flex-col overflow-hidden" style={{ height: 'calc(100vh - 56px - 60px)', background: C.bgMain }}>
+          <div className="flex flex-col h-full w-full overflow-hidden">
+            {/* Player Image (70%) */}
+            <div className="h-[70%] w-full relative flex-shrink-0 overflow-hidden" style={{ background: '#000' }}>
+              <Image
+                src={player?.image || player?.imageUrl || '/players/default.png'}
+                alt={player?.name || 'Player'}
+                fill 
+                className="object-cover" 
+                style={{ objectPosition: 'top center' }} 
+                unoptimized
+              />
+              
+              {/* Sold/Unsold Status */}
+              {(isSold || isUnsold) && (
+                <div className="absolute inset-0 z-10 flex items-center justify-center p-6" style={{ background: 'rgba(0,0,0,0.5)' }}>
+                  <div
+                    className="px-10 py-4 rounded-3xl text-4xl font-black uppercase tracking-[0.2em] rotate-[-12deg] shadow-2xl scale-110"
+                    style={{
+                      background: isSold ? 'rgba(0, 212, 163, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+                      backdropFilter: 'blur(10px)',
+                      border: `4px solid ${isSold ? C.accent : '#ef4444'}`,
+                      color: isSold ? C.accent : '#ef4444',
+                      textShadow: `0 0 20px ${isSold ? C.accent : '#ef4444'}`
+                    }}
+                  >{isSold ? 'SOLD' : 'UNSOLD'}</div>
                 </div>
-        
-                {/* Leading team */}
-                {highestBidder && (
-                  <div className="flex items-center gap-3 mt-3 p-3 rounded-xl" style={{ background: C.bgMain, border: `1px solid ${C.border}` }}>
-                    {highestBidderLogo && <img src={highestBidderLogo} className="w-8 h-8 rounded-full object-cover" alt="" />}
-                    <div>
-                      <p className="text-xs" style={{ color: C.textSecondary }}>{isSold ? 'Sold to' : 'Leading'}</p>
-                      <p className="text-sm font-semibold" style={{ color: C.textPrimary }}>{highestBidderName}</p>
-                    </div>
+              )}
+
+              {/* Identity Overlay */}
+              <div className="absolute bottom-0 left-0 right-0 p-6 z-20" style={{ background: 'linear-gradient(transparent, rgba(0,0,0,1))' }}>
+                <p className="text-3xl font-black italic uppercase tracking-tight text-white drop-shadow-lg leading-tight">
+                  {player?.applicationId && <span className="text-sm border border-white/20 px-2 py-0.5 rounded-lg mr-2 align-middle font-black tabular-nums opacity-60">#{player.applicationId}</span>}
+                  {player?.name}
+                </p>
+                <p className="text-[10px] font-black uppercase tracking-[0.4em] mt-1" style={{ color: C.accent }}>{player?.role}</p>
+              </div>
+            </div>
+
+            {/* Auction Stats (Remaining 30%) */}
+            <div className="flex-1 flex flex-col justify-center px-6 py-4 bg-[#0a1a23] relative">
+              <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-[#00d4a3] to-transparent opacity-30"></div>
+              
+              <div className="flex items-center justify-between gap-4">
+                {highestBidder ? (
+                   <div className="flex-1 min-w-0">
+                      <p className="text-[9px] font-black uppercase tracking-widest mb-1" style={{ color: C.textSecondary }}>{isSold ? 'Sold to' : 'Leading'}</p>
+                      <div className="flex items-center gap-3">
+                         <div className="w-10 h-10 rounded-xl flex-shrink-0 bg-black/40 border border-white/5 p-1">
+                            {highestBidderLogo ? (
+                              <img src={highestBidderLogo} className="w-full h-full object-contain" alt="" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-xs font-black">?</div>
+                            )}
+                         </div>
+                         <p className="text-lg font-black uppercase tracking-tight truncate text-white">{highestBidderName}</p>
+                      </div>
+                   </div>
+                ) : (
+                  <div className="flex-1">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-[#475569]">Status</p>
+                    <p className="text-xl font-black uppercase text-[#475569]">Awaiting Bid</p>
                   </div>
                 )}
+
+                <div className="text-right shrink-0">
+                  <p className="text-[9px] font-black uppercase tracking-widest mb-1" style={{ color: C.textSecondary }}>{isSold ? 'Final Price' : 'Current Bid'}</p>
+                  <div className="flex items-baseline justify-end gap-1">
+                    <span className="text-sm font-black" style={{ color: C.accent }}>₹</span>
+                    <span className="text-4xl font-black tabular-nums tracking-tighter" style={{ color: C.accent }}>{displayBid.toLocaleString()}</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-            </>
-          ) : (
-            /* Focus Mode - Simplified View */
-          <div className="flex-1 overflow-y-auto p-4">
-            {/* Player Card - Focus Mode */}
-            <div className="rounded-2xl overflow-hidden" style={{ background: C.bgCard, border: `1px solid ${C.border}` }}>
-              {/* Image */}
-              <div className="relative w-full" style={{ height: '60vw', maxHeight: '400px' }}>
-                <Image
-                  src={player?.image || player?.imageUrl || '/players/default.png'}
-                  alt={player?.name || 'Player'}
-                  fill className="object-cover" unoptimized
-                />
-                {(isSold || isUnsold) && (
-                  <div className="absolute inset-0 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.55)' }}>
-                    <div
-                      className="px-6 py-3 rounded-xl text-2xl font-bold uppercase tracking-widest rotate-[-10deg]"
-                      style={{
-                        background: isSold ? C.accentSoft : 'rgba(239,68,68,0.15)',
-                        border: `2px solid ${isSold ? C.accent : '#ef4444'}`,
-                        color: isSold ? C.accent : '#ef4444'
-                      }}
-                    >{isSold ? 'Sold' : 'Unsold'}</div>
-                  </div>
-                )}
-              </div>
-        
-              {/* Card body */}
-              <div className="p-4">
-                <p className="text-2xl font-semibold" style={{ color: C.textPrimary }}>{player?.name}</p>
-                <p className="text-sm mt-0.5 mb-4" style={{ color: C.textSecondary }}>{player?.role}</p>
-        
-                {/* Bid box */}
-                <div className="rounded-xl p-4 text-center" style={{ background: C.accentSoft, border: `1px solid ${C.accentBorder}` }}>
-                  <p className="text-xs font-medium mb-1" style={{ color: C.textSecondary }}>{isSold ? 'Final Price' : 'Current Bid'}</p>
-                  <p className="text-4xl font-bold" style={{ color: C.accent }}>₹{displayBid.toLocaleString()}</p>
-                </div>
-        
-                {/* Leading team */}
-                {highestBidder && (
-                  <div className="flex items-center gap-3 mt-3 p-3 rounded-xl" style={{ background: C.bgMain, border: `1px solid ${C.border}` }}>
-                    {highestBidderLogo && <img src={highestBidderLogo} className="w-10 h-10 rounded-full object-cover" alt="" />}
-                    <div>
-                      <p className="text-xs" style={{ color: C.textSecondary }}>{isSold ? 'Sold to' : 'Leading'}</p>
-                      <p className="text-base font-semibold" style={{ color: C.textPrimary }}>{highestBidderName}</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
 
-          {/* ── Squads Bottom Sheet ───────────────────────────────────── */}
+          {/* Bottom Navigation */}
+          <div
+            className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around px-2"
+            style={{ height: '60px', background: C.bgNav, borderTop: `1px solid ${C.border}` }}
+          >
+            {[
+              { id: 'squads', label: 'Squads', icon: <Users size={18} /> },
+              { id: 'history', label: 'History', icon: <ClipboardList size={18} /> },
+              { id: 'focus', label: focusMode ? 'Exit' : 'Focus', icon: <Crosshair size={18} /> },
+            ].map(item => {
+              const isActive = item.id === 'focus' ? focusMode : activeBottomTab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => item.id === 'focus' ? setFocusMode(f => !f) : handleBottomTab(item.id)}
+                  className="flex flex-col items-center gap-1 flex-1 py-2 relative"
+                  style={{ color: isActive ? C.accent : C.textSecondary }}
+                >
+                  {isActive && (
+                    <span className="absolute top-0 left-1/2 -translate-x-1/2 w-6 h-0.5 rounded-full" style={{ background: C.accent }} />
+                  )}
+                  {item.icon}
+                  <span className="text-[10px] font-medium">{item.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Overlays */}
           {!focusMode && activeBottomTab === 'squads' && (
             <>
               {renderBottomSheetBackdrop()}
@@ -320,7 +317,6 @@ export default function AuctionOverlayNew({
             </>
           )}
 
-          {/* ── History Bottom Sheet ──────────────────────────────────── */}
           {!focusMode && activeBottomTab === 'history' && (
             <>
               {renderBottomSheetBackdrop()}
@@ -351,36 +347,7 @@ export default function AuctionOverlayNew({
               </div>
             </>
           )}
-
-          {/* ── Bottom Navigation ─────────────────────────────────────── */}
-          <div
-            className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around px-2"
-            style={{ height: '60px', background: C.bgNav, borderTop: `1px solid ${C.border}` }}
-          >
-            {[
-              { id: 'squads', label: 'Squads', icon: <Users size={18} /> },
-              { id: 'history', label: 'History', icon: <ClipboardList size={18} /> },
-              { id: 'focus', label: focusMode ? 'Exit' : 'Focus', icon: <Crosshair size={18} /> },
-            ].map(item => {
-              const isActive = item.id === 'focus' ? focusMode : activeBottomTab === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => item.id === 'focus' ? setFocusMode(f => !f) : handleBottomTab(item.id)}
-                  className="flex flex-col items-center gap-1 flex-1 py-2 relative"
-                  style={{ color: isActive ? C.accent : C.textSecondary }}
-                >
-                  {isActive && (
-                    <span className="absolute top-0 left-1/2 -translate-x-1/2 w-6 h-0.5 rounded-full" style={{ background: C.accent }} />
-                  )}
-                  {item.icon}
-                  <span className="text-[10px] font-medium">{item.label}</span>
-                </button>
-              );
-            })}
-          </div>
         </div>
-
       ) : (
       /* ══════════════════════════════════════════════════════════════════
           DESKTOP LAYOUT
@@ -415,7 +382,6 @@ export default function AuctionOverlayNew({
           <main className="flex items-center justify-center">
             {focusMode ? (
               <div className="flex w-full max-w-5xl gap-10 items-center px-6">
-                {/* Image */}
                 <div className="flex-1 relative overflow-hidden rounded-2xl" style={{ height: '70vh', border: `1px solid ${C.border}` }}>
                   <Image src={player?.image || player?.imageUrl || '/players/default.png'} alt={player?.name || 'Player'} fill className="object-cover" unoptimized />
                   {(isSold || isUnsold) && (
@@ -426,7 +392,6 @@ export default function AuctionOverlayNew({
                     </div>
                   )}
                 </div>
-                {/* Bid info */}
                 <div className="w-72 flex flex-col gap-4">
                   <div>
                     <p className="text-2xl font-semibold" style={{ color: C.textPrimary }}>{player?.name}</p>
@@ -449,7 +414,6 @@ export default function AuctionOverlayNew({
               </div>
             ) : (
               <div className="w-[380px] flex flex-col gap-0">
-                {/* Player image */}
                 <div className="relative overflow-hidden rounded-t-2xl" style={{ height: '420px', border: `1px solid ${C.border}`, borderBottom: 'none' }}>
                   <Image src={player?.image || player?.imageUrl || '/players/default.png'} alt={player?.name || 'Player'} fill className="object-cover" unoptimized />
                   {(isSold || isUnsold) && (
@@ -460,25 +424,25 @@ export default function AuctionOverlayNew({
                     </div>
                   )}
                 </div>
-                {/* Name + role */}
                 <div className="px-5 py-4 rounded-b-2xl" style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderTop: 'none' }}>
-                  <p className="text-xl font-semibold" style={{ color: C.textPrimary }}>{player?.name}</p>
+                  <p className="text-xl font-semibold flex items-center gap-3" style={{ color: C.textPrimary }}>
+                    {player?.applicationId && <span className="text-xs border border-white/20 px-1.5 py-0.5 rounded-md opacity-50 font-black tabular-nums">#{player.applicationId}</span>}
+                    {player?.name}
+                  </p>
                   <p className="text-sm mt-0.5" style={{ color: C.textSecondary }}>{player?.role}</p>
                 </div>
               </div>
             )}
           </main>
 
-          {/* Right — Bid panel */}
+          {/* Right — Bid Tracking */}
           {!focusMode && (
             <aside className="flex flex-col gap-3 overflow-hidden">
-              {/* Bid box */}
               <div className="rounded-2xl p-5 text-center" style={{ background: C.accentSoft, border: `1px solid ${C.accentBorder}` }}>
                 <p className="text-xs font-medium mb-2" style={{ color: C.textSecondary }}>{isSold ? 'Final Price' : 'Current Bid'}</p>
                 <p className="text-5xl font-bold" style={{ color: C.accent }}>₹{displayBid.toLocaleString()}</p>
               </div>
 
-              {/* Leading */}
               {highestBidder && (
                 <div className="rounded-2xl p-4" style={{ background: C.bgCard, border: `1px solid ${C.border}` }}>
                   <div className="flex items-center gap-2 mb-2">
@@ -492,7 +456,6 @@ export default function AuctionOverlayNew({
                 </div>
               )}
 
-              {/* Bid history */}
               <div className="flex-1 flex flex-col overflow-hidden rounded-2xl" style={{ background: C.bgCard, border: `1px solid ${C.border}` }}>
                 <div className="flex items-center gap-2 px-4 py-3" style={{ borderBottom: `1px solid ${C.border}` }}>
                   <ClipboardList size={13} color={C.textSecondary} />

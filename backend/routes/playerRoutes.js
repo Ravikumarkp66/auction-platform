@@ -235,8 +235,22 @@ router.patch("/:id", async (req, res) => {
            await team.save();
          }
       }
-    } else if (updates.status === 'available' || updates.status === 'unsold') {
-       // Clear slot/team if moved back to available/unsold
+    } else if (updates.status === 'unsold') {
+       // Clear slot/team if marked as unsold
+       updates.teamSlotId = null;
+       updates.team = null;
+       updates.soldPrice = 0;
+
+       // MOVE TO END: Assign next available applicationId
+       if (oldPlayer.status !== 'unsold') {
+          const lastPlayer = await Player.findOne({ 
+              tournamentId: oldPlayer.tournamentId, 
+              isIcon: false 
+          }).sort({ applicationId: -1 });
+          updates.applicationId = (lastPlayer ? (lastPlayer.applicationId || 0) : 0) + 1;
+       }
+    } else if (updates.status === 'available') {
+       // Clear slot/team if moved back to available
        updates.teamSlotId = null;
        updates.team = null;
        updates.soldPrice = 0;

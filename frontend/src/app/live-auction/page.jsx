@@ -35,9 +35,11 @@ function LiveAuctionContent() {
         if (res.ok) {
           const data = await res.json()
           if (data.imageUrl) setAuctionBg(data.imageUrl)
+          // else: no custom background set, use default silently
         }
-      } catch (err) {
-        console.warn("Could not fetch custom auction background")
+        // 404 = no custom background configured, skip silently
+      } catch (_) {
+        // Network error, skip silently — default bg will be used
       }
     }
     fetchBg()
@@ -70,6 +72,7 @@ function LiveAuctionContent() {
   const [socket, setSocket] = useState(null)
   const [showBreakModal, setShowBreakModal] = useState(false)
   const [showImageEditor, setShowImageEditor] = useState(false)
+  const [showRoundTransition, setShowRoundTransition] = useState(null) // { label, subtitle }
 
   // Edge Case 1: Debounce / Cooldown
   const BID_COOLDOWN = 600;
@@ -140,36 +143,42 @@ function LiveAuctionContent() {
       try {
         let targetTournamentId = tournamentId
 
-        // If no tournament ID in URL, fetch active tournament
-        if (!targetTournamentId) {
-          console.log('No tournament ID in URL, fetching active tournament...')
-          const activeRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournaments/status/active`)
+        const controller = new AbortController()
+        const abortTimer = setTimeout(() => controller.abort(), 30000)
+
+        let data = null
+
+        // If a tournament ID is in the URL, try it first
+        if (targetTournamentId) {
+          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournaments/${targetTournamentId}`, { signal: controller.signal })
+          if (res.ok) {
+            const json = await res.json()
+            if (json && json.tournament) {
+              data = json
+              setCurrentTournamentId(targetTournamentId)
+            }
+          } else {
+            console.warn(`Tournament ID "${targetTournamentId}" not found (${res.status}), falling back to active tournament...`)
+          }
+        }
+
+        // Fallback: fetch active tournament if URL id was missing or invalid
+        if (!data) {
+          const activeRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournaments/status/active`, { signal: controller.signal })
           if (activeRes.ok) {
             const activeData = await activeRes.json()
             if (activeData && activeData.tournament) {
+              data = activeData
               targetTournamentId = activeData.tournament._id
               setCurrentTournamentId(targetTournamentId)
-              console.log('Found active tournament:', targetTournamentId)
+              console.log('Loaded active tournament:', targetTournamentId)
             }
           }
         }
 
-        // If no ID provided, try to find the ACTIVE tournament
-        const fetchUrl = targetTournamentId 
-          ? `${process.env.NEXT_PUBLIC_API_URL}/api/tournaments/${targetTournamentId}`
-          : `${process.env.NEXT_PUBLIC_API_URL}/api/tournaments/status/active`;
-
-        const controller = new AbortController()
-        const abortTimer = setTimeout(() => controller.abort(), 30000)
-
-        const res = await fetch(fetchUrl, {
-          signal: controller.signal
-        })
         clearTimeout(abortTimer)
-        if (!res.ok) throw new Error('Tournament not found or no live auction active')
-        const data = await res.json()
 
-        if (!data || !data.tournament) throw new Error("Tournament not found")
+        if (!data || !data.tournament) throw new Error("No active tournament found")
 
         const tournament = data.tournament;
         setConfig({
@@ -205,12 +214,15 @@ function LiveAuctionContent() {
         const auctionPlayers = data.players.filter(p => !p.isIcon)
 
         // Create auction-only Application IDs (01-150 for auction players only)
-        const playerIdToAppId = {}
-        auctionPlayers.forEach((p, idx) => {
-          playerIdToAppId[p._id] = (idx + 1).toString().padStart(2, '0')
-        })
 
-        setPlayers(auctionPlayers.map(p => ({
+        // Inject ROUND 02 marker between regular players and unsold players
+        const regularAppIds = auctionPlayers
+          .filter(p => p.status !== 'unsold')
+          .map(p => p.applicationId || 0);
+        const maxRegularAppId = regularAppIds.length > 0 ? Math.max(...regularAppIds) : 0;
+        const hasUnsoldInSecondRound = auctionPlayers.some(p => p.status === 'unsold' && (p.applicationId || 0) > maxRegularAppId);
+
+        let enrichedPlayers = auctionPlayers.map(p => ({
           id: p._id,
           name: p.name,
           role: p.role || "All-Rounder",
@@ -227,21 +239,34 @@ function LiveAuctionContent() {
           battingStyle: p.battingStyle || "Right Hand",
           bowlingStyle: p.bowlingStyle || "-",
           isIcon: p.isIcon || false,
-          applicationId: playerIdToAppId[p._id] // Auction-only Application ID (01-150)
-        })))
+          applicationId: p.applicationId ? p.applicationId.toString().padStart(2, '0') : "-",
+          _rawAppId: p.applicationId || 0
+        }));
 
-        // Use player param to find by Application ID if provided, otherwise find next available player
+        // Find the splice point: first player whose applicationId > maxRegularAppId
+        if (hasUnsoldInSecondRound) {
+          const spliceIdx = enrichedPlayers.findIndex(p => (p._rawAppId || 0) > maxRegularAppId && p.status === 'unsold');
+          if (spliceIdx !== -1) {
+            enrichedPlayers.splice(spliceIdx, 0, {
+              type: 'ROUND',
+              label: 'ROUND 02',
+              subtitle: 'UNSOLD PLAYERS',
+              id: '__round_02__'
+            });
+          }
+        }
+
+        setPlayers(enrichedPlayers);
+
+        // Use player param to find by Application ID. Skip ROUND markers when searching.
         let targetIdx = 0
         if (playerParam) {
-          // Find player by Application ID (e.g., "01", "02", "39")
           const appId = playerParam.toString().padStart(2, '0')
-          const foundIdx = auctionPlayers.findIndex(p => playerIdToAppId[p._id] === appId)
-          if (foundIdx !== -1) {
-            targetIdx = foundIdx
-          }
+          const foundIdx = enrichedPlayers.findIndex(p => !p.type && (p.applicationId || "").toString().padStart(2, '0') === appId)
+          if (foundIdx !== -1) targetIdx = foundIdx
         } else {
-          // Find next available player
-          const nextIdx = auctionPlayers.findIndex(p => p.status === "available" || p.status === "auction")
+          // Find first item that is NOT sold (skip ROUND markers)
+          const nextIdx = enrichedPlayers.findIndex(p => !p.type && p.status !== "sold")
           targetIdx = nextIdx !== -1 ? nextIdx : 0
         }
         setCurrentPlayerIndex(targetIdx)
@@ -302,7 +327,8 @@ function LiveAuctionContent() {
     }
   }, [socket, currentPlayerIndex])
 
-  const player = players[currentPlayerIndex]
+  const player = players[currentPlayerIndex];
+  const isRoundMarker = player?.type === 'ROUND';
 
   // Reset bidding state when player changes
   useEffect(() => {
@@ -369,8 +395,8 @@ function LiveAuctionContent() {
 
   // Rest of component logic starts here
 
-  // Edge Case 7: Only allow bid if player is available
-  const canPlaceBid = player && (player.status === "available" || player.status === "auction");
+  // Edge Case 7: Only allow bid if player is available or was previously unsold
+  const canPlaceBid = player && !isRoundMarker && (player.status === "available" || player.status === "auction" || player.status === "unsold");
 
   const placeBid = (teamId) => {
     // Edge Case 1: Double-click prevention
@@ -580,8 +606,9 @@ function LiveAuctionContent() {
 
     const updatedPlayers = [...players]
     const unsoldPlayerData = { ...player, status: "unsold", soldPrice: 0, team: null }
-    updatedPlayers[currentPlayerIndex] = unsoldPlayerData
-    setPlayers(updatedPlayers)
+    updatedPlayers[currentPlayerIndex] = unsoldPlayerData;
+    setPlayers(updatedPlayers);
+    
     setResults([{
       player: player.name,
       team: "-",
@@ -590,30 +617,9 @@ function LiveAuctionContent() {
       color: "text-red-400 bg-red-500/10"
     }, ...results])
 
-    // Persist unsold status so reloads stay consistent
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/players/${player.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          status: "unsold",
-          soldPrice: 0,
-          team: null
-        })
-      })
-
-      if (!res.ok) {
-        console.error("❌ Failed to save UNSOLD status for player:", player.name)
-      }
-    } catch (err) {
-      console.error("Error saving UNSOLD status:", err)
-    }
-
-    // Broadcast unsold state to overlay so UNSOLD badge updates immediately
+    // Broadcast unsold state to overlay
     if (socket) {
-      // Auto-stop break on marking unsold
       socket.emit('breakTimeEnd');
-      
       socket.emit('auctionUpdate', {
         player: unsoldPlayerData,
         currentBid: 0,
@@ -626,7 +632,57 @@ function LiveAuctionContent() {
       })
     }
 
-    // Stay on player to show banner
+    // Persist unsold status + move to end on backend
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/players/${player.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: "unsold",
+          soldPrice: 0,
+          team: null
+        })
+      })
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.applicationId) {
+           const newAppId = data.applicationId;
+           // Update local applicationId and inject ROUND marker if needed
+           setPlayers(prev => {
+              const updated = prev.map(p => 
+                p.id === player.id 
+                  ? { ...p, applicationId: newAppId.toString().padStart(2, '0'), _rawAppId: newAppId } 
+                  : p
+              );
+
+              // Check if ROUND marker already exists
+              const hasRoundMarker = updated.some(p => p.type === 'ROUND');
+              if (hasRoundMarker) return updated;
+
+              // Find where the unsold "2nd round" starts (first item with appId > original count)
+              const regularMax = Math.max(...updated.filter(p => !p.type && p.status !== 'unsold').map(p => p._rawAppId || 0), 0);
+              const insertIdx = updated.findIndex(p => !p.type && (p._rawAppId || 0) > regularMax);
+
+              if (insertIdx !== -1) {
+                const withMarker = [...updated];
+                withMarker.splice(insertIdx, 0, {
+                  type: 'ROUND',
+                  label: 'ROUND 02',
+                  subtitle: 'UNSOLD PLAYERS',
+                  id: '__round_02__'
+                });
+                return withMarker;
+              }
+              return updated;
+           });
+        }
+      } else {
+        console.error("❌ Failed to save UNSOLD status for player:", player.name)
+      }
+    } catch (err) {
+      console.error("Error saving UNSOLD status:", err)
+    }
   }
 
   // Revert a sold player - put back to auction and refund team
@@ -735,22 +791,38 @@ function LiveAuctionContent() {
 
   const nextPlayer = () => {
     // Confirmation before accidental move if BID IS ACTIVE
-    if (currentPlayerIndex < players.length - 1 && currentPlayerIndex !== -1) {
-      if (currentBid > 0 && player.status === "available" && !confirm("Auction in progress. Discard bids and move to next player?")) return
+    if (!isRoundMarker && currentPlayerIndex < players.length - 1 && currentPlayerIndex !== -1) {
+      if (currentBid > 0 && player?.status === "available" && !confirm("Auction in progress. Discard bids and move to next player?")) return
     }
 
     if (socket) socket.emit('breakTimeEnd');
 
     const nextIdx = currentPlayerIndex + 1;
     if (nextIdx < players.length) {
-      const nextPlayer = players[nextIdx]
+      const nextItem = players[nextIdx];
+
+      // If the next item is a ROUND marker, show the transition overlay
+      if (nextItem?.type === 'ROUND') {
+        setCurrentPlayerIndex(nextIdx);
+        setCurrentBid(0);
+        setHighestBidder(null);
+        setRoundHistory([]);
+        setShowRoundTransition({ label: nextItem.label, subtitle: nextItem.subtitle });
+        // Auto-advance past the round marker after 3 seconds
+        setTimeout(() => {
+          setShowRoundTransition(null);
+          setCurrentPlayerIndex(nextIdx + 1 < players.length ? nextIdx + 1 : nextIdx);
+        }, 3500);
+        return;
+      }
+
       setCurrentPlayerIndex(nextIdx)
       setCurrentBid(0)
       setHighestBidder(null)
       setRoundHistory([])
       // Update URL with Application ID
-      if (currentTournamentId && nextPlayer?.applicationId) {
-        router.push(`/live-auction?id=${currentTournamentId}&player=${nextPlayer.applicationId}`, undefined, { shallow: true })
+      if (currentTournamentId && nextItem?.applicationId) {
+        router.push(`/live-auction?id=${currentTournamentId}&player=${nextItem.applicationId}`, undefined, { shallow: true })
       }
     } else {
       setCurrentPlayerIndex(-1)
@@ -904,13 +976,85 @@ function LiveAuctionContent() {
     </div>
   )
 
-  const soldPlayers = players.filter(p => p.status === "sold")
-  const unsoldPlayers = players.filter(p => p.status === "unsold")
+  const soldPlayers = players.filter(p => !p.type && p.status === "sold")
+  const unsoldPlayers = players.filter(p => !p.type && p.status === "unsold")
   const mostExpensive = [...soldPlayers].sort((a, b) => b.soldPrice - a.soldPrice)[0]
 
   return (
     <div className="min-h-screen font-sans text-white overflow-hidden relative">
-      {/* Global backgrounds handle styling now (see globals.css) */}
+
+      {/* =========================================================
+          ROUND TRANSITION OVERLAY (Full-Screen Cinematic)
+      ========================================================= */}
+      {showRoundTransition && (
+        <div
+          className="fixed inset-0 z-[999] flex flex-col items-center justify-center"
+          style={{
+            background: 'radial-gradient(ellipse at center, #1a0533 0%, #0a0015 60%, #000 100%)',
+            animation: 'fadeInOut 3.5s ease forwards'
+          }}
+        >
+          <style>{`
+            @keyframes fadeInOut {
+              0%   { opacity: 0; transform: scale(0.95); }
+              15%  { opacity: 1; transform: scale(1); }
+              80%  { opacity: 1; transform: scale(1); }
+              100% { opacity: 0; transform: scale(1.02); }
+            }
+            @keyframes glowPulse {
+              0%, 100% { text-shadow: 0 0 40px #a855f7, 0 0 80px #7c3aed; }
+              50% { text-shadow: 0 0 80px #c084fc, 0 0 160px #a855f7, 0 0 240px #7c3aed; }
+            }
+            @keyframes slideUp {
+              0% { opacity: 0; transform: translateY(30px); }
+              100% { opacity: 1; transform: translateY(0); }
+            }
+            @keyframes countdownShrink {
+              from { stroke-dashoffset: 0; }
+              to { stroke-dashoffset: 188; }
+            }
+          `}</style>
+
+          {/* Floating orbs */}
+          <div className="absolute top-1/4 left-1/4 w-64 h-64 rounded-full opacity-10" style={{ background: 'radial-gradient(circle, #a855f7, transparent)', filter: 'blur(60px)', animation: 'glowPulse 2s ease infinite' }} />
+          <div className="absolute bottom-1/4 right-1/4 w-48 h-48 rounded-full opacity-10" style={{ background: 'radial-gradient(circle, #7c3aed, transparent)', filter: 'blur(60px)', animation: 'glowPulse 2s ease infinite 1s' }} />
+
+          {/* Countdown ring */}
+          <div className="absolute top-8 right-8">
+            <svg width="60" height="60" viewBox="0 0 60 60">
+              <circle cx="30" cy="30" r="26" fill="none" stroke="rgba(168,85,247,0.2)" strokeWidth="4" />
+              <circle
+                cx="30" cy="30" r="26"
+                fill="none" stroke="#a855f7" strokeWidth="4"
+                strokeDasharray="163"
+                strokeLinecap="round"
+                strokeDashoffset="0"
+                transform="rotate(-90 30 30)"
+                style={{ animation: 'countdownShrink 3.5s linear forwards' }}
+              />
+            </svg>
+          </div>
+
+          {/* Content */}
+          <div className="text-center px-8" style={{ animation: 'slideUp 0.5s ease forwards' }}>
+            <p className="text-[10px] font-black uppercase tracking-[0.6em] text-purple-400 mb-4">Auction Continues</p>
+            <h1
+              className="text-6xl sm:text-8xl font-black uppercase tracking-wider text-white mb-4"
+              style={{ animation: 'glowPulse 1.5s ease infinite', fontStyle: 'italic' }}
+            >
+              {showRoundTransition.label}
+            </h1>
+            <div className="flex items-center gap-3 justify-center">
+              <div className="h-[1px] w-16 bg-gradient-to-r from-transparent to-purple-500"></div>
+              <p className="text-xl font-black uppercase tracking-[0.4em] text-purple-300">
+                {showRoundTransition.subtitle}
+              </p>
+              <div className="h-[1px] w-16 bg-gradient-to-l from-transparent to-purple-500"></div>
+            </div>
+            <p className="text-[10px] text-purple-500/60 font-black uppercase tracking-widest mt-6 animate-pulse">Starting shortly...</p>
+          </div>
+        </div>
+      )}
 
       {/* Content Layer - Main UI stays here, untouched */}
       <div className="relative z-20 min-h-screen p-4 md:p-6 pb-[calc(env(safe-area-inset-bottom)+5rem)] md:pb-6 flex flex-col overflow-hidden">
@@ -1135,7 +1279,28 @@ function LiveAuctionContent() {
 
           {/* CENTER PLAYER CARD */}
           <div className="flex-1 card auction-main overflow-y-auto p-4 md:p-8 flex flex-col justify-between relative min-w-0 mb-16 md:mb-0">
-            {player && players.length > 0 && (soldPlayers.length + unsoldPlayers.length) < players.length ? (
+            {isRoundMarker ? (
+              /* ---- ROUND MARKER VIEW ---- */
+              <div className="h-full flex flex-col items-center justify-center text-center p-8 gap-6">
+                <div className="w-24 h-24 rounded-full bg-purple-500/20 border-2 border-purple-500/40 flex items-center justify-center text-5xl animate-pulse">🏏</div>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.5em] text-purple-400 mb-2">Auction Continues</p>
+                  <h2 className="text-5xl font-black uppercase italic text-white" style={{ textShadow: '0 0 40px #a855f7' }}>{player?.label}</h2>
+                  <p className="text-lg font-black uppercase tracking-widest text-purple-300 mt-2">{player?.subtitle}</p>
+                </div>
+                <p className="text-xs text-slate-500 italic">Transition in progress — auto-advancing to unsold players...</p>
+                <button
+                  onClick={() => {
+                    setShowRoundTransition(null);
+                    const nextIdx = currentPlayerIndex + 1;
+                    if (nextIdx < players.length) setCurrentPlayerIndex(nextIdx);
+                  }}
+                  className="bg-purple-600 hover:bg-purple-500 text-white font-black uppercase tracking-widest px-8 py-3 rounded-xl transition-all text-sm"
+                >
+                  Skip → Start Round 02
+                </button>
+              </div>
+            ) : player && players.filter(p => !p.type).length > 0 && (soldPlayers.length + unsoldPlayers.length) < players.filter(p => !p.type).length ? (
               <div className="h-full flex flex-col gap-4 overflow-hidden">
                 {/* HEADER ROW: responsive — stacks on mobile, row on md+ */}
                 <div className="flex flex-col md:flex-row gap-4 items-stretch p-4 md:p-6 bg-slate-900/20 rounded-2xl border border-white/5 shadow-inner">

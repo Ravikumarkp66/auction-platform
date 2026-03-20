@@ -265,7 +265,7 @@ router.get("/status/active", async (req, res) => {
     if (!tournament) return res.status(404).json({ message: "No live tournament found" });
 
     const teams = await Team.find({ tournamentId: tournament._id }).lean();
-    const players = await Player.find({ tournamentId: tournament._id }).lean();
+    const players = await Player.find({ tournamentId: tournament._id }).sort({ applicationId: 1 }).lean();
     
     res.json({ tournament, teams, players });
   } catch (err) {
@@ -295,7 +295,7 @@ router.get("/:id", async (req, res) => {
 
     // Optimization: Use lean() and specific queries
     const teams = await Team.find({ tournamentId: tournament._id }).lean();
-    const players = await Player.find({ tournamentId: tournament._id }).lean();
+    const players = await Player.find({ tournamentId: tournament._id }).sort({ applicationId: 1 }).lean();
     
     res.json({ tournament, teams, players });
   } catch (err) {
