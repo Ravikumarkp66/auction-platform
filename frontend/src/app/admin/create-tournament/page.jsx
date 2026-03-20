@@ -65,7 +65,7 @@ function findValue(row, keys) {
         return (lrk === "age" || lrk === "ವಯಸ್ಸು" || lrk.includes("player age") || lrk === "years" || lrk === "ವಯಸ್ಸು (age)");
       }
 
-      return lrk.includes(lk) && !lrk.includes("team");
+      return lrk.includes(lk);
     });
     if (found) return row[found];
   }
@@ -289,6 +289,7 @@ export default function CreateTournamentWizard() {
   const [teams,       setTeams]       = useState(() => ls("wiz_teams", []));
   const [icons,       setIcons]       = useState(() => ls("wiz_icons", []));
   const [players,     setPlayers]     = useState(() => ls("wiz_players", []));
+  const [parsedData,  setParsedData]  = useState(null); // RAW data for multi-step use
   const [errors,      setErrors]      = useState({});
   const [uploading,   setUploading]   = useState(false);
   const [converting,  setConverting]  = useState(false);
@@ -368,19 +369,37 @@ export default function CreateTournamentWizard() {
       setStep(2);
     } else if (step === 2) {
       if (!validateStep2()) return;
-      // Generate icon slots
+      // Generate icon slots and auto-fill from temporary store if exists
       const total = config.numTeams * config.iconsPerTeam;
-      if (icons.length !== total) {
-        const slots = [];
-        teams.forEach((team, ti) => {
-          for (let j = 0; j < config.iconsPerTeam; j++) {
+      const cachedIcons = ls("wiz_temp_icons", []);
+      
+      const slots = [];
+      teams.forEach((team, ti) => {
+        for (let j = 0; j < config.iconsPerTeam; j++) {
+          // Flexible match: System Team Name vs Import Team Name
+          const matchIdx = cachedIcons.findIndex(ci => {
+            if (ci.assigned) return false;
+            const sysT = team.name.toLowerCase().trim();
+            const impT = ci.teamName?.toLowerCase().trim();
+            if (!impT) return false;
+            return sysT.includes(impT) || impT.includes(sysT);
+          });
+          
+          if (matchIdx !== -1) {
+            const match = cachedIcons[matchIdx];
+            match.assigned = true;
+            slots.push({ ...match, team: team.name, teamIdx: ti });
+          } else {
             slots.push({ name: "", role: "All-Rounder", village: "", age: "", imageUrl: "", team: team.name, teamIdx: ti });
           }
-        });
-        setIcons(slots);
-      } else {
-        setIcons(icons.map(ic => ({ ...ic, team: teams[ic.teamIdx]?.name || ic.team })));
-      }
+        }
+      });
+      setIcons(slots);
+      
+      // Auto-trigger image fix for Drive links
+      const driveLinks = slots.filter(s => s.imageUrl?.includes("drive.google.com")).map(s => s.imageUrl);
+      if (driveLinks.length > 0) fixIconImages(slots);
+      
       setStep(3);
     } else if (step === 3) {
       if (!validateStep3()) return;
@@ -407,26 +426,90 @@ export default function CreateTournamentWizard() {
     }
   };
 
-  // ── Excel: Teams ───────────────────────────────────────────
+  // ── Excel: Global / Teams ─────────────────────────────────
   const handleTeamsExcel = (e) => {
     const file = e.target.files[0]; if (!file) return;
     const reader = new FileReader();
-    reader.onload = (ev) => {
+    reader.onload = async (ev) => {
       try {
-        const wb = XLSX.read(ev.target.result, { type: "binary" });
-        const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
-        const imported = rows.map((row, i) => ({
-          name:      findValue(row, ["teamName","team name","name","team"]) || `Team ${i+1}`,
-          shortName: findValue(row, ["shortName","short name","code","id"]) || "TBD",
-          logoUrl:   findValue(row, ["logoUrl","logo","image","link"]) || "",
-          color:     ["#7c3aed","#06b6d4","#f97316","#ef4444","#10b981","#f59e0b"][i % 6],
-        }));
-        setTeams(imported);
-        setConfig(p => ({ ...p, numTeams: imported.length }));
-      } catch { alert("Invalid file format"); }
+        const wb = XLSX.read(ev.target.result, { type: "binary", cellDates: true });
+        const rawRows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+        setParsedData(rawRows);
+
+        // 1. Extract Teams (Filter: Name required)
+        const teamRows = rawRows.filter(row => {
+          return findValue(row, ["teamName", "team name", "name", "team", "ತಂಡ"]);
+        });
+
+        if (teamRows.length > 0) {
+          const importedTeams = teamRows.map((row, i) => ({
+            name:      findValue(row, ["teamName","team name","name","team","ತಂಡ"]),
+            shortName: findValue(row, ["shortName","short name","code","id"]) || (findValue(row, ["teamName","team name","name","team"])?.slice(0, 3).toUpperCase() || "TBD"),
+            logoUrl:   fixUrl(findValue(row, ["logoUrl","logo","image","link", "imageUrl", "logo link", "team logo", "team_logo"])),
+            color:     ["#7c3aed","#06b6d4","#f97316","#ef4444","#10b981","#f59e0b"][i % 6],
+          }));
+          setTeams(importedTeams);
+          setConfig(p => ({ ...p, numTeams: importedTeams.length }));
+          
+          // Trigger Logo Fix
+          const logoLinks = importedTeams.filter(t => t.logoUrl?.includes("drive.google.com")).map(t => t.logoUrl);
+          if (logoLinks.length > 0) {
+            handleLogoProxy(importedTeams, [...new Set(logoLinks)]);
+          }
+        }
+
+        // 2. Extract Icons (Filter: Name + Image)
+        const iconRows = rawRows.filter(row => {
+          const name = findValue(row, ["player name", "playerName", "icon", "name", "athlete"]);
+          const img = findValue(row, ["imageUrl", "photo", "image", "link", "url", "icon image"]);
+          return name && img;
+        });
+
+        if (iconRows.length > 0) {
+          const importedIcons = iconRows.map(row => ({
+            name:     findValue(row, ["player name", "playerName", "icon", "name", "athlete"]),
+            role:     findValue(row, ["playing role", "role", "type", "position", "skill"]) || "All-Rounder",
+            village:  findValue(row, ["village", "town", "city"]) || "-",
+            age:      calculateAge(findValue(row, ["dob", "birth"])) || findValue(row, ["age"]) || "-",
+            imageUrl: fixUrl(findValue(row, ["imageUrl", "photo", "image", "link", "url", "icon image"])),
+            teamName: findValue(row, ["team", "teamName", "team name"])
+          }));
+          
+          // We will map these to specific slots during transition to Step 3
+          // or store them for later use
+          ls("wiz_temp_icons", importedIcons); 
+        }
+
+      } catch (err) { 
+        console.error(err);
+        alert("Invalid file format"); 
+      }
     };
     reader.readAsBinaryString(file);
     e.target.value = "";
+  };
+
+  const handleLogoProxy = async (currentTeams, links) => {
+    const API = process.env.NEXT_PUBLIC_API_URL;
+    setConverting(true);
+    try {
+      const res = await fetch(`${API}/api/upload/proxy-batch`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ urls: links, folder: "teams" })
+      });
+      const data = await res.json();
+      if (data.results) {
+        setTeams(prev => prev.map(t => {
+          const match = data.results.find(r => r.originalUrl === t.logoUrl && r.success);
+          return match ? { ...t, logoUrl: match.s3Url } : t;
+        }));
+      }
+    } catch (e) {
+      console.error("Logo fix failed", e);
+    } finally {
+      setConverting(false);
+    }
   };
 
   const fixIconImages = async (currentIcons) => {
@@ -478,7 +561,11 @@ export default function CreateTournamentWizard() {
         rows.forEach(row => {
           const teamMatch = findValue(row, ["team","teamName","team name"]);
           if (!teamMatch) return;
-          const tIdx = teams.findIndex(t => t.name.toLowerCase().includes(teamMatch.toLowerCase()));
+          const tIdx = teams.findIndex(t => {
+            const sysT = t.name.toLowerCase().trim();
+            const impT = teamMatch.toLowerCase().trim();
+            return sysT.includes(impT) || impT.includes(sysT);
+          });
           if (tIdx === -1) return;
           const slot = updated.findIndex(p => p.teamIdx === tIdx && !p.name);
           if (slot !== -1) {
@@ -488,11 +575,12 @@ export default function CreateTournamentWizard() {
               role:     findValue(row, ["role", "type", "position"]) || "All-Rounder",
               age:      findValue(row, ["age", "years"]) || "",
               village:  findValue(row, ["village", "town", "city"]) || "",
-              imageUrl: findValue(row, ["imageUrl", "photo", "image", "link", "url"]) || "",
+              imageUrl: fixUrl(findValue(row, ["imageUrl", "photo", "image", "link", "url"])),
             };
           }
         });
         setIcons(updated);
+        fixIconImages(updated);
       } catch { alert("Invalid file format"); }
     };
     reader.readAsBinaryString(file);
@@ -704,12 +792,21 @@ export default function CreateTournamentWizard() {
           })));
         }} resetLabel="Reset Teams">
           {/* Bulk upload */}
-          <label className="flex items-center justify-center gap-3 w-full py-3 rounded-xl border-2 border-dashed border-violet-500/30
-            bg-violet-500/5 hover:bg-violet-500/10 cursor-pointer transition-all group">
-            <Upload className="w-4 h-4 text-violet-400 group-hover:scale-110 transition-transform" />
-            <span className="text-sm font-bold text-violet-400">Bulk Upload Teams (Excel / CSV)</span>
-            <input type="file" className="hidden" accept=".xlsx,.xls,.csv" onChange={handleTeamsExcel} />
-          </label>
+          <div className="flex items-center gap-3">
+            <label className="flex-1 flex items-center justify-center gap-3 py-3 rounded-xl border-2 border-dashed border-violet-500/30
+              bg-violet-500/5 hover:bg-violet-500/10 cursor-pointer transition-all group">
+              <Upload className="w-4 h-4 text-violet-400 group-hover:scale-110 transition-transform" />
+              <span className="text-sm font-bold text-violet-400">Bulk Upload Teams (Excel / CSV)</span>
+              <input type="file" className="hidden" accept=".xlsx,.xls,.csv" onChange={handleTeamsExcel} />
+            </label>
+
+            {converting && (
+              <div className="px-4 py-3 bg-violet-500/10 border border-violet-500/20 rounded-xl animate-pulse flex items-center gap-2">
+                 <RefreshCw className="w-4 h-4 text-violet-400 animate-spin" />
+                 <span className="text-[10px] font-black text-violet-400 uppercase">Converting Images...</span>
+              </div>
+            )}
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[380px] overflow-y-auto pr-1 custom-scrollbar">
             {teams.map((team, i) => (
@@ -764,6 +861,18 @@ export default function CreateTournamentWizard() {
           setIcons(icons.map(ic => ({ ...ic, name: "", role: "All-Rounder", village: "", age: "", imageUrl: "" })));
         }} resetLabel="Reset Icons">
           <div className="flex items-center gap-3">
+            {parsedData && (
+               <div className="flex-1 py-3 px-6 rounded-xl border border-emerald-500/20 bg-emerald-500/5 flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                    <CheckCircle className="w-4 h-4 text-emerald-500" />
+                  </div>
+                  <div>
+                    <h4 className="text-[11px] font-black text-white uppercase tracking-wider">Using data from team upload</h4>
+                    <p className="text-[9px] text-emerald-500/70 font-bold">Icons were automatically extracted from your file</p>
+                  </div>
+               </div>
+            )}
+            
             <label className="flex-1 flex items-center justify-center gap-3 py-3 rounded-xl border-2 border-dashed border-violet-500/30 bg-violet-500/5 hover:bg-violet-500/10 cursor-pointer transition-all group">
               <Upload className="w-4 h-4 text-violet-400 group-hover:scale-110 transition-transform" />
               <span className="text-sm font-bold text-violet-400">Bulk Upload Icons (Excel / CSV)</span>
