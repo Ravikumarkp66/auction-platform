@@ -282,7 +282,11 @@ router.get("/:id", async (req, res) => {
     // Check if id is a numeric shortId or a 24-char ObjectID
     if (!isNaN(id)) {
       tournament = await Tournament.findOne({ shortId: parseInt(id) });
-    } else if (id.length === 24) {
+    } else {
+      // Validate ObjectID format before querying
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        return res.status(400).json({ message: "Invalid tournament ID format" });
+      }
       tournament = await Tournament.findById(id);
     }
 

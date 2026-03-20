@@ -12,6 +12,7 @@ const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 
 const app = express();
+app.set('trust proxy', 1); // Trust Render Load Balancer
 const server = http.createServer(app);
 
 // Security and Performance
@@ -209,24 +210,19 @@ server.listen(PORT, () => {
 });
 
 // Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM received, shutting down gracefully');
-  server.close(() => {
-    console.log('Process terminated');
-    mongoose.connection.close(false, () => {
+const shutdown = async (signal) => {
+  console.log(`${signal} received, shutting down gracefully`);
+  server.close(async () => {
+    try {
+      await mongoose.connection.close();
       console.log('MongoDB connection closed');
       process.exit(0);
-    });
+    } catch (err) {
+      console.error('Error closing MongoDB connection:', err);
+      process.exit(1);
+    }
   });
-});
+};
 
-process.on('SIGINT', () => {
-  console.log('SIGINT received, shutting down gracefully');
-  server.close(() => {
-    console.log('Process terminated');
-    mongoose.connection.close(false, () => {
-      console.log('MongoDB connection closed');
-      process.exit(0);
-    });
-  });
-});
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT',  () => shutdown('SIGINT'));
