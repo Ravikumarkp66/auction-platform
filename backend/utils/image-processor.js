@@ -30,60 +30,105 @@ const getDirectUrl = (url) => {
   return fileId ? `https://drive.google.com/uc?export=download&id=${fileId}` : url;
 };
 
+const fetchWithTimeout = async (url, options = {}) => {
+  const { timeout = 15000, ...fetchOptions } = options;
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+  
+  try {
+    const response = await fetch(url, {
+      ...fetchOptions,
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Referer': 'https://drive.google.com/',
+        ...options.headers
+      }
+    });
+    return response;
+  } finally {
+    clearTimeout(id);
+  }
+};
+
 /**
  * Process a single player's image
  */
-const processPlayerImage = async (playerId, retries = 2) => {
+const processPlayerImage = async (playerId, retries = 3) => {
   try {
     const player = await Player.findById(playerId);
     if (!player || !player.photo || !player.photo.drive || player.photo.status === "done") return true;
 
-    const directUrl = getDirectUrl(player.photo.drive);
+    // 1. Extract File ID and Build Download URL
+    let directUrl = getDirectUrl(player.photo.drive);
+    if (directUrl.includes("id=")) {
+        const id = directUrl.split("id=")[1].split("&")[0];
+        directUrl = `https://drive.google.com/uc?export=download&id=${id}&confirm=t`;
+    }
 
-    for (let attempt = 0; attempt <= retries; attempt++) {
+    for (let attempt = 0; attempt < retries; attempt++) {
         try {
-            const fetchResponse = await fetch(directUrl);
-            if (!fetchResponse.ok) throw new Error(`Fetch failed: ${fetchResponse.status}`);
+            console.log(`[IMAGE PROCESSOR] Processing ${player.name} (Attempt ${attempt+1})`);
+            
+            let response = await fetchWithTimeout(directUrl);
+            
+            // 2. Handle Google's "Confirm Download" / Virus Scan Page
+            const contentType = response.headers.get("content-type") || "";
+            if (contentType.includes("text/html")) {
+                const html = await response.text();
+                // Find the confirm code or link (Google usually uses a confirm parameter in a form or link)
+                const confirmMatch = html.match(/confirm=([a-zA-Z0-9_-]+)/);
+                if (confirmMatch && confirmMatch[1]) {
+                    const confirmUrl = `${directUrl}&confirm=${confirmMatch[1]}`;
+                    console.log(`[IMAGE PROCESSOR] Virus scan detected for ${player.name}, following confirm link...`);
+                    response = await fetchWithTimeout(confirmUrl);
+                } else {
+                    throw new Error("Received HTML but could not find confirmation code");
+                }
+            }
 
-            const arrayBuffer = await fetchResponse.arrayBuffer();
+            if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+
+            const arrayBuffer = await response.arrayBuffer();
             const buffer = Buffer.from(arrayBuffer);
-            const contentType = fetchResponse.headers.get("content-type") || "image/jpeg";
-            const ext = contentType.split("/")[1]?.split(";")[0] || "jpg";
-            const key = `players/${Date.now()}_${playerId}_${attempt}.${ext}`;
+            
+            // Validate buffer size (some drive links return very small error pages)
+            if (buffer.length < 500) throw new Error("File too small - likely invalid response");
 
-            const uploadParams = {
+            const finalType = response.headers.get("content-type") || "image/jpeg";
+            const ext = finalType.split("/")[1]?.split(";")[0] || "jpg";
+            const key = `players/${Date.now()}_${playerId}.${ext}`;
+
+            await s3.send(new PutObjectCommand({
                 Bucket: process.env.S3_BUCKET,
                 Key: key,
                 Body: buffer,
-                ContentType: contentType,
-            };
+                ContentType: finalType,
+            }));
 
-            await s3.send(new PutObjectCommand(uploadParams));
             const s3Url = `https://${process.env.S3_BUCKET}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
 
             // Update DB
             player.photo.s3 = s3Url;
             player.photo.status = "done";
-            player.imageUrl = s3Url; // Legacy support
+            player.imageUrl = s3Url;
             await player.save();
 
             if (ioInstance) {
-                ioInstance.emit('playerUpdate', { 
-                  id: player._id, 
-                  photo: player.photo, 
-                  imageUrl: s3Url 
-                });
+                ioInstance.emit('playerUpdate', { id: player._id, photo: player.photo, imageUrl: s3Url });
             }
             return true;
         } catch (err) {
-            console.error(`[IMAGE PROCESSOR] Attempt ${attempt+1} failed for ${player.name}:`, err.message);
-            if (attempt === retries) {
+            console.error(`[IMAGE PROCESSOR] Failed ${player.name}:`, err.message);
+            if (attempt === retries - 1) {
                 player.photo.status = "failed";
                 await player.save();
                 return false;
             }
-            // Small wait before retry
-            await new Promise(r => setTimeout(r, 1000));
+            // Exponential backoff
+            await new Promise(r => setTimeout(r, (attempt + 1) * 2000));
         }
     }
   } catch (err) {
