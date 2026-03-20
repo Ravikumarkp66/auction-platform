@@ -7,6 +7,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { io } from "socket.io-client"
 import BreakControlPanel from '../../components/BreakControlPanel'
+import CompactBreakControl from '../../components/CompactBreakControl'
 import SplashScreen from '../../components/SplashScreen'
 import { uploadToS3 } from "../../lib/uploadToS3"
 
@@ -417,6 +418,9 @@ function LiveAuctionContent() {
 
     // Broadcast bid to all connected devices via socket
     if (socket) {
+      // Auto-stop break if any bid is placed
+      socket.emit('breakTimeEnd');
+      
       socket.emit('auctionUpdate', {
         player: player,
         currentBid: bidAmount,
@@ -540,6 +544,9 @@ function LiveAuctionContent() {
 
         // Broadcast sale to all connected devices via socket
         if (socket) {
+          // Auto-stop break on any sale
+          socket.emit('breakTimeEnd');
+          
           const soldPlayer = { ...player, status: 'sold', soldPrice: currentBid, team: highestBidder }
           socket.emit('auctionUpdate', {
             player: soldPlayer,
@@ -602,6 +609,9 @@ function LiveAuctionContent() {
 
     // Broadcast unsold state to overlay so UNSOLD badge updates immediately
     if (socket) {
+      // Auto-stop break on marking unsold
+      socket.emit('breakTimeEnd');
+      
       socket.emit('auctionUpdate', {
         player: unsoldPlayerData,
         currentBid: 0,
@@ -727,6 +737,8 @@ function LiveAuctionContent() {
       if (currentBid > 0 && player.status === "available" && !confirm("Auction in progress. Discard bids and move to next player?")) return
     }
 
+    if (socket) socket.emit('breakTimeEnd');
+
     const nextIdx = currentPlayerIndex + 1;
     if (nextIdx < players.length) {
       const nextPlayer = players[nextIdx]
@@ -746,6 +758,8 @@ function LiveAuctionContent() {
   const prevPlayer = () => {
     if (currentPlayerIndex > 0) {
       if (currentBid > 0 && !confirm("Auction in progress. Discard bids and move to previous player?")) return
+
+      if (socket) socket.emit('breakTimeEnd');
 
       const prevIdx = currentPlayerIndex - 1
       const prevPlayer = players[prevIdx]
@@ -876,23 +890,10 @@ function LiveAuctionContent() {
             </Link>
 
             <div className="flex items-center gap-2">
-              {/* View Squads Button */}
-              <button
-                onClick={() => router.push(`/teams?tournament=${currentTournamentId}`)}
-                className="bg-sky-500 hover:bg-sky-600 text-white px-4 py-2 rounded-xl font-bold text-sm transition-all border border-sky-500/30 whitespace-nowrap backdrop-blur-md min-h-[40px] flex items-center shadow-lg"
-              >
-                <span className="text-lg mr-2">👥</span>
-                View Squads
-              </button>
-
-              {/* Break Button - Opens Break Modal */}
-              <button
-                onClick={() => setShowBreakModal(true)}
-                className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-xl font-bold text-sm transition-all border border-orange-500/30 whitespace-nowrap backdrop-blur-md min-h-[40px] flex items-center shadow-lg"
-              >
-                <span className="text-lg mr-2">⏰</span>
-                Break
-              </button>
+              <CompactBreakControl 
+                socket={socket} 
+                onViewSquads={() => router.push(`/teams?tournament=${currentTournamentId}`)}
+              />
 
               {/* Navigation Arrows */}
               <div className="flex bg-slate-900/80 rounded-xl p-1 border border-slate-700 shadow-xl backdrop-blur-md">
@@ -1516,25 +1517,6 @@ function LiveAuctionContent() {
 
         </div>
 
-        {/* Break Modal */}
-        {showBreakModal && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setShowBreakModal(false)}></div>
-            <div className="relative w-full max-w-md">
-              <BreakControlPanel
-                socket={socket}
-                onBreakStart={() => setShowBreakModal(false)}
-                onBreakEnd={() => { }}
-              />
-              <button
-                onClick={() => setShowBreakModal(false)}
-                className="absolute -top-4 -right-4 w-10 h-10 bg-slate-800 hover:bg-red-500 text-white rounded-full flex items-center justify-center transition-all border border-slate-700"
-              >
-                ✕
-              </button>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   )

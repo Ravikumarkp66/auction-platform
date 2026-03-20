@@ -143,13 +143,13 @@ io.on("connection", (socket) => {
       isActive: true,
     };
 
-    socket.broadcast.emit("breakTime", currentBreak);
+    io.emit("breakTime", currentBreak);
   });
 
   // Admin ends a break – clear state and notify viewers
   socket.on("breakTimeEnd", () => {
     currentBreak = null;
-    socket.broadcast.emit("breakTimeEnd");
+    io.emit("breakTimeEnd");
   });
 
   // Overlay asks for current break status when it connects
@@ -176,6 +176,7 @@ const tournamentImageRoutes = require("./routes/tournamentImageRoutes");
 const teamRoutes = require("./routes/teamRoutes");
 const backgroundRoutes = require("./routes/backgroundRoutes");
 const assetRoutes = require("./routes/assetRoutes");
+const proxyImageRoute = require("./routes/proxyImage");
 app.use("/api/players", playerRoutes);
 app.use("/api/tournaments", tournamentRoutes);
 app.use("/api/upload", uploadRoutes);
@@ -184,6 +185,7 @@ app.use("/api/tournament-images", tournamentImageRoutes);
 app.use("/api/teams", teamRoutes);
 app.use("/api/backgrounds", backgroundRoutes);
 app.use("/api/assets", assetRoutes);
+app.use("/api/proxy-image", proxyImageRoute);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

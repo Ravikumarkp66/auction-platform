@@ -83,6 +83,17 @@ const fixUrl = (url) => {
   return url;
 };
 
+const proxyUrl = (url) => {
+  if (!url || typeof url !== "string" || !url.trim().toLowerCase().startsWith("http")) return "";
+  const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+  // Only proxy Google Drive links — other URLs load fine directly
+  if (url.includes("drive.google.com")) {
+    const fixed = fixUrl(url); // convert to uc?export=view first
+    return `${API}/api/proxy-image?url=${encodeURIComponent(fixed)}`;
+  }
+  return url;
+};
+
 const hasNonEng = (s) => /[^\x00-\x7F]/.test(s);
 
 const calculateAge = (dob) => {
@@ -481,7 +492,8 @@ export default function CreateTournamentWizard() {
           const importedTeams = teamRows.map((row, i) => ({
             name:      findValue(row, ["teamName","team name","name","team","ತಂಡ"]),
             shortName: findValue(row, ["shortName","short name","code","id"]) || (findValue(row, ["teamName","team name","name","team"])?.slice(0, 3).toUpperCase() || "TBD"),
-            logoUrl:   fixUrl(findValue(row, ["logoUrl","logo","image","link", "imageUrl", "logo link", "team logo", "team_logo"])),
+            logoUrl:   proxyUrl(findValue(row, ["logoUrl","logo","image","link", "imageUrl", "logo link", "team logo", "team_logo"])),
+            logoOriginalUrl: findValue(row, ["logoUrl","logo","image","link", "imageUrl", "logo link", "team logo", "team_logo"]),
             color:     ["#7c3aed","#06b6d4","#f97316","#ef4444","#10b981","#f59e0b"][i % 6],
           }));
           setTeams(importedTeams);
@@ -507,7 +519,8 @@ export default function CreateTournamentWizard() {
             role:     normalizeRole(findValue(row, ["playing role", "role", "skill", "player role", "category", "type", "position", "ಪಾತ್ರ", "ಸ್ಥಾನ"])),
             village:  findValue(row, ["village", "town", "city", "ಗ್ರಾಮ", "ಸ್ಥಳ"]) || "-",
             age:      calculateAge(findValue(row, ["dob", "birth"])) || findValue(row, ["age", "ವಯಸ್ಸು"]) || "-",
-            imageUrl: fixUrl(findValue(row, ["imageUrl", "photo", "image", "link", "url", "icon image", "ಭಾವಚಿತ್ರ"])),
+            imageUrl: proxyUrl(findValue(row, ["imageUrl", "photo", "image", "link", "url", "icon image", "ಭಾವಚಿತ್ರ"])),
+            imageOriginalUrl: findValue(row, ["imageUrl", "photo", "image", "link", "url", "icon image", "ಭಾವಚಿತ್ರ"]),
             teamName: findValue(row, ["team", "teamName", "team name", "ತಂಡ"])
           }));
           
@@ -537,8 +550,8 @@ export default function CreateTournamentWizard() {
       const data = await res.json();
       if (data.results) {
         setTeams(prev => prev.map(t => {
-          const match = data.results.find(r => r.originalUrl === t.logoUrl && r.success);
-          return match ? { ...t, logoUrl: match.s3Url } : t;
+          const match = data.results.find(r => r.originalUrl === t.logoOriginalUrl && r.success);
+          return match ? { ...t, logoUrl: match.s3Url, logoOriginalUrl: null } : t;
         }));
       }
     } catch (e) {
@@ -571,7 +584,7 @@ export default function CreateTournamentWizard() {
           data.results.forEach(res => {
             if (res.success) {
               // Update all instances using this URL
-              next = next.map(ic => ic.imageUrl === res.originalUrl ? { ...ic, imageUrl: res.s3Url } : ic);
+              next = next.map(ic => ic.imageOriginalUrl === res.originalUrl ? { ...ic, imageUrl: res.s3Url, imageOriginalUrl: null } : ic);
             }
           });
           return next;
@@ -611,7 +624,8 @@ export default function CreateTournamentWizard() {
               role:     findValue(row, ["role", "type", "position"]) || "All-Rounder",
               age:      findValue(row, ["age", "years"]) || "",
               village:  findValue(row, ["village", "town", "city"]) || "",
-              imageUrl: fixUrl(findValue(row, ["imageUrl", "photo", "image", "link", "url"])),
+              imageUrl: proxyUrl(findValue(row, ["imageUrl", "photo", "image", "link", "url"])),
+              imageOriginalUrl: findValue(row, ["imageUrl", "photo", "image", "link", "url"]),
             };
           }
         });
@@ -626,11 +640,14 @@ export default function CreateTournamentWizard() {
   const fixPlayerImages = async (currentPlayers) => {
     const list = currentPlayers || players;
     const API = process.env.NEXT_PUBLIC_API_URL;
-    const driveLinks = list.filter(p => p.imageUrl && p.imageUrl.includes("drive.google.com")).map(p => p.imageUrl);
+    
+    // Use original Drive URLs for S3 upload, not the proxy URLs
+    const driveLinks = list
+      .filter(p => p.imageOriginalUrl?.includes("drive.google.com"))
+      .map(p => p.imageOriginalUrl);
     const uniqueLinks = [...new Set(driveLinks)];
-    
     if (uniqueLinks.length === 0) return;
-    
+
     setConverting(true);
     try {
       const res = await fetch(`${API}/api/upload/proxy-batch`, {
@@ -639,21 +656,15 @@ export default function CreateTournamentWizard() {
         body: JSON.stringify({ urls: uniqueLinks, folder: "players" })
       });
       const data = await res.json();
-      
       if (data.results) {
-        setPlayers(prev => {
-          let next = [...prev];
-          data.results.forEach(res => {
-            if (res.success) {
-              // Update all players sharing this original URL
-              next = next.map(p => p.imageUrl === res.originalUrl ? { ...p, imageUrl: res.s3Url } : p);
-            }
-          });
-          return next;
-        });
+        setPlayers(prev => prev.map(p => {
+          const match = data.results.find(r => r.originalUrl === p.imageOriginalUrl && r.success);
+          // Swap proxy URL for permanent S3 URL when ready
+          return match ? { ...p, imageUrl: match.s3Url, imageOriginalUrl: null } : p;
+        }));
       }
     } catch (err) {
-      console.error("Player batch proxy failed", err);
+      console.error("S3 batch failed", err);
     } finally {
       setConverting(false);
     }
@@ -672,10 +683,11 @@ export default function CreateTournamentWizard() {
           const dobVal = findValue(row, ["dob", "date of birth", "birth", "ಹುಟ್ಟಿದ ದಿನಾಂಕ", "d.o.b", "birthdate", "birth_date", "dateofbirth"]);
           const calcAge = calculateAge(dobVal);
           const rawAge = findValue(row, ["age", "years", "ವಯಸ್ಸು", "playerage", "player_age"]);
+          const rawUrl = findValue(row, ["imageUrl", "photo", "image", "link", "url", "ಭಾವಚಿತ್ರ"]) || "";
 
           return {
             id: i + 1,
-            applicationId: findValue(row, ["applicationId", "application id", "app id", "id", "sl no", "serial", "no", "ಐಡಿ"]) || (i + 1),
+            applicationId: i + 1,
             name:         findValue(row, ["player name", "playerName", "name", "player", "ಆಟಗಾರನ ಹೆಸರು"]) || "PLAYER NAME",
             role: normalizeRole(findValue(row, [
               "playing role", "playerrole", "player role", "role", "skill", "category", "type", "position", "playing style", "batting/bowling", "speciality", "specialty", "ಪಾತ್ರ", "ಸ್ಥಾನ", "ವಿಭಾಗ"
@@ -684,19 +696,26 @@ export default function CreateTournamentWizard() {
             dob:          dobVal ? (dobVal instanceof Date ? dobVal.toLocaleDateString() : String(dobVal)) : "",
             mobile:       findValue(row, ["mobile", "phone", "contact", "ಮೊಬೈಲ್", "ದೂರವಾಣಿ"]) || "-",
             battingStyle: findValue(row, ["batting", "battingStyle", "style", "ಬ್ಯಾಟಿಂಗ್"]) || "Right Hand",
-          bowlingStyle: findValue(row, ["bowling", "bowlingStyle", "ಬೌಲಿಂಗ್"]) || "-",
-          village:      findValue(row, ["village", "town", "city", "ಗ್ರಾಮ", "ಸ್ಥಳ"]) || "-",
-          basePrice:    Number(findValue(row, ["basePrice", "price", "base price", "amount", "ಮೂಲ ಬೆಲೆ"])) || config.defaultBasePrice,
-            imageUrl:     findValue(row, ["imageUrl", "photo", "image", "link", "url", "ಭಾವಚಿತ್ರ"]) || "",
+            bowlingStyle: findValue(row, ["bowling", "bowlingStyle", "ಬೌಲಿಂಗ್"]) || "-",
+            village:      findValue(row, ["village", "town", "city", "ಗ್ರಾಮ", "ಸ್ಥಳ"]) || "-",
+            basePrice:    Number(findValue(row, ["basePrice", "price", "base price", "amount", "ಮೂಲ ಬೆಲೆ"])) || config.defaultBasePrice,
+            imageUrl:     proxyUrl(rawUrl),   // shows instantly via proxy
+            imageOriginalUrl: rawUrl,     // kept for S3 conversion later
+            imageLoading: false,          // no loading state needed anymore!
             status:       "available",
           };
         });
 
-        // Force sequential applicationIds regardless of what's in the sheet
-        const reindexed = imported.map((p, i) => ({ ...p, applicationId: i + 1 }));
-        setPlayers(reindexed);
+        setPlayers(imported);
         setErrors({});
-      } catch { alert("Invalid player file format"); }
+
+        // S3 conversion runs silently — user already sees images via proxy
+        setTimeout(() => fixPlayerImages(imported), 1000);
+
+      } catch (err) { 
+        console.error(err);
+        alert("Invalid player file format"); 
+      }
     };
     reader.readAsBinaryString(file);
     e.target.value = "";
@@ -925,7 +944,7 @@ export default function CreateTournamentWizard() {
                  <span className="text-[10px] font-black text-violet-400 uppercase">Processing...</span>
               </div>
             ) : (
-              icons.some(i => i.imageUrl && i.imageUrl.includes("drive.google.com")) && (
+            icons.some(i => i.imageOriginalUrl?.includes("drive.google.com")) && (
                 <button onClick={() => fixIconImages()} className="px-5 py-3 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center gap-2 hover:bg-amber-500/20 transition-all">
                   <Zap className="w-4 h-4 text-amber-500" />
                   <span className="text-[10px] font-black text-amber-400 uppercase">Fix Images</span>
@@ -1030,7 +1049,7 @@ export default function CreateTournamentWizard() {
                       <span className="font-bold text-violet-300 text-sm">Converting Images to S3...</span>
                     </div>
                   ) : (
-                    players.some(p => p.imageUrl && p.imageUrl.includes("drive.google.com")) && (
+                    players.some(p => p.imageOriginalUrl?.includes("drive.google.com")) && (
                       <button onClick={() => fixPlayerImages()} className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest bg-amber-500/10 border border-amber-500/20 text-amber-500 hover:bg-amber-500/20 transition-all shadow-lg shadow-amber-500/5">
                         <Zap className="w-3 h-3" /> Fix Drive Images
                       </button>
@@ -1061,10 +1080,15 @@ export default function CreateTournamentWizard() {
                         ${rowError ? "bg-red-500/[0.15] border-l-2 border-l-red-500" : "hover:bg-white/[0.02]"}`}>
                         {/* Photo Column */}
                         <div className="relative w-10 h-10 rounded-lg overflow-hidden border border-white/10 bg-white/5 flex items-center justify-center cursor-pointer hover:border-violet-500/50 transition-all shrink-0 group">
-                        {p.imageUrl
-                          ? <img src={p.imageUrl} alt="" className="w-full h-full object-cover" />
-                          : <div className="text-sm">📸</div>
-                        }
+                        {p.imageLoading ? (
+                          // Shimmer placeholder while S3 is processing
+                          <div className="w-full h-full bg-gradient-to-r from-white/5 via-white/10 to-white/5 
+                            animate-pulse rounded" />
+                        ) : p.imageUrl ? (
+                          <img src={p.imageUrl} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="text-sm">📸</div>
+                        )}
                         <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
                           onClick={(e) => {
                             e.preventDefault();

@@ -42,7 +42,7 @@ const processSingleImage = async (url, folder = "players") => {
       }
       
       if (fileId) {
-        directUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+        directUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=s800`;
       }
     }
 

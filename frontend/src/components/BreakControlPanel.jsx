@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 
 export default function BreakControlPanel({ socket, onBreakStart, onBreakEnd }) {
   const [breakType, setBreakType] = useState('short')
@@ -9,6 +9,73 @@ export default function BreakControlPanel({ socket, onBreakStart, onBreakEnd }) 
   const [seconds, setSeconds] = useState(0)
   const [isBreakActive, setIsBreakActive] = useState(false)
   const [remainingTime, setRemainingTime] = useState(0)
+  const timerRef = useRef(null)
+
+  useEffect(() => {
+    if (!socket) return
+
+    // 1. Request current status on mount
+    socket.emit('getBreakStatus')
+
+    // 2. Listen for status
+    socket.on('breakStatus', (data) => {
+      if (data && data.isActive) {
+        setBreakType(data.type || 'short')
+        setCustomReason(data.customReason || '')
+        
+        const now = Date.now()
+        const msLeft = data.endTime - now
+        if (msLeft > 0) {
+          setIsBreakActive(true)
+          const secs = Math.ceil(msLeft / 1000)
+          setRemainingTime(secs)
+          startLocalCountdown(secs)
+        }
+      } else {
+        setIsBreakActive(false)
+      }
+    })
+
+    // 3. Listen for external start/end
+    socket.on('breakTime', (data) => {
+      setBreakType(data.type)
+      setCustomReason(data.customReason || '')
+      setIsBreakActive(true)
+      setRemainingTime(data.totalSeconds)
+      startLocalCountdown(data.totalSeconds)
+    })
+
+    socket.on('breakTimeEnd', () => {
+      setIsBreakActive(false)
+      if (timerRef.current) clearInterval(timerRef.current)
+      setRemainingTime(0)
+    })
+
+    return () => {
+      socket.off('breakStatus')
+      socket.off('breakTime')
+      socket.off('breakTimeEnd')
+      if (timerRef.current) clearInterval(timerRef.current)
+    }
+  }, [socket])
+
+  const startLocalCountdown = (secs) => {
+    if (timerRef.current) clearInterval(timerRef.current)
+    
+    const targetTime = Date.now() + (secs * 1000)
+    
+    timerRef.current = setInterval(() => {
+      const now = Date.now()
+      const diff = Math.max(0, Math.ceil((targetTime - now) / 1000))
+      
+      setRemainingTime(diff)
+      
+      if (diff <= 0) {
+        clearInterval(timerRef.current)
+        setIsBreakActive(false)
+      }
+    }, 1000)
+  }
 
   const breakReasons = {
     lunch: {
@@ -58,21 +125,8 @@ export default function BreakControlPanel({ socket, onBreakStart, onBreakEnd }) 
 
     // Send full break data (including seconds) to backend
     socket.emit('breakTime', breakData)
-    setIsBreakActive(true)
-    setRemainingTime(totalSeconds)
+    // State will be updated via 'breakTime' socket event listener
     onBreakStart?.(breakData)
-
-    // Start countdown
-    const countdownInterval = setInterval(() => {
-      setRemainingTime(prev => {
-        if (prev <= 1) {
-          clearInterval(countdownInterval)
-          endBreak()
-          return 0
-        }
-        return prev - 1
-      })
-    }, 1000)
   }
 
   const endBreak = () => {

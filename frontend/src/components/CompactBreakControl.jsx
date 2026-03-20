@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 
 export default function CompactBreakControl({ socket, onBreakStart, onBreakEnd, onViewSquads }) {
   const [showModal, setShowModal] = useState(false)
@@ -10,6 +10,73 @@ export default function CompactBreakControl({ socket, onBreakStart, onBreakEnd, 
   const [seconds, setSeconds] = useState(0)
   const [isBreakActive, setIsBreakActive] = useState(false)
   const [remainingTime, setRemainingTime] = useState(0)
+  const timerRef = useRef(null)
+
+  useEffect(() => {
+    if (!socket) return
+
+    // 1. Request current status on mount
+    socket.emit('getBreakStatus')
+
+    // 2. Listen for status
+    socket.on('breakStatus', (data) => {
+      if (data && data.isActive) {
+        setBreakType(data.type || 'short')
+        setCustomReason(data.customReason || '')
+        
+        const now = Date.now()
+        const msLeft = data.endTime - now
+        if (msLeft > 0) {
+          setIsBreakActive(true)
+          const secs = Math.ceil(msLeft / 1000)
+          setRemainingTime(secs)
+          startLocalCountdown(secs)
+        }
+      } else {
+        setIsBreakActive(false)
+      }
+    })
+
+    // 3. Listen for external start/end
+    socket.on('breakTime', (data) => {
+      setBreakType(data.type)
+      setCustomReason(data.customReason || '')
+      setIsBreakActive(true)
+      setRemainingTime(data.totalSeconds)
+      startLocalCountdown(data.totalSeconds)
+    })
+
+    socket.on('breakTimeEnd', () => {
+      setIsBreakActive(false)
+      if (timerRef.current) clearInterval(timerRef.current)
+      setRemainingTime(0)
+    })
+
+    return () => {
+      socket.off('breakStatus')
+      socket.off('breakTime')
+      socket.off('breakTimeEnd')
+      if (timerRef.current) clearInterval(timerRef.current)
+    }
+  }, [socket])
+
+  const startLocalCountdown = (secs) => {
+    if (timerRef.current) clearInterval(timerRef.current)
+    
+    const targetTime = Date.now() + (secs * 1000)
+    
+    timerRef.current = setInterval(() => {
+      const now = Date.now()
+      const diff = Math.max(0, Math.ceil((targetTime - now) / 1000))
+      
+      setRemainingTime(diff)
+      
+      if (diff <= 0) {
+        clearInterval(timerRef.current)
+        setIsBreakActive(false)
+      }
+    }, 1000)
+  }
 
   const breakTypes = [
     { id: 'lunch', icon: '🍽️', label: 'Lunch Break', defaultMinutes: 30 },
@@ -35,22 +102,8 @@ export default function CompactBreakControl({ socket, onBreakStart, onBreakEnd, 
       socket.emit('breakTime', breakData)
     }
     
-    setIsBreakActive(true)
-    setRemainingTime(totalSeconds)
     setShowModal(false)
     onBreakStart?.(breakData)
-
-    // Start countdown
-    const countdownInterval = setInterval(() => {
-      setRemainingTime(prev => {
-        if (prev <= 1) {
-          clearInterval(countdownInterval)
-          endBreak()
-          return 0
-        }
-        return prev - 1
-      })
-    }, 1000)
   }
 
   const endBreak = () => {
@@ -74,30 +127,32 @@ export default function CompactBreakControl({ socket, onBreakStart, onBreakEnd, 
       {/* Control Buttons - Now inline with header */}
       <div className="flex items-center gap-2">
         {/* View Squads Button */}
-        <button
-          onClick={onViewSquads}
-          className="bg-sky-500 hover:bg-sky-600 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2 transition-all"
-        >
-          <span className="text-xl">👥</span>
-          <span className="font-bold text-sm">View Squads</span>
-        </button>
+        {onViewSquads && (
+          <button
+            onClick={onViewSquads}
+            className="bg-sky-500 hover:bg-sky-600 text-white px-4 py-2 rounded-xl shadow-lg flex items-center gap-2 transition-all border border-sky-500/30 min-h-[40px]"
+          >
+            <span className="text-xl">👥</span>
+            <span className="font-bold text-sm">View Squads</span>
+          </button>
+        )}
         
         {/* Break Button */}
         {!isBreakActive ? (
           <button
             onClick={() => setShowModal(true)}
-            className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2 transition-all"
+            className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-xl font-bold text-sm transition-all border border-orange-500/30 whitespace-nowrap backdrop-blur-md min-h-[40px] flex items-center shadow-lg"
           >
-            <span className="text-xl">⏰</span>
+            <span className="text-lg mr-2">⏰</span>
             <span className="font-bold text-sm">Break</span>
           </button>
         ) : (
-          <div className="bg-red-500 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2">
-            <span className="text-xl animate-pulse">{selectedBreak?.icon || '⏰'}</span>
-            <span className="font-bold text-sm">{formatTime(remainingTime)}</span>
+          <div className="bg-red-500 text-white px-4 py-2 rounded-xl shadow-lg flex items-center gap-3 border border-red-500/30 min-h-[40px]">
+            <span className="text-lg animate-pulse">{selectedBreak?.icon || '⏰'}</span>
+            <span className="font-black text-sm tracking-tighter tabular-nums">{formatTime(remainingTime)}</span>
             <button
               onClick={endBreak}
-              className="ml-1 bg-red-600 hover:bg-red-700 px-2 py-1 rounded text-xs"
+              className="px-2 py-1 bg-white text-red-600 hover:bg-red-50 text-[10px] font-black uppercase rounded shadow-sm transition-all"
             >
               End
             </button>
