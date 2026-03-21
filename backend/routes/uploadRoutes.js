@@ -150,8 +150,35 @@ router.get("/proxy-image", async (req, res) => {
   if (!url) return res.status(400).send("URL is required");
 
   try {
+    const { GetObjectCommand } = require('@aws-sdk/client-s3');
+    const bucket = process.env.S3_BUCKET;
+    const isOurS3 = url.includes(bucket) && s3;
+
+    if (isOurS3) {
+      try {
+        const urlObj = new URL(url);
+        const key = decodeURIComponent(urlObj.pathname.slice(1));
+        const command = new GetObjectCommand({ Bucket: bucket, Key: key });
+        const response = await s3.send(command);
+        
+        res.setHeader("Content-Type", response.ContentType || "image/jpeg");
+        res.setHeader("Access-Control-Allow-Origin", "*");
+        
+        // AWS SDK v3 streams body
+        if (response.Body.pipe) {
+           return response.Body.pipe(res);
+        } else {
+           const buffer = Buffer.from(await response.Body.transformToUint8Array());
+           return res.send(buffer);
+        }
+      } catch (s3Err) {
+        console.error("[IMAGE PROXY S3 ERROR]:", s3Err.message);
+        // Fallback to fetch if S3 fetch fails
+      }
+    }
+
     const fetchResponse = await fetch(url);
-    if (!fetchResponse.ok) throw new Error("Fetch failed");
+    if (!fetchResponse.ok) throw new Error(`Fetch failed: ${fetchResponse.statusText}`);
 
     const contentType = fetchResponse.headers.get("content-type");
     if (contentType) res.setHeader("Content-Type", contentType);
@@ -159,7 +186,17 @@ router.get("/proxy-image", async (req, res) => {
     // Allow CORS for this proxy
     res.setHeader("Access-Control-Allow-Origin", "*");
     
-    const arrayBuffer = await fetchResponse.arrayBuffer();
+    const arrayBuffer = await fetchResponse.headers.get("content-type")?.includes("image") 
+      ? await fetchResponse.arrayBuffer()
+      : null;
+      
+    if (!arrayBuffer) {
+       const stream = fetchResponse.body;
+       if (stream && stream.pipe) return stream.pipe(res);
+       const text = await fetchResponse.text();
+       return res.send(text);
+    }
+    
     res.send(Buffer.from(arrayBuffer));
   } catch (err) {
     console.error("[IMAGE PROXY] Failed:", err.message);

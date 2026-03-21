@@ -11,6 +11,7 @@ export default function AuctionsPage() {
   const [tournaments, setTournaments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [squadViewTournament, setSquadViewTournament] = useState(null);
 
   useEffect(() => {
     fetchTournaments();
@@ -119,7 +120,6 @@ export default function AuctionsPage() {
 
   const liveTournaments = tournaments.filter(t => t.status?.toLowerCase() === "active" || t.status?.toLowerCase() === "live");
   const otherTournaments = tournaments.filter(t => t.status?.toLowerCase() !== "active" && t.status?.toLowerCase() !== "live");
-  const [squadViewTournament, setSquadViewTournament] = useState(null);
 
   return (
     <div className="min-h-screen bg-[#0a0f18] relative overflow-hidden">
