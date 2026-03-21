@@ -274,11 +274,23 @@ export default function PlayersRegistry() {
 
     setIsDownloadingPdf(true);
     try {
-      const doc = new jsPDF();
-      const tournamentName = selectedAuction?.name || "Tournament";
-      const orgLogoUrl = selectedAuction?.organizerLogo;
+      // 0. Fetch LATEST tournament details (to get organizerLogo if just updated)
+      let currentAuction = selectedAuction;
+      try {
+        const tRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournaments/${selectedAuction._id}`);
+        if (tRes.ok) {
+          const tData = await tRes.json();
+          if (tData.tournament) currentAuction = tData.tournament;
+        }
+      } catch (err) {
+        console.warn("Could not refresh tournament data for PDF", err);
+      }
 
-      // Top Left Organizer Logo
+      const doc = new jsPDF();
+      const tournamentName = currentAuction?.name || "Tournament";
+      const orgLogoUrl = currentAuction?.organizerLogo;
+
+      // Top Left Organizer Logo (Try to fetch and add)
       if (orgLogoUrl) {
         try {
           const b64 = await getBase64FromUrl(orgLogoUrl);
@@ -286,7 +298,7 @@ export default function PlayersRegistry() {
             doc.addImage(b64, "PNG", 14, 10, 22, 22);
           }
         } catch (e) {
-          console.warn("Org Logo failed", e);
+          console.warn("Org Logo image data failed", e);
         }
       }
 
