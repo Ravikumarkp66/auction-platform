@@ -7,8 +7,15 @@ export default function TeamDrawOverlay({ poolA, poolB, drawEvent }) {
 
   return (
     <div className="fixed inset-0 z-[150] bg-[#071821] flex flex-col items-center p-4 md:p-12 overflow-y-auto overflow-x-hidden">
-      {/* Background Ambience */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(0,212,163,0.1)_0%,_transparent_70%)] opacity-50 pointer-events-none"></div>
+      {/* Background Ambience / Persistent Background Image */}
+      <div className="absolute inset-0 z-0">
+        <img 
+          src={'/backgrounds/auction-bg.jpg'} 
+          className="w-full h-full object-cover opacity-10" 
+          alt="" 
+        />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(0,212,163,0.1)_0%,_transparent_70%)] opacity-50"></div>
+      </div>
       
       {/* Header */}
       <div className="relative z-10 text-center mb-8 md:mb-16 mt-4 md:mt-0">

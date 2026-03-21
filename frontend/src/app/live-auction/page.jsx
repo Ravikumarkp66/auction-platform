@@ -28,12 +28,12 @@ function LiveAuctionContent() {
   // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [auctionBg, setAuctionBg] = useState('/backgrounds/auction-bg.jpg')
+  const [auctionBg, setAuctionBg] = useState('/splash-screen.png')
 
   const [currentTournamentId, setCurrentTournamentId] = useState(tournamentId)
   const [activeAssets, setActiveAssets] = useState({
-    splashUrl: "",
-    backgroundUrl: "/backgrounds/auction-bg.jpg",
+    splashUrl: "/splash-screen.png",
+    backgroundUrl: "/splash-screen.png",
     badges: { leftBadge: "", rightBadge: "" }
   });
 
@@ -1169,6 +1169,17 @@ function LiveAuctionContent() {
 
   return (
     <div className="min-h-screen font-sans text-white overflow-hidden relative">
+      {/* Background Layer (Persistent) */}
+      <div className="fixed inset-0 z-0">
+        <img 
+          src={activeAssets.backgroundUrl || '/splash-screen.png'} 
+          className="w-full h-full object-cover opacity-60 scale-100" 
+          alt="" 
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-slate-950 via-slate-900/60 to-slate-950" />
+        <div className="absolute inset-0 bg-gradient-to-r from-slate-950/40 via-transparent to-slate-950/40" />
+      </div>
+
 
       {/* =========================================================
           ROUND TRANSITION OVERLAY (Full-Screen Cinematic)
@@ -1394,8 +1405,8 @@ function LiveAuctionContent() {
                 {/* Modal Content */}
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
                   {activeSidebar === 'teams' ? (
-                    <div className="bg-slate-900/40 border border-slate-700/50 rounded-2xl overflow-hidden shadow-2xl">
-                      <table className="w-full text-left border-collapse">
+                    <div className="bg-slate-900/40 border border-slate-700/50 rounded-2xl overflow-x-auto shadow-2xl">
+                      <table className="w-full text-left border-collapse min-w-[700px]">
                         <thead>
                           <tr className="bg-slate-800/80 border-b border-slate-700">
                             <th className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">SL</th>

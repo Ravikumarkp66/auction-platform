@@ -195,9 +195,18 @@ export default function AuctionOverlayNew({
 
   return (
     <div className="h-screen w-screen text-white overflow-hidden relative flex flex-col" style={{ background: C.bgMain, fontFamily: "'Inter', 'Segoe UI', sans-serif" }}>
+      {/* Cinematic Background Layer */}
+      <div className="absolute inset-0 z-0 opacity-20">
+        <img 
+          src={'/splash-screen.png'} 
+          className="w-full h-full object-cover scale-105" 
+          alt="" 
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#071821] via-transparent to-[#071821]" />
+      </div>
 
       {/* Subtle background glow */}
-      <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(0,212,163,0.06) 0%, transparent 60%)' }} />
+      <div className="absolute inset-0 pointer-events-none z-10" style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(0,212,163,0.06) 0%, transparent 60%)' }} />
 
       {/* ── TOP BAR ─────────────────────────────────────────────────────── */}
       <header
