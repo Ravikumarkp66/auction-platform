@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useEffect, Suspense, useCallback } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
@@ -29,22 +29,6 @@ function LiveAuctionContent() {
   const [error, setError] = useState(null)
   const [auctionBg, setAuctionBg] = useState('/backgrounds/auction-bg.jpg')
 
-  useEffect(() => {
-    const fetchBg = async () => {
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/backgrounds/auction_bg`)
-        if (res.ok) {
-          const data = await res.json()
-          if (data.imageUrl) setAuctionBg(data.imageUrl)
-          // else: no custom background set, use default silently
-        }
-        // 404 = no custom background configured, skip silently
-      } catch (_) {
-        // Network error, skip silently — default bg will be used
-      }
-    }
-    fetchBg()
-  }, [])
   const [currentTournamentId, setCurrentTournamentId] = useState(tournamentId)
   const [activeAssets, setActiveAssets] = useState({
     splashUrl: "",
@@ -62,6 +46,11 @@ function LiveAuctionContent() {
   const [roundHistory, setRoundHistory] = useState([])
   const [results, setResults] = useState([])
   const [lastBidTime, setLastBidTime] = useState(0)
+  const [poolA, setPoolA] = useState([])
+  const [poolB, setPoolB] = useState([])
+  const [lastAssignment, setLastAssignment] = useState(null)
+  const [showPoolView, setShowPoolView] = useState(false)
+  const [selectedAuction, setSelectedAuction] = useState(null)
 
   const [activeSidebar, setActiveSidebar] = useState(null) // 'teams' or 'stats'
   const [editingPlayerField, setEditingPlayerField] = useState(null) // field name like 'name', 'role', etc.
@@ -93,6 +82,86 @@ function LiveAuctionContent() {
     const t = setTimeout(() => setLoading(false), 12000)
     return () => clearTimeout(t)
   }, [])
+
+  const handleSendToPool = async (team, pool) => {
+    const isPoolA = pool === 'poolA';
+    const poolList = isPoolA ? poolA : poolB;
+    if (poolList.length >= 5) {
+      alert(`Pool ${isPoolA ? 'A' : 'B'} is already full! (Max 5 teams)`);
+      return;
+    }
+
+    if (!confirm(`Do you want to send ${team.name} to ${isPoolA ? 'Pool A' : 'Pool B'}?`)) return;
+
+    try {
+      const teamId = team.id || team._id;
+      const updatedPoolA = isPoolA ? [...poolA, teamId] : poolA;
+      const updatedPoolB = !isPoolA ? [...poolB, teamId] : poolB;
+
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournaments/${selectedAuction._id}/pools`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ poolA: updatedPoolA, poolB: updatedPoolB })
+      });
+
+      if (res.ok) {
+        if (isPoolA) setPoolA(updatedPoolA);
+        else setPoolB(updatedPoolB);
+        setLastAssignment({ teamId: teamId, pool: isPoolA ? 'poolA' : 'poolB' });
+
+        if (socket) {
+          socket.emit('teamDrawEvent', { 
+            team: { id: teamId, name: team.name, logoUrl: team.logoUrl }, 
+            pool: isPoolA ? 'poolA' : 'poolB' 
+          });
+        }
+      }
+    } catch (err) { alert("Pool assignment failed"); }
+  };
+
+  const handleUndoPoolAssignment = async () => {
+    if (!lastAssignment) return;
+    if (!confirm("Undo last pool assignment?")) return;
+    try {
+      const { teamId, pool } = lastAssignment;
+      const updatedPoolA = pool === 'poolA' ? poolA.filter(id => id !== teamId) : poolA;
+      const updatedPoolB = pool === 'poolB' ? poolB.filter(id => id !== teamId) : poolB;
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournaments/${selectedAuction._id}/pools`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ poolA: updatedPoolA, poolB: updatedPoolB })
+      });
+      if (res.ok) {
+        setPoolA(updatedPoolA);
+        setPoolB(updatedPoolB);
+        setLastAssignment(null);
+        if (socket) socket.emit('auctionUpdate', { type: 'system_refresh', auctionId: selectedAuction._id });
+      }
+    } catch (err) { alert("Undo failed"); }
+  };
+
+  const handleResetPools = async () => {
+    if (!confirm("Reset ALL pool assignments? This cannot be undone.")) return;
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournaments/${selectedAuction._id}/pools`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ poolA: [], poolB: [] })
+      });
+      if (res.ok) {
+        setPoolA([]);
+        setPoolB([]);
+        setLastAssignment(null);
+        if (socket) socket.emit('resetPoolsDraw', {});
+      }
+    } catch (err) { alert("Reset failed"); }
+  };
+
+  const togglePoolView = () => {
+    const newState = !showPoolView;
+    setShowPoolView(newState);
+    if (socket) socket.emit('togglePoolView', { show: newState });
+  };
 
   // Socket connection setup - uses global socket to survive React Strict Mode
   useEffect(() => {
@@ -217,14 +286,8 @@ function LiveAuctionContent() {
 
         // Create auction-only Application IDs (01-150 for auction players only)
 
-        // Inject ROUND 02 marker between regular players and unsold players
-        const regularAppIds = auctionPlayers
-          .filter(p => p.status !== 'unsold')
-          .map(p => p.applicationId || 0);
-        const maxRegularAppId = regularAppIds.length > 0 ? Math.max(...regularAppIds) : 0;
-        const hasUnsoldInSecondRound = auctionPlayers.some(p => p.status === 'unsold' && (p.applicationId || 0) > maxRegularAppId);
-
-        let enrichedPlayers = auctionPlayers.map(p => ({
+        // Create auction-only Application IDs
+        const baseEnriched = auctionPlayers.map(p => ({
           id: p._id,
           name: p.name,
           role: p.role || "All-Rounder",
@@ -232,7 +295,7 @@ function LiveAuctionContent() {
           dob: p.dob || "-",
           town: p.town,
           age: p.age || 20,
-          image: p.imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(p.name)}`,
+          image: p.imageUrl || p.photo?.s3 || p.photo?.drive || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(p.name)}`,
           placeholder: `https://ui-avatars.com/api/?name=${encodeURIComponent(p.name)}&background=random`,
           basePrice: p.basePrice || 100,
           soldPrice: p.soldPrice,
@@ -241,22 +304,28 @@ function LiveAuctionContent() {
           battingStyle: p.battingStyle || "Right Hand",
           bowlingStyle: p.bowlingStyle || "-",
           isIcon: p.isIcon || false,
+          photo: p.photo,
           applicationId: p.applicationId ? p.applicationId.toString().padStart(2, '0') : "-",
           _rawAppId: p.applicationId || 0
         }));
 
-        // Find the splice point: first player whose applicationId > maxRegularAppId
-        if (hasUnsoldInSecondRound) {
-          const spliceIdx = enrichedPlayers.findIndex(p => (p._rawAppId || 0) > maxRegularAppId && p.status === 'unsold');
-          if (spliceIdx !== -1) {
-            enrichedPlayers.splice(spliceIdx, 0, {
+        // Round 02: Append UNSOLD players to the end of the list after a marker
+        // Their Application IDs STAY THE SAME.
+        const round1 = [...baseEnriched];
+        const round2 = baseEnriched.filter(p => p.status === 'unsold');
+
+        let enrichedPlayers = [...round1];
+        if (round1.every(p => p.status !== 'available' && p.status !== 'auction') && round2.length > 0) {
+           enrichedPlayers.push({
               type: 'ROUND',
               label: 'ROUND 02',
-              subtitle: 'UNSOLD PLAYERS',
+              subtitle: 'UNSOLD RE-AUCTION',
               id: '__round_02__'
-            });
-          }
+           });
+           enrichedPlayers = enrichedPlayers.concat(round2);
         }
+
+
 
         setPlayers(enrichedPlayers);
 
@@ -283,6 +352,12 @@ function LiveAuctionContent() {
           color: "text-violet-400 bg-violet-500/10"
         })))
 
+        if (data.tournament.pools) {
+          setPoolA(data.tournament.pools.poolA || []);
+          setPoolB(data.tournament.pools.poolB || []);
+        }
+        
+        setSelectedAuction(data.tournament);
         setLoading(false)
       } catch (err) {
         console.error('Failed to fetch tournament:', err)
@@ -1244,6 +1319,13 @@ function LiveAuctionContent() {
             >
               <span className="text-xl">📊</span>
             </button>
+            <button
+              onClick={() => setActiveSidebar('pools')}
+              className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${activeSidebar === 'pools' ? 'bg-amber-600 text-white shadow-lg shadow-amber-900/40' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
+              title="Team Pool Draw"
+            >
+              <span className="text-xl">🗳️</span>
+            </button>
           </div>
 
           {/* MOBILE SIDEBAR PANEL (Bottom Bar Style) */}
@@ -1256,6 +1338,10 @@ function LiveAuctionContent() {
               <button onClick={() => setActiveSidebar('stats')} className="flex flex-col items-center gap-1">
                 <span className="text-xl">📊</span>
                 <span className="text-[10px] font-black uppercase text-slate-400">Stats</span>
+              </button>
+              <button onClick={() => setActiveSidebar('pools')} className="flex flex-col items-center gap-1">
+                <span className="text-xl">🗳️</span>
+                <span className="text-[10px] font-black uppercase text-slate-400">Pools</span>
               </button>
             </div>
           )}
@@ -1279,6 +1365,12 @@ function LiveAuctionContent() {
                       className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeSidebar === 'stats' ? 'bg-violet-600 text-white shadow-xl' : 'text-slate-500 hover:text-white'}`}
                     >
                       Stats
+                    </button>
+                    <button
+                      onClick={() => setActiveSidebar('pools')}
+                      className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeSidebar === 'pools' ? 'bg-amber-600 text-white shadow-xl' : 'text-slate-500 hover:text-white'}`}
+                    >
+                      Pools
                     </button>
                   </div>
                   <button onClick={() => setActiveSidebar(null)} className="w-10 h-10 flex items-center justify-center bg-slate-800 hover:bg-red-500 hover:text-white rounded-full transition-all text-xl">✕</button>
@@ -1339,6 +1431,98 @@ function LiveAuctionContent() {
                           ))}
                         </tbody>
                       </table>
+                    </div>
+                  ) : activeSidebar === 'pools' ? (
+                    <div className="space-y-6">
+                       <div className="flex justify-between items-center bg-amber-500/10 p-4 rounded-2xl border border-amber-500/20 shadow-xl shadow-amber-900/10">
+                          <div>
+                             <h3 className="text-sm font-black text-amber-500 uppercase tracking-widest">Pool Draw Ceremony</h3>
+                             <p className="text-[10px] text-slate-500 font-bold uppercase mt-1">Select A/B groups for teams</p>
+                          </div>
+                          <div className="flex items-center gap-4">
+                             <button 
+                                onClick={togglePoolView}
+                                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-tighter transition-all flex items-center gap-2 ${showPoolView ? 'bg-green-600 text-white shadow-lg shadow-green-900/40 border border-green-500/50' : 'bg-white/5 border border-white/10 text-slate-400 hover:text-white'}`}
+                             >
+                                {showPoolView ? "🟢 ON OVERLAY" : "⚪ SHOW ON OVERLAY"}
+                             </button>
+                             <button 
+                               disabled={!lastAssignment}
+                               onClick={handleUndoPoolAssignment}
+                               className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-tighter text-slate-400 hover:text-white disabled:opacity-30 disabled:grayscale transition-all flex items-center gap-2"
+                             >
+                                ⤺ Undo Last
+                             </button>
+
+                              <button 
+                                onClick={handleResetPools}
+                                disabled={poolA.length === 0 && poolB.length === 0}
+                                className="px-4 py-2 bg-red-900/30 border border-red-800/50 rounded-xl text-[10px] font-black uppercase tracking-tighter text-red-400 hover:text-white hover:bg-red-700/50 disabled:opacity-30 disabled:grayscale transition-all flex items-center gap-2"
+                              >
+                                 Reset All
+                              </button>
+                          </div>
+                       </div>
+
+                       <div className="bg-slate-900/40 border border-slate-700/50 rounded-2xl overflow-hidden shadow-2xl">
+                          <table className="w-full text-left border-collapse">
+                            <thead>
+                              <tr className="bg-slate-800/80 border-b border-slate-700">
+                                <th className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Logo</th>
+                                <th className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Team Name</th>
+                                <th className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center">Assignment</th>
+                                <th className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">Status</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {teams.map((team, i) => {
+                                const isAssignedA = poolA.includes(team.id || team._id);
+                                const isAssignedB = poolB.includes(team.id || team._id);
+                                const isAssigned = isAssignedA || isAssignedB;
+
+                                return (
+                                  <tr key={team.id || team._id || i} className="border-b border-slate-800/50 hover:bg-white/5 transition-all">
+                                    <td className="px-4 py-3">
+                                      <div className="w-10 h-10 rounded-lg overflow-hidden border border-slate-700">
+                                        <img src={team.logoUrl} alt={team.name} className="w-full h-full object-cover" />
+                                      </div>
+                                    </td>
+                                    <td className="px-4 py-3">
+                                      <span className="text-sm font-black text-white uppercase">{team.name}</span>
+                                    </td>
+                                    <td className="px-4 py-3">
+                                      <div className="flex gap-2 justify-center">
+                                        <button 
+                                          disabled={isAssigned || poolA.length >= 5}
+                                          onClick={() => handleSendToPool(team, 'poolA')}
+                                          className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${isAssignedA ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-600 hover:text-white'}`}
+                                        >
+                                          {isAssignedA ? "In Pool A" : "Send to A"}
+                                        </button>
+                                        <button 
+                                          disabled={isAssigned || poolB.length >= 5}
+                                          onClick={() => handleSendToPool(team, 'poolB')}
+                                          className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${isAssignedB ? 'bg-orange-600 text-white shadow-lg shadow-orange-900/40' : 'bg-orange-500/10 text-orange-400 border border-orange-500/20 hover:bg-orange-600 hover:text-white'}`}
+                                        >
+                                          {isAssignedB ? "In Pool B" : "Send to B"}
+                                        </button>
+                                      </div>
+                                    </td>
+                                    <td className="px-4 py-3 text-right">
+                                      {isAssigned ? (
+                                        <span className={`text-[9px] font-black uppercase px-2 py-1 rounded-md ${isAssignedA ? 'bg-blue-500/20 text-blue-400' : 'bg-orange-500/20 text-orange-400'}`}>
+                                          {isAssignedA ? 'Pool A' : 'Pool B'}
+                                        </span>
+                                      ) : (
+                                        <span className="text-[9px] font-black uppercase px-2 py-1 rounded-md bg-slate-800 text-slate-500">Unassigned</span>
+                                      )}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                       </div>
                     </div>
                   ) : (
                     <div className="space-y-8">

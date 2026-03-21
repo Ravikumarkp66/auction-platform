@@ -146,6 +146,19 @@ io.on("connection", (socket) => {
     io.emit("breakTime", currentBreak);
   });
 
+  // Admin triggers a cinematic team draw event
+  socket.on("teamDrawEvent", (data) => {
+    socket.broadcast.emit("teamDrawEvent", data);
+  });
+
+  socket.on("togglePoolView", (data) => {
+    socket.broadcast.emit("togglePoolView", data);
+  });
+
+  socket.on("resetPoolsDraw", () => {
+    socket.broadcast.emit("resetPoolsDraw", {});
+  });
+
   // Admin ends a break – clear state and notify viewers
   socket.on("breakTimeEnd", () => {
     currentBreak = null;

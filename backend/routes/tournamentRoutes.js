@@ -428,6 +428,22 @@ router.patch("/:id/assets", async (req, res) => {
   }
 });
 
+// Update Tournament Pools
+router.patch("/:id/pools", async (req, res) => {
+  try {
+    const { poolA, poolB } = req.body;
+    const tournament = await Tournament.findByIdAndUpdate(
+      req.params.id,
+      { $set: { "pools.poolA": poolA, "pools.poolB": poolB } },
+      { new: true }
+    );
+    if (!tournament) return res.status(404).json({ message: "Tournament not found" });
+    res.json(tournament);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
 // Delete tournament permanently (requires password)
 router.delete("/:id", async (req, res) => {
   try {

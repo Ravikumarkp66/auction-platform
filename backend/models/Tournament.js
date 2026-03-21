@@ -27,6 +27,10 @@ const tournamentSchema = new mongoose.Schema({
     completed: { type: Number, default: 0 },
     failed: { type: Number, default: 0 },
     status: { type: String, enum: ["idle", "processing", "done"], default: "idle" }
+  },
+  pools: {
+    poolA: [{ type: mongoose.Schema.Types.ObjectId, ref: "Team" }],
+    poolB: [{ type: mongoose.Schema.Types.ObjectId, ref: "Team" }]
   }
 }, { timestamps: true });
 
