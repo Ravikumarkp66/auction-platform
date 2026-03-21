@@ -140,7 +140,8 @@ router.post("/import", async (req, res) => {
                 mobile: cleanMobile,
                 village: p.village?.trim(),
                 tournamentId,
-                applicationId: nextAppId++,
+                applicationId: nextAppId,
+                originalApplicationId: nextAppId++,
                 photo: {
                     drive: p.imageUrl,
                     status: p.imageUrl ? "pending" : "done"
@@ -275,6 +276,55 @@ router.delete("/:id", async (req, res) => {
         if (!player.isIcon) await reorderApplicationIds(tid);
         
         res.json({ message: "Player deleted and indices updated" });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// Jumble player pool order
+router.post("/jumble", async (req, res) => {
+    try {
+        const { tournamentId } = req.body;
+        const players = await Player.find({ tournamentId, isIcon: false });
+        if (!players.length) return res.status(404).json({ message: "No players found" });
+
+        // Shuffle the array of Mongo documents
+        const shuffled = [...players].sort(() => Math.random() - 0.5);
+        
+        // Update each player with their new applicationId
+        // We'll also set originalApplicationId if it's currently missing
+        for (let i = 0; i < shuffled.length; i++) {
+            const p = shuffled[i];
+            const updates = { applicationId: i + 1 };
+            // If it's the first jumble, record the current ID as original
+            if (p.originalApplicationId === undefined || p.originalApplicationId === null) {
+                updates.originalApplicationId = p.applicationId;
+            }
+            await Player.findByIdAndUpdate(p._id, updates);
+        }
+
+        res.json({ message: `Successfully jumbled ${shuffled.length} players` });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// Revert to original order
+router.post("/revert-order", async (req, res) => {
+    try {
+        const { tournamentId } = req.body;
+        const players = await Player.find({ tournamentId, isIcon: false });
+        if (!players.length) return res.status(404).json({ message: "No players found" });
+
+        let count = 0;
+        for (const p of players) {
+            if (p.originalApplicationId !== undefined && p.originalApplicationId !== null) {
+                await Player.findByIdAndUpdate(p._id, { applicationId: p.originalApplicationId });
+                count++;
+            }
+        }
+
+        res.json({ message: `Reverted ${count} players to original auction order` });
     } catch (err) {
         res.status(500).json({ message: err.message });
     }

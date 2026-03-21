@@ -31,6 +31,7 @@ const playerSchema = new mongoose.Schema({
   soldPrice: { type: Number },
   isIcon: { type: Boolean, default: false },
   applicationId: { type: Number },
+  originalApplicationId: { type: Number },
   iconId: { type: Number },
   teamSlotId: { type: String },
   team: { type: mongoose.Schema.Types.ObjectId, ref: "Team", index: true }

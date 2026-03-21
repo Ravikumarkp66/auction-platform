@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { User, Search, Plus, Filter, AlertTriangle, ShieldCheck, Check, X, AlertCircle, Hash, Trophy, MousePointer2, Edit3, FileSpreadsheet, RefreshCw, Download } from "lucide-react";
+import { User, Search, Plus, Filter, AlertTriangle, ShieldCheck, Check, X, AlertCircle, Hash, Trophy, MousePointer2, Edit3, FileSpreadsheet, RefreshCw, Download, Shuffle } from "lucide-react";
 import * as XLSX from "xlsx";
 import { useAuction } from "../layout";
 import { io } from "socket.io-client";
@@ -198,6 +198,36 @@ export default function PlayersRegistry() {
     } catch (err) {
       alert("Delete failed");
     }
+  };
+
+  const handleJumble = async () => {
+    if (!confirm("Shuffle all athlete application IDs randomly? This will change the auction sequence.")) return;
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/players/jumble`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tournamentId: selectedAuction._id })
+      });
+      if (res.ok) {
+        alert("Auction sequence jumbled successfully!");
+        fetchData();
+      }
+    } catch (err) { alert("Jumble failed"); }
+  };
+
+  const handleRevertOrder = async () => {
+    if (!confirm("Restore the original auction order from CSV?")) return;
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/players/revert-order`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tournamentId: selectedAuction._id })
+      });
+      if (res.ok) {
+        alert("Original auction order restored!");
+        fetchData();
+      }
+    } catch (err) { alert("Revert failed"); }
   };
 
   const getBase64FromUrl = async (url) => {
@@ -429,6 +459,23 @@ export default function PlayersRegistry() {
            >
              <Plus className="w-4 h-4" /> Add Athlete
            </button>
+
+           <div className="flex items-center gap-2 ml-2">
+              <button 
+                onClick={handleJumble}
+                className="p-3 bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 rounded-2xl hover:bg-cyan-500/20 transition-all active:scale-95 shadow-xl"
+                title="Jumble Sequence"
+              >
+                <Shuffle className="w-4 h-4" />
+              </button>
+              <button 
+                onClick={handleRevertOrder}
+                className="p-3 bg-white/5 text-slate-400 border border-white/10 rounded-2xl hover:bg-white/10 transition-all active:scale-95 shadow-xl"
+                title="Revert to Original Order"
+              >
+                <RefreshCw className="w-4 h-4" />
+              </button>
+           </div>
         </div>
       </div>
 
