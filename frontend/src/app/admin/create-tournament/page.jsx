@@ -336,6 +336,7 @@ export default function CreateTournamentWizard() {
   const [teams,       setTeams]       = useState(() => ls("wiz_teams", []));
   const [icons,       setIcons]       = useState(() => ls("wiz_icons", []));
   const [players,     setPlayers]     = useState(() => ls("wiz_players", []));
+  const [originalPlayers, setOriginalPlayers] = useState(() => ls("wiz_original_players", []));
   const [parsedData,  setParsedData]  = useState(null); // RAW data for multi-step use
   const [errors,      setErrors]      = useState({});
   const [uploading,   setUploading]   = useState(false);
@@ -349,12 +350,13 @@ export default function CreateTournamentWizard() {
   useEffect(() => { sse("wiz_teams",   teams);   }, [teams]);
   useEffect(() => { sse("wiz_icons",   icons);   }, [icons]);
   useEffect(() => { sse("wiz_players", players); }, [players]);
+  useEffect(() => { sse("wiz_original_players", originalPlayers); }, [originalPlayers]);
 
   // ── Reset ──────────────────────────────────────────────────
   const fullReset = () => {
     setStep(1); setConfig(DEFAULT_CONFIG); setTeams([]);
-    setIcons([]); setPlayers([]); setErrors({});
-    ["wiz_step","wiz_config","wiz_teams","wiz_icons","wiz_players"].forEach(k => localStorage.removeItem(k));
+    setIcons([]); setPlayers([]); setOriginalPlayers([]); setErrors({});
+    ["wiz_step","wiz_config","wiz_teams","wiz_icons","wiz_players", "wiz_original_players"].forEach(k => localStorage.removeItem(k));
   };
 
   // ── Validation ─────────────────────────────────────────────
@@ -681,7 +683,15 @@ export default function CreateTournamentWizard() {
   const jumblePlayers = () => {
     if (players.length < 2) return;
     const shuffled = [...players].sort(() => Math.random() - 0.5);
-    setPlayers(shuffled);
+    // Re-index applicationIds based on new order
+    const ordered = shuffled.map((p, i) => ({ ...p, applicationId: i + 1 }));
+    setPlayers(ordered);
+  };
+
+  const revertJumble = () => {
+    if (originalPlayers.length > 0) {
+      setPlayers([...originalPlayers]);
+    }
   };
 
   // ── Excel: Players ─────────────────────────────────────────
@@ -721,6 +731,7 @@ export default function CreateTournamentWizard() {
         });
 
         setPlayers(imported);
+        setOriginalPlayers(imported);
         setErrors({});
 
         // S3 conversion runs silently — user already sees images via proxy
@@ -1072,9 +1083,16 @@ export default function CreateTournamentWizard() {
                 </div>
                 
                 {players.length > 0 && (
-                  <button onClick={jumblePlayers} className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 hover:bg-cyan-500/20 transition-all shadow-lg shadow-cyan-500/5">
-                    <Shuffle className="w-4 h-4" /> Jumble
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button onClick={jumblePlayers} className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 hover:bg-cyan-500/20 transition-all shadow-lg shadow-cyan-500/5">
+                      <Shuffle className="w-4 h-4" /> Jumble
+                    </button>
+                    {originalPlayers.length > 0 && (
+                      <button onClick={revertJumble} className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black border border-white/10 text-slate-400 hover:bg-white/5 transition-all">
+                        <RefreshCw className="w-3 h-3" /> Revert
+                      </button>
+                    )}
+                  </div>
                 )}
 
                 <label className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-violet-400
