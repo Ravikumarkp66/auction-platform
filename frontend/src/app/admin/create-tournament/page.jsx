@@ -352,6 +352,13 @@ export default function CreateTournamentWizard() {
   useEffect(() => { sse("wiz_players", players); }, [players]);
   useEffect(() => { sse("wiz_original_players", originalPlayers); }, [originalPlayers]);
 
+  // Repair session if originalPlayers is missing
+  useEffect(() => {
+    if (players.length > 0 && originalPlayers.length === 0) {
+      setOriginalPlayers([...players]);
+    }
+  }, [players, originalPlayers]);
+
   // ── Reset ──────────────────────────────────────────────────
   const fullReset = () => {
     setStep(1); setConfig(DEFAULT_CONFIG); setTeams([]);
