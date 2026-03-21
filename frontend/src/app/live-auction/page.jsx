@@ -11,6 +11,7 @@ import CompactBreakControl from '../../components/CompactBreakControl'
 import SplashScreen from '../../components/SplashScreen'
 import ImageCropperModal from '../../components/ImageCropperModal'
 import { uploadToS3 } from "../../lib/uploadToS3"
+import ResultOverlay from '../../components/ResultOverlay'
 
 // Module-level socket instance to persist across React re-renders in development
 let globalSocket = null
@@ -73,6 +74,7 @@ function LiveAuctionContent() {
   const [showBreakModal, setShowBreakModal] = useState(false)
   const [showImageEditor, setShowImageEditor] = useState(false)
   const [showRoundTransition, setShowRoundTransition] = useState(null) // { label, subtitle }
+  const [result, setResult] = useState(null) // Result Overlay State
 
   // Edge Case 1: Debounce / Cooldown
   const BID_COOLDOWN = 600;
@@ -368,6 +370,19 @@ function LiveAuctionContent() {
     })
   }, [socket, players, currentPlayerIndex, currentBid, highestBidder, teams, config.name, config.squadSize, roundHistory])
 
+  // Auto-advance after result animation
+  useEffect(() => {
+    if (result) {
+      const timer = setTimeout(() => {
+        setResult(null);
+        // Using it safely inside async callback (defined later in component but executed after render)
+        nextPlayer();
+      }, 2500);
+      return () => clearTimeout(timer);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [result]);
+
   if (status === "loading") {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center">
@@ -396,7 +411,7 @@ function LiveAuctionContent() {
   // Rest of component logic starts here
 
   // Edge Case 7: Only allow bid if player is available or was previously unsold
-  const canPlaceBid = player && !isRoundMarker && (player.status === "available" || player.status === "auction" || player.status === "unsold");
+  const canPlaceBid = player && !isRoundMarker && !result && (player.status === "available" || player.status === "auction" || player.status === "unsold");
 
   const placeBid = (teamId) => {
     // Edge Case 1: Double-click prevention
@@ -587,6 +602,16 @@ function LiveAuctionContent() {
             timestamp: Date.now()
           })
         }
+        
+        setResult({
+          type: "SOLD",
+          price: currentBid,
+          teamName: winningTeam?.name,
+          teamLogo: winningTeam?.logoUrl,
+          playerName: player.name,
+          playerImage: player.photo?.s3 || player.photo?.drive || player.imageUrl || player.image
+        });
+        
       } else {
         console.error("❌ Failed to save sale data:",
           !playerRes.ok ? "Player update failed" : "",
@@ -645,6 +670,12 @@ function LiveAuctionContent() {
       })
 
       if (res.ok) {
+        setResult({
+          type: "UNSOLD",
+          playerName: player.name,
+          playerImage: player.photo?.s3 || player.photo?.drive || player.imageUrl || player.image
+        });
+
         const data = await res.json();
         if (data && data.applicationId) {
            const newAppId = data.applicationId;
@@ -685,15 +716,60 @@ function LiveAuctionContent() {
     }
   }
 
-  // Revert a sold player - put back to auction and refund team
+  // Revert a sold/unsold player - put back to auction and adjust budgets
   const revertSale = async () => {
-    if (!player) return
-    if (player.status !== "sold" || player.isIcon) return
+    if (!player) return;
+    if (player.isIcon) return;
+    if (player.status !== "sold" && player.status !== "unsold") return;
 
+    if (player.status === "unsold") {
+      if (!confirm(`Revert UNSOLD status for ${player.name}?\n\nThis will put the player back into the active auction.\n\nContinue?`)) return;
+
+      const updatedPlayers = [...players];
+      updatedPlayers[currentPlayerIndex] = {
+        ...player,
+        status: "available"
+      };
+      setPlayers(updatedPlayers);
+
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/players/${player.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            status: "available"
+          })
+        });
+        if (res.ok) {
+           console.log(`✅ REVERTED: ${player.name} back to auction from UNSOLD`);
+           setCurrentBid(0);
+           setHighestBidder(null);
+           if (socket) {
+             socket.emit('auctionUpdate', {
+               player: updatedPlayers[currentPlayerIndex],
+               currentBid: 0,
+               highestBidder: null,
+               highestBidderLogo: null,
+               tournamentName: config.name,
+               teams: teams,
+               roundHistory: roundHistory,
+               timestamp: Date.now()
+             });
+           }
+        }
+      } catch (err) {
+        console.error("Error reverting unsold:", err);
+      }
+      return;
+    }
+
+    // --- SOLD LOGIC ---
     const soldPrice = player.soldPrice
     const originalTeamId = player.team
 
-    if (!confirm(`Revert sale of ${player.name}?\n\nThis will:\n- Remove player from ${teams.find(t => t.id === originalTeamId)?.name}\n- Refund ₹${soldPrice?.toLocaleString()} to the team\n- Put player back in auction\n\nContinue?`)) return
+    if (!confirm(`Revert sale of ${player.name}?\n\nThis will remove the player from ${teams.find(t => t.id === originalTeamId)?.name} and refund ₹${soldPrice?.toLocaleString()}.\n\nClick OK to proceed.`)) return
+
+    const startFromLastBid = confirm(`Do you want to retain the final bid of ₹${soldPrice} by ${teams.find(t => t.id === originalTeamId)?.name}?\n\nClick OK to keep the bid.\nClick Cancel to completely restart from ₹0.`);
 
     // Get the original team and calculate correct refund
     const originalTeam = teams.find(t => t.id === originalTeamId)
@@ -755,6 +831,20 @@ function LiveAuctionContent() {
       if (playerRes.ok && teamRes.ok) {
         console.log(`✅ REVERTED: ${player.name} back to auction, ${originalTeam?.name} budget refunded to ₹${refundedBudget}`)
 
+        // Broadcast to other devices (overlay integration + active bid occupation)
+        if (socket) {
+          socket.emit('auctionUpdate', {
+            player: updatedPlayers[currentPlayerIndex],
+            currentBid: startFromLastBid ? soldPrice : 0,
+            highestBidder: startFromLastBid ? originalTeamId : null,
+            highestBidderLogo: startFromLastBid ? originalTeam?.logoUrl : null,
+            tournamentName: config.name,
+            teams: updatedTeams,
+            roundHistory: roundHistory,
+            timestamp: Date.now()
+          })
+        }
+
         // Refresh teams data to ensure player is removed from team squad
         try {
           const teamsRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournaments/${currentTournamentId}`)
@@ -784,9 +874,16 @@ function LiveAuctionContent() {
       console.error("Error reverting sale:", err)
     }
 
-    // Reset bidding state
-    setCurrentBid(0)
-    setHighestBidder(null)
+    // Reset bidding state based on admin choice
+    if (startFromLastBid) {
+      setCurrentBid(soldPrice);
+      setHighestBidder(originalTeamId);
+      setBidIncrement(soldPrice + 100);
+    } else {
+      setCurrentBid(0)
+      setHighestBidder(null)
+      if (player) setBidIncrement(player.basePrice || 100);
+    }
   }
 
   const nextPlayer = () => {
@@ -986,6 +1083,21 @@ function LiveAuctionContent() {
       {/* =========================================================
           ROUND TRANSITION OVERLAY (Full-Screen Cinematic)
       ========================================================= */}
+      {result && (
+        <ResultOverlay
+          type={result.type}
+          playerName={result.playerName}
+          price={result.price}
+          teamName={result.teamName}
+          teamLogo={result.teamLogo}
+          playerImage={result.playerImage}
+          onSkip={() => {
+            setResult(null);
+            nextPlayer();
+          }}
+        />
+      )}
+
       {showRoundTransition && (
         <div
           className="fixed inset-0 z-[999] flex flex-col items-center justify-center"
@@ -1626,6 +1738,13 @@ function LiveAuctionContent() {
                         </div>
                         <h1 className="text-4xl font-black text-red-500 leading-none uppercase italic">Unsold</h1>
                         <p className="text-[10px] text-red-400/50 uppercase font-black mt-3 tracking-widest">No Bids Placed</p>
+                        {/* Revert Unsold Button */}
+                        <button
+                          onClick={revertSale}
+                          className="mt-4 px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-all inline-flex items-center gap-2 mx-auto"
+                        >
+                          <span>↩️</span> Revert Unsold
+                        </button>
                       </div>
                     )}
                   </div>

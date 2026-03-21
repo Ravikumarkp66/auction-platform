@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Users, ClipboardList, Crosshair, X, ChevronRight, TrendingUp, Award } from "lucide-react";
+import ResultOverlay from "./ResultOverlay";
 
 // Design tokens
 const C = {
@@ -39,6 +40,54 @@ export default function AuctionOverlayNew({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  const [resultData, setResultData] = useState(null);
+  const prevStatusRef = useRef(player?.status);
+  const prevPlayerIdRef = useRef(player?._id || player?.id);
+
+  const highestBidderTeam = teams?.find(t => t._id === highestBidder || t.id === highestBidder);
+  const highestBidderName = highestBidderTeam?.name || highestBidderTeam?.shortName || highestBidder;
+
+  useEffect(() => {
+    const currentStatus = player?.status?.toLowerCase();
+    const currentId = player?._id || player?.id;
+    const prevStatus = prevStatusRef.current?.toLowerCase();
+    const prevId = prevPlayerIdRef.current;
+
+    // Trigger overlay when current player status flips to sold/unsold
+    if (currentId === prevId && currentStatus !== prevStatus) {
+      if (currentStatus === "sold" || currentStatus === "unsold") {
+        const bidAmt = Number(currentBid || 0);
+        const baseAmt = Number(player?.basePrice || 0);
+        const soldAmt = Number((player?.soldPrice ?? currentBid) || 0);
+        const calcBid = currentStatus === "sold" ? soldAmt : bidAmt > 0 ? bidAmt : baseAmt;
+
+        setResultData({
+          type: currentStatus.toUpperCase(),
+          playerId: currentId,
+          playerName: player?.name,
+          price: calcBid,
+          teamName: highestBidderName,
+          teamLogo: highestBidderLogo || highestBidderTeam?.logoUrl,
+          playerImage: player?.photo?.s3 || player?.photo?.drive || player?.imageUrl || player?.image
+        });
+      } else {
+        setResultData(null); // Handled "revert sale" edge case
+      }
+    }
+
+    // Keep the overlay UP until the admin starts bidding on the NEXT player
+    if (resultData && Number(currentBid || 0) > 0 && currentId !== resultData.playerId) {
+      setResultData(null); // 💥 Drops the overlay exactly when the next bid occurs!
+    }
+
+    prevStatusRef.current = player?.status;
+    prevPlayerIdRef.current = currentId;
+  }, [
+    player?.status, player?._id, player?.id, player?.name, player?.basePrice, 
+    player?.soldPrice, player?.photo, player?.imageUrl, player?.image,
+    currentBid, highestBidderName, resultData
+  ]);
+
   const isMobile = windowWidth < 768;
 
   const normalizedStatus = (player?.status || "").toString().trim().toLowerCase();
@@ -48,9 +97,6 @@ export default function AuctionOverlayNew({
   const baseAmount = Number(player?.basePrice || 0);
   const soldAmount = Number((player?.soldPrice ?? currentBid) || 0);
   const displayBid = isSold ? soldAmount : bidAmount > 0 ? bidAmount : baseAmount;
-
-  const highestBidderTeam = teams?.find(t => t._id === highestBidder || t.id === highestBidder);
-  const highestBidderName = highestBidderTeam?.name || highestBidderTeam?.shortName || highestBidder;
 
   const handleBottomTab = (tab) => setActiveBottomTab(prev => prev === tab ? null : tab);
 
@@ -482,6 +528,18 @@ export default function AuctionOverlayNew({
 
       {/* Squad detail modal */}
       {renderSquadModal()}
+
+      {/* Cinematic Result Overlay */}
+      {resultData && (
+        <ResultOverlay
+          type={resultData.type}
+          playerName={resultData.playerName}
+          price={resultData.price}
+          teamName={resultData.teamName}
+          teamLogo={resultData.teamLogo}
+          playerImage={resultData.playerImage}
+        />
+      )}
     </div>
   );
 }

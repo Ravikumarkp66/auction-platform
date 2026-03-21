@@ -16,6 +16,7 @@ export default function TournamentsPage() {
   const [resetting, setResetting] = useState(null);
   const [appending, setAppending] = useState(null);
   const [activating, setActivating] = useState(null);
+  const [deleting, setDeleting] = useState(null);
 
   useEffect(() => {
     fetchTournaments();
@@ -104,6 +105,33 @@ export default function TournamentsPage() {
         }
     } catch (err) {
         console.error("Archive error:", err);
+    }
+  };
+
+  const deleteAuction = async (tournamentId) => {
+    const password = prompt("🚨 PERMANENT DELETION 🚨\n\nThis will completely erase the auction, all players, teams, and permanently delete all uploaded images/logos from the cloud server.\n\nEnter Admin Password to confirm deletion:");
+    if (!password) return;
+
+    setDeleting(tournamentId);
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournaments/${tournamentId}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password })
+      });
+
+      if (res.ok) {
+        alert("Auction completely deleted from database and cloud.");
+        fetchTournaments();
+      } else {
+        const data = await res.json();
+        alert(`Failed to delete: ${data.message || 'Unknown error'}`);
+      }
+    } catch (err) {
+      console.error("Delete error:", err);
+      alert("Server error while trying to delete auction.");
+    } finally {
+      setDeleting(null);
     }
   };
 
@@ -366,8 +394,13 @@ export default function TournamentsPage() {
                     >
                       <RotateCcw className={`w-4 h-4 ${resetting === tournamentId ? 'animate-spin' : ''}`} />
                     </button>
-                    <button className="p-3 bg-red-500/10 text-red-500 border border-red-500/20 rounded-xl hover:bg-red-500/20 transition-all active:scale-95">
-                      <Trash2 className="w-4 h-4" />
+                    <button 
+                      onClick={() => deleteAuction(tournamentId)}
+                      disabled={deleting === tournamentId}
+                      className="p-3 bg-red-500/10 text-red-500 border border-red-500/20 rounded-xl hover:bg-red-500/20 transition-all active:scale-95 disabled:opacity-50"
+                      title="Permanently Delete Auction"
+                    >
+                      <Trash2 className={`w-4 h-4 ${deleting === tournamentId ? 'animate-spin' : ''}`} />
                     </button>
                   </div>
                 </div>

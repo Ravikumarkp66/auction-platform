@@ -5,6 +5,15 @@ const Tournament = require("../models/Tournament");
 const Team = require("../models/Team");
 const Player = require("../models/Player");
 const { startImageProcessing } = require("../utils/image-processor");
+const { S3Client, DeleteObjectCommand } = require("@aws-sdk/client-s3");
+
+const s3 = new S3Client({
+  region: process.env.AWS_REGION,
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY,
+    secretAccessKey: process.env.AWS_SECRET_KEY,
+  },
+});
 
 // Get current active tournament
 router.get("/status/active", async (req, res) => {
@@ -416,6 +425,64 @@ router.patch("/:id/assets", async (req, res) => {
     res.json(tournament);
   } catch (err) {
     res.status(400).json({ message: err.message });
+  }
+});
+
+// Delete tournament permanently (requires password)
+router.delete("/:id", async (req, res) => {
+  try {
+    const { password } = req.body;
+    
+    // Verify password matching hardcoded admin or env admin
+    if (password !== "15FEBLSRBP" && password !== process.env.ADMIN_PASSWORD) {
+      return res.status(401).json({ message: "Invalid password for deletion." });
+    }
+
+    const { id } = req.params;
+    const tournament = await Tournament.findById(id);
+    if (!tournament) return res.status(404).json({ message: "Tournament not found" });
+
+    // Collect S3 URLs to delete
+    const players = await Player.find({ tournamentId: id });
+    const teams = await Team.find({ tournamentId: id });
+    
+    const s3Urls = [];
+    players.forEach(p => {
+      if (p.photo?.s3) s3Urls.push(p.photo.s3);
+      if (p.imageUrl && p.imageUrl.includes('amazonaws.com')) s3Urls.push(p.imageUrl);
+    });
+    teams.forEach(t => {
+      if (t.logoUrl && t.logoUrl.includes('amazonaws.com')) s3Urls.push(t.logoUrl);
+    });
+    if (tournament.organizerLogo && tournament.organizerLogo.includes('amazonaws.com')) {
+      s3Urls.push(tournament.organizerLogo);
+    }
+
+    // Delete connected data from MongoDB
+    await Player.deleteMany({ tournamentId: id });
+    await Team.deleteMany({ tournamentId: id });
+    await Tournament.findByIdAndDelete(id);
+
+    // Delete images from AWS S3
+    if (s3Urls.length > 0 && process.env.S3_BUCKET) {
+      const bucket = process.env.S3_BUCKET;
+      for (const url of s3Urls) {
+        try {
+          const urlObj = new URL(url);
+          const key = decodeURIComponent(urlObj.pathname.slice(1));
+          
+          const command = new DeleteObjectCommand({ Bucket: bucket, Key: key });
+          await s3.send(command);
+        } catch(e) {
+          console.error(`Failed to delete S3 object: ${url}`, e);
+        }
+      }
+    }
+
+    res.json({ message: "Tournament and all related data completely deleted" });
+  } catch (err) {
+    console.error("Delete tournament error:", err);
+    res.status(500).json({ message: err.message });
   }
 });
 
