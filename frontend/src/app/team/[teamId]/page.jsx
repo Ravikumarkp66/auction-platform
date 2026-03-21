@@ -139,20 +139,29 @@ function TeamSquadContent() {
       element.style.display = "none";
     }
   };
-
-  const getBase64FromUrl = async (url) => {
+   const getBase64FromUrl = async (url) => {
+    if (!url || typeof url !== 'string') return null;
     try {
       const proxied = getProxiedUrl(url);
       const res = await fetch(proxied);
       if (!res.ok) return null;
+      
       const blob = await res.blob();
+
+      // Handle PDF or other documents by showing a placeholder icon
+      if (blob.type.includes('pdf')) {
+        // Red PDF placeholder base64
+        return "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAALEgAACxIB0t1+/AAAABZ0RVh0Q3JlYXRpb24gVGltZQAwOC8wOC8xOFR968AAAAAYdEVYdFNvZnR3YXJlAEFkb2JlIEM2IEltYWdlUmVhZHm7mNoAAAAtSURBVHic7cExAQAAAMKg9U9tCy+gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB+DAx9AAH5XU8AAAAAAElFTkSuQmCC";
+      }
+
       return await new Promise((resolve) => {
         const reader = new FileReader();
         reader.onloadend = () => resolve(reader.result);
+        reader.onerror = () => resolve(null);
         reader.readAsDataURL(blob);
       });
     } catch (err) {
-      console.error("Base64 failed:", err);
+      console.error("Base64 fetch failed:", err);
       return null;
     }
   };
@@ -164,15 +173,29 @@ function TeamSquadContent() {
       img.onload = () => {
         const canvas = document.createElement("canvas");
         const ctx = canvas.getContext("2d");
-        const size = 120; // Slightly larger for squad view
+        const size = 120;
         canvas.width = size;
         canvas.height = size;
+        
+        // Solid background for transparent PNGs
+        ctx.fillStyle = "#FFFFFF";
+        ctx.fillRect(0, 0, size, size);
         ctx.drawImage(img, 0, 0, size, size);
         resolve(canvas.toDataURL("image/jpeg", quality));
       };
-      img.onerror = () => resolve(null);
+      img.onerror = () => {
+        // Fallback for broken images
+        const canvas = document.createElement("canvas");
+        canvas.width = 120;
+        canvas.height = 120;
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "#F1F5F9";
+        ctx.fillRect(0, 0, 120, 120);
+        resolve(canvas.toDataURL("image/jpeg"));
+      };
     });
   };
+
 
   const downloadSquadPDF = async () => {
     if (!team || !squad.length) return;
@@ -244,7 +267,10 @@ function TeamSquadContent() {
         let imgY = 43;
         
         for (const p of iconPlayers) {
-          const rawImg = await getBase64FromUrl(p.imageUrl || p.image);
+          // Fallback to Team Logo if no player photo is provided
+          const playerPhoto = p.photo?.s3 || p.imageUrl || p.image;
+          const fallbackPhoto = team.logo || team.logoUrl;
+          const rawImg = await getBase64FromUrl(playerPhoto || fallbackPhoto);
           const compImg = rawImg ? await compressImage(rawImg, 0.7) : null;
           
           if (compImg) {
@@ -256,7 +282,9 @@ function TeamSquadContent() {
           doc.setFontSize(10);
           doc.setTextColor(15, 23, 42);
           doc.setFont(undefined, "bold");
-          doc.text(p.name?.substring(0, 15) || "Player", startX + 10, imgY + 25, { align: "center" });
+          // Fallback to "To be confirmed" for missing names
+          const playerName = p.name?.trim() ? p.name.substring(0, 15) : "To be confirmed";
+          doc.text(playerName, startX + 10, imgY + 25, { align: "center" });
 
           doc.setFontSize(8);
           doc.setTextColor(16, 185, 129);
