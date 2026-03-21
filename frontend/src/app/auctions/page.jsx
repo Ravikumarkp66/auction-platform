@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useSession } from "next-auth/react";
-import { Trophy, Play, Users, Calendar, ExternalLink, Clock } from "lucide-react";
+import { Trophy, Play, Users, Calendar, ExternalLink, Clock, XCircle } from "lucide-react";
 
 export default function AuctionsPage() {
   const { data: session, status } = useSession();
@@ -119,6 +119,7 @@ export default function AuctionsPage() {
 
   const liveTournaments = tournaments.filter(t => t.status?.toLowerCase() === "active" || t.status?.toLowerCase() === "live");
   const otherTournaments = tournaments.filter(t => t.status?.toLowerCase() !== "active" && t.status?.toLowerCase() !== "live");
+  const [squadViewTournament, setSquadViewTournament] = useState(null);
 
   return (
     <div className="min-h-screen bg-[#0a0f18] relative overflow-hidden">
@@ -260,22 +261,40 @@ export default function AuctionsPage() {
                       </div>
                     </div>
 
-                    {/* Action Button */}
-                    <Link
-                      href={status === "authenticated" ? `/live-auction?id=${tournament.shortId || tournament._id}` : `/overlay`}
-                      className="group/btn relative w-full px-6 py-4 bg-gradient-to-r from-violet-500 to-teal-500 text-white font-black uppercase tracking-wider rounded-xl overflow-hidden transition-all duration-300 hover:shadow-[0_0_30px_rgba(16,185,129,0.4)] flex items-center justify-center gap-3"
-                    >
-                      <span className="relative z-10 flex items-center gap-3">
-                        <Play className="w-5 h-5 fill-current" />
-                        Watch Live Auction
-                      </span>
-                      <div className="absolute inset-0 bg-gradient-to-r from-teal-500 to-violet-500 opacity-0 group-hover/btn:opacity-100 transition-opacity duration-300"></div>
-                    </Link>
+                    {/* Action Buttons */}
+                    <div className="flex gap-3">
+                      <Link
+                        href={status === "authenticated" ? `/live-auction?id=${tournament.shortId || tournament._id}` : `/overlay`}
+                        className="group/btn relative flex-1 px-6 py-4 bg-gradient-to-r from-violet-500 to-teal-500 text-white font-black uppercase tracking-wider rounded-xl overflow-hidden transition-all duration-300 hover:shadow-[0_0_30px_rgba(16,185,129,0.4)] flex items-center justify-center gap-3"
+                      >
+                        <span className="relative z-10 flex items-center gap-3">
+                          <Play className="w-5 h-5 fill-current" />
+                          Watch
+                        </span>
+                        <div className="absolute inset-0 bg-gradient-to-r from-teal-500 to-violet-500 opacity-0 group-hover/btn:opacity-100 transition-opacity duration-300"></div>
+                      </Link>
+
+                      <button
+                        onClick={() => setSquadViewTournament(tournament)}
+                        className="flex-1 px-6 py-4 bg-white/5 hover:bg-white/10 text-white border border-white/10 font-black uppercase tracking-wider rounded-xl transition-all duration-300 flex items-center justify-center gap-2 group/squad"
+                      >
+                        <Users className="w-5 h-5 group-hover:text-violet-400 transition-colors" />
+                        Squads
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
           </section>
+        )}
+
+        {/* --- SQUAD VIEW MODAL --- */}
+        {squadViewTournament && (
+          <SquadViewModal 
+            tournament={squadViewTournament} 
+            onClose={() => setSquadViewTournament(null)} 
+          />
         )}
 
         {/* Other Tournaments */}
@@ -359,6 +378,142 @@ export default function AuctionsPage() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// ── HELPERS ────────────────────────────────────────────────
+function SquadList({ team, players }) {
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2">
+         <Users className="w-4 h-4 text-violet-400" />
+         <h4 className="text-sm font-black text-white uppercase tracking-widest">{team.name} Squad</h4>
+      </div>
+      <div className="grid grid-cols-1 gap-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+        {players.length === 0 ? (
+          <div className="py-10 text-center border-2 border-dashed border-white/5 rounded-2xl opacity-40 italic text-xs">Zero players assigned to this node</div>
+        ) : (
+          players.map((p, idx) => (
+            <div key={p._id || idx} className="flex items-center gap-3 p-3 bg-white/5 rounded-xl border border-white/5 group/p hover:border-violet-500/30 transition-all">
+               <div className="w-10 h-10 rounded-lg overflow-hidden border border-white/10 shrink-0">
+                  <img src={p.photo?.s3 || p.imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.name}`} className="w-full h-full object-cover" />
+               </div>
+               <div className="flex-1 min-w-0">
+                  <p className="text-sm font-black text-white truncate">{p.name}</p>
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">{p.role} • {p.village}</p>
+               </div>
+               <div className="text-right">
+                  <p className="text-xs font-black text-emerald-400">₹{Number(p.soldPrice || p.basePrice || 0).toLocaleString("en-IN")}</p>
+                  <p className="text-[8px] font-bold text-slate-600 uppercase tracking-widest">{p.isIcon ? 'Icon' : 'Auction'}</p>
+               </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SquadViewModal({ tournament, onClose }) {
+  const [data, setData] = useState({ teams: [], players: [] });
+  const [selectedTeam, setSelectedTeam] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchSquads() {
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournaments/${tournament._id}`);
+        if (res.ok) {
+          const json = await res.json();
+          setData(json);
+          if (json.teams?.length > 0) setSelectedTeam(json.teams[0]);
+        }
+      } catch (err) {
+        console.error("Failed to fetch squads:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchSquads();
+  }, [tournament]);
+
+  useEffect(() => {
+    const handleEsc = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#020617]/90 backdrop-blur-md animate-in fade-in">
+       <div className="bg-[#0f172a] border border-white/10 rounded-[2.5rem] w-full max-w-5xl h-[85vh] overflow-hidden shadow-2xl flex flex-col relative">
+          
+          <button 
+            onClick={onClose}
+            className="absolute top-6 right-8 z-20 p-2 bg-white/5 hover:bg-white/10 rounded-full text-slate-400 hover:text-white transition-all shadow-inner border border-white/5"
+          >
+            <XCircle className="w-6 h-6" />
+          </button>
+
+          <div className="p-8 border-b border-white/5 bg-white/[0.02]">
+            <p className="text-[10px] font-black text-violet-500 uppercase tracking-[0.4em] mb-1">Squad Database</p>
+            <h2 className="text-3xl font-black text-white tracking-tight text-left transform-none">{tournament.name}</h2>
+          </div>
+
+          <div className="flex-1 flex overflow-hidden">
+            <div className="w-full md:w-80 border-r border-white/5 overflow-y-auto p-4 space-y-2 bg-black/20">
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-4 mb-3">Nodes (Teams)</p>
+              {loading ? (
+                Array(6).fill(0).map((_, i) => (
+                  <div key={i} className="h-16 w-full animate-pulse bg-white/5 rounded-2xl border border-white/5" />
+                ))
+              ) : (
+                data.teams.map((t) => (
+                  <button
+                    key={t._id}
+                    onClick={() => setSelectedTeam(t)}
+                    className={`w-full flex items-center gap-4 p-4 rounded-2xl border transition-all duration-300 group
+                      ${selectedTeam?._id === t._id 
+                        ? 'bg-violet-600/20 border-violet-500 shadow-lg shadow-violet-500/10' 
+                        : 'bg-white/5 border-white/10 hover:border-white/20 hover:bg-white/[0.07]'}`}
+                  >
+                    <div className="w-10 h-10 rounded-xl overflow-hidden border border-white/10 shrink-0 bg-slate-800 shadow-inner group-hover:scale-110 transition-transform">
+                       <img src={t.logoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(t.name)}&background=random`} className="w-full h-full object-cover" />
+                    </div>
+                    <div className="text-left flex-1 min-w-0">
+                       <p className={`text-sm font-black truncate ${selectedTeam?._id === t._id ? 'text-white' : 'text-slate-300'}`}>{t.name}</p>
+                       <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">
+                          {data.players?.filter(p => p.team === t._id).length} Players
+                       </p>
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-8">
+               {loading ? (
+                 <div className="space-y-4">
+                    <div className="h-8 w-48 animate-pulse bg-white/5 rounded-lg" />
+                    <div className="grid grid-cols-1 gap-2">
+                       {Array(5).fill(0).map((_, i) => (
+                         <div key={i} className="h-20 w-full animate-pulse bg-white/5 rounded-xl border border-white/5" />
+                       ))}
+                    </div>
+                 </div>
+               ) : selectedTeam ? (
+                 <SquadList 
+                    team={selectedTeam} 
+                    players={data.players.filter(p => p.team === selectedTeam._id)} 
+                 />
+               ) : (
+                 <div className="h-full flex flex-col items-center justify-center opacity-30 italic text-sm">
+                    Select a team node from the sidebar to decode roster
+                 </div>
+               )}
+            </div>
+          </div>
+       </div>
     </div>
   );
 }

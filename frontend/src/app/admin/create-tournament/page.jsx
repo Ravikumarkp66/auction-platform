@@ -437,7 +437,15 @@ export default function CreateTournamentWizard() {
             match.assigned = true;
             slots.push({ ...match, team: team.name, teamIdx: ti });
           } else {
-            slots.push({ name: "", role: "All-Rounder", village: "", age: "", imageUrl: "", team: team.name, teamIdx: ti });
+            slots.push({ 
+              name: "To be confirmed", 
+              role: "All-Rounder", 
+              village: "TBC", 
+              age: "TBC", 
+              imageUrl: team.logoUrl || "", 
+              team: team.name, 
+              teamIdx: ti 
+            });
           }
         }
       });
@@ -616,7 +624,7 @@ export default function CreateTournamentWizard() {
             return sysT.includes(impT) || impT.includes(sysT);
           });
           if (tIdx === -1) return;
-          const slot = updated.findIndex(p => p.teamIdx === tIdx && !p.name);
+          const slot = updated.findIndex(p => p.teamIdx === tIdx && (!p.name || p.name === "To be confirmed"));
           if (slot !== -1) {
             updated[slot] = {
               ...updated[slot],
