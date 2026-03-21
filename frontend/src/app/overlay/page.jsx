@@ -271,6 +271,18 @@ export default function OverlayPage() {
     )
   }
 
+  // Pool draw takes HIGHEST PRIORITY — admin has explicitly activated it
+  if (showPoolView) {
+    return (
+      <>
+        <TeamDrawOverlay poolA={poolA} poolB={poolB} drawEvent={drawEvent} />
+        {drawEvent && (
+          <TeamDrawCinematic event={drawEvent} onComplete={() => setDrawEvent(null)} />
+        )}
+      </>
+    )
+  }
+
   // Show break time if active (takes priority over everything)
   if (breakTime) {
     // Remaining time in seconds, derived from shared endTime and ticking reference
@@ -405,17 +417,6 @@ export default function OverlayPage() {
           }
         `}</style>
       </div>
-    )
-  }
-
-  if (showPoolView) {
-    return (
-      <>
-        <TeamDrawOverlay poolA={poolA} poolB={poolB} drawEvent={drawEvent} />
-        {drawEvent && (
-          <TeamDrawCinematic event={drawEvent} onComplete={() => setDrawEvent(null)} />
-        )}
-      </>
     )
   }
 
