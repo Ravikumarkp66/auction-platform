@@ -276,6 +276,19 @@ export default function PlayersRegistry() {
     try {
       const doc = new jsPDF();
       const tournamentName = selectedAuction?.name || "Tournament";
+      const orgLogoUrl = selectedAuction?.organizerLogo;
+
+      // Top Left Organizer Logo
+      if (orgLogoUrl) {
+        try {
+          const b64 = await getBase64FromUrl(orgLogoUrl);
+          if (b64) {
+            doc.addImage(b64, "PNG", 14, 10, 22, 22);
+          }
+        } catch (e) {
+          console.warn("Org Logo failed", e);
+        }
+      }
 
       // 1. Header & Branding (Centered)
       const pageWidth = doc.internal.pageSize.getWidth();
@@ -395,6 +408,7 @@ export default function PlayersRegistry() {
            doc.setFontSize(8);
            doc.setTextColor(150);
            doc.text(str, data.settings.margin.left, doc.internal.pageSize.getHeight() - 10);
+           doc.text("Designed by Ravikumar K P", doc.internal.pageSize.getWidth() / 2, doc.internal.pageSize.getHeight() - 10, { align: "center" });
         }
       });
 
