@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { User, Search, Plus, Filter, AlertTriangle, ShieldCheck, Check, X, AlertCircle, Hash, Trophy, MousePointer2, Edit3, FileSpreadsheet, RefreshCw } from "lucide-react";
+import { User, Search, Plus, Filter, AlertTriangle, ShieldCheck, Check, X, AlertCircle, Hash, Trophy, MousePointer2, Edit3, FileSpreadsheet, RefreshCw, Download } from "lucide-react";
 import * as XLSX from "xlsx";
 import { useAuction } from "../layout";
 import { io } from "socket.io-client";
 import ImageEditModal from "../../../components/ImageEditModal";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 let socket;
 
@@ -29,6 +31,7 @@ export default function PlayersRegistry() {
   const [isImporting, setIsImporting] = useState(false);
   const [confirmText, setConfirmText] = useState("");
   const [editImageTarget, setEditImageTarget] = useState(null); // { id, url, type }
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
 
   useEffect(() => {
     if (selectedAuction?._id) {
@@ -197,6 +200,182 @@ export default function PlayersRegistry() {
     }
   };
 
+  const getBase64FromUrl = async (url) => {
+    try {
+      // Use proxy to avoid CORS issues with S3/Drive
+      const proxyUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/proxy-image?url=${encodeURIComponent(url)}`;
+      const res = await fetch(proxyUrl);
+      if (!res.ok) return null;
+      const blob = await res.blob();
+
+      return await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.readAsDataURL(blob);
+      });
+    } catch (err) {
+      console.error("Base64 conversion failed:", err);
+      return null;
+    }
+  };
+
+  const compressImage = (base64, quality = 0.5) => {
+    return new Promise((resolve) => {
+      const img = new window.Image();
+      img.src = base64;
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        const size = 100; // Small fixed size for PDF performance
+        canvas.width = size;
+        canvas.height = size;
+        ctx.drawImage(img, 0, 0, size, size);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = () => resolve(null);
+    });
+  };
+
+  const downloadPlayersPDF = async () => {
+    if (!filtered || filtered.length === 0) {
+      alert("No athletes found for the current search/filter.");
+      return;
+    }
+
+    setIsDownloadingPdf(true);
+    try {
+      const doc = new jsPDF();
+      const tournamentName = selectedAuction?.name || "Tournament";
+
+      // 1. Header & Branding (Centered)
+      const pageWidth = doc.internal.pageSize.getWidth();
+      
+      doc.setFont(undefined, "bold");
+      doc.setFontSize(22);
+      doc.setTextColor(15, 23, 42); 
+      doc.text("PARMESHWAR CUP - 2026", pageWidth / 2, 18, { align: "center" });
+      
+      doc.setFont(undefined, "normal");
+      doc.setFontSize(12);
+      doc.setTextColor(10, 10, 10);
+      doc.text("Registered Players List!", pageWidth / 2, 26, { align: "center" });
+      
+      doc.setFontSize(8);
+      doc.setTextColor(100, 116, 139); 
+      doc.text(`Official Record: ${tournamentName}`, pageWidth / 2, 33, { align: "center" });
+      doc.text(`Exported: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`, pageWidth / 2, 38, { align: "center" });
+
+      // Title line
+      doc.setDrawColor(200, 200, 200);
+      doc.line(14, 42, pageWidth - 14, 42);
+
+      // STEP 1 — Prepare Compressed Data Objects
+      const rawData = await Promise.all(
+        [...filtered].sort((a,b) => (a.applicationId || 0) - (b.applicationId || 0)).map(async (p, i) => {
+          const imgUrl = p.imageUrl || p.image;
+          let imgData = null;
+          
+          if (imgUrl) {
+             const base64 = await getBase64FromUrl(imgUrl);
+             if (base64) {
+                imgData = await compressImage(base64); 
+             }
+          }
+          
+          return {
+            id: String(p.applicationId || i + 1),
+            image: imgData,
+            name: p.name || "N/A",
+            contact: String(p.mobile || p.phone || p.contactNumber || "-"),
+            role: String(p.role || "-"),
+            village: String(p.village || "-")
+          };
+        })
+      );
+
+      // STEP 2 — Build AutoTable (Final Stability Config)
+      autoTable(doc, {
+        theme: "grid", // 🔥 Extra Stability & Alignment
+        columns: [
+          { header: "Sl No", dataKey: "id" },
+          { header: "Image", dataKey: "image" },
+          { header: "Player Name", dataKey: "name" },
+          { header: "Contact", dataKey: "contact" },
+          { header: "Role", dataKey: "role" },
+          { header: "Village", dataKey: "village" }
+        ],
+        body: rawData,
+        startY: 48,
+        margin: { top: 45, bottom: 25 }, // 🔥 Balanced for centered header & footer
+        rowPageBreak: "avoid", // 🔥 Prevents splitting a single athlete across two pages
+        
+        styles: {
+          fontSize: 8.5, 
+          valign: "middle",
+          minCellHeight: 28, // 🔥 High-end Padding (Matches imgSize 18 + padding)
+          cellPadding: 2,
+        },
+        headStyles: {
+          fillColor: [16, 160, 120], 
+          textColor: 255,
+          fontStyle: "bold",
+          halign: "center",
+          fontSize: 10
+        },
+        columnStyles: {
+          id: { cellWidth: 12, halign: "center" },
+          image: { cellWidth: 26 }, 
+          name: { cellWidth: 40, fontStyle: "bold" },
+          contact: { cellWidth: 30 },
+          role: { cellWidth: 32 }, 
+          village: { cellWidth: 40 }
+        },
+        didParseCell: (data) => {
+          if (data.column.dataKey === "image" && data.section === "body") {
+            data.cell.text = ""; 
+          }
+        },
+        didDrawCell: (dataCell) => {
+          // STEP 3 — MANUALLY DRAW CENTERED IMAGES (Optimized for 28 height)
+          if (dataCell.column.dataKey === "image" && dataCell.row.section === "body") {
+            const item = dataCell.row.raw;
+            if (item?.image) {
+              const imgSize = 18; 
+              
+              // Perfectly center inside the now taller cells
+              const x = dataCell.cell.x + (dataCell.cell.width - imgSize) / 2;
+              const y = dataCell.cell.y + (dataCell.cell.height - imgSize) / 2;
+
+              try {
+                doc.addImage(item.image, "JPEG", x, y, imgSize, imgSize);
+                doc.setDrawColor(226, 232, 240);
+                doc.rect(x, y, imgSize, imgSize);
+              } catch (e) {
+                console.warn("Image skipped");
+              }
+            }
+          }
+        },
+        alternateRowStyles: {
+          fillColor: [245, 245, 245] 
+        },
+        didDrawPage: (data) => {
+           const str = "Page " + doc.internal.getNumberOfPages();
+           doc.setFontSize(8);
+           doc.setTextColor(150);
+           doc.text(str, data.settings.margin.left, doc.internal.pageSize.getHeight() - 10);
+        }
+      });
+
+      doc.save(`${tournamentName.replace(/\s+/g, '_')}_Registry.pdf`);
+    } catch (err) {
+      console.error("PDF Export failed:", err);
+      alert(`Export failed: ${err.message}`);
+    } finally {
+      setIsDownloadingPdf(false);
+    }
+  };
+
   const filtered = players.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
   if (!selectedAuction) return <div className="p-20 text-center text-slate-500">Select context...</div>;
@@ -229,6 +408,16 @@ export default function PlayersRegistry() {
            >
              <RefreshCw className="w-4 h-4" />
            </button>
+           
+           <button 
+             onClick={downloadPlayersPDF}
+             disabled={isDownloadingPdf}
+             className="px-6 py-3 bg-white/5 border border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white hover:border-violet-500/50 transition-all flex items-center gap-2 shadow-xl shadow-black/20 disabled:opacity-50"
+           >
+             {isDownloadingPdf ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+             {isDownloadingPdf ? "Compiling PDF..." : "Download PDF"}
+           </button>
+
             <label className="px-6 py-3 bg-white/5 border border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white hover:border-violet-500/50 transition-all flex items-center gap-2 cursor-pointer shadow-xl shadow-black/20">
               {isImporting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4" />}
               {isImporting ? "Processing..." : "Import Sheet"}

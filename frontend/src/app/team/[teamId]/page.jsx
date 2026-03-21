@@ -9,6 +9,8 @@ import { FaUsers, FaBolt, FaArrowLeft, FaDownload } from "react-icons/fa"
 import { MdAttachMoney } from "react-icons/md"
 import { GiCricketBat, GiTargetArrows } from "react-icons/gi"
 import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import "./team-squad.css"
 
 const getProxiedUrl = (url) => {
@@ -97,6 +99,7 @@ function TeamSquadContent() {
   const [players, setPlayers] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false)
 
   const teamId = params.teamId
   const tournamentId = searchParams.get('tournament')
@@ -134,6 +137,237 @@ function TeamSquadContent() {
       console.error("Download failed:", err);
     } finally {
       element.style.display = "none";
+    }
+  };
+
+  const getBase64FromUrl = async (url) => {
+    try {
+      const proxied = getProxiedUrl(url);
+      const res = await fetch(proxied);
+      if (!res.ok) return null;
+      const blob = await res.blob();
+      return await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.readAsDataURL(blob);
+      });
+    } catch (err) {
+      console.error("Base64 failed:", err);
+      return null;
+    }
+  };
+
+  const compressImage = (base64, quality = 0.5) => {
+    return new Promise((resolve) => {
+      const img = new window.Image();
+      img.src = base64;
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        const size = 120; // Slightly larger for squad view
+        canvas.width = size;
+        canvas.height = size;
+        ctx.drawImage(img, 0, 0, size, size);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = () => resolve(null);
+    });
+  };
+
+  const downloadSquadPDF = async () => {
+    if (!team || !squad.length) return;
+    setIsDownloadingPdf(true);
+
+    try {
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const tournamentTitle = "Parmeshwar Cup 2026";
+      const teamName = team.name?.toUpperCase() || "SQUAD LIST";
+      const budget = (team.purse || team.remainingBudget || 0).toLocaleString();
+      // FORCE RESET character spacing (IMPORTANT: Fixes stretched text "B u d g e t")
+      if (doc.setCharSpace) doc.setCharSpace(0);
+
+      // 1. Watermark (Subtle)
+      doc.saveGraphicsState();
+      doc.setGState(new doc.GState({ opacity: 0.04 }));
+      doc.setTextColor(200, 200, 200);
+      doc.setFontSize(50);
+      doc.text(tournamentTitle, pageWidth / 2, pageHeight / 2, {
+        align: "center",
+        angle: 45,
+      });
+      doc.restoreGraphicsState();
+      // 2. HEADER (Resetting char spacing again for absolute safety)
+      if (doc.setCharSpace) doc.setCharSpace(0);
+      doc.setFont(undefined, "bold");
+      doc.setFontSize(18);
+      doc.setTextColor(25, 50, 90);
+      doc.text(teamName, pageWidth / 2, 15, { align: "center" });
+
+      doc.setFont(undefined, "normal");
+      doc.setFontSize(11);
+      doc.setTextColor(40, 40, 40);
+      doc.text(tournamentTitle, 14, 22);
+      
+      // FIXED: Strictly right align at x=190 (SAFE DISTANCE FROM EDGE)
+      // Reinforcing Bold + No Char Spacing
+      if (doc.setCharSpace) doc.setCharSpace(0);
+      doc.setFont(undefined, "bold");
+      const budgetVal = Number(team.purse || team.remainingBudget || 0);
+      doc.text(`Budget Left: ₹${budgetVal.toLocaleString("en-IN")}`, 190, 22, { align: "right" });
+      doc.setFont(undefined, "normal"); // Reset for rest of header
+
+      // Divider Line
+      doc.setDrawColor(220, 220, 220);
+      doc.line(14, 28, 196, 28);
+
+      // 3. SECTION 1: RETAINED PLAYERS
+      const iconPlayers = squad.filter(p => !!p.isIcon);
+      const auctionPlayers = squad.filter(p => !p.isIcon && p.status === 'sold');
+      
+      let currentY = 32;
+      if (iconPlayers.length > 0) {
+        doc.setFontSize(13);
+        doc.setTextColor(40, 40, 40);
+        doc.setFont(undefined, "bold");
+        doc.text("Retained Players", 14, 35);
+        
+        // Container Box (User requested 180x50)
+        doc.setDrawColor(220, 220, 220);
+        doc.setFillColor(252, 252, 253);
+        doc.rect(14, 38, 180, 50, "F");
+        doc.rect(14, 38, 180, 50);
+
+        // Center players inside the box
+        let startX = 40; 
+        let imgY = 43;
+        
+        for (const p of iconPlayers) {
+          const rawImg = await getBase64FromUrl(p.imageUrl || p.image);
+          const compImg = rawImg ? await compressImage(rawImg, 0.7) : null;
+          
+          if (compImg) {
+            doc.addImage(compImg, "JPEG", startX, imgY, 20, 20);
+            doc.setDrawColor(16, 185, 129); 
+            doc.rect(startX, imgY, 20, 20);
+          }
+
+          doc.setFontSize(10);
+          doc.setTextColor(15, 23, 42);
+          doc.setFont(undefined, "bold");
+          doc.text(p.name?.substring(0, 15) || "Player", startX + 10, imgY + 25, { align: "center" });
+
+          doc.setFontSize(8);
+          doc.setTextColor(16, 185, 129);
+          doc.setFont(undefined, "normal");
+          doc.text("Retained", startX + 10, imgY + 30, { align: "center" });
+
+          startX += 50; 
+        }
+      }
+
+      // 4. SECTION 2: BOUGHT PLAYERS (TABLE)
+      if (doc.setCharSpace) doc.setCharSpace(0); // Safety reset for table
+      doc.setFontSize(13);
+      doc.setTextColor(40, 40, 40);
+      doc.setFont(undefined, "bold");
+      doc.text("Bought Players", 14, 95);
+
+      // Map players with proper currency format
+      const tableData = await Promise.all(auctionPlayers.map(async (p, i) => {
+        const rawImg = await getBase64FromUrl(p.photo?.s3 || p.imageUrl || p.image);
+        const compressed = rawImg ? await compressImage(rawImg, 0.6) : null;
+        return {
+          id: i + 1,
+          image: compressed,
+          name: p.name || "-",
+          role: p.role || "-",
+          village: p.village || "-",
+          price: `₹${Number(p.soldPrice || 0).toLocaleString("en-IN")}`
+        };
+      }));
+
+      autoTable(doc, {
+        startY: 100,
+        columns: [
+          { header: "Sl No", dataKey: "id" },
+          { header: "Photo", dataKey: "image" },
+          { header: "Player Name", dataKey: "name" },
+          { header: "Role", dataKey: "role" },
+          { header: "Village", dataKey: "village" },
+          { header: "Sold Price", dataKey: "price" }
+        ],
+        body: tableData,
+        theme: 'striped',
+        headStyles: { 
+          fillColor: [25, 50, 90], 
+          textColor: 255, 
+          fontStyle: 'bold',
+          halign: 'center',
+          fontSize: 10
+        },
+        styles: { 
+          fontSize: 10, 
+          valign: 'middle', 
+          minCellHeight: 18,
+          overflow: "linebreak",
+          cellPadding: 3 
+        },
+        columnStyles: {
+           id: { halign: 'center', cellWidth: 15 },
+           image: { cellWidth: 20 },
+           name: { fontStyle: 'bold', cellWidth: 45 },
+           role: { cellWidth: 35 },
+           village: { cellWidth: 35 },
+           price: { halign: 'right', fontStyle: 'bold', cellWidth: 35 }
+        },
+        didParseCell: (data) => {
+          if (data.column.dataKey === 'image' && data.section === 'body') {
+            data.cell.text = ""; 
+          }
+          if (data.column.dataKey === 'price') {
+            data.cell.styles.halign = "right"; // FORCED Double-safety
+            if (data.section === 'body') {
+               data.cell.styles.textColor = [0, 150, 0];
+            }
+          }
+        },
+        didDrawCell: (dataCell) => {
+          if (dataCell.column.dataKey === 'image' && dataCell.row.section === 'body') {
+            const item = dataCell.row.raw;
+            if (item?.image) {
+              const size = 14;
+              const x = dataCell.cell.x + (dataCell.cell.width - size) / 2;
+              const y = dataCell.cell.y + (dataCell.cell.height - size) / 2;
+              try {
+                doc.addImage(item.image, "JPEG", x, y, size, size);
+              } catch (e) {
+                console.warn("Table img skipped");
+              }
+            }
+          }
+        }
+      });
+
+      // 5. Footer (Page Numbers)
+      const totalPages = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setDrawColor(220, 220, 220);
+        doc.line(14, pageHeight - 15, 196, pageHeight - 15);
+        doc.setTextColor(150);
+        doc.text(`Page ${i} of ${totalPages}`, 196, pageHeight - 10, { align: "right" });
+        doc.text(`${team.name} Official Squad Report`, 14, pageHeight - 10);
+      }
+
+      doc.save(`${team.name.replace(/\s+/g, '_')}_Official_Squad.pdf`);
+    } catch (err) {
+      console.error("PDF Export failed:", err);
+      alert("Failed to export professional squad report.");
+    } finally {
+      setIsDownloadingPdf(false);
     }
   };
 
@@ -316,7 +550,43 @@ function TeamSquadContent() {
                 e.currentTarget.style.boxShadow = 'none'
               }}
             >
-              <FaDownload /> Download Squad
+              <FaDownload /> Image
+            </button>
+
+            <button 
+              onClick={downloadSquadPDF}
+              disabled={isDownloadingPdf}
+              className="download-pdf-btn"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 16px',
+                borderRadius: '8px',
+                background: 'rgba(124, 58, 237, 0.1)', 
+                border: '1px solid rgba(124, 58, 237, 0.4)',
+                color: '#a78bfa',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '600',
+                transition: 'all 0.2s ease',
+                opacity: isDownloadingPdf ? 0.6 : 1
+              }}
+              onMouseEnter={(e) => {
+                if (!isDownloadingPdf) {
+                  e.currentTarget.style.background = 'rgba(124, 58, 237, 0.2)'
+                  e.currentTarget.style.boxShadow = '0 0 15px rgba(124, 58, 237, 0.2)'
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(124, 58, 237, 0.1)'
+                e.currentTarget.style.boxShadow = 'none'
+              }}
+            >
+              {isDownloadingPdf ? (
+                 <div className="animate-spin" style={{ width: '14px', height: '14px', border: '2px solid transparent', borderTopColor: 'currentColor', borderRadius: '50%' }}></div>
+              ) : <FaDownload />}
+              {isDownloadingPdf ? 'Exporting...' : 'PDF Report'}
             </button>
           </div>
 
