@@ -246,53 +246,52 @@ function TeamSquadContent() {
       doc.line(14, 28, 196, 28);
 
       // 3. SECTION 1: RETAINED PLAYERS
-      const iconPlayers = squad.filter(p => !!p.isIcon);
+      // 3. SECTION 1: RETAINED PLAYERS (ALWAYS SHOW 3 SLOTS AS REQUESTED)
+      const actualIcons = squad.filter(p => !!p.isIcon);
+      const iconPlayers = actualIcons.length > 0 ? actualIcons : Array(3).fill({ name: "To be confirmed", isPlaceholder: true });
       const auctionPlayers = squad.filter(p => !p.isIcon && p.status === 'sold');
       
-      let currentY = 32;
-      if (iconPlayers.length > 0) {
-        doc.setFontSize(13);
-        doc.setTextColor(40, 40, 40);
-        doc.setFont(undefined, "bold");
-        doc.text("Retained Players", 14, 35);
+      doc.setFontSize(13);
+      doc.setTextColor(40, 40, 40);
+      doc.setFont(undefined, "bold");
+      doc.text("Retained Players", 14, 35);
+      
+      // Container Box (180x50)
+      doc.setDrawColor(220, 220, 220);
+      doc.setFillColor(252, 252, 253);
+      doc.rect(14, 38, 180, 50, "F");
+      doc.rect(14, 38, 180, 50);
+
+      // Center players inside the box (Proper grid for 3 items)
+      // pageWidth is ~210. Box is 180 (from x=14 to x=194).
+      // For 3 items we use 50 spacing. 150 total width.
+      let startX = (pageWidth / 2) - ((iconPlayers.length * 50) / 2) + 15; 
+      let imgY = 43;
+      
+      for (const p of iconPlayers) {
+        // Fallback to Team Logo for placeholders
+        const photoUrl = p.isPlaceholder ? (team.logo || team.logoUrl) : (p.photo?.s3 || p.imageUrl || p.image || team.logo || team.logoUrl);
+        const rawImg = await getBase64FromUrl(photoUrl);
+        const compImg = rawImg ? await compressImage(rawImg, 0.7) : null;
         
-        // Container Box (User requested 180x50)
-        doc.setDrawColor(220, 220, 220);
-        doc.setFillColor(252, 252, 253);
-        doc.rect(14, 38, 180, 50, "F");
-        doc.rect(14, 38, 180, 50);
-
-        // Center players inside the box
-        let startX = 40; 
-        let imgY = 43;
-        
-        for (const p of iconPlayers) {
-          // Fallback to Team Logo if no player photo is provided
-          const playerPhoto = p.photo?.s3 || p.imageUrl || p.image;
-          const fallbackPhoto = team.logo || team.logoUrl;
-          const rawImg = await getBase64FromUrl(playerPhoto || fallbackPhoto);
-          const compImg = rawImg ? await compressImage(rawImg, 0.7) : null;
-          
-          if (compImg) {
-            doc.addImage(compImg, "JPEG", startX, imgY, 20, 20);
-            doc.setDrawColor(16, 185, 129); 
-            doc.rect(startX, imgY, 20, 20);
-          }
-
-          doc.setFontSize(10);
-          doc.setTextColor(15, 23, 42);
-          doc.setFont(undefined, "bold");
-          // Fallback to "To be confirmed" for missing names
-          const playerName = p.name?.trim() ? p.name.substring(0, 15) : "To be confirmed";
-          doc.text(playerName, startX + 10, imgY + 25, { align: "center" });
-
-          doc.setFontSize(8);
-          doc.setTextColor(16, 185, 129);
-          doc.setFont(undefined, "normal");
-          doc.text("Retained", startX + 10, imgY + 30, { align: "center" });
-
-          startX += 50; 
+        if (compImg) {
+          doc.addImage(compImg, "JPEG", startX, imgY, 20, 20);
+          doc.setDrawColor(16, 185, 129); 
+          doc.rect(startX, imgY, 20, 20);
         }
+
+        doc.setFontSize(10);
+        doc.setTextColor(15, 23, 42);
+        doc.setFont(undefined, "bold");
+        const pName = p.name ? p.name.substring(0, 15) : "To be confirmed";
+        doc.text(pName, startX + 10, imgY + 25, { align: "center" });
+
+        doc.setFontSize(8);
+        doc.setTextColor(16, 185, 129);
+        doc.setFont(undefined, "normal");
+        doc.text("Retained", startX + 10, imgY + 30, { align: "center" });
+
+        startX += 50; 
       }
 
       // 4. SECTION 2: BOUGHT PLAYERS (TABLE)
