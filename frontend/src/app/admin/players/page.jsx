@@ -150,23 +150,6 @@ export default function PlayersRegistry() {
     reader.readAsBinaryString(file);
   };
 
-  const handleCleanupDuplicates = async () => {
-    if (!confirm("Keep only athletes 1 to 94 and remove everything else? This will restore your original list.")) return;
-    try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/players/reset-to-baseline`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ tournamentId: selectedAuction._id })
-        });
-        if (res.ok) {
-            const data = await res.json();
-            alert(`Reset complete! Removed ${data.removed} athletes. Original 1-94 are retained.`);
-            fetchData();
-        }
-    } catch (err) {
-        alert("Reset failed");
-    }
-  };
 
   const handleFinalConfirm = async () => {
     if (confirmText !== "CONFIRM") return;
@@ -458,13 +441,7 @@ export default function PlayersRegistry() {
               />
            </div>
 
-           <button 
-             onClick={handleCleanupDuplicates}
-             className="p-3 bg-red-500/10 text-red-500 border border-red-500/20 rounded-2xl hover:bg-red-500/20 transition-all active:scale-95 shadow-xl"
-             title="Clean Up Duplicates"
-           >
-             <RefreshCw className="w-4 h-4" />
-           </button>
+
            
            <button 
              onClick={downloadPlayersPDF}
