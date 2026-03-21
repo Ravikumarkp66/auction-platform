@@ -249,14 +249,14 @@ export default function PlayersRegistry() {
     }
   };
 
-  const compressImage = (base64, quality = 0.5) => {
+  const compressImage = (base64, quality = 0.95) => {
     return new Promise((resolve) => {
       const img = new window.Image();
       img.src = base64;
       img.onload = () => {
         const canvas = document.createElement("canvas");
         const ctx = canvas.getContext("2d");
-        const size = 100; // Small fixed size for PDF performance
+        const size = 500; // Increased resolution for better clarity
         canvas.width = size;
         canvas.height = size;
         ctx.drawImage(img, 0, 0, size, size);
@@ -377,11 +377,12 @@ export default function PlayersRegistry() {
               const y = dataCell.cell.y + (dataCell.cell.height - imgSize) / 2;
 
               try {
-                doc.addImage(item.image, "JPEG", x, y, imgSize, imgSize);
+                // Use JPEG with high quality
+                doc.addImage(item.image, "JPEG", x, y, imgSize, imgSize, undefined, "SLOW");
                 doc.setDrawColor(226, 232, 240);
                 doc.rect(x, y, imgSize, imgSize);
               } catch (e) {
-                console.warn("Image skipped");
+                console.warn("Image skipped", e);
               }
             }
           }
