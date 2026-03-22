@@ -106,7 +106,10 @@ function TeamSquadContent() {
   const [squadBg, setSquadBg] = useState('https://auction-platform-kp.s3.ap-south-1.amazonaws.com/backgrounds/ChatGPT+Image+Mar+19%2C+2026%2C+09_54_04+AM.png')
   const [activeAssets, setActiveAssets] = useState({
     squadBgUrl: "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/backgrounds/ChatGPT+Image+Mar+19%2C+2026%2C+09_54_04+AM.png",
-    badges: { leftBadge: "/badges/squad-badge.png", rightBadge: "/badges/badge.png" }
+    badges: { 
+      leftBadge: "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/public/ChatGPT+Image+Mar+18%2C+2026%2C+12_45_23+PM.png", 
+      rightBadge: "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/logos/WhatsApp+Image+2026-03-22+at+1.05.33+AM.jpeg" 
+    }
   })
 
   // Fetch images logic removed in favor of integrated tournament.assets
@@ -432,7 +435,10 @@ function TeamSquadContent() {
              const tAssets = tournamentData.tournament.assets;
              setActiveAssets({
                 squadBgUrl: tAssets.squadBgUrl || "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/backgrounds/ChatGPT+Image+Mar+19%2C+2026%2C+09_54_04+AM.png",
-                badges: tAssets.badges || { leftBadge: "/badges/squad-badge.png", rightBadge: "/badges/badge.png" }
+                badges: tAssets.badges || { 
+                  leftBadge: "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/public/ChatGPT+Image+Mar+18%2C+2026%2C+12_45_23+PM.png", 
+                  rightBadge: "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/logos/WhatsApp+Image+2026-03-22+at+1.05.33+AM.jpeg" 
+                }
              });
              setSquadBg(tAssets.squadBgUrl || "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/backgrounds/ChatGPT+Image+Mar+19%2C+2026%2C+09_54_04+AM.png");
           }
@@ -507,13 +513,13 @@ function TeamSquadContent() {
 
       {/* TOURNAMENT BADGES (EXTREME RIGHT POSITIONING) */}
       <img 
-        src={activeAssets.badges?.leftBadge || "/badges/squad-badge.png"}
+        src={activeAssets.badges?.leftBadge || "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/public/ChatGPT+Image+Mar+18%2C+2026%2C+12_45_23+PM.png"}
         crossOrigin="anonymous" 
         alt="Tournament Badge" 
         className="badge-top"
       />
       <img 
-        src={activeAssets.badges?.rightBadge || "/badges/badge.png"}
+        src={activeAssets.badges?.rightBadge || "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/logos/WhatsApp+Image+2026-03-22+at+1.05.33+AM.jpeg"}
         crossOrigin="anonymous" 
         alt="Creator Logo" 
         className="badge-bottom"
