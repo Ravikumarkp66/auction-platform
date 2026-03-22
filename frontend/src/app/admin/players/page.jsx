@@ -8,6 +8,7 @@ import { io } from "socket.io-client";
 import ImageEditModal from "../../../components/ImageEditModal";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { uploadToS3 } from "../../../lib/uploadToS3";
 
 let socket;
 
@@ -27,7 +28,20 @@ export default function PlayersRegistry() {
   // Form States
   const [editingPlayer, setEditingPlayer] = useState(null);
   const [formData, setFormData] = useState({});
-  const [newPlayer, setNewPlayer] = useState({ name: "", role: "Batsman", basePrice: 100, isIcon: false, status: "available", teamId: "" });
+  const [newPlayer, setNewPlayer] = useState({ 
+    name: "", 
+    role: "All-Rounder", 
+    basePrice: 100, 
+    isIcon: false, 
+    status: "available", 
+    teamId: "",
+    age: 20,
+    village: "",
+    mobile: "",
+    battingStyle: "Right Hand Bat",
+    bowlingStyle: "Right arm fast",
+    photo: null
+  });
   const [isImporting, setIsImporting] = useState(false);
   const [confirmText, setConfirmText] = useState("");
   const [editImageTarget, setEditImageTarget] = useState(null); // { id, url, type }
@@ -65,18 +79,48 @@ export default function PlayersRegistry() {
   useEffect(() => { fetchData(); }, [activeTab]);
 
   const handleAddPlayer = async () => {
+    if (!newPlayer.name) return alert("Please enter player name");
+    
+    setLoading(true);
     try {
+       // 1. Upload Photo if selected
+       let photoUrl = "";
+       if (newPlayer.photo) {
+         photoUrl = await uploadToS3(newPlayer.photo, "players");
+       }
+
+       // 2. Save Player
        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/players`, {
          method: "POST",
          headers: { "Content-Type": "application/json" },
-         body: JSON.stringify({ ...newPlayer, tournamentId: selectedAuction._id })
+         body: JSON.stringify({ 
+           ...newPlayer, 
+           tournamentId: selectedAuction._id,
+           imageUrl: photoUrl,
+           photo: { s3: photoUrl } 
+         })
        });
+       
        if (res.ok) {
+         const addedP = await res.json();
+         alert(`Athlete ${addedP.name} added successfully with ID ${addedP.applicationId}`);
          setIsAddModalOpen(false);
-         setNewPlayer({ name: "", role: "Batsman", basePrice: 100, isIcon: false, status: "available", teamId: "" });
+         setNewPlayer({ 
+            name: "", role: "All-Rounder", basePrice: 100, isIcon: false, status: "available", teamId: "",
+            age: 20, village: "", mobile: "", battingStyle: "Right Hand Bat", bowlingStyle: "Right arm fast", photo: null
+         });
          fetchData();
+         socket.emit("auctionUpdate", { type: "system_refresh", auctionId: selectedAuction._id });
+       } else {
+         const err = await res.json();
+         alert(`Failed to add: ${err.message}`);
        }
-    } catch (err) { alert("Error adding player"); }
+    } catch (err) { 
+      console.error(err);
+      alert("Error adding athlete: " + err.message); 
+    } finally {
+      setLoading(false);
+    }
   };
 
   const openManageModal = (p) => {
@@ -573,45 +617,115 @@ export default function PlayersRegistry() {
         </div>
       </div>
 
-      {/* ── ADD PLAYER MODAL ── */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm">
-           <div className="bg-[#0f172a] border border-white/10 rounded-[2.5rem] w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95">
+           <div className="bg-[#0f172a] border border-white/10 rounded-[2.5rem] w-full max-w-2xl overflow-hidden shadow-2xl animate-in zoom-in-95">
               <div className="px-8 py-6 border-b border-white/5 flex items-center justify-between">
-                 <h2 className="text-xl font-black text-white">New <span className="text-violet-500">Athlete</span></h2>
+                 <h2 className="text-xl font-black text-white">Manual <span className="text-violet-500">Athlete Entry</span></h2>
                  <button onClick={() => setIsAddModalOpen(false)} className="p-2 hover:bg-white/5 rounded-full"><X className="w-5 h-5 text-slate-500" /></button>
               </div>
-              <div className="p-8 space-y-4">
-                 <div className="space-y-1.5"><label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Name</label>
-                 <input className="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-violet-500" value={newPlayer.name} onChange={e => setNewPlayer({...newPlayer, name: e.target.value})} /></div>
-                 
-                 <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5"><label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Role</label>
-                    <select className="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-violet-500" value={newPlayer.role} onChange={e => setNewPlayer({...newPlayer, role: e.target.value})}>
-                       {["Batsman", "Bowler", "All-Rounder", "Wicket Keeper", "WK-Batsman"].map(r => <option key={r}>{r}</option>)}
-                    </select></div>
-                    <div className="space-y-1.5"><label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Base Price (₹)</label>
-                    <input type="number" className="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-violet-500" value={newPlayer.basePrice} onChange={e => setNewPlayer({...newPlayer, basePrice: e.target.value})} /></div>
-                 </div>
+              <div className="p-8 space-y-6 max-h-[80vh] overflow-y-auto custom-scrollbar">
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Left Column */}
+                    <div className="space-y-4">
+                       <div className="space-y-1.5">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Full Name</label>
+                          <input className="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-violet-500" value={newPlayer.name} onChange={e => setNewPlayer({...newPlayer, name: e.target.value})} placeholder="Athlete Name" />
+                       </div>
 
-                 <div className="flex items-center gap-2 p-3 bg-white/5 rounded-xl border border-white/5">
-                    <input type="checkbox" className="w-4 h-4 rounded border-white/10 accent-violet-500" checked={newPlayer.isIcon} onChange={e => setNewPlayer({...newPlayer, isIcon: e.target.checked})} id="icon-check" />
-                    <label htmlFor="icon-check" className="text-xs font-black text-slate-400 uppercase tracking-widest cursor-pointer">Mark as Icon Player</label>
+                       <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1.5">
+                             <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Age</label>
+                             <input type="number" className="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-violet-500" value={newPlayer.age} onChange={e => setNewPlayer({...newPlayer, age: parseInt(e.target.value)})} />
+                          </div>
+                          <div className="space-y-1.5">
+                             <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Mobile</label>
+                             <input className="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-violet-500" value={newPlayer.mobile} onChange={e => setNewPlayer({...newPlayer, mobile: e.target.value})} placeholder="Contact No" />
+                          </div>
+                       </div>
+
+                       <div className="space-y-1.5">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Village/Town</label>
+                          <input className="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-violet-500" value={newPlayer.village} onChange={e => setNewPlayer({...newPlayer, village: e.target.value})} placeholder="Location" />
+                       </div>
+
+                       <div className="space-y-1.5">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Playing Role</label>
+                          <select className="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-violet-500 cursor-pointer" value={newPlayer.role} onChange={e => setNewPlayer({...newPlayer, role: e.target.value})}>
+                             {["All-Rounder", "Batsman", "Bowler", "Wicketkeeper", "WK-Batsman"].map(r => <option key={r} value={r}>{r}</option>)}
+                          </select>
+                       </div>
+                    </div>
+
+                    {/* Right Column */}
+                    <div className="space-y-4">
+                       <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1.5">
+                             <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Batting Style</label>
+                             <select className="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-violet-500 cursor-pointer" value={newPlayer.battingStyle} onChange={e => setNewPlayer({...newPlayer, battingStyle: e.target.value})}>
+                                <option value="Right Hand Bat">Right Hand Bat</option>
+                                <option value="Left Hand Bat">Left Hand Bat</option>
+                             </select>
+                          </div>
+                          <div className="space-y-1.5">
+                             <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Base Price (₹)</label>
+                             <input type="number" className="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-violet-500" value={newPlayer.basePrice} onChange={e => setNewPlayer({...newPlayer, basePrice: parseInt(e.target.value)})} />
+                          </div>
+                       </div>
+
+                       <div className="space-y-1.5">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Bowling Style</label>
+                          <input className="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-violet-500" value={newPlayer.bowlingStyle} onChange={e => setNewPlayer({...newPlayer, bowlingStyle: e.target.value})} placeholder="e.g. Right arm fast" />
+                       </div>
+
+                       <div className="space-y-1.5">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Athlete Photo</label>
+                          <div className="relative h-28 bg-white/5 border-2 border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center group hover:border-violet-500/50 transition-all">
+                             {newPlayer.photo ? (
+                                <div className="text-center">
+                                   <p className="text-[10px] font-black text-emerald-500 uppercase">Selected: {newPlayer.photo.name}</p>
+                                   <button type="button" onClick={() => setNewPlayer({...newPlayer, photo: null})} className="text-[8px] text-red-400 font-bold uppercase hover:underline mt-1">Remove</button>
+                                </div>
+                             ) : (
+                                <>
+                                   <Plus className="w-6 h-6 text-slate-600 group-hover:text-violet-500 transition-colors" />
+                                   <p className="text-[10px] font-black text-slate-600 uppercase mt-1">Select Image</p>
+                                </>
+                             )}
+                             <input type="file" accept="image/*" onChange={e => setNewPlayer({...newPlayer, photo: e.target.files[0]})} className="absolute inset-0 opacity-0 cursor-pointer" />
+                          </div>
+                       </div>
+
+                       <div className="flex items-center gap-2 p-3 bg-white/5 rounded-xl border border-white/5">
+                          <input type="checkbox" className="w-4 h-4 rounded border-white/10 accent-violet-500" checked={newPlayer.isIcon} onChange={e => setNewPlayer({...newPlayer, isIcon: e.target.checked})} id="icon-check" />
+                          <label htmlFor="icon-check" className="text-xs font-black text-slate-400 uppercase tracking-widest cursor-pointer">Mark as Icon Player</label>
+                       </div>
+                    </div>
                  </div>
 
                  {newPlayer.isIcon && (
-                    <div className="space-y-1.5 animate-in slide-in-from-top-2"><label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Assigned Team</label>
-                    <select className="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-violet-500" value={newPlayer.teamId} onChange={e => setNewPlayer({...newPlayer, teamId: e.target.value})}>
-                       <option value="">Select Team</option>
-                       {teams.map(t => <option key={t._id} value={t._id}>{t.name}</option>)}
-                    </select></div>
+                    <div className="space-y-1.5 animate-in slide-in-from-top-2 border-t border-white/5 pt-4">
+                       <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Assigned Team</label>
+                       <select className="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-violet-500" value={newPlayer.teamId} onChange={e => setNewPlayer({...newPlayer, teamId: e.target.value})}>
+                          <option value="">Select Team</option>
+                          {teams.map(t => <option key={t._id} value={t._id}>{t.name}</option>)}
+                       </select>
+                    </div>
                  )}
 
-                 <button onClick={handleAddPlayer} className="w-full py-4 bg-gradient-to-r from-violet-600 to-cyan-500 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white shadow-xl shadow-violet-500/20 hover:scale-105 transition-all mt-4">Initialize Data</button>
+                 <button 
+                   onClick={handleAddPlayer} 
+                   disabled={loading}
+                   className="w-full py-4 bg-gradient-to-r from-violet-600 to-cyan-500 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-white shadow-xl shadow-violet-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all mt-4 flex items-center justify-center gap-2 disabled:opacity-50"
+                 >
+                    {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+                    {loading ? "INITIALIZING..." : "UPLOAD & SAVE ATHLETE"}
+                 </button>
               </div>
            </div>
         </div>
       )}
+
 
       {/* ── MANAGE/EDIT MODAL ── */}
       {isManageModalOpen && (

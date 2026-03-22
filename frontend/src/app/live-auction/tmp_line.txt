@@ -1,0 +1,7 @@
+﻿
+              backgroundUrl: t
+ournament.assets.backgroundUrl
+ || 
+"/backgrounds/auction-bg.jpg",
+
+
