@@ -144,9 +144,7 @@ export default function OverlayPage() {
 
         s.on("auctionUpdate", (data) => {
           setAuction(data)
-          if (data.tournament?.assets?.splashUrl) {
-            setSplashUrl(data.tournament.assets.splashUrl);
-          }
+          setSplashUrl(data.tournament?.assets?.splashUrl || '/splash-screen.png');
           if (data.tournament?.pools) {
             const teamsList = data.teams || [];
             setPoolA((data.tournament.pools.poolA || []).map(id => teamsList.find(t => t._id === id || t.id === id)).filter(Boolean));
@@ -268,6 +266,18 @@ export default function OverlayPage() {
           </div>
         </div>
       </div>
+    )
+  }
+
+  // Pool draw takes HIGHEST PRIORITY — admin has explicitly activated it
+  if (showPoolView) {
+    return (
+      <>
+        <TeamDrawOverlay poolA={poolA} poolB={poolB} drawEvent={drawEvent} />
+        {drawEvent && (
+          <TeamDrawCinematic event={drawEvent} onComplete={() => setDrawEvent(null)} />
+        )}
+      </>
     )
   }
 
@@ -408,65 +418,47 @@ export default function OverlayPage() {
     )
   }
 
-  if (showPoolView) {
-    return (
-      <>
-        <TeamDrawOverlay poolA={poolA} poolB={poolB} drawEvent={drawEvent} />
-        {drawEvent && (
-          <TeamDrawCinematic event={drawEvent} onComplete={() => setDrawEvent(null)} />
-        )}
-      </>
-    )
-  }
-
   if (!auction || !auction.player) {
-    // Waiting state - same golden background, different text
+    // Waiting state - same golden background, but now with a PREMIUM BROADCAST STANDBY message
     return (
       <div 
-        className="min-h-screen w-full flex items-center justify-center relative overflow-hidden"
-        style={{
-          backgroundImage: `url('${splashUrl}')`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat'
-        }}
+        className="min-h-screen w-full flex items-center justify-center relative overflow-hidden bg-slate-950"
       >
-        {/* Waiting text with blinking dot */}
-        <div 
-          className="text-center"
-          style={{
-            animation: 'fadePulse 2s infinite ease-in-out'
-          }}
-        >
-          <p 
-            className="text-white font-black uppercase tracking-[6px] flex items-center justify-center gap-3"
-            style={{
-              fontSize: '28px',
-              textShadow: '0 0 10px rgba(255,255,255,0.4), 0 0 20px rgba(255,200,0,0.5)'
-            }}
-          >
-            <span 
-              className="w-3 h-3 rounded-full"
-              style={{
-                backgroundColor: '#00ffcc',
-                animation: 'blink 1s infinite',
-                boxShadow: '0 0 10px #00ffcc'
-              }}
-            />
-            WAITING FOR BROADCAST
-          </p>
-        </div>
+        <img 
+          src={splashUrl || '/splash-screen.png'} 
+          className="absolute inset-0 w-full h-full object-cover opacity-100 transition-transform duration-1000 rotate-0 scale-100 group-hover:scale-105" 
+          alt="Splash" 
+        />
         
-        {/* Animations */}
+        {/* Cinematic Overlay to make it feel premium */}
+        <div 
+          className="absolute inset-0"
+          style={{
+            background: 'radial-gradient(circle at 50% 50%, transparent 0%, rgba(0,0,0,0.5) 100%)'
+          }}
+        />
+
+        {/* PREMIUM BROADCAST STANDBY BADGE - CENTERED (Responsive) */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 w-full px-4 flex flex-col items-center gap-6">
+          <div className="flex items-center gap-3 md:gap-5 bg-black/40 backdrop-blur-3xl px-6 md:px-12 py-4 md:py-6 rounded-2xl md:rounded-[2.5rem] border border-white/20 shadow-[0_0_100px_rgba(0,0,0,0.8)] animate-pulse">
+            <div className="relative flex h-3 w-3 md:h-4 md:w-4">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 md:h-4 md:w-4 bg-emerald-500"></span>
+            </div>
+            <span className="text-[12px] md:text-[24px] font-black uppercase tracking-[0.3em] md:tracking-[0.6em] text-white whitespace-nowrap leading-none">Waiting for Broadcast</span>
+          </div>
+        </div>
+
+        {/* Subtle animated light sweep */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-0 -left-full w-1/2 h-full bg-gradient-to-r from-transparent via-white/5 to-transparent skew-x-[-25deg] animate-[sweep_4s_infinite_ease-in-out]"></div>
+        </div>
+
         <style jsx>{`
-          @keyframes fadePulse {
-            0% { opacity: 0.5; }
-            50% { opacity: 1; }
-            100% { opacity: 0.5; }
-          }
-          @keyframes blink {
-            0%, 100% { opacity: 0; }
-            50% { opacity: 1; }
+          @keyframes sweep {
+            0% { left: -100%; }
+            50% { left: 150%; }
+            100% { left: 150%; }
           }
         `}</style>
       </div>

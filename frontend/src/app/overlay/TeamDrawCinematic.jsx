@@ -9,11 +9,11 @@ export default function TeamDrawCinematic({ event, onComplete }) {
   useEffect(() => {
     if (!event) return;
 
-    // Phase Transitions
-    const t1 = setTimeout(() => setPhase("reveal"), 2000);
-    const t2 = setTimeout(() => setPhase("announce"), 4500);
-    const t3 = setTimeout(() => setPhase("move"), 7000);
-    const t4 = setTimeout(() => onComplete(), 9500);
+    // Shorter Phase Transitions for a snappier feel
+    const t1 = setTimeout(() => setPhase("reveal"), 800);
+    const t2 = setTimeout(() => setPhase("announce"), 2200);
+    const t3 = setTimeout(() => setPhase("move"), 3500);
+    const t4 = setTimeout(() => onComplete(), 4800);
 
     return () => {
       clearTimeout(t1);
@@ -110,7 +110,7 @@ export default function TeamDrawCinematic({ event, onComplete }) {
                scale: 0.2,
                opacity: 0
              }}
-             transition={{ duration: 2, ease: "easeInOut" }}
+             transition={{ duration: 1, ease: "easeInOut" }}
              className="relative"
            >
               <div className="w-80 h-80 bg-slate-800 rounded-full border-8 border-amber-500 overflow-hidden shadow-2xl">
