@@ -4,7 +4,7 @@ import Image from "next/image";
 
 export default function SplashScreen({ src, title }) {
   const displayTitle = title || "Dr. G Parameshwar Cup";
-  const displaySrc = src || "/splash-screen.png";
+  const displaySrc = src || "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/backgrounds/1774129817002.png";
   return (
     <div className="fixed inset-0 bg-[#0a0f18] flex items-center justify-center overflow-hidden">
       {/* Background glow effect */}

@@ -135,7 +135,7 @@ export default function AuctionsPage() {
           <div className="absolute top-4 right-4 md:top-8 md:right-8 w-28 h-28 md:w-36 md:h-36 rounded-full overflow-hidden border-2 border-amber-400/50 shadow-[0_0_30px_rgba(251,191,36,0.3)] bg-gradient-to-br from-amber-500/20 to-amber-600/20 backdrop-blur-sm">
             <div className="relative w-full h-full">
               <Image 
-                src="/tournaments/organizer-logo.png" 
+                src="https://auction-platform-kp.s3.ap-south-1.amazonaws.com/public/ChatGPT+Image+Mar+18%2C+2026%2C+12_45_23+PM.png" 
                 alt="Dr. G Parameshwar Cup"
                 fill
                 className="object-cover"

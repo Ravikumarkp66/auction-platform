@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import { useState, useEffect, Suspense, useCallback } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
@@ -31,9 +31,9 @@ function LiveAuctionContent() {
 
   const [currentTournamentId, setCurrentTournamentId] = useState(tournamentId)
   const [activeAssets, setActiveAssets] = useState({
-    splashUrl: "",
+    splashUrl: "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/backgrounds/1774129817002.png",
     backgroundUrl: "/backgrounds/auction-bg.jpg",
-    badges: { leftBadge: "", rightBadge: "" }
+    badges: { leftBadge: "", rightBadge: "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/public/ChatGPT+Image+Mar+18%2C+2026%2C+12_45_23+PM.png" }
   });
 
   const [config, setConfig] = useState({ name: "", baseBudget: 0, totalTeams: 0 })
@@ -264,7 +264,7 @@ function LiveAuctionContent() {
               ...prev,
               splashUrl: tournament.assets.splashUrl || "",
               backgroundUrl: tournament.assets.backgroundUrl || "/backgrounds/auction-bg.jpg",
-              badges: tournament.assets.badges || { leftBadge: "", rightBadge: "" }
+              badges: tournament.assets.badges || { leftBadge: "", rightBadge: "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/public/ChatGPT+Image+Mar+18%2C+2026%2C+12_45_23+PM.png" }
            }));
            if (tournament.assets.backgroundUrl) setAuctionBg(tournament.assets.backgroundUrl);
         }

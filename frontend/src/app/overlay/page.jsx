@@ -44,7 +44,7 @@ export default function OverlayPage() {
   const [language, setLanguage] = useState('en')
   const [breakNow, setBreakNow] = useState(() => Date.now())
   const [focusMode, setFocusMode] = useState(false)
-  const [splashUrl, setSplashUrl] = useState('/splash-screen.png')
+  const [splashUrl, setSplashUrl] = useState('https://auction-platform-kp.s3.ap-south-1.amazonaws.com/backgrounds/1774129817002.png')
   const [poolA, setPoolA] = useState([])
   const [poolB, setPoolB] = useState([])
   const [drawEvent, setDrawEvent] = useState(null)
