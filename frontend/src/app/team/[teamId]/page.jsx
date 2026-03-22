@@ -103,9 +103,9 @@ function TeamSquadContent() {
 
   const teamId = params.teamId
   const tournamentId = searchParams.get('tournament')
-  const [squadBg, setSquadBg] = useState('/backgrounds/squad-bg.jpg')
+  const [squadBg, setSquadBg] = useState('https://auction-platform-kp.s3.ap-south-1.amazonaws.com/backgrounds/ChatGPT+Image+Mar+19%2C+2026%2C+09_54_04+AM.png')
   const [activeAssets, setActiveAssets] = useState({
-    squadBgUrl: "/backgrounds/squad-bg.jpg",
+    squadBgUrl: "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/backgrounds/ChatGPT+Image+Mar+19%2C+2026%2C+09_54_04+AM.png",
     badges: { leftBadge: "/badges/squad-badge.png", rightBadge: "/badges/badge.png" }
   })
 
@@ -431,10 +431,10 @@ function TeamSquadContent() {
           if (tournamentData.tournament?.assets) {
              const tAssets = tournamentData.tournament.assets;
              setActiveAssets({
-                squadBgUrl: tAssets.squadBgUrl || "/backgrounds/squad-bg.jpg",
+                squadBgUrl: tAssets.squadBgUrl || "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/backgrounds/ChatGPT+Image+Mar+19%2C+2026%2C+09_54_04+AM.png",
                 badges: tAssets.badges || { leftBadge: "/badges/squad-badge.png", rightBadge: "/badges/badge.png" }
              });
-             setSquadBg(tAssets.squadBgUrl || "/backgrounds/squad-bg.jpg");
+             setSquadBg(tAssets.squadBgUrl || "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/backgrounds/ChatGPT+Image+Mar+19%2C+2026%2C+09_54_04+AM.png");
           }
 
           const foundTeam = tournamentData.teams?.find(t => t._id === teamId)
