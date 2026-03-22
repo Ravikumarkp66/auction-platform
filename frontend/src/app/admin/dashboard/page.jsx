@@ -185,7 +185,7 @@ export default function AdminDashboard() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <ActionCard title="Manage Teams" description="Organize rosters and budgets" emoji="👥" href="/admin/teams" gradient="linear-gradient(135deg,#7c3aed,#3b82f6)" />
             <ActionCard title="Athlete Pool" description="Verify and edit player stats" emoji="🏏" href="/admin/players" gradient="linear-gradient(135deg,#10b981,#06b6d4)" />
-            <ActionCard title="Live Control" description="Enter the broadcast control room" emoji="⚡" href="/live-auction" gradient="linear-gradient(135deg,#ef4444,#f97316)" />
+            <ActionCard title="Live Control" description="Enter the broadcast control room" emoji="⚡" href="/live-auction?role=admin" gradient="linear-gradient(135deg,#ef4444,#f97316)" />
           </div>
         </>
       )}

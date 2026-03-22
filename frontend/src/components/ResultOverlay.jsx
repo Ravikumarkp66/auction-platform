@@ -248,7 +248,7 @@ const ResultOverlay = ({ type, playerName, price, teamName, teamLogo, playerImag
               UNSOLD
             </h1>
             <p className="text-2xl md:text-4xl font-black text-red-500 mt-2 uppercase tracking-[0.3em] drop-shadow-[0_0_10px_rgba(239,68,68,0.8)]">
-              NO BIDS
+              Will reappear in next round
             </p>
           </>
         )}

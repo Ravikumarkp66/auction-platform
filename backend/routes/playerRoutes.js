@@ -8,12 +8,17 @@ const Team = require("../models/Team");
  */
 const reorderApplicationIds = async (tournamentId) => {
     try {
-        const players = await Player.find({ tournamentId, isIcon: false }).sort({ applicationId: 1 });
-        let current = 1;
-        for (const p of players) {
-            p.applicationId = current++;
-            await p.save();
-        }
+        const players = await Player.find({ tournamentId, isIcon: { $ne: true } }).sort({ applicationId: 1 });
+        if (!players.length) return;
+
+        const bulkOps = players.map((p, index) => ({
+            updateOne: {
+                filter: { _id: p._id },
+                update: { $set: { applicationId: index + 1 } }
+            }
+        }));
+
+        await Player.bulkWrite(bulkOps);
         console.log(`[REORDER] Re-indexed ${players.length} players for tournament ${tournamentId}`);
     } catch (err) {
         console.error("[REORDER] Failed:", err.message);
@@ -27,10 +32,10 @@ router.get("/", async (req, res) => {
     const filter = {};
     if (status && status !== 'ALL') filter.status = status;
     if (tournamentId) filter.tournamentId = tournamentId;
-    if (isIcon !== undefined) filter.isIcon = isIcon === 'true';
+    if (isIcon !== undefined) filter.isIcon = isIcon === 'true' ? true : { $ne: true };
     
     // Default to sorting by applicationId for players, iconId for icons
-    const sort = filter.isIcon ? { iconId: 1 } : { applicationId: 1 };
+    const sort = filter.isIcon === true ? { iconId: 1 } : { applicationId: 1 };
     
     const players = await Player.find(filter).populate("team").sort(sort);
     res.json(players);
@@ -63,7 +68,7 @@ router.post("/", async (req, res) => {
        }
     } else {
        // Calculation for applicationId
-       const lastPlayer = await Player.findOne({ tournamentId, isIcon: false }).sort({ applicationId: -1 });
+       const lastPlayer = await Player.findOne({ tournamentId, isIcon: { $ne: true } }).sort({ applicationId: -1 });
        nextId = lastPlayer ? (lastPlayer.applicationId || 0) + 1 : 1;
     }
 
@@ -104,7 +109,7 @@ router.post("/import", async (req, res) => {
         let skipped = 0;
 
         // Get starting applicationId
-        const lastPlayer = await Player.findOne({ tournamentId, isIcon: false }).sort({ applicationId: -1 });
+        const lastPlayer = await Player.findOne({ tournamentId, isIcon: { $ne: true } }).sort({ applicationId: -1 });
         let nextAppId = lastPlayer ? (lastPlayer.applicationId || 0) + 1 : 1;
 
         // Deduplicate incoming list internally first
@@ -166,7 +171,7 @@ router.post("/import", async (req, res) => {
 router.post("/cleanup-duplicates", async (req, res) => {
     try {
         const { tournamentId } = req.body;
-        const players = await Player.find({ tournamentId, isIcon: false }).lean();
+        const players = await Player.find({ tournamentId, isIcon: { $ne: true } }).lean();
         
         const seen = new Map();
         const toDeleteIds = [];
@@ -198,7 +203,7 @@ router.post("/reset-to-baseline", async (req, res) => {
         const { tournamentId } = req.body;
         const result = await Player.deleteMany({
             tournamentId,
-            isIcon: false,
+            isIcon: { $ne: true },
             applicationId: { $gt: 94 }
         });
         await reorderApplicationIds(tournamentId);
@@ -242,14 +247,7 @@ router.patch("/:id", async (req, res) => {
        updates.team = null;
        updates.soldPrice = 0;
 
-       // MOVE TO END: Assign next available applicationId
-       if (oldPlayer.status !== 'unsold') {
-          const lastPlayer = await Player.findOne({ 
-              tournamentId: oldPlayer.tournamentId, 
-              isIcon: false 
-          }).sort({ applicationId: -1 });
-          updates.applicationId = (lastPlayer ? (lastPlayer.applicationId || 0) : 0) + 1;
-       }
+       // No move to end.
     } else if (updates.status === 'available') {
        // Clear slot/team if moved back to available
        updates.teamSlotId = null;
@@ -285,7 +283,7 @@ router.delete("/:id", async (req, res) => {
 router.post("/jumble", async (req, res) => {
     try {
         const { tournamentId } = req.body;
-        const players = await Player.find({ tournamentId, isIcon: false });
+        const players = await Player.find({ tournamentId, isIcon: { $ne: true } });
         if (!players.length) return res.status(404).json({ message: "No players found" });
 
         // Shuffle the array of Mongo documents
@@ -313,7 +311,7 @@ router.post("/jumble", async (req, res) => {
 router.post("/revert-order", async (req, res) => {
     try {
         const { tournamentId } = req.body;
-        const players = await Player.find({ tournamentId, isIcon: false });
+        const players = await Player.find({ tournamentId, isIcon: { $ne: true } });
         if (!players.length) return res.status(404).json({ message: "No players found" });
 
         let count = 0;

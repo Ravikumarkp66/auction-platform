@@ -4,6 +4,11 @@ import DynamicBackground from '../components/DynamicBackground';
 import { LanguageProvider } from '../context/LanguageContext';
 import AuthProvider from '../components/AuthProvider';
 
+import { Inter, Noto_Sans_Kannada } from 'next/font/google';
+
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
+const noto = Noto_Sans_Kannada({ subsets: ['kannada'], weight: ['400', '700', '900'], variable: '--font-noto' });
+
 export const metadata = {
   title: 'AuctionPro | Professional Cricket Commentary & Auctions',
   description: 'Book a professional cricket commentator and auctioneer for your next local tournament.',
@@ -11,7 +16,7 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en" className={`dark ${inter.variable} ${noto.variable}`}>
       <body className="main-container text-slate-50 min-h-screen flex flex-col font-sans antialiased">
         <DynamicBackground />
         <AuthProvider>

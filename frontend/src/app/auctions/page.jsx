@@ -172,7 +172,7 @@ export default function AuctionsPage() {
           {liveTournaments.length > 0 && (
             <div className="flex justify-center mb-12">
               <Link
-                href={status === "authenticated" ? `/live-auction?id=${liveTournaments[0].shortId || liveTournaments[0]._id}` : `/overlay`}
+                href={status === "authenticated" ? `/live-auction?id=${liveTournaments[0].shortId || liveTournaments[0]._id}&role=admin` : `/overlay`}
                 className="group relative px-10 py-5 bg-gradient-to-r from-violet-500 to-teal-500 text-white font-black uppercase tracking-wider text-lg rounded-2xl overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-[0_0_40px_rgba(16,185,129,0.5)]"
               >
                 <span className="relative z-10 flex items-center gap-3">
@@ -264,7 +264,7 @@ export default function AuctionsPage() {
                     {/* Action Buttons */}
                     <div className="flex gap-3">
                       <Link
-                        href={status === "authenticated" ? `/live-auction?id=${tournament.shortId || tournament._id}` : `/overlay`}
+                        href={status === "authenticated" ? `/live-auction?id=${tournament.shortId || tournament._id}&role=admin` : `/overlay`}
                         className="group/btn relative flex-1 px-6 py-4 bg-gradient-to-r from-violet-500 to-teal-500 text-white font-black uppercase tracking-wider rounded-xl overflow-hidden transition-all duration-300 hover:shadow-[0_0_30px_rgba(16,185,129,0.4)] flex items-center justify-center gap-3"
                       >
                         <span className="relative z-10 flex items-center gap-3">

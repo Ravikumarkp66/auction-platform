@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import { useState, useEffect, Suspense, useCallback } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
@@ -337,7 +337,9 @@ function LiveAuctionContent() {
             subtitle: 'UNSOLD RE-AUCTION',
             id: '__round_02__'
           });
-          enrichedPlayers = enrichedPlayers.concat(round2);
+          enrichedPlayers = enrichedPlayers.concat(
+             round2.map(p => ({ ...p, status: 'available', applicationId: `R2-${p.applicationId}` }))
+          );
         }
 
 
@@ -419,8 +421,36 @@ function LiveAuctionContent() {
     }
   }, [socket, currentPlayerIndex])
 
+  // DYNAMIC ROUND 2 TRANSITION:
+  // When all regular players have been processed, automatically append the ROUND 02 marker and unsold players.
+  useEffect(() => {
+    if (players.length === 0) return;
+    const hasMarker = players.some(p => p.type === 'ROUND');
+    if (hasMarker) return;
+
+    const originalPlayers = players.filter(p => !p.type);
+    const allProcessed = originalPlayers.every(p => p.status !== 'available' && p.status !== 'auction');
+    
+    if (allProcessed) {
+      const round2Pool = originalPlayers.filter(p => p.status === 'unsold');
+      if (round2Pool.length > 0) {
+        console.log("🔄 Round 1 Complete. Injecting Round 2 re-auction...");
+        setPlayers(prev => {
+           const nextList = [
+              ...prev,
+              { type: 'ROUND', label: 'ROUND 02', subtitle: 'UNSOLD RE-AUCTION', id: '__round_02__' },
+              ...round2Pool.map(p => ({ ...p, status: 'available', applicationId: `R2-${p.applicationId}` }))
+           ];
+           return nextList;
+        });
+      }
+    }
+  }, [players]);
+
   const player = players[currentPlayerIndex];
   const isRoundMarker = player?.type === 'ROUND';
+  const roundMarkerIndex = players.findIndex(p => p.type === 'ROUND');
+  const isRoundTwo = roundMarkerIndex !== -1 && currentPlayerIndex >= roundMarkerIndex;
 
   // Reset bidding state when player changes
   useEffect(() => {
@@ -728,8 +758,8 @@ function LiveAuctionContent() {
       player: player.name,
       team: "-",
       price: "-",
-      status: "UNSOLD",
-      color: "text-red-400 bg-red-500/10"
+      status: "RE-AUCTION (R2)",
+      color: "text-amber-400 bg-amber-500/10"
     }, ...results])
 
     // Broadcast unsold state to overlay
@@ -747,7 +777,7 @@ function LiveAuctionContent() {
       })
     }
 
-    // Persist unsold status + move to end on backend
+    // Persist unsold status on backend
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/players/${player.id}`, {
         method: "PATCH",
@@ -765,39 +795,7 @@ function LiveAuctionContent() {
           playerName: player.name,
           playerImage: player.photo?.s3 || player.photo?.drive || player.imageUrl || player.image
         });
-
-        const data = await res.json();
-        if (data && data.applicationId) {
-          const newAppId = data.applicationId;
-          // Update local applicationId and inject ROUND marker if needed
-          setPlayers(prev => {
-            const updated = prev.map(p =>
-              p.id === player.id
-                ? { ...p, applicationId: newAppId.toString().padStart(2, '0'), _rawAppId: newAppId }
-                : p
-            );
-
-            // Check if ROUND marker already exists
-            const hasRoundMarker = updated.some(p => p.type === 'ROUND');
-            if (hasRoundMarker) return updated;
-
-            // Find where the unsold "2nd round" starts (first item with appId > original count)
-            const regularMax = Math.max(...updated.filter(p => !p.type && p.status !== 'unsold').map(p => p._rawAppId || 0), 0);
-            const insertIdx = updated.findIndex(p => !p.type && (p._rawAppId || 0) > regularMax);
-
-            if (insertIdx !== -1) {
-              const withMarker = [...updated];
-              withMarker.splice(insertIdx, 0, {
-                type: 'ROUND',
-                label: 'ROUND 02',
-                subtitle: 'UNSOLD PLAYERS',
-                id: '__round_02__'
-              });
-              return withMarker;
-            }
-            return updated;
-          });
-        }
+        console.log(`✅ MARKED UNSOLD: ${player.name} (Round 1)`);
       } else {
         console.error("❌ Failed to save UNSOLD status for player:", player.name)
       }
@@ -1313,6 +1311,11 @@ function LiveAuctionContent() {
             )}
 
             <div className="text-center">
+              <div className="flex justify-center mb-1">
+                <span className={`px-3 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${isRoundTwo ? 'bg-amber-500/10 text-amber-500 border-amber-500/30' : 'bg-blue-500/10 text-blue-400 border-blue-500/30'}`}>
+                   Round {isRoundTwo ? '02' : '01'}
+                </span>
+              </div>
               <p className="text-[9px] sm:text-[10px] text-violet-500 font-black tracking-[0.4em] mb-0.5 opacity-60 uppercase animate-pulse">Live Broadcast</p>
               <h1 className="text-lg sm:text-2xl lg:text-4xl font-black tracking-tighter uppercase drop-shadow-2xl leading-tight">
                 {config.name} <span className="text-violet-500 italic font-medium">AUCTION</span>
@@ -2282,8 +2285,9 @@ function LiveAuctionContent() {
   )
 }
 
-function LiveAuctionWithSplash({ tournamentId }) {
-  const [showSplash, setShowSplash] = useState(true)
+function LiveAuctionWithSplash({ tournamentId, role }) {
+  const isAdmin = role === 'admin'
+  const [showSplash, setShowSplash] = useState(!isAdmin)
   const [fadeOut, setFadeOut] = useState(false)
   const [tournament, setTournament] = useState(null)
 
@@ -2302,6 +2306,7 @@ function LiveAuctionWithSplash({ tournamentId }) {
   }, [tournamentId]);
 
   useEffect(() => {
+    if (isAdmin) return;
     // Start fade out after 2 seconds (allow time for custom assets to load)
     const fadeTimer = setTimeout(() => {
       setFadeOut(true)
@@ -2316,7 +2321,7 @@ function LiveAuctionWithSplash({ tournamentId }) {
       clearTimeout(fadeTimer)
       clearTimeout(removeTimer)
     }
-  }, [])
+  }, [isAdmin])
 
   return (
     <>
@@ -2329,7 +2334,7 @@ function LiveAuctionWithSplash({ tournamentId }) {
         </div>
       )}
 
-      <div className={`transition-opacity duration-700 ${showSplash ? 'opacity-0' : 'opacity-100'}`}>
+      <div className={`${!isAdmin ? `transition-opacity duration-700 ${showSplash ? 'opacity-0' : 'opacity-100'}` : ''}`}>
         <LiveAuctionContent initialTournament={tournament} />
       </div>
     </>
@@ -2351,7 +2356,8 @@ export default function LiveAuctionPage() {
 
 function LiveAuctionPageContent() {
   const searchParams = useSearchParams()
+  const role = searchParams.get("role")
   const tournamentId = searchParams.get("id")
 
-  return <LiveAuctionWithSplash tournamentId={tournamentId} />
+  return <LiveAuctionWithSplash tournamentId={tournamentId} role={role} />
 }

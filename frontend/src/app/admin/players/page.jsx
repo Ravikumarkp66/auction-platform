@@ -214,6 +214,7 @@ export default function PlayersRegistry() {
 
   const handleDeletePlayer = async (id) => {
     if (!confirm("Are you sure you want to delete this athlete? The list will be re-indexed automatically.")) return;
+    setLoading(true);
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/players/${id}`, {
         method: "DELETE"
@@ -224,6 +225,8 @@ export default function PlayersRegistry() {
       }
     } catch (err) {
       alert("Delete failed");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -606,7 +609,7 @@ export default function PlayersRegistry() {
                   <td className="px-6 py-4 text-right">
                      <div className="flex items-center justify-end gap-2">
                         <button onClick={() => openManageModal(p)} className="p-2 bg-white/5 hover:bg-violet-600 text-slate-400 hover:text-white rounded-xl transition-all" title="Manage"><MousePointer2 className="w-4 h-4" /></button>
-                        <button onClick={() => handleDeletePlayer(p._id)} className="p-2 bg-white/5 hover:bg-red-600 text-slate-400 hover:text-white rounded-xl transition-all" title="Delete"><X className="w-4 h-4" /></button>
+                        <button disabled={loading} onClick={() => handleDeletePlayer(p._id)} className="p-2 bg-white/5 hover:bg-red-600 text-slate-400 hover:text-white rounded-xl transition-all disabled:opacity-20 disabled:cursor-not-allowed" title="Delete"><X className="w-4 h-4" /></button>
                      </div>
                   </td>
                 </tr>
