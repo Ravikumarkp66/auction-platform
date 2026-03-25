@@ -193,59 +193,29 @@ function LiveAuctionContent() {
     }
   };
 
-  // Validate year distribution requirements
+  // Validate year distribution requirements - DISABLED (no restrictions)
   const getYearDistributionIssues = (team) => {
-    const distribution = getYearDistribution(team);
-    const totalPlayers = Object.values(distribution).reduce((sum, count) => sum + count, 0);
-    const issues = [];
-    
-    if (totalPlayers >= 11) {
-      // Minimum requirements: exactly 2 from each year
-      Object.entries(distribution).forEach(([year, count]) => {
-        if (count < 2) {
-          issues.push(`Need exactly 2 ${year} players (have ${count})`);
-        }
-      });
-    }
-    
-    return issues;
+    return []; // No year distribution requirements
   };
 
-  // Check max year distribution limits
+  // Check max year distribution limits - DISABLED (no limits)
   const getYearDistributionLimits = () => {
     return {
-      '1st year': { min: 2, max: 3 },
-      '2nd year': { min: 2, max: 4 },
-      '3rd year': { min: 2, max: 4 },
-      '4th year': { min: 2, max: 2 }
+      '1st year': { min: 0, max: Infinity },
+      '2nd year': { min: 0, max: Infinity },
+      '3rd year': { min: 0, max: Infinity },
+      '4th year': { min: 0, max: Infinity }
     };
   };
 
-  // Check if team can bid based on year limits
+  // Check if team can bid based on year limits - ALWAYS TRUE (no restrictions)
   const canBidForPlayerYear = (team, player) => {
-    const distribution = getYearDistribution(team);
-    const limits = getYearDistributionLimits();
-    const normalizedYear = normalizeYearCategory(player);
-    
-    const currentCount = distribution[normalizedYear] || 0;
-    const maxAllowed = limits[normalizedYear]?.max || 4;
-    
-    return currentCount < maxAllowed;
+    return true; // No year-based restrictions
   };
 
-  // Get year restriction reason
+  // Get year restriction reason - ALWAYS NULL (no restrictions)
   const getYearRestrictionReason = (team, player) => {
-    const distribution = getYearDistribution(team);
-    const limits = getYearDistributionLimits();
-    const normalizedYear = normalizeYearCategory(player);
-    
-    const currentCount = distribution[normalizedYear] || 0;
-    const maxAllowed = limits[normalizedYear]?.max || 4;
-    
-    if (currentCount >= maxAllowed) {
-      return `Max ${normalizedYear} players reached (${currentCount}/${maxAllowed})`;
-    }
-    return null;
+    return null; // No year restrictions
   };
 
   // Get bid restriction reason
@@ -2419,11 +2389,6 @@ function LiveAuctionContent() {
                             )}
                             {currentSquadSize < limits.minPlayers && (
                               <span className="text-[7px] block font-black leading-none text-amber-400">NEED {limits.minPlayers - currentSquadSize}</span>
-                            )}
-                            
-                            {/* Year restriction warning */}
-                            {isPointsSystem() && !canBidYear && (
-                              <span className="text-[7px] block font-black leading-none text-orange-400">YEAR LIMIT</span>
                             )}
                             
                             {/* Restriction tooltip */}

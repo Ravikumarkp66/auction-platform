@@ -82,7 +82,10 @@ export default function AuctionsPage() {
     }
   };
 
-  const getStatusColor = (status) => {
+  const getStatusColor = (status, isConcluded = false) => {
+    if (isConcluded) {
+      return "bg-slate-500/10 text-slate-400 border-slate-500/20";
+    }
     switch (status?.toLowerCase()) {
       case "active":
       case "live":
@@ -93,6 +96,29 @@ export default function AuctionsPage() {
         return "bg-violet-500/10 text-violet-400 border-violet-500/20";
       default:
         return "bg-slate-500/10 text-slate-400 border-slate-500/20";
+    }
+  };
+
+  const getStatusLabel = (status, tournamentName) => {
+    // If it's not BROWSE or not active, mark as CONCLUDED
+    const isBrowseActive = tournamentName?.toLowerCase().includes('browse') && 
+                           (status?.toLowerCase() === "active" || status?.toLowerCase() === "live");
+    
+    if (!isBrowseActive) {
+      return "CONCLUDED";
+    }
+    
+    // Otherwise show actual status
+    switch (status?.toLowerCase()) {
+      case "active":
+      case "live":
+        return "LIVE";
+      case "upcoming":
+        return "UPCOMING";
+      case "completed":
+        return "COMPLETED";
+      default:
+        return status || "Unknown";
     }
   };
 
@@ -118,8 +144,15 @@ export default function AuctionsPage() {
     );
   }
 
-  const liveTournaments = tournaments.filter(t => t.status?.toLowerCase() === "active" || t.status?.toLowerCase() === "live");
-  const otherTournaments = tournaments.filter(t => t.status?.toLowerCase() !== "active" && t.status?.toLowerCase() !== "live");
+  const liveTournaments = tournaments.filter(t => 
+    t.name?.toLowerCase().includes('browse') && 
+    (t.status?.toLowerCase() === "active" || t.status?.toLowerCase() === "live")
+  );
+  
+  const otherTournaments = tournaments.filter(t => 
+    !t.name?.toLowerCase().includes('browse') || 
+    t.status?.toLowerCase() !== "active"
+  );
 
   return (
     <div className="min-h-screen bg-[#0a0f18] relative overflow-hidden">
@@ -303,39 +336,44 @@ export default function AuctionsPage() {
             <h2 className="text-2xl font-bold text-white mb-6">Other Tournaments</h2>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {otherTournaments.map((tournament) => (
-                <div key={tournament._id} className="bg-slate-800 rounded-lg border border-slate-700 p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className={`flex items-center gap-2 px-3 py-1 rounded-full border text-xs font-medium ${getStatusColor(tournament.status)}`}>
-                      {getStatusIcon(tournament.status)}
-                      {tournament.status || "Unknown"}
+              {otherTournaments.map((tournament) => {
+                const isConcluded = !tournament.name?.toLowerCase().includes('browse') || tournament.status?.toLowerCase() !== "active";
+                const statusLabel = getStatusLabel(tournament.status, tournament.name);
+                
+                return (
+                  <div key={tournament._id} className="bg-slate-800 rounded-lg border border-slate-700 p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className={`flex items-center gap-2 px-3 py-1 rounded-full border text-xs font-medium ${getStatusColor(tournament.status, isConcluded)}`}>
+                        {isConcluded ? <XCircle className="w-4 h-4" /> : getStatusIcon(tournament.status)}
+                        {statusLabel}
+                      </div>
+                      <Trophy className="w-4 h-4 text-slate-400" />
                     </div>
-                    <Trophy className="w-4 h-4 text-slate-400" />
-                  </div>
-                  
-                  <h3 className="text-lg font-semibold text-white mb-2">{tournament.name}</h3>
-                  <p className="text-slate-400 text-sm mb-4">
-                    {tournament.organizerName || "Cricket Tournament"}
-                  </p>
-                  
-                  <div className="flex items-center gap-4 mb-4 text-sm text-slate-400">
-                    <div className="flex items-center gap-1">
-                      <Users className="w-4 h-4" />
-                      <span>{tournament.numTeams || 0} Teams</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Trophy className="w-4 h-4" />
-                      <span>{tournament.players?.length || 0} Players</span>
-                    </div>
-                  </div>
-                  
-                  <div className="text-center">
-                    <p className="text-sm text-slate-400 mb-2">
-                      Created: {new Date(tournament.createdAt).toLocaleDateString()}
+                    
+                    <h3 className="text-lg font-semibold text-white mb-2">{tournament.name}</h3>
+                    <p className="text-slate-400 text-sm mb-4">
+                      {tournament.organizerName || "Cricket Tournament"}
                     </p>
+                    
+                    <div className="flex items-center gap-4 mb-4 text-sm text-slate-400">
+                      <div className="flex items-center gap-1">
+                        <Users className="w-4 h-4" />
+                        <span>{tournament.numTeams || 0} Teams</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Trophy className="w-4 h-4" />
+                        <span>{tournament.players?.length || 0} Players</span>
+                      </div>
+                    </div>
+                    
+                    <div className="text-center">
+                      <p className="text-sm text-slate-400 mb-2">
+                        Created: {new Date(tournament.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </section>
         )}
