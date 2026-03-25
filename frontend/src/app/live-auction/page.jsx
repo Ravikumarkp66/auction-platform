@@ -59,12 +59,267 @@ function LiveAuctionContent() {
   const [editingShortId, setEditingShortId] = useState(null)
   const [tempValue, setTempValue] = useState("")
   const [tempShort, setTempShort] = useState("")
-  const [bidIncrement, setBidIncrement] = useState(100)
+  const [bidIncrement, setBidIncrement] = useState(2) // Start with base price logic
   const [socket, setSocket] = useState(null)
   const [showBreakModal, setShowBreakModal] = useState(false)
   const [showImageEditor, setShowImageEditor] = useState(false)
   const [showRoundTransition, setShowRoundTransition] = useState(null) // { label, subtitle }
   const [result, setResult] = useState(null) // Result Overlay State
+
+  // Smart bid increment logic for Credits system
+  const getBidIncrement = (currentBid) => {
+    if (currentBid < 10) return 1;
+    if (currentBid < 20) return 2;
+    if (currentBid < 50) return 5;
+    return 10;
+  };
+
+  // Base price logic for Credits system
+  const getBasePrice = (role) => {
+    if (role?.toLowerCase().includes('all')) return 4;
+    return 2;
+  };
+
+  // Squad size rules
+  const getSquadLimits = () => {
+    return {
+      minPlayers: 11,
+      maxPlayers: 15
+    };
+  };
+
+  // Check if team can bid (budget + squad size + year distribution)
+  const canTeamBid = (team) => {
+    const limits = getSquadLimits();
+    const currentSquadSize = team.players?.length || 0;
+    const hasBudgetSpace = team.remainingBudget >= (player?.basePrice || 2);
+    const hasSquadSpace = currentSquadSize < limits.maxPlayers;
+    
+    return hasBudgetSpace && hasSquadSpace;
+  };
+
+  // Check year distribution requirements
+  const getYearDistribution = (team) => {
+    const players = team.players || [];
+    const distribution = {
+      '1st year': 0,
+      '2nd year': 0,
+      '3rd year': 0,
+      '4th year': 0
+    };
+    
+    players.forEach(player => {
+      const normalizedYear = normalizeYearCategory(player);
+      distribution[normalizedYear]++;
+    });
+    
+    return distribution;
+  };
+
+  // Normalize year category - CRITICAL FIX
+  const normalizeYearCategory = (player) => {
+    // Try Application ID range-based year detection first (most reliable)
+    if (player.applicationId) {
+      const appYear = getYearFromApplicationId(player.applicationId);
+      if (appYear) {
+        return appYear;
+      }
+    }
+    
+    // Try multiple possible fields for year information
+    const yearFields = [
+      player.category,
+      player.year,
+      player.yearCategory,
+      player.batch,
+      player.classYear,
+      player.academicYear
+    ].filter(Boolean);
+    
+    // If no year field found, default to 1st year
+    if (yearFields.length === 0) {
+      return '1st year';
+    }
+    
+    const yearValue = yearFields[0].toString().toLowerCase().trim();
+    
+    // Strict year mapping
+    if (yearValue.includes('4th') || yearValue.includes('fourth') || yearValue === '4' || yearValue.includes('4 year')) {
+      return '4th year';
+    }
+    if (yearValue.includes('3rd') || yearValue.includes('third') || yearValue === '3' || yearValue.includes('3 year')) {
+      return '3rd year';
+    }
+    if (yearValue.includes('2nd') || yearValue.includes('second') || yearValue === '2' || yearValue.includes('2 year')) {
+      return '2nd year';
+    }
+    if (yearValue.includes('1st') || yearValue.includes('first') || yearValue === '1' || yearValue.includes('1 year')) {
+      return '1st year';
+    }
+    
+    // Number-based detection
+    if (yearValue.includes('4')) {
+      return '4th year';
+    }
+    if (yearValue.includes('3')) {
+      return '3rd year';
+    }
+    if (yearValue.includes('2')) {
+      return '2nd year';
+    }
+    if (yearValue.includes('1')) {
+      return '1st year';
+    }
+    
+    // Default fallback
+    return '1st year';
+  };
+
+  // Extract year from Application ID range
+  const getYearFromApplicationId = (applicationId) => {
+    if (!applicationId) return null;
+    
+    const appId = parseInt(applicationId.toString().trim());
+    
+    // Year mapping based on application ID ranges
+    if (appId >= 1 && appId <= 22) {
+      return '4th year';
+    } else if (appId >= 23 && appId <= 58) {
+      return '3rd year';
+    } else if (appId >= 59 && appId <= 82) {
+      return '2nd year';
+    } else {
+      return '1st year';
+    }
+  };
+
+  // Validate year distribution requirements
+  const getYearDistributionIssues = (team) => {
+    const distribution = getYearDistribution(team);
+    const totalPlayers = Object.values(distribution).reduce((sum, count) => sum + count, 0);
+    const issues = [];
+    
+    if (totalPlayers >= 11) {
+      // Minimum requirements: exactly 2 from each year
+      Object.entries(distribution).forEach(([year, count]) => {
+        if (count < 2) {
+          issues.push(`Need exactly 2 ${year} players (have ${count})`);
+        }
+      });
+    }
+    
+    return issues;
+  };
+
+  // Check max year distribution limits
+  const getYearDistributionLimits = () => {
+    return {
+      '1st year': { min: 2, max: 3 },
+      '2nd year': { min: 2, max: 4 },
+      '3rd year': { min: 2, max: 4 },
+      '4th year': { min: 2, max: 2 }
+    };
+  };
+
+  // Check if team can bid based on year limits
+  const canBidForPlayerYear = (team, player) => {
+    const distribution = getYearDistribution(team);
+    const limits = getYearDistributionLimits();
+    const normalizedYear = normalizeYearCategory(player);
+    
+    const currentCount = distribution[normalizedYear] || 0;
+    const maxAllowed = limits[normalizedYear]?.max || 4;
+    
+    return currentCount < maxAllowed;
+  };
+
+  // Get year restriction reason
+  const getYearRestrictionReason = (team, player) => {
+    const distribution = getYearDistribution(team);
+    const limits = getYearDistributionLimits();
+    const normalizedYear = normalizeYearCategory(player);
+    
+    const currentCount = distribution[normalizedYear] || 0;
+    const maxAllowed = limits[normalizedYear]?.max || 4;
+    
+    if (currentCount >= maxAllowed) {
+      return `Max ${normalizedYear} players reached (${currentCount}/${maxAllowed})`;
+    }
+    return null;
+  };
+
+  // Get bid restriction reason
+  const getBidRestrictionReason = (team) => {
+    const limits = getSquadLimits();
+    const currentSquadSize = team.players?.length || 0;
+    
+    if (currentSquadSize >= limits.maxPlayers) {
+      return `Squad full (${currentSquadSize}/${limits.maxPlayers})`;
+    }
+    const minBid = isPointsSystem() ? (player?.basePrice || 2) : 100;
+    if (team.remainingBudget < minBid) {
+      return `Insufficient ${isPointsSystem() ? 'credits' : 'funds'} (${formatCurrency(team.remainingBudget)})`;
+    }
+    return null;
+  };
+
+  // Categorize team players by role
+  const categorizeTeamPlayers = (team) => {
+    const players = team.players || [];
+    return {
+      captain: players.find(p => p.iconRole === 'captain'),
+      viceCaptain: players.find(p => p.iconRole === 'viceCaptain'), 
+      retained: players.filter(p => p.iconRole === 'retained'),
+      auctioned: players.filter(p => !p.iconRole || p.iconRole === 'auction')
+    };
+  };
+
+  // Get player role display with badge
+  const getPlayerRoleBadge = (player) => {
+    if (player.iconRole === 'captain') {
+      return <span className="px-2 py-0.5 bg-amber-500 text-black text-[8px] font-black rounded-full">C</span>;
+    }
+    if (player.iconRole === 'viceCaptain') {
+      return <span className="px-2 py-0.5 bg-slate-400 text-black text-[8px] font-black rounded-full">VC</span>;
+    }
+    if (player.iconRole === 'retained') {
+      return <span className="px-2 py-0.5 bg-emerald-500 text-white text-[8px] font-black rounded-full">R</span>;
+    }
+    return null;
+  };
+
+  // Detect auction type based on base budget
+  const isPointsSystem = () => {
+    const result = config.baseBudget <= 1000; // Points systems have small budgets (200 CR), regular auctions have large budgets (10000+)
+    return result;
+  };
+
+  // Get currency symbol and format based on auction type
+  const formatCurrency = (amount, options = {}) => {
+    const { showSymbol = true, abbreviate = false } = options;
+    
+    if (isPointsSystem()) {
+      // Points System: Use Credits (CR)
+      return showSymbol ? `${amount} CR` : `${amount}`;
+    } else {
+      // Regular Auction: Use Rupees (₹)
+      const formattedAmount = abbreviate && amount >= 1000 
+        ? `${(amount / 1000).toFixed(1)}K` 
+        : amount.toLocaleString();
+      return showSymbol ? `₹${formattedAmount}` : formattedAmount;
+    }
+  };
+
+  // Get base price based on auction type
+  const getBasePriceByAuctionType = (role) => {
+    if (isPointsSystem()) {
+      // Points System: Role-based pricing (2/4 CR)
+      return getBasePrice(role);
+    } else {
+      // Regular Auction: Use existing basePrice or default 100
+      return 100; // Default for regular auctions
+    }
+  };
 
   // Edge Case 1: Debounce / Cooldown
   const BID_COOLDOWN = 600;
@@ -284,45 +539,62 @@ function LiveAuctionContent() {
           if (tournament.assets.backgroundUrl) setAuctionBg(tournament.assets.backgroundUrl);
         }
 
-        // Load teams and players
+        // Load teams and players with actual remaining budgets
         setTeams(data.teams.map(t => ({
           id: t._id,
           name: t.name,
           shortName: t.shortName || t.name,
           logoUrl: t.logoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(t.name)}&background=random`,
-          totalBudget: data.tournament.baseBudget,
-          remainingBudget: t.remainingBudget,
+          totalBudget: data.tournament.baseBudget, // This should be 200 CR
+          remainingBudget: t.remainingBudget, // This will be less if players retained
           players: data.players.filter(p => p.team === t._id),
           color: t.color || "bg-blue-600"
         })))
 
-        // Filter: Keep non-icon players (auction players only)
-        const auctionPlayers = data.players.filter(p => !p.isIcon)
+        // DEBUG: Log player data
+        console.log('🔍 DEBUG - Total players from API:', data.players.length)
+        console.log('🔍 DEBUG - Players with isIcon=true:', data.players.filter(p => p.isIcon).length)
+        console.log('🔍 DEBUG - Players with isIcon=false:', data.players.filter(p => !p.isIcon).length)
+        console.log('🔍 DEBUG - Sample player data:', data.players.slice(0, 3))
 
-        // Create auction-only Application IDs (01-150 for auction players only)
+        // Filter: Keep non-icon players (auction players only) - FIXED for points system
+        let auctionPlayers = data.players.filter(p => !p.isIcon)
+        
+        // If no players after filtering, try including all players (points system fix)
+        if (auctionPlayers.length === 0) {
+          auctionPlayers = data.players
+        }
+
+        console.log('🎯 FINAL - Auction players count:', auctionPlayers.length)
 
         // Create auction-only Application IDs
-        const baseEnriched = auctionPlayers.map(p => ({
+        const baseEnriched = auctionPlayers.map(p => {
+          // DEBUG: Log each player's base price and category
+          const creditsBasePrice = getBasePrice(p.role);
+          
+          return {
           id: p._id,
           name: p.name,
           role: p.role || "All-Rounder",
           village: p.village || "-",
           dob: p.dob || "-",
-          town: p.town,
+          category: p.category, // CRITICAL: Include category field!
+          year: p.year, // Include year field if available
           age: p.age || 20,
-          image: p.imageUrl || p.photo?.s3 || p.photo?.drive || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(p.name)}`,
+          town: p.town,
+          image: p.imageUrl || p.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.name)}&background=random`,
           placeholder: `https://ui-avatars.com/api/?name=${encodeURIComponent(p.name)}&background=random`,
-          basePrice: p.basePrice || 100,
+          basePrice: p.basePrice || creditsBasePrice,
           soldPrice: p.soldPrice,
-          team: p.team,
+          team: p.team || null,
           status: p.status || "available",
           battingStyle: p.battingStyle || "Right Hand",
           bowlingStyle: p.bowlingStyle || "-",
           isIcon: p.isIcon || false,
-          photo: p.photo,
+          photo: p.photo || { s3: p.imageUrl || p.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.name)}&background=random` },
           applicationId: p.applicationId ? p.applicationId.toString().padStart(2, '0') : "-",
           _rawAppId: p.applicationId || 0
-        }));
+        }});
 
         // Round 02: Append UNSOLD players to the end of the list after a marker
         // Their Application IDs STAY THE SAME.
@@ -361,13 +633,14 @@ function LiveAuctionContent() {
         setCurrentBid(0)
 
         const sold = auctionPlayers.filter(p => p.status === "sold")
-        setResults(sold.map(p => ({
-          player: p.name,
-          team: data.teams.find(t => t._id === p.team)?.name || "-",
-          price: p.soldPrice,
-          status: "SOLD",
-          color: "text-violet-400 bg-violet-500/10"
-        })))
+        // DON'T set results on page load - only show results for LIVE sales during auction
+        // setResults(sold.map(p => ({
+        //   player: p.name,
+        //   team: data.teams.find(t => t._id === p.team)?.name || "-",
+        //   price: p.soldPrice,
+        //   status: "SOLD",
+        //   color: "text-violet-400 bg-violet-500/10"
+        // })))
 
         if (data.tournament.pools) {
           setPoolA(data.tournament.pools.poolA || []);
@@ -390,7 +663,7 @@ function LiveAuctionContent() {
   useEffect(() => {
     if (!socket) return
 
-    // Listen for auction updates from other devices
+    // Listen for auction updates from other devices (bids only)
     socket.on('auctionUpdate', (data) => {
       console.log('📡 Received auction update:', data)
 
@@ -403,13 +676,6 @@ function LiveAuctionContent() {
           setCurrentBid(data.bidAmount)
           setHighestBidder(data.teamId)
           setRoundHistory(prev => [{ team: data.teamName, teamId: data.teamId, bid: data.bidAmount }, ...prev])
-        } else if (data.type === 'sold' && data.playerId === currentPlayer?.id) {
-          // Update sold status - return updated players array
-          return currentPlayers.map(p =>
-            p.id === data.playerId
-              ? { ...p, status: 'sold', soldPrice: data.soldPrice, team: data.teamId }
-              : p
-          )
         }
 
         return currentPlayers
@@ -457,7 +723,10 @@ function LiveAuctionContent() {
     setCurrentBid(0)
     setHighestBidder(null)
     setRoundHistory([])
-    if (player) setBidIncrement(player.basePrice || 100)
+    if (player) {
+      // Start with base price as initial bid amount based on auction type
+      setBidIncrement(player.basePrice || getBasePriceByAuctionType(player.role || "Batsman"))
+    }
   }, [currentPlayerIndex])
 
   // Keep overlay synced with latest player/state (including player navigation with no bids yet)
@@ -475,7 +744,10 @@ function LiveAuctionContent() {
       logoUrl: t.logoUrl,
       remainingBudget: t.remainingBudget,
       playersCount: t.players?.length || 0,
-      maxPlayers: config.squadSize || 15
+      maxPlayers: config.squadSize || 15,
+      squadImageUrl: t.squadImageUrl || null,
+      squadPdfUrl: t.squadPdfUrl || null,
+      yearDistribution: t.yearDistribution || null
     }))
 
     socket.emit("auctionUpdate", {
@@ -486,22 +758,25 @@ function LiveAuctionContent() {
       tournamentName: config.name,
       teams: overlayTeams,
       roundHistory: roundHistory.slice(0, 5),
+      result: result, // CRITICAL: Include result in overlay data
       timestamp: Date.now()
     })
-  }, [socket, players, currentPlayerIndex, currentBid, highestBidder, teams, config.name, config.squadSize, roundHistory])
+  }, [socket, players, currentPlayerIndex, currentBid, highestBidder, teams, config, result, roundHistory])
 
   // Auto-advance after result animation
   useEffect(() => {
     if (result) {
-      const timer = setTimeout(() => {
-        setResult(null);
-        // Using it safely inside async callback (defined later in component but executed after render)
-        nextPlayer();
-      }, 2500);
-      return () => clearTimeout(timer);
+      // DISABLED: Auto-clear and auto-next-player
+      // Admin should manually control when to move to next player
+      // const timer = setTimeout(() => {
+      //   setResult(null);
+      //   // Using it safely inside async callback (defined later in component but executed after render)
+      //   nextPlayer();
+      // }, 2500);
+      // return () => clearTimeout(timer);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result]);
+
 
   if (status === "loading") {
     return (
@@ -549,24 +824,34 @@ function LiveAuctionContent() {
 
     // Validation 2: Ensure it follows base price or current bid rules
     let newBid = riseAmount
+    const minBid = isPointsSystem() ? (player.basePrice || getBasePrice(player.role)) : 100;
+    
     if (currentBid === 0) {
       // First bid must be at least the base price
-      if (riseAmount < player.basePrice) {
-        alert(`The first bid must be at least the base price (₹${player.basePrice.toLocaleString()}).`)
+      if (riseAmount < minBid) {
+        alert(`The first bid must be at least the base price (${formatCurrency(minBid)}).`)
         return
       }
     } else {
       // Subsequent bids must be higher than current
       if (riseAmount <= currentBid) {
-        alert(`New bid (₹${riseAmount.toLocaleString()}) must be strictly higher than current bid (₹${currentBid.toLocaleString()}).`)
+        alert(`Bid must be higher than current bid (${formatCurrency(currentBid)}).`)
         return
       }
     }
 
-    // Check if team has enough budget
+    // Check if team has enough budget and squad space
     const biddingTeam = teams.find(t => t.id === teamId)
-    if (biddingTeam.remainingBudget < newBid) {
-      alert(`${biddingTeam.name} has insufficient budget!`)
+    if (!canTeamBid(biddingTeam)) {
+      const reason = getBidRestrictionReason(biddingTeam);
+      alert(`${biddingTeam.name} cannot bid: ${reason}`);
+      return
+    }
+
+    // Check year distribution limits (only for points system)
+    if (isPointsSystem() && !canBidForPlayerYear(biddingTeam, player)) {
+      const yearReason = getYearRestrictionReason(biddingTeam, player);
+      alert(`${biddingTeam.name} cannot bid: ${yearReason}`);
       return
     }
 
@@ -596,8 +881,8 @@ function LiveAuctionContent() {
       })
     }
 
-    // Auto-prepare next bid price (Current + 100)
-    setBidIncrement(bidAmount + 100)
+    // Auto-prepare next bid price using dynamic Credits increment
+    setBidIncrement(bidAmount + getBidIncrement(bidAmount))
 
     // Reset increment to default 100 after bid
   }
@@ -612,12 +897,12 @@ function LiveAuctionContent() {
     if (newHistory.length === 0) {
       setCurrentBid(0)
       setHighestBidder(null)
-      if (player) setBidIncrement(player.basePrice)
+      if (player) setBidIncrement(getBidIncrement(player.basePrice || 2))
     } else {
       const prevBid = newHistory[0].bid
       setCurrentBid(prevBid)
       setHighestBidder(newHistory[0].teamId)
-      setBidIncrement(prevBid + 100)
+      setBidIncrement(prevBid + getBidIncrement(prevBid))
     }
   }
 
@@ -634,11 +919,11 @@ function LiveAuctionContent() {
 
     // Prevent selling for 0 or negative amount
     if (currentBid <= 0) {
-      alert("Cannot sell player for ₹0 or less. Please place a bid first.")
+      alert("Cannot sell player for 0 CR or less. Please place a bid first.")
       return
     }
 
-    if (!confirm(`Sell ${player.name} to ${teams.find(t => t.id === highestBidder)?.name} for ₹${currentBid}?`)) return
+    if (!confirm(`Sell ${player.name} to ${teams.find(t => t.id === highestBidder)?.name} for ${currentBid} CR?`)) return
 
     // Edge Case 6: SOLD clicked twice prevention (local check)
     if (player.status === "sold") return
@@ -661,6 +946,14 @@ function LiveAuctionContent() {
         }
         : team
     )
+    
+    // DEBUG: Log year distribution after sale
+    const updatedWinningTeam = updatedTeams.find(t => t.id === highestBidder);
+    const newDistribution = getYearDistribution(updatedWinningTeam);
+    console.log(`🏏 PLAYER SOLD: ${player.name} (${normalizeYearCategory(player)}) to ${updatedWinningTeam.name}`);
+    console.log(`📊 New Year Distribution for ${updatedWinningTeam.name}:`, newDistribution);
+    console.log(`📋 All players in ${updatedWinningTeam.name}:`, updatedWinningTeam.players.map(p => `${p.name} (${normalizeYearCategory(p)})`));
+    
     const updatedPlayers = [...players]
     updatedPlayers[currentPlayerIndex] = {
       ...player,
@@ -703,24 +996,36 @@ function LiveAuctionContent() {
       ])
 
       if (playerRes.ok && teamRes.ok) {
-        console.log(`✅ SAVED: ${player.name} sold to ${winningTeam?.name} for ₹${currentBid}, Team budget: ₹${newBudget}`)
+        console.log(`✅ SAVED: ${player.name} sold to ${winningTeam?.name} for ${currentBid} CR, Team budget: ${newBudget} CR`)
 
         // Broadcast sale to all connected devices via socket
         if (socket) {
           // Auto-stop break on any sale
           socket.emit('breakTimeEnd');
+          
+          console.log('🚀 EMITTING SOLD EVENT:', {
+            playerId: player.id,
+            playerName: player.name,
+            soldPrice: currentBid,
+            teamId: highestBidder,
+            teamName: winningTeam?.name
+          });
 
           const soldPlayer = { ...player, status: 'sold', soldPrice: currentBid, team: highestBidder }
-          socket.emit('auctionUpdate', {
-            player: soldPlayer,
-            currentBid: currentBid,
-            highestBidder: highestBidder,
-            highestBidderLogo: winningTeam?.logoUrl,
-            tournamentName: config.name,
-            teams: updatedTeams,
-            roundHistory: roundHistory,
-            timestamp: Date.now()
-          })
+          
+          // Emit COMPLETE sale data for overlay (not just basic info)
+          socket.emit('playerSold', {
+            playerId: player.id,
+            playerName: player.name,
+            soldPrice: currentBid,
+            teamId: highestBidder,
+            teamName: winningTeam?.name,
+            teamShortName: winningTeam?.shortName,
+            teamLogo: winningTeam?.logoUrl,
+            teamColor: winningTeam?.color,
+            playerImage: player.photo?.s3 || player.photo?.drive || player.imageUrl || player.image,
+            isPointsSystem: isPointsSystem()
+          });
         }
 
         setResult({
@@ -729,7 +1034,9 @@ function LiveAuctionContent() {
           teamName: winningTeam?.name,
           teamLogo: winningTeam?.logoUrl,
           playerName: player.name,
-          playerImage: player.photo?.s3 || player.photo?.drive || player.imageUrl || player.image
+          playerImage: player.photo?.s3 || player.photo?.drive || player.imageUrl || player.image,
+          currency: isPointsSystem() ? "" : "₹",
+          isPointsSystem: isPointsSystem()
         });
 
       } else {
@@ -765,16 +1072,14 @@ function LiveAuctionContent() {
     // Broadcast unsold state to overlay
     if (socket) {
       socket.emit('breakTimeEnd');
-      socket.emit('auctionUpdate', {
-        player: unsoldPlayerData,
-        currentBid: 0,
-        highestBidder: null,
-        highestBidderLogo: null,
-        tournamentName: config.name,
-        teams: teams,
-        roundHistory: roundHistory,
-        timestamp: Date.now()
-      })
+      
+      // Emit unsold event for overlay
+      socket.emit('playerUnsold', {
+        playerId: player.id,
+        playerName: player.name,
+        playerImage: player.photo?.s3 || player.photo?.drive || player.imageUrl || player.image,
+        isPointsSystem: isPointsSystem()
+      });
     }
 
     // Persist unsold status on backend
@@ -793,7 +1098,9 @@ function LiveAuctionContent() {
         setResult({
           type: "UNSOLD",
           playerName: player.name,
-          playerImage: player.photo?.s3 || player.photo?.drive || player.imageUrl || player.image
+          playerImage: player.photo?.s3 || player.photo?.drive || player.imageUrl || player.image,
+          currency: isPointsSystem() ? "" : "₹",
+          isPointsSystem: isPointsSystem()
         });
         console.log(`✅ MARKED UNSOLD: ${player.name} (Round 1)`);
       } else {
@@ -855,9 +1162,9 @@ function LiveAuctionContent() {
     const soldPrice = player.soldPrice
     const originalTeamId = player.team
 
-    if (!confirm(`Revert sale of ${player.name}?\n\nThis will remove the player from ${teams.find(t => t.id === originalTeamId)?.name} and refund ₹${soldPrice?.toLocaleString()}.\n\nClick OK to proceed.`)) return
+    if (!confirm(`Revert sale of ${player.name}?\n\nThis will remove the player from ${teams.find(t => t.id === originalTeamId)?.name} and refund ${formatCurrency(soldPrice)}.\n\nClick OK to proceed.`)) return
 
-    const startFromLastBid = confirm(`Do you want to retain the final bid of ₹${soldPrice} by ${teams.find(t => t.id === originalTeamId)?.name}?\n\nClick OK to keep the bid.\nClick Cancel to completely restart from ₹0.`);
+    const startFromLastBid = confirm(`Do you want to retain the final bid of ${formatCurrency(soldPrice)} by ${teams.find(t => t.id === originalTeamId)?.name}?\n\nClick OK to keep the bid.\nClick Cancel to completely restart from ${formatCurrency(0)}.`);
 
     // Get the original team and calculate correct refund
     const originalTeam = teams.find(t => t.id === originalTeamId)
@@ -966,11 +1273,11 @@ function LiveAuctionContent() {
     if (startFromLastBid) {
       setCurrentBid(soldPrice);
       setHighestBidder(originalTeamId);
-      setBidIncrement(soldPrice + 100);
+      setBidIncrement(soldPrice + getBidIncrement(soldPrice));
     } else {
       setCurrentBid(0)
       setHighestBidder(null)
-      if (player) setBidIncrement(player.basePrice || 100);
+      if (player) setBidIncrement(getBidIncrement(player.basePrice || 2));
     }
   }
 
@@ -1167,15 +1474,16 @@ function LiveAuctionContent() {
 
   return (
     <div className="min-h-screen font-sans text-white overflow-hidden relative">
-      {/* Background Layer (Persistent) */}
+      {/* Background Layer - Fixed & Clear */}
       <div className="fixed inset-0 z-0">
         <img
           src={activeAssets.backgroundUrl || '/splash-screen.png'}
-          className="w-full h-full object-cover opacity-60 scale-100"
+          className="w-full h-full object-cover scale-100"
           alt=""
+          style={{ filter: 'none' }}
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-slate-950 via-slate-900/60 to-slate-950" />
-        <div className="absolute inset-0 bg-gradient-to-r from-slate-950/40 via-transparent to-slate-950/40" />
+        {/* Subtle gradient overlay - NOT heavy dark */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/40 to-black/30" />
       </div>
 
 
@@ -1408,60 +1716,125 @@ function LiveAuctionContent() {
                 {/* Modal Content */}
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
                   {activeSidebar === 'teams' ? (
-                    <div className="bg-slate-900/40 border border-slate-700/50 rounded-2xl overflow-x-auto shadow-2xl">
-                      <table className="w-full text-left border-collapse min-w-[700px]">
-                        <thead>
-                          <tr className="bg-slate-800/80 border-b border-slate-700">
-                            <th className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">SL</th>
-                            <th className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Logo</th>
-                            <th className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Team Name</th>
-                            <th className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">Budget</th>
-                            <th className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">Squad</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {[...teams].sort((a, b) => a.remainingBudget - b.remainingBudget).map((team, idx) => (
-                            <tr
-                              key={team.id}
-                              className={`border-b border-slate-800/50 transition-all hover:bg-white/10 cursor-pointer ${highestBidder === team.id ? 'bg-blue-600/10' : ''}`}
-                              onClick={() => router.push(`/team/${team.id}${currentTournamentId ? `?tournament=${currentTournamentId}` : ''}`)}
-                            >
-                              <td className="px-4 py-3">
-                                <span className="text-xs font-black text-slate-600">{idx + 1}</span>
-                              </td>
-                              <td className="px-4 py-3">
-                                <div className="w-10 h-10 rounded-lg overflow-hidden border border-slate-700 bg-slate-800 shadow-inner">
+                    <div className="space-y-4">
+                      {[...teams].sort((a, b) => a.remainingBudget - b.remainingBudget).map((team, idx) => {
+                        const squad = categorizeTeamPlayers(team);
+                        const limits = getSquadLimits();
+                        const yearDistribution = getYearDistribution(team);
+                        const yearIssues = getYearDistributionIssues(team);
+                        const currentSquadSize = team.players?.length || 0;
+                        const isCompleteSquad = currentSquadSize >= limits.minPlayers;
+                        
+                        return (
+                          <div key={team.id} className={`bg-slate-900/40 border rounded-2xl p-4 shadow-2xl hover:bg-slate-800/40 transition-all ${
+                            yearIssues.length > 0 ? 'border-amber-500/30' : 'border-slate-700/50'
+                          }`}>
+                            {/* Team Header */}
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 rounded-lg overflow-hidden border border-slate-600">
                                   <img src={team.logoUrl} alt={team.name} className="w-full h-full object-cover" />
                                 </div>
-                              </td>
-                              <td className="px-4 py-3">
-                                <div className="flex flex-col">
-                                  <span className="text-sm font-black text-white uppercase tracking-tight">{team.name}</span>
-                                  <span className="text-[9px] font-bold text-slate-500 uppercase">{team.shortName}</span>
+                                <div>
+                                  <h3 className="text-sm font-black text-white uppercase tracking-tight">{team.name}</h3>
+                                  <p className="text-xs text-slate-400">{team.shortName}</p>
                                 </div>
-                              </td>
-                              <td className="px-4 py-3 text-right">
-                                <span className="text-sm font-black text-violet-400">₹{team.remainingBudget.toLocaleString()}</span>
-                              </td>
-                              <td className="px-4 py-3 text-right">
-                                <div className="flex flex-col items-end">
-                                  <span className={`text-sm font-black ${team.players.length >= 15 ? 'text-blue-400' : 'text-white'}`}>
-                                    {team.players.length}<span className="text-slate-600 text-[10px] ml-1">/ 15</span>
-                                  </span>
-                                  <div className="w-16 h-1 mt-1 bg-slate-800 rounded-full overflow-hidden">
-                                    <div
-                                      className="h-full bg-blue-500 transition-all duration-500"
-                                      style={{ width: `${Math.min((team.players.length / 15) * 100, 100)}%` }}
-                                    ></div>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-sm font-black text-violet-400">{formatCurrency(team.remainingBudget)}</p>
+                                <p className={`text-xs ${currentSquadSize < limits.minPlayers ? 'text-red-400' : currentSquadSize >= limits.maxPlayers ? 'text-amber-400' : 'text-green-400'}`}>
+                                  {currentSquadSize}/{limits.maxPlayers} players
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Year Distribution */}
+                            <div className="mb-3">
+                              <p className="text-[8px] font-black text-slate-400 uppercase tracking-wider mb-2">Year Distribution</p>
+                              <div className="grid grid-cols-4 gap-1">
+                                {Object.entries(yearDistribution).map(([year, count]) => (
+                                  <div key={year} className="text-center p-1 bg-slate-800/50 rounded border border-slate-700/30">
+                                    <p className="text-[8px] text-slate-400">{year}</p>
+                                    <p className={`text-sm font-black ${count >= 2 ? 'text-green-400' : count > 0 ? 'text-amber-400' : 'text-red-400'}`}>
+                                      {count}
+                                    </p>
+                                  </div>
+                                ))}
+                              </div>
+                              {yearIssues.length > 0 && (
+                                <div className="mt-2 p-2 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+                                  <p className="text-[8px] font-black text-amber-400 uppercase tracking-wider">⚠️ Requirements</p>
+                                  {yearIssues.map((issue, i) => (
+                                    <p key={i} className="text-[8px] text-amber-300 mt-1">• {issue}</p>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Special Players */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
+                              {/* Captain */}
+                              {squad.captain && (
+                                <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 rounded-lg p-2">
+                                  <span className="px-1.5 py-0.5 bg-amber-500 text-black text-[8px] font-black rounded-full">C</span>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-xs font-black text-white truncate">{squad.captain.name}</p>
+                                    <p className="text-[8px] text-slate-400">{squad.captain.role} • {normalizeYearCategory(squad.captain)} • {formatCurrency(squad.captain.soldPrice || squad.captain.basePrice)}</p>
                                   </div>
                                 </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                              )}
+
+                              {/* Vice Captain */}
+                              {squad.viceCaptain && (
+                                <div className="flex items-center gap-2 bg-slate-500/10 border border-slate-500/20 rounded-lg p-2">
+                                  <span className="px-1.5 py-0.5 bg-slate-400 text-black text-[8px] font-black rounded-full">VC</span>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-xs font-black text-white truncate">{squad.viceCaptain.name}</p>
+                                    <p className="text-[8px] text-slate-400">{squad.viceCaptain.role} • {normalizeYearCategory(squad.viceCaptain)} • {formatCurrency(squad.viceCaptain.soldPrice || squad.viceCaptain.basePrice)}</p>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Retained Players */}
+                            {squad.retained.length > 0 && (
+                              <div className="mb-3">
+                                <p className="text-[8px] font-black text-emerald-400 uppercase tracking-wider mb-1">Retained Players</p>
+                                <div className="space-y-1">
+                                  {squad.retained.map((player, i) => (
+                                    <div key={player._id || player.id || i} className="flex items-center gap-2 bg-emerald-500/5 border border-emerald-500/10 rounded-lg p-1.5">
+                                      <span className="px-1.5 py-0.5 bg-emerald-500 text-white text-[8px] font-black rounded-full">R</span>
+                                      <p className="text-xs font-black text-white truncate flex-1">{player.name}</p>
+                                      <p className="text-[8px] text-slate-400">{normalizeYearCategory(player)} • {formatCurrency(player.soldPrice || player.basePrice)}</p>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Squad Status */}
+                            <div className="flex items-center justify-between text-xs p-2 bg-slate-800/30 rounded-lg">
+                              <div className="flex items-center gap-2">
+                                <span className="text-slate-400">Squad:</span>
+                                <span className={`font-black ${isCompleteSquad ? 'text-green-400' : 'text-red-400'}`}>
+                                  {currentSquadSize}/{limits.minPlayers} min
+                                </span>
+                                <span className="text-slate-400">•</span>
+                                <span className={`font-black ${currentSquadSize >= limits.maxPlayers ? 'text-red-400' : 'text-slate-400'}`}>
+                                  {currentSquadSize}/{limits.maxPlayers} max
+                                </span>
+                              </div>
+                              {!isCompleteSquad && (
+                                <span className="text-[8px] text-red-400 font-black animate-pulse">
+                                  NEED {limits.minPlayers - currentSquadSize} MORE
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                  ) : activeSidebar === 'pools' ? (
+                  ) : activeSidebar === 'stats' ? (
                     <div className="space-y-6">
                       <div className="flex justify-between items-center bg-amber-500/10 p-4 rounded-2xl border border-amber-500/20 shadow-xl shadow-amber-900/10">
                         <div>
@@ -1563,7 +1936,7 @@ function LiveAuctionContent() {
                               <div className="w-14 h-14 bg-violet-500/20 rounded-2xl border border-violet-500/30 flex items-center justify-center text-3xl">🥇</div>
                               <div>
                                 <p className="text-xl font-black text-white">{mostExpensive.name}</p>
-                                <p className="text-2xl font-black text-violet-400">₹{mostExpensive.soldPrice.toLocaleString()}</p>
+                                <p className="text-2xl font-black text-violet-400">{formatCurrency(mostExpensive.soldPrice)}</p>
                               </div>
                             </div>
                           ) : <p className="text-slate-600 italic">No players sold yet</p>}
@@ -1589,7 +1962,7 @@ function LiveAuctionContent() {
                                   <span className="text-gray-600 font-black text-xs">#{roundHistory.length - i}</span>
                                   <span className="font-bold text-sm uppercase text-white">{h.team}</span>
                                 </div>
-                                <span className={`font-black text-lg ${i === 0 ? 'text-violet-400' : 'text-slate-500'}`}>₹{h.bid.toLocaleString()}</span>
+                                <span className={`font-black text-lg ${i === 0 ? 'text-violet-400' : 'text-slate-500'}`}>{formatCurrency(h.bid)}</span>
                               </div>
                             ))
                           )}
@@ -1627,11 +2000,10 @@ function LiveAuctionContent() {
               </div>
             ) : player && players.filter(p => !p.type).length > 0 && (soldPlayers.length + unsoldPlayers.length) < players.filter(p => !p.type).length ? (
               <div className="h-full flex flex-col gap-4 overflow-hidden">
-                {/* HEADER ROW: responsive — stacks on mobile, row on md+ */}
-                <div className="flex flex-col md:flex-row gap-4 items-stretch p-4 md:p-6 bg-slate-900/20 rounded-2xl border border-white/5 shadow-inner">
-                  {/* 1. PHOTO */}
-                  <div className="w-full md:w-[35%] flex justify-center items-center">
-                    <div className="relative group/photo w-[140px] h-[180px] sm:w-[160px] sm:h-[200px] md:w-[180px] md:h-[220px] rounded-xl overflow-hidden border-2 border-slate-700 shadow-2xl bg-slate-800 ring-4 ring-black/20">
+                {/* HEADER ROW - Glassmorphism Card */}
+                <div className="flex flex-col md:flex-row gap-4 items-stretch p-4 md:p-6 bg-black/45 backdrop-blur-md rounded-2xl border border-cyan-500/20 shadow-[0_8px_32px_rgba(0,0,0,0.6),0_0_10px_rgba(0,255,200,0.2)] transition-all duration-300 ease hover:-translate-y-1 hover:scale-[1.02]">
+                  {/* 1. PHOTO - Glass Panel */}
+                  <div className="relative group/photo w-[140px] h-[180px] sm:w-[160px] sm:h-[200px] md:w-[180px] md:h-[220px] rounded-xl overflow-hidden border-2 border-cyan-500/30 shadow-[0_8px_32px_rgba(0,0,0,0.6),0_0_15px_rgba(0,255,200,0.3)] bg-black/50 backdrop-blur-sm ring-4 ring-black/40 transition-all duration-300 ease hover:shadow-[0_12px_40px_rgba(0,255,200,0.4)]">
                       <Image
                         src={player.photo?.s3 || player.photo?.drive || player.imageUrl || player.image}
                         alt={player.name} fill className={`object-cover ${player.status !== 'available' ? 'grayscale opacity-50' : ''}`} unoptimized={true}
@@ -1682,10 +2054,9 @@ function LiveAuctionContent() {
                         </div>
                       )}
                     </div>
-                  </div>
 
-                  {/* 2. PLAYER INFORMATION */}
-                  <div className="w-full md:w-[45%] flex flex-col justify-center space-y-4 md:px-4 md:border-x md:border-slate-800/50">
+                  {/* 2. PLAYER INFORMATION - Floating Glass */}
+                  <div className="w-full md:w-[45%] flex flex-col justify-center space-y-4 md:px-4 md:border-x md:border-cyan-500/15">
                     <div>
                       {player.status === "available" || player.status === "auction" ? (
                         <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/30 px-3 py-1 rounded-full w-fit animate-pulse mb-3">
@@ -1770,7 +2141,7 @@ function LiveAuctionContent() {
                           </div>
                         ) : (
                           <div className="flex items-center gap-2 group/price">
-                            <span className="text-sm text-gray-400 font-black uppercase tracking-widest">₹{player.basePrice}</span>
+                            <span className="text-sm text-gray-400 font-black uppercase tracking-widest">{formatCurrency(player.basePrice)}</span>
                             <button onClick={() => { setEditingPlayerField('basePrice'); setTempValue(player.basePrice); }} className="opacity-0 group-hover/price:opacity-100 text-[10px] text-violet-500">✎</button>
                           </div>
                         )}
@@ -1896,14 +2267,14 @@ function LiveAuctionContent() {
                     </div>
                   </div>
 
-                  {/* 3. DYNAMIC STATUS PANEL */}
-                  <div className="w-full md:w-[20%] auction-card rounded-2xl border border-slate-700/30 p-4 flex flex-col justify-center items-center text-center relative overflow-hidden group">
+                  {/* 3. DYNAMIC STATUS PANEL - Glass Effect */}
+                  <div className="w-full md:w-[20%] auction-card rounded-2xl border border-cyan-500/25 p-4 flex flex-col justify-center items-center text-center relative overflow-hidden group bg-black/45 backdrop-blur-md shadow-[0_8px_32px_rgba(0,0,0,0.6),0_0_10px_rgba(0,255,200,0.2)] transition-all duration-300 ease hover:-translate-y-1 hover:scale-105">
                     {player.status === "available" || player.status === "auction" ? (
                       <>
                         <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-violet-500 to-transparent"></div>
                         <p className="text-violet-500/60 uppercase tracking-[0.3em] text-[10px] font-black mb-2">Current Highest Bid</p>
                         <h1 className={`text-4xl sm:text-5xl md:text-6xl font-black text-violet-400 tabular-nums drop-shadow-[0_0_15px_rgba(52,211,153,0.3)] ${bidPulse ? 'bid-animation' : ''}`}>
-                          ₹{currentBid.toLocaleString()}
+                          {formatCurrency(currentBid)}
                         </h1>
                         {highestBidder && (
                           <div className="mt-4 flex flex-col items-center">
@@ -1930,7 +2301,7 @@ function LiveAuctionContent() {
                         ) : (
                           <>
                             <p className="text-violet-400 font-black text-[10px] uppercase tracking-widest mb-1">FINAL PRICE</p>
-                            <h1 className="text-5xl font-black text-white leading-none mb-3 drop-shadow-lg">₹{player.soldPrice?.toLocaleString()}</h1>
+                            <h1 className="text-5xl font-black text-white leading-none mb-3 drop-shadow-lg">{formatCurrency(player.soldPrice)}</h1>
                             <div className="bg-violet-600 px-4 py-2 rounded-xl shadow-[0_0_30px_rgba(16,185,129,0.3)] border border-violet-400/30">
                               <span className="text-[10px] font-black text-white uppercase tracking-widest italic">SOLD TO {teams.find(t => t.id === player.team)?.name}</span>
                             </div>
@@ -1969,17 +2340,17 @@ function LiveAuctionContent() {
                     <div className="flex flex-col h-full gap-3 min-h-0">
                       {/* BID INCREMENT CONTROL */}
                       <div className="flex items-center gap-2 px-2 shrink-0">
-                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Set Next Bid Price:</span>
+                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Next Bid:</span>
                         <div className="flex items-center gap-1">
-                          <span className="text-slate-600 text-[10px] font-black">₹</span>
+                          <span className="text-slate-600 text-[10px] font-black">{isPointsSystem() ? 'PTS' : '₹'}</span>
                           <input
                             type="number"
                             value={bidIncrement}
                             onChange={(e) => setBidIncrement(e.target.value)}
                             className="bg-slate-900 border border-slate-700 rounded-lg px-2 py-0.5 text-xs font-black text-violet-400 w-24 focus:border-violet-500 outline-none transition-all shadow-inner"
-                            placeholder="100"
+                            placeholder={isPointsSystem() ? getBidIncrement(currentBid || 2) : 100}
                           />
-                          <button onClick={() => setBidIncrement(100)} className="text-[8px] font-black text-slate-500 hover:text-white uppercase ml-1 transition-colors">Reset</button>
+                          <button onClick={() => setBidIncrement(isPointsSystem() ? ((currentBid || 2) + getBidIncrement(currentBid || 2)) : (currentBid + 100))} className="text-[8px] font-black text-violet-500 hover:text-white uppercase ml-1 transition-colors">Auto</button>
                         </div>
                       </div>
 
@@ -1994,7 +2365,7 @@ function LiveAuctionContent() {
                             }`}
                         >
                           <span className="text-lg md:text-xl">🔨 SELL PLAYER</span>
-                          {highestBidder && <span className="text-[10px] font-bold text-violet-100 opacity-80 bg-black/20 px-2 py-0.5 rounded-full">₹{currentBid.toLocaleString()}</span>}
+                          {highestBidder && <span className="text-[10px] font-bold text-violet-100 opacity-80 bg-black/20 px-2 py-0.5 rounded-full">{formatCurrency(currentBid)}</span>}
                         </button>
 
                         <button
@@ -2012,23 +2383,55 @@ function LiveAuctionContent() {
 
                       {/* TEAM BUTTONS — responsive grid */}
                       <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2 overflow-y-auto pr-1 flex-1 custom-scrollbar pb-1">
-                        {teams.map(team => (
+                        {teams.map(team => {
+                          const limits = getSquadLimits();
+                          const currentSquadSize = team.players?.length || 0;
+                          const canBid = canPlaceBid && highestBidder !== team.id && canTeamBid(team);
+                          const canBidYear = isPointsSystem() ? canBidForPlayerYear(team, player) : true;
+                          const finalCanBid = canBid && canBidYear;
+                          const restrictionReason = getBidRestrictionReason(team);
+                          const yearRestrictionReason = isPointsSystem() ? getYearRestrictionReason(team, player) : null;
+                          const finalReason = !finalCanBid ? (yearRestrictionReason || restrictionReason) : null;
+                          
+                          return (
                           <button
                             key={team.id}
                             onClick={() => placeBid(team.id)}
-                            disabled={!canPlaceBid || highestBidder === team.id}
-                            className={`flex flex-col items-center justify-center gap-1 py-1 px-0.5 transition-all duration-200 ${highestBidder === team.id ? 'ring-2 ring-violet-400 rounded-lg scale-[1.08] z-10' : ''} disabled:opacity-40 disabled:grayscale hover:opacity-100`}
+                            disabled={!finalCanBid}
+                            className={`flex flex-col items-center justify-center gap-1 py-1 px-0.5 transition-all duration-200 ${highestBidder === team.id ? 'ring-2 ring-violet-400 rounded-lg scale-[1.08] z-10' : ''} ${!finalCanBid ? 'disabled:opacity-40 disabled:grayscale' : 'hover:opacity-100'} relative group`}
+                            title={!finalCanBid ? finalReason : `Click to bid`}
                           >
                             {/* Circular Logo */}
                             <div className="w-20 h-20 rounded-full overflow-hidden bg-slate-800/40 border-2 border-slate-600 flex items-center justify-center shadow-md flex-shrink-0">
                               <img src={team.logoUrl} alt={`${team.name} logo`} className="w-20 h-20 object-cover" />
                             </div>
 
-                            {/* Team Name + Available Purse */}
+                            {/* Team Name + Squad Info */}
                             <span className="text-[9px] block truncate w-full leading-tight text-slate-300 tracking-[0.1em] text-center font-semibold">{team.name}</span>
-                            <span className="text-[10px] block font-black leading-none text-violet-400">₹{team.remainingBudget.toLocaleString()}</span>
+                            <span className="text-[10px] block font-black leading-none text-violet-400">{formatCurrency(team.remainingBudget)}</span>
+                            <span className="text-[8px] block font-medium leading-none text-slate-500">{currentSquadSize}/{limits.maxPlayers}</span>
+                            
+                            {/* Squad completion warning */}
+                            {currentSquadSize >= limits.maxPlayers && (
+                              <span className="text-[7px] block font-black leading-none text-red-400 animate-pulse">SQUAD FULL</span>
+                            )}
+                            {currentSquadSize < limits.minPlayers && (
+                              <span className="text-[7px] block font-black leading-none text-amber-400">NEED {limits.minPlayers - currentSquadSize}</span>
+                            )}
+                            
+                            {/* Year restriction warning */}
+                            {isPointsSystem() && !canBidYear && (
+                              <span className="text-[7px] block font-black leading-none text-orange-400">YEAR LIMIT</span>
+                            )}
+                            
+                            {/* Restriction tooltip */}
+                            {!finalCanBid && finalReason && (
+                              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-red-600 text-white text-[8px] rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+                                {finalReason}
+                              </div>
+                            )}
                           </button>
-                        ))}
+                        )})}
                       </div>
                     </div>
                   ) : (
@@ -2091,7 +2494,7 @@ function LiveAuctionContent() {
                         doc.text(`SOLD: ${sold.length} players`, 20, 47);
                         doc.text(`UNSOLD: ${unsold.length} players`, 80, 47);
                         const totalSpend = sold.reduce((s, p) => s + (p.soldPrice || 0), 0);
-                        doc.text(`TOTAL SPEND: Rs.${totalSpend.toLocaleString()}`, 140, 47);
+                        doc.text(`TOTAL SPEND: ${totalSpend} CR`, 140, 47);
 
                         // Table header
                         let y = 60;
@@ -2121,7 +2524,7 @@ function LiveAuctionContent() {
                           const teamName = teams.find(t => t.id === p.team || t._id === p.team)?.name || '-';
                           doc.text(`${teamName.substring(0, 18)}`, 135, y + 5);
                           doc.setTextColor(180, 150, 255);
-                          doc.text(`Rs.${(p.soldPrice || 0).toLocaleString()}`, 175, y + 5);
+                          doc.text(`${(p.soldPrice || 0)} CR`, 175, y + 5);
                           y += 7;
                         });
 
@@ -2188,7 +2591,7 @@ function LiveAuctionContent() {
                         .map((p, i) => {
                           const team = teams.find(t => t.id === p.team || t._id === p.team);
                           return (
-                            <tr key={p.id} className={`border-b border-slate-800/50 transition-all hover:bg-violet-500/5 ${i === 0 ? 'bg-amber-500/5' : ''}`}>
+                            <tr key={p._id || p.id || i} className={`border-b border-slate-800/50 transition-all hover:bg-violet-500/5 ${i === 0 ? 'bg-amber-500/5' : ''}`}>
                               <td className="px-4 py-3 text-xs font-black text-slate-600">{i + 1}</td>
                               <td className="px-4 py-3">
                                 <span className="text-[10px] font-black text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded">{p.applicationId}</span>
@@ -2219,7 +2622,7 @@ function LiveAuctionContent() {
                               </td>
                               <td className="px-4 py-3 text-right">
                                 <div className="flex flex-col items-end">
-                                  <span className="text-base font-black text-violet-400">₹{(p.soldPrice || 0).toLocaleString()}</span>
+                                  <span className="text-base font-black text-violet-400">{(p.soldPrice || 0).toLocaleString()} PTS</span>
                                   {i === 0 && <span className="text-[8px] font-black text-amber-400 uppercase tracking-widest">Top Sale 🥇</span>}
                                 </div>
                               </td>
@@ -2240,7 +2643,7 @@ function LiveAuctionContent() {
 
                       {/* UNSOLD PLAYERS */}
                       {players.filter(p => !p.type && p.status === 'unsold').map((p, i) => (
-                        <tr key={p.id} className="border-b border-slate-800/30 opacity-60 transition-all hover:opacity-90">
+                        <tr key={p._id || p.id || i} className="border-b border-slate-800/30 opacity-60 transition-all hover:opacity-90">
                           <td className="px-4 py-3 text-xs font-black text-slate-700">{players.filter(q => !q.type && q.status === 'sold').length + i + 1}</td>
                           <td className="px-4 py-3">
                             <span className="text-[10px] font-black text-slate-600 bg-slate-800 px-2 py-0.5 rounded">{p.applicationId}</span>
@@ -2286,6 +2689,7 @@ function LiveAuctionContent() {
 }
 
 function LiveAuctionWithSplash({ tournamentId, role }) {
+  const searchParams = useSearchParams()
   const isAdmin = role === 'admin'
   const [showSplash, setShowSplash] = useState(!isAdmin)
   const [fadeOut, setFadeOut] = useState(false)
@@ -2311,12 +2715,10 @@ function LiveAuctionWithSplash({ tournamentId, role }) {
     const fadeTimer = setTimeout(() => {
       setFadeOut(true)
     }, 2500)
-
     // Remove splash after 3 seconds
     const removeTimer = setTimeout(() => {
       setShowSplash(false)
     }, 3200)
-
     return () => {
       clearTimeout(fadeTimer)
       clearTimeout(removeTimer)

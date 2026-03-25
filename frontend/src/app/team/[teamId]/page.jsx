@@ -18,78 +18,6 @@ const getProxiedUrl = (url) => {
   return `${process.env.NEXT_PUBLIC_API_URL}/api/upload/proxy-image?url=${encodeURIComponent(url)}`;
 };
 
-// Simple Player Display - Profile image with price and name below
-const PlayerItem = ({ player }) => {
-  if (!player) return null;
-  
-  return (
-    <div className="player-card" style={{ width: '80px', textAlign: 'center' }}>
-      <div style={{
-        width: '70px',
-        height: '70px',
-        borderRadius: '50%',
-        overflow: 'hidden',
-        border: '2px solid #00ffcc',
-        boxShadow: '0 0 15px rgba(0, 255, 204, 0.3)'
-      }}>
-        <Image
-          src={player.imageUrl || player.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(player.name)}&background=random`}
-          alt={player.name}
-          width={70}
-          height={70}
-          style={{ objectFit: 'cover' }}
-        />
-      </div>
-      <span style={{
-        fontSize: '12px',
-        color: '#00ffcc',
-        fontWeight: 'bold'
-      }}>₹{player.soldPrice?.toLocaleString() || 0}</span>
-      <span style={{
-        fontSize: '12px',
-        color: 'white',
-        fontWeight: 'bold',
-        maxWidth: '80px',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        whiteSpace: 'nowrap'
-      }}>{player.name}</span>
-    </div>
-  );
-};
-
-// Player Row Component - Glass card layout
-const PlayerRow = ({ title, players, icon }) => {
-  return (
-    <div className="glass-card">
-      <div className="section-header">
-        <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {icon}
-          {title}
-        </span>
-        <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 'normal' }}>
-          ({players.length})
-        </span>
-      </div>
-
-      <div style={{
-        display: 'flex',
-        gap: '20px',
-        flexWrap: 'wrap',
-        padding: '10px 0',
-      }}>
-        {players.length === 0 ? (
-          <span className="empty-state">No players yet</span>
-        ) : (
-          players.map((player, index) => (
-            <PlayerItem key={player._id || player.id || index} player={player} />
-          ))
-        )}
-      </div>
-    </div>
-  );
-};
-
 function TeamSquadContent() {
   const router = useRouter()
   const params = useParams()
@@ -103,14 +31,87 @@ function TeamSquadContent() {
 
   const teamId = params.teamId
   const tournamentId = searchParams.get('tournament')
-  const [squadBg, setSquadBg] = useState('https://auction-platform-kp.s3.ap-south-1.amazonaws.com/backgrounds/ChatGPT+Image+Mar+19%2C+2026%2C+09_54_04+AM.png')
+  const [isPointsSystem, setIsPointsSystem] = useState(false)
+  const [squadBg, setSquadBg] = useState('https://auction-platform-kp.s3.ap-south-1.amazonaws.com/backgrounds/sit-stadium-tumkur-stadiums-gxk3uth1uu.avif')
   const [activeAssets, setActiveAssets] = useState({
-    squadBgUrl: "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/backgrounds/ChatGPT+Image+Mar+19%2C+2026%2C+09_54_04+AM.png",
+    squadBgUrl: "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/backgrounds/sit-stadium-tumkur-stadiums-gxk3uth1uu.avif",
     badges: { 
       leftBadge: "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/public/ChatGPT+Image+Mar+18%2C+2026%2C+12_45_23+PM.png", 
       rightBadge: "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/logos/WhatsApp+Image+2026-03-22+at+1.05.33+AM.jpeg" 
     }
   })
+
+  // Simple Player Display - Profile image with price and name below
+  const PlayerItem = ({ player }) => {
+    if (!player) return null;
+    
+    return (
+      <div className="player-card" style={{ width: '80px', textAlign: 'center' }}>
+        <div style={{
+          width: '70px',
+          height: '70px',
+          borderRadius: '50%',
+          overflow: 'hidden',
+          border: '2px solid #00ffcc',
+          boxShadow: '0 0 15px rgba(0, 255, 204, 0.3)'
+        }}>
+          <Image
+            src={player.imageUrl || player.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(player.name)}&background=random`}
+            alt={player.name}
+            width={70}
+            height={70}
+            style={{ objectFit: 'cover' }}
+          />
+        </div>
+        <span style={{
+          fontSize: '12px',
+          color: '#00ffcc',
+          fontWeight: 'bold'
+        }}>{isPointsSystem ? 'PTS' : '₹'}{player.soldPrice?.toLocaleString() || 0}</span>
+        <span style={{
+          fontSize: '12px',
+          color: 'white',
+          fontWeight: 'bold',
+          maxWidth: '80px',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap'
+        }}>{player.name}</span>
+      </div>
+    );
+  };
+
+  // Player Row Component - Glass card layout
+  const PlayerRow = ({ title, players, icon }) => {
+    return (
+      <div className="glass-card">
+        <div className="section-header">
+          <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {icon}
+            {title}
+          </span>
+          <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 'normal' }}>
+            ({players.length})
+          </span>
+        </div>
+
+        <div style={{
+          display: 'flex',
+          gap: '20px',
+          flexWrap: 'wrap',
+          padding: '10px 0',
+        }}>
+          {players.length === 0 ? (
+            <span className="empty-state">No players yet</span>
+          ) : (
+            players.map((player, index) => (
+              <PlayerItem key={player._id || player.id || index} player={player} />
+            ))
+          )}
+        </div>
+      </div>
+    );
+  };
 
   // Fetch images logic removed in favor of integrated tournament.assets
 
@@ -241,7 +242,8 @@ function TeamSquadContent() {
       if (doc.setCharSpace) doc.setCharSpace(0);
       doc.setFont(undefined, "bold");
       const budgetVal = Number(team.purse || team.remainingBudget || 0);
-      doc.text(`Budget Left: ₹${budgetVal.toLocaleString("en-IN")}`, 190, 22, { align: "right" });
+      const budgetSymbol = isPointsSystem ? 'PTS' : '₹';
+      doc.text(`Budget Left: ${budgetSymbol}${budgetVal.toLocaleString("en-IN")}`, 190, 22, { align: "right" });
       doc.setFont(undefined, "normal"); // Reset for rest of header
 
       // Divider Line
@@ -250,9 +252,9 @@ function TeamSquadContent() {
 
       // 3. SECTION 1: RETAINED PLAYERS
       // 3. SECTION 1: RETAINED PLAYERS (ALWAYS SHOW 3 SLOTS AS REQUESTED)
-      const actualIcons = squad.filter(p => !!p.isIcon);
+      const actualIcons = players.filter(p => p.team === team._id && p.isIcon === true);
       const iconPlayers = actualIcons.length > 0 ? actualIcons : Array(3).fill({ name: "To be confirmed", isPlaceholder: true });
-      const auctionPlayers = squad.filter(p => !p.isIcon && p.status === 'sold');
+      const auctionPlayers = players.filter(p => p.team === team._id && !p.isIcon && p.status === 'sold');
       
       doc.setFontSize(13);
       doc.setTextColor(40, 40, 40);
@@ -277,6 +279,11 @@ function TeamSquadContent() {
         const rawImg = await getBase64FromUrl(photoUrl);
         const compImg = rawImg ? await compressImage(rawImg, 0.7) : null;
         
+        // Determine role badge and color
+        const roleBadge = !p.isPlaceholder ? (p.iconRole === 'captain' ? 'C' : p.iconRole === 'viceCaptain' ? 'VC' : 'R') : '';
+        const roleColor = !p.isPlaceholder ? (p.iconRole === 'captain' ? '#f59e0b' : p.iconRole === 'viceCaptain' ? '#3b82f6' : '#10b981') : [16, 185, 129];
+        const roleName = !p.isPlaceholder ? (p.iconRole === 'captain' ? 'Captain' : p.iconRole === 'viceCaptain' ? 'Vice-Captain' : 'Retained') : 'To be confirmed';
+        
         if (compImg) {
           doc.addImage(compImg, "JPEG", startX, imgY, 20, 20);
           doc.setDrawColor(16, 185, 129); 
@@ -290,9 +297,9 @@ function TeamSquadContent() {
         doc.text(pName, startX + 10, imgY + 25, { align: "center" });
 
         doc.setFontSize(8);
-        doc.setTextColor(16, 185, 129);
+        doc.setTextColor(Array.isArray(roleColor) ? roleColor : roleColor);
         doc.setFont(undefined, "normal");
-        doc.text("Retained", startX + 10, imgY + 30, { align: "center" });
+        doc.text(roleName, startX + 10, imgY + 30, { align: "center" });
 
         startX += 50; 
       }
@@ -314,7 +321,7 @@ function TeamSquadContent() {
           name: p.name || "-",
           role: p.role || "-",
           village: p.village || "-",
-          price: `₹${Number(p.soldPrice || 0).toLocaleString("en-IN")}`
+          price: `${isPointsSystem ? 'PTS ' : '₹'}${Number(p.soldPrice || 0).toLocaleString("en-IN")}`
         };
       }));
 
@@ -430,17 +437,21 @@ function TeamSquadContent() {
         if (res.ok) {
           const tournamentData = await res.json()
           
+          // Detect if points system (baseBudget <= 1000 means points system)
+          const baseBudget = tournamentData.tournament?.baseBudget || 0;
+          setIsPointsSystem(baseBudget <= 1000);
+          
           // Apply Context-Specific Brading
           if (tournamentData.tournament?.assets) {
              const tAssets = tournamentData.tournament.assets;
              setActiveAssets({
-                squadBgUrl: tAssets.squadBgUrl || "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/backgrounds/ChatGPT+Image+Mar+19%2C+2026%2C+09_54_04+AM.png",
+                squadBgUrl: tAssets.squadBgUrl || "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/backgrounds/sit-stadium-tumkur-stadiums-gxk3uth1uu.avif",
                 badges: tAssets.badges || { 
                   leftBadge: "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/public/ChatGPT+Image+Mar+18%2C+2026%2C+12_45_23+PM.png", 
                   rightBadge: "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/logos/WhatsApp+Image+2026-03-22+at+1.05.33+AM.jpeg" 
                 }
              });
-             setSquadBg(tAssets.squadBgUrl || "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/backgrounds/ChatGPT+Image+Mar+19%2C+2026%2C+09_54_04+AM.png");
+             setSquadBg(tAssets.squadBgUrl || "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/backgrounds/sit-stadium-tumkur-stadiums-gxk3uth1uu.avif");
           }
 
           const foundTeam = tournamentData.teams?.find(t => t._id === teamId)
@@ -504,7 +515,7 @@ function TeamSquadContent() {
     )
   }
 
-  const squad = team.squad || players || []
+  const squad = players || team.squad || []
   return (
     <div className="page-wrapper" style={{
       background: `linear-gradient(rgba(2, 6, 23, 0.4), rgba(2, 6, 23, 0.5)), url('${squadBg}') center/cover no-repeat fixed`,
@@ -640,19 +651,23 @@ function TeamSquadContent() {
               marginBottom: '16px'
             }}>
               <Image
-                src={team.logo || `https://ui-avatars.com/api/?name=${encodeURIComponent(team.name)}&background=random`}
+                src={team.logo || team.logoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(team.name)}&background=ff6b6b&color=fff&size=200`}
                 alt={team.name}
                 width={100}
                 height={100}
                 style={{ objectFit: 'cover' }}
                 priority
+                onError={(e) => {
+                  // Fallback to UI avatar if database logo fails
+                  e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(team.name)}&background=ff6b6b&color=fff&size=200`
+                }}
               />
             </div>
             
             <h1>{team.name}</h1>
             
             <p>
-              {squad.length} Players • <span style={{ color: '#10b981', fontWeight: 'bold' }}>₹{team.purse?.toLocaleString() || team.remainingBudget?.toLocaleString() || 0} Purse</span>
+              {squad.length} Players • <span style={{ color: '#10b981', fontWeight: 'bold' }}>{isPointsSystem ? 'PTS' : '₹'}{team.purse?.toLocaleString() || team.remainingBudget?.toLocaleString() || 0} Purse</span>
             </p>
           </div>
         </div>
@@ -662,8 +677,11 @@ function TeamSquadContent() {
           {(() => {
             // Use local copies of player groups to avoid recalculating unnecessarily in larger blocks
             // Separate icon players (isIcon = true) from auction players
-            const iconPlayers = squad.filter(p => !!p.isIcon)
-            const auctionPlayers = squad.filter(p => !p.isIcon && p.status === 'sold')
+            const iconPlayers = players.filter(p => p.team === team._id && p.isIcon === true)
+            const auctionPlayers = players.filter(p => p.team === team._id && !p.isIcon && p.status === 'sold')
+            
+            console.log("ICON PLAYERS:", iconPlayers);
+            console.log("AUCTION PLAYERS:", auctionPlayers);
             
             const batsmen = auctionPlayers.filter(p => p.role?.toLowerCase().includes('bat'))
             const allrounders = auctionPlayers.filter(p => p.role?.toLowerCase().includes('all'))
@@ -687,7 +705,19 @@ function TeamSquadContent() {
                       </p>
                     ) : (
                       <div className="icon-list">
-                        {iconPlayers.map((player, index) => (
+                        {iconPlayers.map((player, index) => {
+                          // FIXED: Proper image URL priority - check photo.s3/drive first, then imageUrl/image
+                          const playerImage = `https://ui-avatars.com/api/?name=${encodeURIComponent(player.name)}&background=random`;
+                          
+                          // Determine role badge and color
+                          const roleBadge = player.iconRole === 'captain' ? 'C' : 
+                                           player.iconRole === 'viceCaptain' ? 'VC' : 'R';
+                          const roleColor = player.iconRole === 'captain' ? '#f59e0b' : 
+                                           player.iconRole === 'viceCaptain' ? '#3b82f6' : '#10b981';
+                          const roleName = player.iconRole === 'captain' ? 'Captain' : 
+                                          player.iconRole === 'viceCaptain' ? 'Vice-Captain' : 'Retained';
+                          
+                          return (
                           <div key={player._id || player.id || index} className="player-card">
                             <div style={{
                               width: '80px',
@@ -695,20 +725,41 @@ function TeamSquadContent() {
                               borderRadius: '50%',
                               overflow: 'hidden',
                               border: '3px solid #10b981',
-                              boxShadow: '0 0 20px rgba(16, 185, 129, 0.4)'
+                              boxShadow: '0 0 20px rgba(16, 185, 129, 0.4)',
+                              position: 'relative'
                             }}>
                               <Image
-                                src={player.imageUrl || player.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(player.name)}&background=random`}
+                                src={playerImage}
                                 alt={player.name}
                                 width={80}
                                 height={80}
                                 style={{ objectFit: 'cover' }}
                               />
+                              {/* Role Badge Overlay */}
+                              <div style={{
+                                position: 'absolute',
+                                top: '2px',
+                                right: '2px',
+                                background: roleColor,
+                                color: 'white',
+                                borderRadius: '50%',
+                                width: '24px',
+                                height: '24px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '12px',
+                                fontWeight: 'bold',
+                                border: '2px solid white'
+                              }}>
+                                {roleBadge}
+                              </div>
                             </div>
-                            <span style={{ fontSize: '11px', color: '#10b981', fontWeight: 'bold' }}>RETAINED</span>
+                            <span style={{ fontSize: '11px', color: roleColor, fontWeight: 'bold' }}>{roleName}</span>
                             <span style={{ fontSize: '12px', color: 'white', fontWeight: 'bold', textAlign: 'center', maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{player.name}</span>
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </div>
@@ -761,10 +812,13 @@ function TeamSquadContent() {
             marginBottom: '50px' 
           }}>
             <img 
-              src={getProxiedUrl(team.logo || `https://ui-avatars.com/api/?name=${encodeURIComponent(team.name)}&background=random`)} 
+              src={getProxiedUrl(team.logo || team.logoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(team.name)}&background=ff6b6b&color=fff&size=200`)} 
               crossOrigin="anonymous" 
               style={{ width: '130px', height: '130px', borderRadius: '50%', border: '6px solid #00ffcc', objectFit: 'cover', marginBottom: '15px', backgroundColor: 'rgba(255,255,255,0.1)' }} 
               alt=""
+              onError={(e) => {
+                e.target.src = getProxiedUrl(`https://ui-avatars.com/api/?name=${encodeURIComponent(team.name)}&background=ff6b6b&color=fff&size=200`)
+              }}
             />
             <h1 style={{ color: 'white', fontSize: '64px', margin: '0', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '4px' }}>{team.name}</h1>
             <div style={{ height: '4px', width: '120px', background: '#00ffcc', margin: '20px auto' }}></div>
@@ -815,7 +869,7 @@ function TeamSquadContent() {
                   <div key={idx} style={{ textAlign: 'center', width: itemWidth }}>
                     <div style={{ position: 'relative', display: 'inline-block' }}>
                       <img 
-                        src={getProxiedUrl(player.photo?.s3 || player.imageUrl || player.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(player.name)}&background=random`)} 
+                        src={getProxiedUrl(player.photo?.s3 || player.photo?.drive || player.imageUrl || player.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(player.name)}&background=random`)} 
                         crossOrigin="anonymous" 
                         style={{ width: imgSize, height: imgSize, borderRadius: '50%', border: '3px solid white', objectFit: 'cover', background: 'rgba(255,255,255,0.1)' }} 
                         alt=""
@@ -840,7 +894,7 @@ function TeamSquadContent() {
                     }}>{player.name}</div>
                     
                     <div style={{ color: '#00ffcc', fontSize: metaSize, fontWeight: 'bold', marginBottom: '2px' }}>
-                      {player.isIcon ? 'RETAINED' : `₹${player.soldPrice?.toLocaleString() || 0}`}
+                      {player.isIcon ? 'RETAINED' : `${isPointsSystem ? 'PTS' : '₹'}${player.soldPrice?.toLocaleString() || 0}`}
                     </div>
                     
                     <div style={{ color: '#ffffff', fontSize: contactSize, fontWeight: '800', opacity: 0.9, marginBottom: '2px' }}>

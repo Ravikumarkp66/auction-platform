@@ -14,6 +14,7 @@ function TeamsContent() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [assets, setAssets] = useState({ backgroundUrl: "" })
+  const [isPointsSystem, setIsPointsSystem] = useState(false)
 
   const tournamentId = searchParams.get('tournament')
 
@@ -63,6 +64,10 @@ function TeamsContent() {
           if (data.tournament?.assets) {
             setAssets(data.tournament.assets);
           }
+          
+          // Detect if points system
+          const baseBudget = data.tournament?.baseBudget || 0;
+          setIsPointsSystem(baseBudget <= 1000);
           
           if (data.teams && data.teams.length > 0) {
             console.log('Found teams:', data.teams.length)
@@ -260,7 +265,7 @@ function TeamsContent() {
                   color: '#10b981',
                   fontWeight: 'bold',
                   margin: '0'
-                }}>₹{team.purse?.toLocaleString() || team.remainingBudget?.toLocaleString() || 0}</p>
+                }}>{isPointsSystem ? 'PTS' : '₹'}{team.purse?.toLocaleString() || team.remainingBudget?.toLocaleString() || 0}</p>
               </div>
             </div>
           </div>

@@ -12,6 +12,29 @@ const tournamentSchema = new mongoose.Schema({
   squadSize: { type: Number, default: 11 },
   auctionSlots: { type: Number, default: 9 },
   status: { type: String, enum: ["draft", "active", "completed"], default: "draft" },
+
+  // ─── Auction Engine fields (added for multi-tournament engine) ───────────
+  // auctionMode: "money" (default / existing behaviour) or "points"
+  // Old documents that don't have this field behave exactly as "money".
+  auctionMode: {
+    type: String,
+    enum: ["money", "points"],
+    default: "money",
+  },
+  // budget mirrors baseBudget but carries the unit explicitly.
+  // Kept in sync by the create route; existing reads of baseBudget still work.
+  budget: {
+    total: { type: Number, default: 0 },
+    unit: { type: String, enum: ["INR", "POINTS"], default: "INR" },
+  },
+  // squad size constraints (minPlayers is a softer limit; maxPlayers replaces squadSize
+  // once the rule engine is active — for now squadSize is still the operative field).
+  squad: {
+    minPlayers: { type: Number, default: 1 },
+    maxPlayers: { type: Number, default: 15 },
+  },
+  // ────────────────────────────────────────────────────────────────────────
+
   assets: {
     splashUrl: { type: String },
     backgroundUrl: { type: String },

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
-const ResultOverlay = ({ type, playerName, price, teamName, teamLogo, playerImage, onSkip }) => {
+const ResultOverlay = ({ type, playerName, price, teamName, teamLogo, teamColor, teamShortName, playerImage, onSkip, currency, isPointsSystem = true }) => {
   const [showHammer, setShowHammer] = useState(false);
   const [isImpact, setIsImpact] = useState(false);
   const [showLogo, setShowLogo] = useState(false);
@@ -8,28 +8,61 @@ const ResultOverlay = ({ type, playerName, price, teamName, teamLogo, playerImag
   const [displayPrice, setDisplayPrice] = useState(0);
   const [pricePulse, setPricePulse] = useState(false);
   const [priceProgress, setPriceProgress] = useState(0);
+  
+  // Device detection
+  const [isMobile, setIsMobile] = useState(false);
+  
+  useEffect(() => {
+    // Check if mobile on mount and resize
+    const checkMobile = () => {
+      setIsMobile(typeof window !== 'undefined' && window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
-  // Add keyboard skip
+  // Add keyboard skip + universal tap/click support
   useEffect(() => {
     if (!onSkip) return;
+    
     const handleKeyDown = (e) => {
       if (e.key === 'Enter') {
         onSkip();
       }
     };
+    
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onSkip]);
+
+  // Universal skip handler
+  const handleSkip = () => {
+    if (onSkip) {
+      onSkip();
+    }
+  };
 
   const isSold = type === 'SOLD';
 
   useEffect(() => {
     if (isSold) {
-      const s1 = setTimeout(() => setShowHammer(true), 300);
-      const s2 = setTimeout(() => setIsImpact(true), 700);
-      const s3 = setTimeout(() => setShowLogo(true), 750);
-      const s4 = setTimeout(() => setShowTeamName(true), 950);
-      const s5 = setTimeout(() => setShowHammer(false), 2000);
+      const s1 = setTimeout(() => {
+        setShowHammer(true);
+      }, 300);
+      const s2 = setTimeout(() => {
+        setIsImpact(true);
+      }, 700);
+      const s3 = setTimeout(() => {
+        setShowLogo(true);
+      }, 750);
+      const s4 = setTimeout(() => {
+        setShowTeamName(true);
+      }, 950);
+      const s5 = setTimeout(() => {
+        setShowHammer(false);
+      }, 2000);
 
       return () => { 
         clearTimeout(s1); 
@@ -81,7 +114,10 @@ const ResultOverlay = ({ type, playerName, price, teamName, teamLogo, playerImag
   }, [price, type]);
 
   return (
-    <div className={`fixed inset-0 z-[1000] flex items-center justify-center bg-black/80 backdrop-blur-md transition-opacity duration-300 overflow-hidden ${isImpact ? 'animate-shake' : ''}`}>
+    <div 
+      className={`fixed inset-0 z-[1000] flex items-center justify-center bg-black/80 backdrop-blur-md transition-opacity duration-300 overflow-hidden ${isImpact ? 'animate-shake' : ''}`}
+      onClick={handleSkip}
+    >
       
       {/* Screen flash on impact */}
       <div 
@@ -110,6 +146,7 @@ const ResultOverlay = ({ type, playerName, price, teamName, teamLogo, playerImag
       <div 
         className="relative z-10 flex flex-col items-center justify-center text-center px-4"
         style={{ animation: 'scaleUp 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards' }}
+        onClick={(e) => e.stopPropagation()} // Prevent closing when clicking content
       >
         <p className="text-xl md:text-3xl font-black uppercase tracking-[0.5em] text-white/70 mb-4 drop-shadow-lg">
           {playerName}
@@ -139,7 +176,7 @@ const ResultOverlay = ({ type, playerName, price, teamName, teamLogo, playerImag
                   filter: `drop-shadow(0 0 ${15 * priceProgress}px rgba(16,185,129,${0.8 * priceProgress}))`
                 }}
               >
-                ₹{displayPrice.toLocaleString()}
+                {isPointsSystem ? `${displayPrice} PTS` : `${currency}${displayPrice.toLocaleString()}`}
               </p>
             </div>
             
@@ -162,21 +199,22 @@ const ResultOverlay = ({ type, playerName, price, teamName, teamLogo, playerImag
                   />
                 )}
 
-                {/* Cinematic SVG Hammer directly targeting the parent wrapper */}
+                {/* Cinematic SVG Hammer directly targeting parent wrapper */}
                 {showHammer && (
                   <div 
-                    className="absolute z-[1003] pointer-events-none"
+                    className="absolute z-[9999] pointer-events-none"
                     style={{
                       top: '50%', 
                       left: '50%',
                       transform: isImpact 
-                        ? 'translate(-40px, -110px) rotate(-20deg)'  // Perfectly centered on the logo
-                        : 'translate(100px, -220px) rotate(45deg)',  // Arrives from top right
-                      transition: 'transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)',
-                      opacity: 1
+                        ? 'translate(-50px, -50px) rotate(-20deg) scale(1.2)'  // Perfectly centered on logo, slightly larger
+                        : 'translate(200px, -300px) rotate(45deg) scale(1.2)',  // Arrives from top right, larger
+                      transition: 'transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1)',
+                      opacity: 1,
+                      filter: 'drop-shadow(0 10px 20px rgba(0,0,0,0.8))' // Add shadow for visibility
                     }}
                   >
-                    <svg width="140" height="140" viewBox="0 0 100 100" className="drop-shadow-2xl">
+                    <svg width="180" height="180" viewBox="0 0 100 100" className="drop-shadow-2xl">
                       {/* Handle */}
                       <rect x="44" y="25" width="12" height="65" rx="4" fill="url(#woodGrad)" />
                       <rect x="42" y="80" width="16" height="10" rx="3" fill="#3e2723" />
@@ -231,6 +269,16 @@ const ResultOverlay = ({ type, playerName, price, teamName, teamLogo, playerImag
                   TO <span className="text-[#6ee7b7]">{teamName}</span>
                 </p>
               </div>
+
+              {/* TEAM SHORT NAME BADGE */}
+              {teamShortName && (
+                <div 
+                  className="absolute -top-2 -right-2 bg-[#ff6b35] text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg z-20"
+                  style={{ backgroundColor: teamColor || '#ff6b35' }}
+                >
+                  {teamShortName}
+                </div>
+              )}
             </div>
             
             {/* Confetti / Particle placeholders */}
@@ -256,8 +304,14 @@ const ResultOverlay = ({ type, playerName, price, teamName, teamLogo, playerImag
 
       {/* Skip instruction */}
       {onSkip && (
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 text-white/50 text-sm font-bold tracking-widest uppercase animate-pulse">
-          Press ENTER to skip
+        <div 
+          className="absolute bottom-8 left-1/2 -translate-x-1/2 text-white/40 text-xs md:text-sm font-bold tracking-widest uppercase animate-pulse cursor-pointer hover:text-white/70 transition-colors"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleSkip();
+          }}
+        >
+          {isMobile ? 'Tap to skip' : 'Press Enter or Tap to skip'}
         </div>
       )}
 

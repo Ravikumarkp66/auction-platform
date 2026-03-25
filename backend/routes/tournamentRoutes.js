@@ -2,6 +2,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const router = express.Router();
 const Tournament = require("../models/Tournament");
+const TournamentRules = require("../models/TournamentRules");
 const Team = require("../models/Team");
 const Player = require("../models/Player");
 const { startImageProcessing } = require("../utils/image-processor");
@@ -36,6 +37,11 @@ router.post("/", async (req, res) => {
     const { 
       name, organizerName, organizerLogo, numTeams, iconsPerTeam, 
       baseBudget, defaultBasePrice, squadSize, auctionSlots, 
+      // ── New auction-engine fields (all optional; fall back to money defaults) ──
+      auctionMode = "money",
+      squadMinPlayers,
+      squadMaxPlayers,
+      // ────────────────────────────────────────────────────────────────────────
       teams, players 
     } = req.body;
 
@@ -44,23 +50,42 @@ router.post("/", async (req, res) => {
     if (existing) {
       return res.json({ tournamentId: existing._id, message: "Existing active tournament found" });
     }
+
+    // Derive budget unit from auction mode
+    const budgetUnit = auctionMode === "points" ? "POINTS" : "INR";
     
     // 1. Save Tournament
     const tournament = new Tournament({ 
       name, organizerName, organizerLogo, numTeams, iconsPerTeam,
       baseBudget, defaultBasePrice, squadSize, auctionSlots,
+      // New engine fields
+      auctionMode,
+      budget: { total: baseBudget || 0, unit: budgetUnit },
+      squad: {
+        minPlayers: squadMinPlayers || 1,
+        maxPlayers: squadMaxPlayers || squadSize || 15,
+      },
       status: "active" // Defaulting to active for simple flow, can be "draft" if needed
     });
     const savedTournament = await tournament.save();
 
     // 2. Save Teams
     const teamPromises = teams.map(team => {
+      // Logic for points-based retention: 
+      // If any of the players assigned to this team are "retained", deduct 50 pts.
+      let initialBudget = baseBudget;
+      if (auctionMode === "points") {
+        const teamIcons = players.filter(p => p.isIcon && p.team === team.name);
+        const hasRetained = teamIcons.some(p => p.iconRole === "retained");
+        if (hasRetained) initialBudget -= 50;
+      }
+
       return new Team({
         name: team.name,
         shortName: team.shortName,
         logoUrl: team.logoUrl,
         tournamentId: savedTournament._id,
-        remainingBudget: baseBudget,
+        remainingBudget: initialBudget,
         color: team.color
       }).save();
     });
@@ -75,9 +100,10 @@ router.post("/", async (req, res) => {
       let teamId = null;
       let slotId = null;
       
-      const foundTeam = savedTeams.find(t => t.name === player.team);
+      // ✅ CRITICAL FIX - Use teamName field from frontend
+      const foundTeam = savedTeams.find(t => t.name === player.teamName);
       if (foundTeam) {
-        teamId = foundTeam._id;
+        teamId = foundTeam._id;  // ✅ Set the actual MongoDB ObjectId
         const currentCount = foundTeam.playerCount || 0;
         slotId = `${foundTeam.shortName}${currentCount + 1}`;
         foundTeam.playerCount += 1; // Increment for slots
@@ -88,11 +114,13 @@ router.post("/", async (req, res) => {
         tournamentId: savedTournament._id,
         iconId: index + 1, // Separate ID system for icons
         applicationId: null, // No appId for icons
-        team: teamId || null,
+        team: teamId || null,  // ✅ Store as ObjectId reference, not string
         teamSlotId: slotId,
         status: "sold",
-        soldPrice: 0,
+        // SOLD PRICE: 50 for retained players (per rule), 0 for CP/VC (pre-included in team)
+        soldPrice: player.iconRole === "retained" ? 50 : 0,
         isIcon: true,
+        iconRole: player.iconRole || null,
         photo: {
           drive: player.imageUrl || player.image,
           status: "pending"
@@ -130,6 +158,10 @@ router.post("/", async (req, res) => {
       message: "Tournament and data saved successfully"
     });
 
+    // Create an empty TournamentRules document (fire-and-forget, system works without it)
+    TournamentRules.create({ tournamentId: savedTournament._id, config: {} })
+      .catch(err => console.error("[TOURNAMENT RULES] Could not create rules doc:", err.message));
+
     // START BACKGROUND IMAGE PROCESSING (DO NOT AWAIT)
     startImageProcessing(savedTournament._id).catch(err => {
         console.error("[IMAGE BACKGROUND PROCESSOR] Immediate start failed:", err.message);
@@ -161,57 +193,127 @@ router.post("/:id/append-players", async (req, res) => {
     const playersToSave = [];
 
     // 2. Identify new unique players
-    newPlayers.forEach((player) => {
+    for (const player of newPlayers) {
         const key = `${player.name.toLowerCase()}_${player.mobile || ''}`;
         if (existingMap.has(key)) {
             addedCount.skipped++;
-            return;
+            continue;
         }
 
-        const isNewIcon = player.isIcon || false;
-        const newPlayer = {
-            ...player,
-            tournamentId,
-            status: isNewIcon ? "sold" : "available",
-            isIcon: isNewIcon,
-            applicationId: isNewIcon ? null : (maxAppId + addedCount.regular + 1),
-            iconId: isNewIcon ? (maxIconId + addedCount.icons + 1) : null,
-            photo: {
-                drive: player.imageUrl || player.image,
-                status: "pending"
-            }
-        };
+        const isIconPlayer = player.isIcon || player.iconRole;
+        const playerId = isIconPlayer ? (maxIconId + addedCount.icons + 1) : (maxAppId + addedCount.regular + 1);
+        
+        let teamId = null;
+        let slotId = null;
+        
+        // ✅ CRITICAL FIX - Use teamName field and convert to ObjectId
+        if (player.teamName) {
+          const foundTeam = await Team.findOne({ tournamentId, name: player.teamName });
+          if (foundTeam) {
+            teamId = foundTeam._id;  // ✅ Store as ObjectId reference
+            slotId = `${foundTeam.shortName}${(foundTeam.playerCount || 0) + 1}`;
+          }
+        }
 
-        if (isNewIcon) {
-            addedCount.icons++;
-            newPlayer.soldPrice = 0;
-            // Note: Icon team assignment handled separately or manually for appends for safety
+        playersToSave.push(new Player({
+          ...player,
+          tournamentId,
+          iconId: isIconPlayer ? playerId : null,
+          applicationId: isIconPlayer ? null : playerId,
+          team: teamId,  // ✅ Store ObjectId, not string
+          teamSlotId: slotId,
+          status: isIconPlayer ? "sold" : "available",
+          soldPrice: isIconPlayer && player.iconRole === "retained" ? 50 : 0,
+          isIcon: isIconPlayer || false,
+          iconRole: player.iconRole || null,
+          photo: {
+            drive: player.imageUrl || player.image,
+            status: player.imageUrl ? "pending" : "done"
+          }
+        }));
+
+        if (isIconPlayer) {
+          addedCount.icons++;
         } else {
-            addedCount.regular++;
+          addedCount.regular++;
         }
-
-        playersToSave.push(newPlayer);
-    });
-
-    // 3. Save to DB
-    if (playersToSave.length > 0) {
-        await Player.insertMany(playersToSave);
     }
 
-    res.json({
-        message: "Players processed",
-        added: addedCount.regular + addedCount.icons,
-        skipped: addedCount.skipped,
-        tournamentId
-    });
-
-    // 4. Start processing images for this tournament (handles all pending)
+    // 3. Save all new players
     if (playersToSave.length > 0) {
-        startImageProcessing(tournamentId).catch(console.error);
+      await Player.insertMany(playersToSave);
     }
+
+    res.json({ added: addedCount, message: "Players appended successfully" });
   } catch (err) {
     console.error("Append players error:", err);
-    res.status(500).json({ message: err.message });
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// Assign icon players to team squads
+router.post("/:id/assign-icons-to-teams", async (req, res) => {
+  try {
+    const tournamentId = req.params.id;
+    
+    // 1. Get all icon players for this tournament
+    const iconPlayers = await Player.find({ tournamentId, isIcon: true }).sort({ iconId: 1 });
+    
+    if (iconPlayers.length === 0) {
+      return res.json({ message: "No icon players found", assigned: 0 });
+    }
+    
+    // 2. Get all teams for this tournament
+    const teams = await Team.find({ tournamentId });
+    const teamMap = {};
+    teams.forEach(t => {
+      teamMap[t.name.toLowerCase().trim()] = t._id;
+    });
+    
+    // 3. Assign each icon player to their team
+    let assignedCount = 0;
+    const updatePromises = [];
+    
+    for (const player of iconPlayers) {
+      // Always update based on teamName to ensure team is set correctly
+      const teamName = player.teamName?.toLowerCase().trim();
+      const teamId = teamMap[teamName];
+      
+      if (teamId) {
+        // Update player with team assignment
+        updatePromises.push(
+          Player.findByIdAndUpdate(player._id, {
+            team: teamId,  // ✅ CRITICAL FIX - Set the team ObjectId reference
+            status: "sold",
+            soldPrice: player.iconRole === "retained" ? 50 : 0
+          })
+        );
+        
+        // Increment team's player count
+        updatePromises.push(
+          Team.findByIdAndUpdate(teamId, {
+            $inc: { playerCount: 1 }
+          })
+        );
+        
+        assignedCount++;
+      } else {
+        console.error(`Team not found for player ${player.name}: teamName="${player.teamName}"`);
+      }
+    }
+    
+    if (updatePromises.length > 0) {
+      await Promise.all(updatePromises);
+    }
+    
+    res.json({ 
+      message: `Successfully assigned ${assignedCount} icon players to teams`,
+      assigned: assignedCount,
+      totalIcons: iconPlayers.length
+    });
+  } catch (err) {
+    console.error("Assign icons error:", err);
+    res.status(400).json({ message: err.message });
   }
 });
 
@@ -245,6 +347,11 @@ router.get("/", async (req, res) => {
           shortId: 1,
           assets: 1,
           imageProcessing: 1,
+          // ── Auction engine fields ──
+          auctionMode: 1,
+          budget: 1,
+          squad: 1,
+          // ─────────────────────────
           playerCount: { $size: "$playerStats" },
           players: { $literal: [] }, // Dummy for frontend compatibility in list view
           iconCount: {

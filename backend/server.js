@@ -113,6 +113,18 @@ app.get("/", (req, res) => {
 io.on("connection", (socket) => {
   console.log("Client connected to Socket.io:", socket.id);
 
+  // Handle playerSold event - broadcast to ALL clients (including admin)
+  socket.on("playerSold", (data) => {
+    console.log("📡 Broadcasting SOLD event:", data);
+    io.emit("playerSold", data); // Use io.emit to send to everyone
+  });
+
+  // Handle playerUnsold event - broadcast to ALL clients
+  socket.on("playerUnsold", (data) => {
+    console.log("📡 Broadcasting UNSOLD event:", data);
+    io.emit("playerUnsold", data);
+  });
+
   // When admin sends an update, broadcast to all other clients (overlay)
   socket.on("auctionUpdate", (data) => {
     currentAuctionState = data; // Store latest auction state
@@ -190,6 +202,8 @@ const teamRoutes = require("./routes/teamRoutes");
 const backgroundRoutes = require("./routes/backgroundRoutes");
 const assetRoutes = require("./routes/assetRoutes");
 const proxyImageRoute = require("./routes/proxyImage");
+const rulesRoutes = require("./routes/rulesRoutes"); // Rule Engine API
+const squadRoutes = require("./routes/squadRoutes"); // Squad generation API
 app.use("/api/players", playerRoutes);
 app.use("/api/tournaments", tournamentRoutes);
 app.use("/api/upload", uploadRoutes);
@@ -199,6 +213,8 @@ app.use("/api/teams", teamRoutes);
 app.use("/api/backgrounds", backgroundRoutes);
 app.use("/api/assets", assetRoutes);
 app.use("/api/proxy-image", proxyImageRoute);
+app.use("/api/rules", rulesRoutes); // Rule Engine API
+app.use("/api/squads", squadRoutes); // Squad generation API
 
 // Error handling middleware
 app.use((err, req, res, next) => {

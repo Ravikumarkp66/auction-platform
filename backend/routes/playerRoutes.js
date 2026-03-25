@@ -2,6 +2,8 @@ const express = require("express");
 const router = express.Router();
 const Player = require("../models/Player");
 const Team = require("../models/Team");
+const TournamentRules = require("../models/TournamentRules");
+const engine = require("../utils/ruleEngine");
 
 /**
  * Re-indexes all non-icon players to ensure no gaps in applicationId
@@ -108,9 +110,12 @@ router.post("/import", async (req, res) => {
         let added = 0;
         let skipped = 0;
 
-        // Get starting applicationId
+        // Get starting applicationId and iconId
         const lastPlayer = await Player.findOne({ tournamentId, isIcon: { $ne: true } }).sort({ applicationId: -1 });
         let nextAppId = lastPlayer ? (lastPlayer.applicationId || 0) + 1 : 1;
+        
+        const lastIcon = await Player.findOne({ tournamentId, isIcon: true }).sort({ iconId: -1 });
+        let nextIconId = lastIcon ? (lastIcon.iconId || 0) + 1 : 1;
 
         // Deduplicate incoming list internally first
         const uniqueInSheet = [];
@@ -139,20 +144,35 @@ router.post("/import", async (req, res) => {
                 continue;
             }
 
-            const player = new Player({
+            const playerData = {
                 ...p,
                 name: cleanName,
                 mobile: cleanMobile,
                 village: p.village?.trim(),
                 tournamentId,
-                applicationId: nextAppId,
-                originalApplicationId: nextAppId++,
                 photo: {
                     drive: p.imageUrl,
                     status: p.imageUrl ? "pending" : "done"
                 }
-            });
+            };
+            
+            // Ensure teamName is preserved if sent from frontend
+            if (p.teamName) {
+                playerData.teamName = p.teamName.trim();
+            }
+            
+            // Assign appropriate ID based on player type
+            if (p.isIcon) {
+                playerData.iconId = nextIconId++;
+                playerData.applicationId = null;
+                playerData.originalApplicationId = null;
+            } else {
+                playerData.applicationId = nextAppId++;
+                playerData.originalApplicationId = playerData.applicationId;
+                playerData.iconId = null;
+            }
 
+            const player = new Player(playerData);
             await player.save();
             added++;
         }
@@ -230,6 +250,55 @@ router.patch("/:id", async (req, res) => {
     const updates = req.body;
     const oldPlayer = await Player.findById(req.params.id);
     if (!oldPlayer) return res.status(404).json({ message: "Player not found" });
+
+    // ─── Rule Engine: validate before marking sold ───────────────────────
+    if (updates.status === "sold" && updates.team && updates.soldPrice != null) {
+      try {
+        const rulesDoc = await TournamentRules.findOne({
+          tournamentId: oldPlayer.tournamentId,
+        }).lean();
+        const config = rulesDoc?.config ?? {};
+
+        if (engine.isRuleEngineActive(config)) {
+          const team  = await Team.findById(updates.team).lean();
+          const squad = await Player.find({
+            team: updates.team,
+            tournamentId: oldPlayer.tournamentId,
+          }).lean();
+
+          const category     = oldPlayer.category ?? updates.category;
+          const categoryCount = category
+            ? squad.filter((p) => p.category === category).length
+            : 0;
+
+          const validation = engine.validateBid(config, {
+            bidAmount:           updates.soldPrice,
+            teamRemainingBudget: team?.remainingBudget ?? 0,
+            retainedCount:       team?.retainedCount ?? 0,
+            retainedPlayers:     team?.retainedPlayers ?? [],
+            currentPlayerCount:  squad.length,
+            category,
+            categoryCount,
+            player: {
+              role:      oldPlayer.role,
+              basePrice: oldPlayer.basePrice,
+              category,
+            },
+          });
+
+          if (!validation.ok) {
+            return res.status(400).json({
+              message: "Rule engine rejected bid",
+              errors: validation.errors,
+            });
+          }
+        }
+      } catch (ruleErr) {
+        // Rule engine errors must NOT block existing money-based auctions
+        console.error("[RULE ENGINE] Validation error (non-fatal):", ruleErr.message);
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────
 
     // Handle Sold logic -> Assign slot if not yet assigned
     if (updates.status === 'sold' && (!oldPlayer.teamSlotId || oldPlayer.team?.toString() !== updates.team)) {

@@ -7,9 +7,10 @@ import { uploadToS3 } from "../../../lib/uploadToS3";
 import {
   CheckCircle, ChevronRight, ChevronLeft, Rocket,
   Upload, RefreshCw, Trash2, AlertCircle, Users,
-  Trophy, Zap, Settings, PlayCircle, Eye, Maximize, Shuffle
+  Trophy, Zap, Settings, PlayCircle, Eye, Maximize, Shuffle, Plus
 } from "lucide-react";
 import ImageEditModal from "../../../components/ImageEditModal";
+import RulesConfigPanel, { DEFAULT_RULES_CONFIG } from "../../../components/RulesConfigPanel";
 
 // ─────────────────────────────────────────────────────────────
 // CONSTANTS
@@ -28,6 +29,10 @@ const DEFAULT_CONFIG = {
   baseBudget: 10000, defaultBasePrice: 100,
   squadSize: 15, auctionSlots: 120,
   auctionDate: "", auctionType: "live",
+  // Auction engine fields
+  auctionMode: "money",     // "money" | "points"
+  squadMinPlayers: 1,
+  squadMaxPlayers: 15,
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -158,13 +163,13 @@ const ROLE_MAP = {
   "all-rounder": "All-Rounder", allrounder: "All-Rounder", "all rounder": "All-Rounder",
   ar: "All-Rounder", "ಅಲ್ ರೌಂಡರ್": "All-Rounder", "ಆಲ್ ರೌಂಡರ್": "All-Rounder",
   
-  // Wicket Keeper variants
-  "wicket keeper": "Wicket Keeper", wicketkeeper: "Wicket Keeper",
-  wk: "Wicket Keeper", keeper: "Wicket Keeper", "ವಿಕೆಟ್ ಕೀಪರ್": "Wicket Keeper",
+  // Wicket Keeper variants (fallback to Batsman)
+  "wicket keeper": "Batsman", wicketkeeper: "Batsman",
+  wk: "Batsman", keeper: "Batsman", "ವಿಕೆಟ್ ಕೀಪರ್": "Batsman",
   
-  // WK-Batsman variants
-  "wk-batsman": "WK-Batsman", "wk batsman": "WK-Batsman", wkbatsman: "WK-Batsman",
-  "wicket keeper batsman": "WK-Batsman", "keeper batsman": "WK-Batsman",
+  // WK-Batsman variants (fallback to Batsman)
+  "wk-batsman": "Batsman", "wk batsman": "Batsman", wkbatsman: "Batsman",
+  "wicket keeper batsman": "Batsman", "keeper batsman": "Batsman",
 };
 
 const normalizeRole = (raw) => {
@@ -177,9 +182,19 @@ const normalizeRole = (raw) => {
     if (key.includes(k)) return v;
   }
   // Passthrough if it's already a valid role
-  const valid = ["Batsman","Bowler","All-Rounder","Wicket Keeper","WK-Batsman"];
+  const valid = ["Batsman","Bowler","All-Rounder"];
   const found = valid.find(v => v.toLowerCase() === key);
   return found || "All-Rounder";
+};
+
+const normalizeCategory = (raw) => {
+  if (!raw) return null;
+  const s = String(raw).toLowerCase().trim();
+  if (s.includes("1") || s.includes("first")) return "year1";
+  if (s.includes("2") || s.includes("second")) return "year2";
+  if (s.includes("3") || s.includes("third")) return "year3";
+  if (s.includes("4") || s.includes("fourth")) return "year4";
+  return null;
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -337,6 +352,7 @@ export default function CreateTournamentWizard() {
   const [icons,       setIcons]       = useState(() => ls("wiz_icons", []));
   const [players,     setPlayers]     = useState(() => ls("wiz_players", []));
   const [originalPlayers, setOriginalPlayers] = useState(() => ls("wiz_original_players", []));
+  const [rulesConfig, setRulesConfig] = useState(() => ls("wiz_rules", DEFAULT_RULES_CONFIG));
   const [parsedData,  setParsedData]  = useState(null); // RAW data for multi-step use
   const [errors,      setErrors]      = useState({});
   const [uploading,   setUploading]   = useState(false);
@@ -351,6 +367,7 @@ export default function CreateTournamentWizard() {
   useEffect(() => { sse("wiz_icons",   icons);   }, [icons]);
   useEffect(() => { sse("wiz_players", players); }, [players]);
   useEffect(() => { sse("wiz_original_players", originalPlayers); }, [originalPlayers]);
+  useEffect(() => { sse("wiz_rules",   rulesConfig); }, [rulesConfig]);
 
   // Repair session if originalPlayers is missing
   useEffect(() => {
@@ -363,7 +380,9 @@ export default function CreateTournamentWizard() {
   const fullReset = () => {
     setStep(1); setConfig(DEFAULT_CONFIG); setTeams([]);
     setIcons([]); setPlayers([]); setOriginalPlayers([]); setErrors({});
-    ["wiz_step","wiz_config","wiz_teams","wiz_icons","wiz_players", "wiz_original_players"].forEach(k => localStorage.removeItem(k));
+    setRulesConfig(DEFAULT_RULES_CONFIG);
+    ["wiz_step","wiz_config","wiz_teams","wiz_icons","wiz_players",
+     "wiz_original_players", "wiz_rules"].forEach(k => localStorage.removeItem(k));
   };
 
   // ── Validation ─────────────────────────────────────────────
@@ -385,9 +404,11 @@ export default function CreateTournamentWizard() {
   };
 
   const validateStep3 = () => {
-    const ie = icons.map(p => ({ name: !p.name.trim() }));
-    setErrors({ icons: ie });
-    return !ie.some(e => e.name);
+    // We actively ignore "To be confirmed" template slots
+    const actualIcons = icons.filter(p => p.name && p.name !== "To be confirmed");
+    const ie = actualIcons.map(p => ({ name: !p.name.trim() }));
+    // No error state needed here unless an actual filled player has no name
+    return true; 
   };
 
   const validateStep4 = () => {
@@ -410,6 +431,13 @@ export default function CreateTournamentWizard() {
   };
 
   // ── Next step logic ────────────────────────────────────────
+  // Helper: default iconRole by position within a team's icon slots
+  const iconRoleForSlot = (posInTeam) => {
+    if (posInTeam === 0) return "captain";
+    if (posInTeam === 1) return "viceCaptain";
+    return "retained";
+  };
+
   const goNext = () => {
     setErrors({});
     if (step === 1) {
@@ -431,29 +459,33 @@ export default function CreateTournamentWizard() {
       
       const slots = [];
       teams.forEach((team, ti) => {
-        for (let j = 0; j < config.iconsPerTeam; j++) {
-          // Flexible match: System Team Name vs Import Team Name
-          const matchIdx = cachedIcons.findIndex(ci => {
-            if (ci.assigned) return false;
-            const sysT = team.name.toLowerCase().trim();
-            const impT = ci.teamName?.toLowerCase().trim();
-            if (!impT) return false;
-            return sysT.includes(impT) || impT.includes(sysT);
-          });
-          
-          if (matchIdx !== -1) {
-            const match = cachedIcons[matchIdx];
+        const sysT = team.name.toLowerCase().trim();
+        const matchIcons = cachedIcons.filter(ci => {
+          if (ci.assigned) return false;
+          const impT = ci.teamName?.toLowerCase().trim();
+          return impT && (sysT.includes(impT) || impT.includes(sysT));
+        });
+        
+        if (matchIcons.length > 0) {
+          matchIcons.forEach(match => {
             match.assigned = true;
             slots.push({ ...match, team: team.name, teamIdx: ti });
-          } else {
+          });
+        } else {
+          // If no CSV match, populate C & VC only (2 cards max default)
+          for (let j = 0; j < Math.min(2, config.iconsPerTeam); j++) {
             slots.push({ 
               name: "To be confirmed", 
               role: "All-Rounder", 
+              category: "1st year",
               village: "TBC", 
               age: "TBC", 
+              applicationId: "-",
+              mobile: "-",
               imageUrl: team.logoUrl || "", 
               team: team.name, 
-              teamIdx: ti 
+              teamIdx: ti,
+              iconRole: iconRoleForSlot(j),
             });
           }
         }
@@ -523,26 +555,39 @@ export default function CreateTournamentWizard() {
           }
         }
 
-        // 2. Extract Icons (Filter: Name + Image)
-        const iconRows = rawRows.filter(row => {
-          const name = findValue(row, ["player name", "playerName", "icon", "name", "athlete", "ಆಟಗಾರನ ಹೆಸರು"]);
-          const img = findValue(row, ["imageUrl", "photo", "image", "link", "url", "icon image", "ಭಾವಚಿತ್ರ"]);
-          return name && img;
+        // 2. Extract Icons (Handle horizontal columns format first)
+        let importedIcons = [];
+        rawRows.forEach(row => {
+          const teamName = findValue(row, ["teamName", "team name", "name", "team", "ತಂಡ"]);
+          if (teamName) {
+            importedIcons.push(...extractIconsFromRow(row, teamName));
+          }
         });
 
-        if (iconRows.length > 0) {
-          const importedIcons = iconRows.map(row => ({
-            name:     findValue(row, ["player name", "playerName", "icon", "name", "athlete", "ಆಟಗಾರನ ಹೆಸರು"]),
-            role:     normalizeRole(findValue(row, ["playing role", "role", "skill", "player role", "category", "type", "position", "ಪಾತ್ರ", "ಸ್ಥಾನ"])),
-            village:  findValue(row, ["village", "town", "city", "ಗ್ರಾಮ", "ಸ್ಥಳ"]) || "-",
-            age:      calculateAge(findValue(row, ["dob", "birth"])) || findValue(row, ["age", "ವಯಸ್ಸು"]) || "-",
-            imageUrl: proxyUrl(findValue(row, ["imageUrl", "photo", "image", "link", "url", "icon image", "ಭಾವಚಿತ್ರ"])),
-            imageOriginalUrl: findValue(row, ["imageUrl", "photo", "image", "link", "url", "icon image", "ಭಾವಚಿತ್ರ"]),
-            teamName: findValue(row, ["team", "teamName", "team name", "ತಂಡ"])
-          }));
-          
-          // We will map these to specific slots during transition to Step 3
-          // or store them for later use
+        // Fallback: If no column-wise icons were found, try row-wise parsing
+        if (importedIcons.length === 0) {
+          const iconRows = rawRows.filter(row => {
+            const name = findValue(row, ["player name", "playerName", "icon", "name", "athlete", "ಆಟಗಾರನ ಹೆಸರು"]);
+            const img = findValue(row, ["imageUrl", "photo", "image", "link", "url", "icon image", "ಭಾವಚಿತ್ರ"]);
+            // Avoid treating pure team rows as player rows
+            const hasTeamKeys = findValue(row, ["teamName", "team logo", "logoUrl"]);
+            return name && img && !hasTeamKeys;
+          });
+
+          if (iconRows.length > 0) {
+            importedIcons = iconRows.map(row => ({
+              name:     findValue(row, ["player name", "playerName", "icon", "name", "athlete", "ಆಟಗಾರನ ಹೆಸರು"]),
+              role:     normalizeRole(findValue(row, ["playing role", "role", "skill", "player role", "category", "type", "position", "ಪಾತ್ರ", "ಸ್ಥಾನ"])),
+              village:  findValue(row, ["village", "town", "city", "ಗ್ರಾಮ", "ಸ್ಥಳ"]) || "-",
+              age:     Number(calculateAge(findValue(row, ["dob", "birth"]))) || Number(findValue(row, ["age", "ವಯಸ್ಸು"])) || 0,
+              imageUrl: proxyUrl(findValue(row, ["imageUrl", "photo", "image", "link", "url", "icon image", "ಭಾವಚಿತ್ರ"])),
+              imageOriginalUrl: findValue(row, ["imageUrl", "photo", "image", "link", "url", "icon image", "ಭಾವಚಿತ್ರ"]),
+              teamName: findValue(row, ["team", "teamName", "team name", "ತಂಡ"])
+            }));
+          }
+        }
+
+        if (importedIcons.length > 0) {
           ls("wiz_temp_icons", importedIcons); 
         }
 
@@ -576,6 +621,79 @@ export default function CreateTournamentWizard() {
     } finally {
       setConverting(false);
     }
+  };
+
+  // Helper: Deduced Year from USN based on 2026
+  const calculateYearFromUSN = (usnStr) => {
+    if (!usnStr || typeof usnStr !== 'string') return "1st year";
+    const match = usnStr.match(/2[0-9]/);
+    if (match) {
+      const yr = parseInt(match[0], 10);
+      const diff = 26 - yr;
+      if (diff === 3) return "3rd year";
+      if (diff === 2) return "2nd year";
+      if (diff >= 4) return "4th year";
+    }
+    return "1st year";
+  };
+
+  // ── Helper: Extract Icons Column-wise ──
+  const extractIconsFromRow = (row, teamName) => {
+    const iconsFound = [];
+    
+    // Track sequential indices for generic duplicate columns (e.g. "USN", "USN_1")
+    let genericUsnIdx = 1; 
+    let genericPhnIdx = 1;
+    const rowKeys = Object.keys(row).map(k => k.toLowerCase().trim());
+    
+    const extractRole = (prefixes, roleType) => {
+      // Find Name
+      const pName = findValue(row, prefixes.flatMap(p => [`${p} name`, `${p}name`, p, `${p} player name`, `${p} player`]));
+      if (!pName || pName.toLowerCase() === "yes" || pName.toLowerCase() === "no") return null;
+
+      // Find USN
+      let pUsn = findValue(row, prefixes.flatMap(p => [`${p} usn`, `${p}usn`, `${p} id`, `${p} roll`, `${p} usn number`, `${p} app id`]));
+      if (!pUsn) {
+        // Fallback to sequential generic headers: 'usn', 'usn_1', 'usn_2'
+        const suffix = genericUsnIdx === 1 ? "" : `_${genericUsnIdx - 1}`;
+        pUsn = findValue(row, [`usn${suffix}`, `id${suffix}`, `roll no${suffix}`]);
+        if (pUsn) genericUsnIdx++;
+      }
+
+      // Find Phone
+      let pPhn = findValue(row, prefixes.flatMap(p => [`${p} phn number`, `${p} phn`, `${p} phone`, `${p} mobile`, `${p} number`, `${p} contact`, `${p} phone number`]));
+      if (!pPhn) {
+        // Fallback to sequential generic headers: 'phn number', 'phn number_1'
+        const suffix = genericPhnIdx === 1 ? "" : `_${genericPhnIdx - 1}`;
+        pPhn = findValue(row, [`phn number${suffix}`, `phone number${suffix}`, `mobile${suffix}`, `phone${suffix}`, `phn${suffix}`, `contact${suffix}`]);
+        if (pPhn) genericPhnIdx++;
+      }
+
+      const pImg = findValue(row, prefixes.flatMap(p => [`${p} photo`, `${p} image`, `${p} url`, `${p} id card`, `${p} link`, `${p} pic`]));
+      
+      return {
+        name: pName,
+        mobile: pPhn || "-",
+        imageUrl: proxyUrl(pImg),
+        imageOriginalUrl: pImg,
+        role: "All-Rounder", // default backend necessity
+        category: calculateYearFromUSN(pUsn || ""), // Dynamic Year calculation from USN
+        village: "-", 
+        age: 0, 
+        teamName, 
+        iconRole: roleType,
+        applicationId: pUsn || "-", // Store USN but don't use it for assignment
+      };
+    };
+
+    const cap = extractRole(["captain", "capt", "c", "captian"], "captain");
+    if (cap) iconsFound.push(cap);
+    const vc = extractRole(["vice captain", "vc", "vice-captain", "vice", "v captain", "vice captian", "vp", "v c"], "viceCaptain");
+    if (vc) iconsFound.push(vc);
+    const ret = extractRole(["retained", "retain", "ret", "retianed", "retained player", "retention"], "retained");
+    if (ret) iconsFound.push(ret);
+
+    return iconsFound;
   };
 
   const fixIconImages = async (currentIcons) => {
@@ -622,7 +740,7 @@ export default function CreateTournamentWizard() {
       try {
         const wb = XLSX.read(ev.target.result, { type: "binary" });
         const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
-        const updated = [...icons];
+        let updated = [...icons];
 
         rows.forEach(row => {
           const teamMatch = findValue(row, ["team","teamName","team name"]);
@@ -633,17 +751,46 @@ export default function CreateTournamentWizard() {
             return sysT.includes(impT) || impT.includes(sysT);
           });
           if (tIdx === -1) return;
-          const slot = updated.findIndex(p => p.teamIdx === tIdx && (!p.name || p.name === "To be confirmed"));
-          if (slot !== -1) {
-            updated[slot] = {
-              ...updated[slot],
-              name:     findValue(row, ["player name", "playerName", "icon", "name"]) || "",
-              role:     findValue(row, ["role", "type", "position"]) || "All-Rounder",
-              age:      findValue(row, ["age", "years"]) || "",
-              village:  findValue(row, ["village", "town", "city"]) || "",
-              imageUrl: proxyUrl(findValue(row, ["imageUrl", "photo", "image", "link", "url"])),
-              imageOriginalUrl: findValue(row, ["imageUrl", "photo", "image", "link", "url"]),
-            };
+
+          // Process row horizontally first for columns (C, VC, Retained)
+          const extracted = extractIconsFromRow(row, teamMatch);
+          if (extracted.length > 0) {
+            // Remove lingering empty slots for this team so we can cleanly place them
+            updated = updated.filter(p => !(p.teamIdx === tIdx && p.name === "To be confirmed"));
+
+            extracted.forEach(extItem => {
+              // See if role (C, VC, Retained) is already manually placed, update it, else push new slot!
+              const slot = updated.findIndex(p => p.teamIdx === tIdx && p.iconRole === extItem.iconRole);
+              if (slot !== -1) {
+                updated[slot] = {
+                  ...updated[slot],
+                  name: extItem.name,
+                  category: extItem.category, // Use pre-calculated category from extraction
+                  mobile: extItem.mobile,
+                  imageUrl: extItem.imageUrl,
+                  imageOriginalUrl: extItem.imageOriginalUrl,
+                };
+              } else {
+                updated.push({
+                  ...extItem,
+                  team: teams[tIdx].name,
+                  teamIdx: tIdx,
+                });
+              }
+            });
+          } else {
+             // Fallback to row-wise assignment
+             const slot = updated.findIndex(p => p.teamIdx === tIdx && (!p.name || p.name === "To be confirmed"));
+             if (slot !== -1) {
+               updated[slot] = {
+                 ...updated[slot],
+                 name:     findValue(row, ["player name", "playerName", "icon", "name"]) || "",
+                 role:     normalizeRole(findValue(row, ["role", "type", "position"])),
+                 mobile:   findValue(row, ["phone", "mobile", "phn"]) || "-",
+                 imageUrl: proxyUrl(findValue(row, ["imageUrl", "photo", "image", "link", "url"])),
+                 imageOriginalUrl: findValue(row, ["imageUrl", "photo", "image", "link", "url"]),
+               };
+             }
           }
         });
         setIcons(updated);
@@ -690,8 +837,8 @@ export default function CreateTournamentWizard() {
   const jumblePlayers = () => {
     if (players.length < 2) return;
     const shuffled = [...players].sort(() => Math.random() - 0.5);
-    // Re-index applicationIds based on new order
-    const ordered = shuffled.map((p, i) => ({ ...p, applicationId: i + 1 }));
+    // Re-index slno based on new order (preserve original USN)
+    const ordered = shuffled.map((p, i) => ({ ...p, id: i + 1 }));
     setPlayers(ordered);
   };
 
@@ -714,22 +861,25 @@ export default function CreateTournamentWizard() {
           const dobVal = findValue(row, ["dob", "date of birth", "birth", "ಹುಟ್ಟಿದ ದಿನಾಂಕ", "d.o.b", "birthdate", "birth_date", "dateofbirth"]);
           const calcAge = calculateAge(dobVal);
           const rawAge = findValue(row, ["age", "years", "ವಯಸ್ಸು", "playerage", "player_age"]);
-          const rawUrl = findValue(row, ["imageUrl", "photo", "image", "link", "url", "ಭಾವಚಿತ್ರ"]) || "";
+          const rawUrl = findValue(row, ["imageUrl", "photo", "image", "id card", "idcard", "id card photo", "link", "url", "ಭಾವಚಿತ್ರ"]) || "";
+          const rawUSN = findValue(row, ["usn", "roll no", "id number", "id", "roll"]);
+
+          const r = normalizeRole(findValue(row, [
+              "playing role", "playerrole", "player role", "role", "skill", "type", "position", "playing style", "batting/bowling", "speciality", "specialty", "ಪಾತ್ರ", "ಸ್ಥಾನ", "ವಿಭಾಗ"
+            ]));
 
           return {
             id: i + 1,
-            applicationId: i + 1,
             name:         findValue(row, ["player name", "playerName", "name", "player", "ಆಟಗಾರನ ಹೆಸರು"]) || "PLAYER NAME",
-            role: normalizeRole(findValue(row, [
-              "playing role", "playerrole", "player role", "role", "skill", "category", "type", "position", "playing style", "batting/bowling", "speciality", "specialty", "ಪಾತ್ರ", "ಸ್ಥಾನ", "ವಿಭಾಗ"
-            ])),
-            age:          calcAge || rawAge || "-",
+            role: r,
+            category: normalizeCategory(findValue(row, ["year", "yer", "batch", "class", "category", "ವರ್ಷ", "ವರ್ಗ"])),
+            age:         Number(calcAge) || Number(rawAge) || 0,
             dob:          dobVal ? (dobVal instanceof Date ? dobVal.toLocaleDateString() : String(dobVal)) : "",
-            mobile:       findValue(row, ["mobile", "phone", "contact", "ಮೊಬೈಲ್", "ದೂರವಾಣಿ"]) || "-",
+            mobile:       findValue(row, ["phonenumebr", "mobile", "phone", "contact", "ಮೊಬೈಲ್", "ದೂರವಾಣಿ"]) || "-",
             battingStyle: findValue(row, ["batting", "battingStyle", "style", "ಬ್ಯಾಟಿಂಗ್"]) || "Right Hand",
             bowlingStyle: findValue(row, ["bowling", "bowlingStyle", "ಬೌಲಿಂಗ್"]) || "-",
             village:      findValue(row, ["village", "town", "city", "ಗ್ರಾಮ", "ಸ್ಥಳ"]) || "-",
-            basePrice:    Number(findValue(row, ["basePrice", "price", "base price", "amount", "ಮೂಲ ಬೆಲೆ"])) || config.defaultBasePrice,
+            basePrice:    config.auctionMode === "points" ? (r === "All-Rounder" ? rulesConfig.basePrice.allRounder : rulesConfig.basePrice.batsman) : (Number(findValue(row, ["basePrice", "price", "base price", "amount", "ಮೂಲ ಬೆಲೆ"])) || config.defaultBasePrice),
             imageUrl:     proxyUrl(rawUrl),   // shows instantly via proxy
             imageOriginalUrl: rawUrl,     // kept for S3 conversion later
             imageLoading: false,          // no loading state needed anymore!
@@ -762,17 +912,46 @@ export default function CreateTournamentWizard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...config,
+          auctionMode: config.auctionMode || "money",
+          squadMinPlayers: config.squadMinPlayers || 1,
+          squadMaxPlayers: config.squadMaxPlayers || config.squadSize || 15,
           teams,
           players: [
-            ...icons.map(p => ({ ...p, isIcon: true, status: "sold", soldPrice: 0 })),
+            ...icons.filter(i => i.name && i.name !== "To be confirmed").map(p => ({ 
+              ...p, 
+              isIcon: true, 
+              status: "sold", 
+              soldPrice: (config.auctionMode === 'points' && p.iconRole === 'retained') 
+                ? rulesConfig.retention.costPerPlayer 
+                : 0 
+            })),
             ...players,
           ],
         }),
       });
       const data = await res.json();
       if (data.tournamentId || data._id) {
+        const tid = data.tournamentId || data._id;
+
+        // Save rules for points-based auctions (fire-and-forget — non-blocking)
+        if (config.auctionMode === "points") {
+          const effectiveRules = {
+            ...rulesConfig,
+            budget: { ...rulesConfig.budget, total: config.baseBudget, type: "points" },
+            squad:  {
+              minPlayers: config.squadMinPlayers || rulesConfig.squad?.minPlayers || 1,
+              maxPlayers: config.squadMaxPlayers || rulesConfig.squad?.maxPlayers || 15,
+            },
+          };
+          fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rules/${tid}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ config: effectiveRules }),
+          }).catch(err => console.warn("[RULES] Save failed (non-fatal):", err.message));
+        }
+
         fullReset();
-        router.push(`/live-auction?id=${data.tournamentId || data._id}`);
+        router.push(`/live-auction?id=${tid}`);
       } else {
         alert("Server error: " + (data.message || "Unknown error"));
       }
@@ -819,7 +998,8 @@ export default function CreateTournamentWizard() {
               </Field>
             </div>
 
-            <Field label="Auction Type *">
+            {/* ── Auction Type (Live / Demo) ── */}
+            <Field label="Auction Mode Type *">
               <select className={inputCls(false)} value={config.auctionType}
                 onChange={e => setConfig(p => ({ ...p, auctionType: e.target.value }))}>
                 <option value="live">🔴 Live Auction</option>
@@ -827,10 +1007,44 @@ export default function CreateTournamentWizard() {
               </select>
             </Field>
 
+            {/* ── Auction Date ── */}
             <Field label="Auction Date" hint="Optional planning reference">
               <input type="date" className={inputCls(false)} value={config.auctionDate}
                 onChange={e => setConfig(p => ({ ...p, auctionDate: e.target.value }))} />
             </Field>
+
+            {/* ── NEW: Auction Currency Mode ── */}
+            <div className="md:col-span-2">
+              <Field label="Auction Currency Mode *"
+                hint={config.auctionMode === 'points' ? 'Budgets and bids will be expressed in Points, not ₹' : 'Standard money-based auction (₹ INR)'}>
+                <div className="grid grid-cols-2 gap-3">
+                  {[{ val: 'money', icon: '💰', title: 'Money (₹)', desc: 'INR-based bidding' },
+                    { val: 'points', icon: '⚡', title: 'Points', desc: 'Point-based bidding' }].map(opt => (
+                    <button
+                      key={opt.val}
+                      type="button"
+                      onClick={() => setConfig(p => ({
+                        ...p,
+                        auctionMode: opt.val,
+                        baseBudget: opt.val === 'points' ? 200 : 10000,
+                        defaultBasePrice: opt.val === 'points' ? 2 : 100,
+                      }))}
+                      className={`flex items-center gap-3 px-4 py-3 rounded-xl border-2 font-bold text-sm transition-all ${
+                        config.auctionMode === opt.val
+                          ? 'border-violet-500 bg-violet-500/15 text-white shadow-[0_0_16px_rgba(124,58,237,0.35)]'
+                          : 'border-white/10 bg-white/[0.03] text-slate-400 hover:border-white/20 hover:text-white'
+                      }`}
+                    >
+                      <span className="text-xl">{opt.icon}</span>
+                      <div className="text-left">
+                        <p className="font-black text-sm">{opt.title}</p>
+                        <p className="text-[10px] font-normal opacity-60">{opt.desc}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </Field>
+            </div>
 
             <Field label="Number of Teams *" error={errors.numTeams}>
               <input type="number" min={2} max={30} className={inputCls(errors.numTeams)}
@@ -838,33 +1052,90 @@ export default function CreateTournamentWizard() {
                 onChange={e => setConfig(p => ({ ...p, numTeams: Number(e.target.value) || 0 }))} />
             </Field>
 
-            <Field label="Icons per Team *" error={errors.iconsPerTeam}
-              hint="Pre-retained star players per team">
+            <Field label="Captain, VC & Retained Players per Team *" error={errors.iconsPerTeam}
+              hint="Pre-retained / Special designated players per team">
               <input type="number" min={0} max={10} className={inputCls(errors.iconsPerTeam)}
                 value={config.iconsPerTeam}
                 onChange={e => setConfig(p => ({ ...p, iconsPerTeam: Number(e.target.value) || 0 }))} />
             </Field>
 
-            <Field label="Team Budget (₹) *" error={errors.baseBudget}>
-              <input type="number" min={1} className={inputCls(errors.baseBudget)}
-                value={config.baseBudget}
-                onChange={e => setConfig(p => ({ ...p, baseBudget: Number(e.target.value) || 0 }))} />
+            {/* ── Budget — label/symbol adapts to auctionMode ── */}
+            <Field
+              label={config.auctionMode === 'points' ? 'Team Budget (Points) *' : 'Team Budget (₹) *'}
+              error={errors.baseBudget}>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-sm font-black pointer-events-none select-none">
+                  {config.auctionMode === 'points' ? 'Pts' : '₹'}
+                </span>
+                <input type="number" min={1}
+                  className={`${inputCls(errors.baseBudget)} pl-10`}
+                  value={config.baseBudget}
+                  onChange={e => setConfig(p => ({ ...p, baseBudget: Number(e.target.value) || 0 }))} />
+              </div>
             </Field>
 
-            <Field label="Default Base Price (₹) *" error={errors.defaultBasePrice}
-              hint="Used when player base price is missing">
-              <input type="number" min={1} className={inputCls(errors.defaultBasePrice)}
-                value={config.defaultBasePrice}
-                onChange={e => setConfig(p => ({ ...p, defaultBasePrice: Number(e.target.value) || 0 }))} />
-            </Field>
+            {config.auctionMode === 'money' && (
+              <Field
+                label='Default Base Price (₹) *'
+                error={errors.defaultBasePrice}
+                hint="Used when player base price is missing">
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-sm font-black pointer-events-none select-none">
+                    ₹
+                  </span>
+                  <input type="number" min={1}
+                    className={`${inputCls(errors.defaultBasePrice)} pl-10`}
+                    value={config.defaultBasePrice}
+                    onChange={e => setConfig(p => ({ ...p, defaultBasePrice: Number(e.target.value) || 0 }))} />
+                </div>
+              </Field>
+            )}
+
+            {/* ── NEW: Squad Size Constraints ── */}
+            <div className="md:col-span-2">
+              <p className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-3 px-0.5">Squad Configuration</p>
+              <div className="grid grid-cols-3 gap-3">
+                <Field label="Total Squad Size *" error={errors.squadSize}
+                  hint="Max roster incl. icons">
+                  <input type="number" min={1} className={inputCls(errors.squadSize)}
+                    value={config.squadSize}
+                    onChange={e => setConfig(p => ({ ...p, squadSize: Number(e.target.value) || 0 }))} />
+                </Field>
+                <Field label="Min Players per Team" hint="Soft lower limit">
+                  <input type="number" min={1} className={inputCls(false)}
+                    value={config.squadMinPlayers}
+                    onChange={e => setConfig(p => ({ ...p, squadMinPlayers: Number(e.target.value) || 1 }))} />
+                </Field>
+                <Field label="Max Players per Team" hint="Hard upper limit">
+                  <input type="number" min={1} className={inputCls(false)}
+                    value={config.squadMaxPlayers}
+                    onChange={e => setConfig(p => ({ ...p, squadMaxPlayers: Number(e.target.value) || 15 }))} />
+                </Field>
+              </div>
+            </div>
           </div>
+
+          {/* Advanced Rules (only for points-based auctions) */}
+          {config.auctionMode === "points" && (
+            <div>
+              <div className="h-px bg-white/5 my-2" />
+              <RulesConfigPanel
+                auctionMode={config.auctionMode}
+                config={rulesConfig}
+                onChange={setRulesConfig}
+              />
+            </div>
+          )}
 
           {/* Summary preview */}
           <div className="rounded-2xl bg-violet-500/5 border border-violet-500/15 p-5 grid grid-cols-3 gap-4">
             {[
-              ["Total Teams",    config.numTeams],
-              ["Total Icons",    config.numTeams * config.iconsPerTeam],
-              ["Total Budget",   `₹${(config.baseBudget * config.numTeams).toLocaleString()}`],
+              ["Total Teams",   config.numTeams],
+              ["Total Icons",   config.numTeams * config.iconsPerTeam],
+              ["Budget / Team", config.auctionMode === 'points'
+                ? `${Number(config.baseBudget).toLocaleString()} Pts`
+                : `₹${(config.baseBudget).toLocaleString()}`
+              ],
             ].map(([label, val]) => (
               <div key={label} className="text-center">
                 <p className="text-xl font-black text-white">{val}</p>
@@ -949,9 +1220,24 @@ export default function CreateTournamentWizard() {
       {/* ── STEP 3: Icon Players ── */}
       {step === 3 && (
         <StepCard step={3} onReset={() => {
-          setIcons(icons.map(ic => ({ ...ic, name: "", role: "All-Rounder", village: "", age: "", imageUrl: "" })));
+          // Reset just generates C & VC
+          setIcons(teams.flatMap((t, ti) => [
+            { name: "To be confirmed", role: "All-Rounder", category: "1st year", iconRole: "captain", teamIdx: ti, team: t.name, applicationId: "-", mobile: "-" },
+            { name: "To be confirmed", role: "All-Rounder", category: "1st year", iconRole: "viceCaptain", teamIdx: ti, team: t.name, applicationId: "-", mobile: "-" }
+          ]));
         }} resetLabel="Reset Icons">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-black text-white">Icon Players</h3>
+            <button
+              onClick={() => setIcons([])}
+              className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg text-sm font-bold transition-colors flex items-center gap-2"
+              title="Clear all icons to import new CSV"
+            >
+              <Trash2 className="w-4 h-4" />
+              Clear All Icons
+            </button>
+          </div>
+          <div className="flex items-center gap-3 mb-4">
             {parsedData && (
                <div className="flex-1 py-3 px-6 rounded-xl border border-emerald-500/20 bg-emerald-500/5 flex items-center gap-3">
                   <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
@@ -998,6 +1284,12 @@ export default function CreateTournamentWizard() {
                     }
                     <span className="font-black text-sm text-white uppercase tracking-wide">{team.name}</span>
                     <span className="text-[10px] text-slate-500 bg-white/5 px-2 py-0.5 rounded-full">{teamIcons.length} icon{teamIcons.length > 1 ? "s" : ""}</span>
+                    <button type="button" onClick={() => {
+                        const newIcon = { name: "To be confirmed", role: "All-Rounder", category: "1st year", village: "-", age: "-", applicationId: "-", mobile: "-", imageUrl: "", team: team.name, teamIdx: ti, iconRole: null };
+                        setIcons([...icons, newIcon]);
+                    }} className="ml-auto flex items-center gap-1 text-[10px] font-black uppercase text-violet-400 border border-violet-500/20 hover:bg-violet-500/10 px-2 py-1 rounded transition-colors">
+                        <Plus className="w-3 h-3" /> Add
+                    </button>
                   </div>
                   <div className="space-y-2 pl-3 border-l-2" style={{ borderColor: team.color + "55" }}>
                     {teamIcons.map((icon, ii) => {
@@ -1018,6 +1310,15 @@ export default function CreateTournamentWizard() {
                               }}>
                               <Maximize className="w-4 h-4 text-white" />
                             </div>
+                            {/* Role badge overlay */}
+                            {icon.iconRole && (
+                              <div className={`absolute bottom-0 left-0 right-0 text-center text-[8px] font-black uppercase tracking-widest py-0.5
+                                ${icon.iconRole === "captain"     ? "bg-amber-500/90 text-black"
+                                : icon.iconRole === "viceCaptain" ? "bg-slate-400/90 text-black"
+                                : "bg-emerald-600/90 text-white"}`}>
+                                {icon.iconRole === "captain" ? "C" : icon.iconRole === "viceCaptain" ? "VC" : "R"}
+                              </div>
+                            )}
                           </div>
 
                           <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -1025,18 +1326,77 @@ export default function CreateTournamentWizard() {
                               <input placeholder="Icon Name *" value={icon.name}
                                 onChange={e => {
                                   const ni = [...icons]; ni[globalIdx].name = e.target.value; setIcons(ni);
-                                  setErrors(p => ({ ...p, icons: p.icons?.map((ie, gi) => gi === globalIdx ? { ...ie, name: false } : ie) }));
                                 }}
                                 className={`w-full bg-transparent border-b ${err ? "border-red-500" : "border-white/10"} py-1 font-bold text-white text-sm focus:border-violet-500 outline-none placeholder:text-slate-600 transition-colors`} />
                             </div>
-                            <select value={icon.role || "All-Rounder"}
-                              onChange={e => { const ni = [...icons]; ni[globalIdx].role = e.target.value; setIcons(ni); }}
+                            <select title="Year" value={icon.category || "1st year"}
+                              onChange={e => { const ni = [...icons]; ni[globalIdx].category = e.target.value; setIcons(ni); }}
                               className="bg-[#0B0F2A] border border-white/10 rounded-lg px-2 py-1 text-xs font-bold text-slate-300 focus:border-violet-500 outline-none">
-                              {["Batsman","Bowler","All-Rounder","Wicket Keeper","WK-Batsman"].map(v => <option key={v}>{v}</option>)}
+                              {["1st year","2nd year","3rd year", "4th year"].map(v => <option key={v}>{v}</option>)}
                             </select>
-                            <input placeholder="Age" value={icon.age}
-                              onChange={e => { const ni = [...icons]; ni[globalIdx].age = e.target.value; setIcons(ni); }}
+                            <input title="USN / App ID" placeholder="USN" value={icon.applicationId}
+                              onChange={e => { 
+                                const ni = [...icons]; 
+                                ni[globalIdx].applicationId = e.target.value; 
+                                ni[globalIdx].category = calculateYearFromUSN(e.target.value); 
+                                setIcons(ni); 
+                              }}
                               className="bg-transparent border border-white/10 rounded-lg px-2 py-1 text-xs font-bold text-slate-300 focus:border-violet-500 outline-none placeholder:text-slate-600 transition-colors" />
+                            <input title="Contact Number" placeholder="Phone" value={icon.mobile}
+                              onChange={e => { const ni = [...icons]; ni[globalIdx].mobile = e.target.value; setIcons(ni); }}
+                              className="bg-transparent border border-white/10 rounded-lg px-2 py-1 text-xs font-bold text-slate-300 focus:border-violet-500 outline-none placeholder:text-slate-600 transition-colors" />
+                            {/* USN Display Only - Not used for auction assignment */}
+                            {icon.applicationId && icon.applicationId !== "-" && (
+                              <div className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs font-bold text-slate-400">
+                                USN: {icon.applicationId}
+                              </div>
+                            )}
+                            
+                            {/* ── Icon Assignment pills ── */}
+                            <div className="col-span-2 md:col-span-4 flex items-center gap-2 pt-1 border-t border-white/5 mt-1">
+                              <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 shrink-0">Assignment:</span>
+                              {[
+                                { val: "captain",     label: "C",   fullLabel: "Captain",      color: "amber" },
+                                { val: "viceCaptain", label: "VC",  fullLabel: "Vice Captain",  color: "slate" },
+                                { val: "retained",   label: "R",   fullLabel: "Retained",      color: "emerald" },
+                              ].map(opt => {
+                                const active = icon.iconRole === opt.val;
+                                const colorMap = {
+                                  amber:   active ? "bg-amber-500/25 border-amber-400 text-amber-300 shadow-[0_0_10px_rgba(245,158,11,0.3)]"   : "border-white/10 text-slate-500 hover:border-amber-400/50 hover:text-amber-400",
+                                  slate:   active ? "bg-slate-400/20 border-slate-300 text-slate-200 shadow-[0_0_10px_rgba(148,163,184,0.25)]" : "border-white/10 text-slate-500 hover:border-slate-400/50 hover:text-slate-300",
+                                  emerald: active ? "bg-emerald-500/20 border-emerald-400 text-emerald-300 shadow-[0_0_10px_rgba(52,211,153,0.25)]" : "border-white/10 text-slate-500 hover:border-emerald-400/50 hover:text-emerald-400",
+                                };
+                                return (
+                                  <button
+                                    key={opt.val}
+                                    type="button"
+                                    title={opt.fullLabel}
+                                    onClick={() => {
+                                      const ni = [...icons];
+                                      if (opt.val === "retained" && ni[globalIdx].iconRole === "retained") {
+                                        ni[globalIdx].iconRole = null;
+                                      } else {
+                                        ni[globalIdx].iconRole = opt.val;
+                                      }
+                                      setIcons(ni);
+                                    }}
+                                    className={`flex items-center gap-1.5 px-3 py-1 rounded-lg border text-[10px] font-black uppercase tracking-wider transition-all ${colorMap[opt.color]}`}
+                                  >
+                                    <span>{opt.label}</span>
+                                    <span className="hidden md:inline opacity-70">{opt.fullLabel}</span>
+                                  </button>
+                                );
+                              })}
+                              {!icon.iconRole && (
+                                <span className="text-[9px] text-slate-600 italic">None</span>
+                              )}
+                              
+                              <button title="Delete Item" type="button" onClick={() => {
+                                 setIcons(icons.filter((_, idx) => idx !== globalIdx));
+                              }} className="ml-auto w-7 h-7 flex items-center justify-center rounded-lg text-slate-500 hover:text-red-400 border border-transparent hover:border-red-500/20 hover:bg-red-500/10 transition-colors shrink-0">
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           </div>
                         </div>
                       );
@@ -1111,9 +1471,17 @@ export default function CreateTournamentWizard() {
 
               {/* Preview table */}
               <div className="rounded-2xl border border-white/10 overflow-hidden">
-                <div className="grid grid-cols-[60px_60px_1fr_1fr_1fr_80px_1fr_120px_50px] px-5 py-3 bg-white/[0.03] text-[10px] font-black uppercase tracking-widest text-slate-500 border-b border-white/10 gap-3">
-                  <span>Photo</span><span>App ID</span><span>Name</span><span>Mobile</span><span>Role</span><span className="text-center">Age</span>
-                  <span>Village</span><span className="text-right">Base Price</span><span></span>
+                <div className={`grid px-5 py-3 bg-white/[0.03] text-[10px] font-black uppercase tracking-widest text-slate-500 border-b border-white/10 gap-3 ${config.auctionMode === 'points' ? "grid-cols-[60px_40px_100px_1fr_1fr_1fr_120px_50px]" : "grid-cols-[60px_60px_1fr_1fr_1fr_80px_1fr_120px_50px]"}`}>
+                  <span>Photo</span>
+                  {config.auctionMode === 'points' && <span>Sl No</span>}
+                  <span>{config.auctionMode === 'points' ? "USN" : "App ID"}</span>
+                  <span>Name</span>
+                  <span>Mobile</span>
+                  <span>Role</span>
+                  {config.auctionMode !== 'points' && <span className="text-center">Age</span>}
+                  {config.auctionMode !== 'points' && <span>Village</span>}
+                  <span className="text-right">Base Price</span>
+                  <span></span>
                 </div>
                 <div className="max-h-[380px] overflow-y-auto divide-y divide-white/5 custom-scrollbar">
                   {players.map((p, i) => {
@@ -1122,7 +1490,7 @@ export default function CreateTournamentWizard() {
                     const rowError = nameError || villageError;
 
                     return (
-                      <div key={i} className={`grid grid-cols-[60px_60px_1fr_1fr_1fr_80px_1fr_120px_50px] px-5 py-2.5 items-center transition-colors gap-3
+                      <div key={i} className={`grid px-5 py-2.5 items-center transition-colors gap-3 ${config.auctionMode === 'points' ? "grid-cols-[60px_40px_100px_1fr_1fr_1fr_120px_50px]" : "grid-cols-[60px_60px_1fr_1fr_1fr_80px_1fr_120px_50px]"}
                         ${rowError ? "bg-red-500/[0.15] border-l-2 border-l-red-500" : "hover:bg-white/[0.02]"}`}>
                         {/* Photo Column */}
                         <div className="relative w-10 h-10 rounded-lg overflow-hidden border border-white/10 bg-white/5 flex items-center justify-center cursor-pointer hover:border-violet-500/50 transition-all shrink-0 group">
@@ -1144,10 +1512,11 @@ export default function CreateTournamentWizard() {
                         </div>
                       </div>
 
-                      {/* App ID Column */}
-                      <div className="text-[11px] font-black text-violet-400">
-                        {p.applicationId}
-                      </div>
+                      {config.auctionMode === 'points' && (
+                        <div className="text-[11px] font-black text-slate-500 text-center">
+                          {p.id}
+                        </div>
+                      )}
 
                       {/* Name Editable */}
                       <input value={p.name}
@@ -1161,27 +1530,38 @@ export default function CreateTournamentWizard() {
 
                       {/* Role Editable */}
                       <select value={p.role}
-                        onChange={e => { const np = [...players]; np[i].role = e.target.value; setPlayers(np); }}
+                        onChange={e => { 
+                          const np = [...players]; 
+                          np[i].role = e.target.value;
+                          if (config.auctionMode === 'points') {
+                             np[i].basePrice = e.target.value === "All-Rounder" ? rulesConfig.basePrice.allRounder : rulesConfig.basePrice.batsman;
+                          }
+                          setPlayers(np); 
+                        }}
                         className="bg-[#0B0F2A] border border-white/10 rounded-lg px-2 py-1 text-xs font-semibold text-slate-400 focus:border-violet-500 outline-none w-full">
-                        {["Batsman","Bowler","All-Rounder","Wicket Keeper","WK-Batsman"].map(v => <option key={v}>{v}</option>)}
+                        {["Batsman","Bowler","All-Rounder"].map(v => <option key={v}>{v}</option>)}
                       </select>
 
                       {/* Age Editable */}
-                      <input value={p.age}
-                        onChange={e => { const np = [...players]; np[i].age = e.target.value; setPlayers(np); }}
-                        className="bg-transparent border-b border-transparent hover:border-white/10 focus:border-violet-500 text-xs text-slate-400 font-semibold text-center outline-none w-full py-1" />
+                      {config.auctionMode !== 'points' && (
+                        <input value={p.age}
+                          onChange={e => { const np = [...players]; np[i].age = e.target.value; setPlayers(np); }}
+                          className="bg-transparent border-b border-transparent hover:border-white/10 focus:border-violet-500 text-xs text-slate-400 font-semibold text-center outline-none w-full py-1" />
+                      )}
 
                       {/* Village Editable */}
-                      <input value={p.village}
-                        onChange={e => { const np = [...players]; np[i].village = e.target.value; setPlayers(np); }}
-                        className="bg-transparent border-b border-transparent hover:border-white/10 focus:border-violet-500 text-xs text-slate-500 outline-none w-full py-1" />
+                      {config.auctionMode !== 'points' && (
+                        <input value={p.village}
+                          onChange={e => { const np = [...players]; np[i].village = e.target.value; setPlayers(np); }}
+                          className="bg-transparent border-b border-transparent hover:border-white/10 focus:border-violet-500 text-xs text-slate-500 outline-none w-full py-1" />
+                      )}
 
                       {/* Price Editable */}
                       <div className="flex items-center gap-1 justify-end">
-                        <span className="text-violet-500 text-xs font-bold">₹</span>
+                        <span className="text-violet-500 text-[10px] font-black">{config.auctionMode === 'points' ? 'PTS' : '₹'}</span>
                         <input type="number" value={p.basePrice}
                           onChange={e => { const np = [...players]; np[i].basePrice = Number(e.target.value); setPlayers(np); }}
-                          className="bg-transparent border-b border-transparent hover:border-white/10 focus:border-violet-500 text-xs text-violet-400 font-bold text-right outline-none w-20 py-1" />
+                          className="bg-transparent border-b border-transparent hover:border-white/10 focus:border-violet-500 text-xs text-violet-400 font-bold text-right outline-none w-14 py-1" />
                       </div>
 
                       {/* Delete Action */}
@@ -1190,8 +1570,8 @@ export default function CreateTournamentWizard() {
                           if (window.confirm(`Are you sure you want to delete ${p.name}?`)) {
                             setPlayers(prev => {
                               const updated = prev.filter((_, idx) => idx !== i);
-                              // Re-index all applicationIds sequentially
-                              return updated.map((pl, seq) => ({ ...pl, applicationId: seq + 1 }));
+                              // Re-index all serial numbers sequentially
+                              return updated.map((pl, seq) => ({ ...pl, id: seq + 1 }));
                             });
                           }
                         }}
@@ -1236,10 +1616,14 @@ export default function CreateTournamentWizard() {
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {[
-                  { label: "Teams",          val: config.numTeams,               icon: "👥" },
+                  { label: "Teams",          val: config.numTeams,                icon: "👥" },
                   { label: "Icons",          val: icons.filter(i => i.name).length, icon: "⭐" },
-                  { label: "Auction Players", val: players.length,               icon: "🧍" },
-                  { label: "Budget / Team",  val: `₹${Number(config.baseBudget).toLocaleString()}`, icon: "💰" },
+                  { label: "Auction Players", val: players.length,                icon: "🧍" },
+                  { label: "Budget / Team",
+                    val: config.auctionMode === 'points'
+                      ? `${Number(config.baseBudget).toLocaleString()} Pts`
+                      : `₹${Number(config.baseBudget).toLocaleString()}`,
+                    icon: config.auctionMode === 'points' ? "⚡" : "💰" },
                 ].map(({ label, val, icon }) => (
                   <div key={label} className="bg-white/[0.04] rounded-xl p-4 text-center border border-white/8">
                     <p className="text-2xl mb-1">{icon}</p>
@@ -1252,17 +1636,36 @@ export default function CreateTournamentWizard() {
 
             {/* Teams preview */}
             <div>
-              <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-3">Teams ({teams.length})</p>
-              <div className="flex flex-wrap gap-2">
-                {teams.map((t, i) => (
-                  <div key={i} className="flex items-center gap-2 bg-white/[0.04] border border-white/10 rounded-xl px-3 py-2">
-                    {t.logoUrl
-                      ? <img src={t.logoUrl} className="w-6 h-6 rounded object-cover" alt="" />
-                      : <div className="w-6 h-6 rounded flex items-center justify-center text-xs font-black" style={{ background: t.color + "44", color: t.color }}>{t.name?.[0]}</div>
-                    }
-                    <span className="text-xs font-bold text-white">{t.shortName || t.name}</span>
-                  </div>
-                ))}
+              <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-3">Teams & Available Budget</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                {teams.map((t, i) => {
+                  const teamIcons = icons.filter(ic => ic.teamIdx === i);
+                  const retainedCount = teamIcons.filter(ic => ic.iconRole === "retained").length;
+                  const deducted = config.auctionMode === 'points' ? (retainedCount * rulesConfig.retention.costPerPlayer) : 0;
+                  const pointsLabel = config.auctionMode === 'points' ? "Pts" : "₹";
+                  return (
+                    <div key={i} className="flex items-center justify-between bg-white/[0.04] border border-white/10 rounded-xl px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        {t.logoUrl
+                          ? <img src={t.logoUrl} className="w-8 h-8 rounded object-cover" alt="" />
+                          : <div className="w-8 h-8 rounded flex items-center justify-center text-xs font-black" style={{ background: t.color + "44", color: t.color }}>{t.name?.[0]}</div>
+                        }
+                        <div>
+                          <p className="text-sm font-bold text-white">{t.shortName || t.name}</p>
+                          {retainedCount > 0 && (
+                            <p className="text-[10px] text-slate-500 bg-white/5 inline-block px-1.5 py-0.5 rounded uppercase mt-0.5">
+                              {retainedCount} Retained
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        {deducted > 0 && <p className="text-[10px] text-red-400 font-bold mb-0.5">-{deducted} {pointsLabel} Deducted</p>}
+                        <p className="text-sm font-black text-emerald-400">{config.baseBudget - deducted} {pointsLabel} Ready</p>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 

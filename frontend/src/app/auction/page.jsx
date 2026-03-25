@@ -337,7 +337,7 @@ function findValue(row, keys) {
         const imported = rows.map((row, index) => ({
           name: findValue(row, ["player name", "playerName", "icon", "name"]) || "",
           role: findValue(row, ["role", "type", "position"]) || "All-Rounder",
-          age: findValue(row, ["age", "years"]) || "-",
+          age: Number(findValue(row, ["age", "years"])) || 0,
           village: findValue(row, ["village", "town"]) || "-",
           imageUrl: findValue(row, ["imageUrl", "photo", "image", "link", "url"]) || "",
           teamMatch: findValue(row, ["team", "teamName", "team name"]),
@@ -388,7 +388,7 @@ function findValue(row, keys) {
           id: i + 1,
           name:         findValue(row, ["player name", "playerName", "name", "player", "ಆಟಗಾರನ ಹೆಸರು"]) || "PLAYER NAME",
           role:         findValue(row, ["role", "type", "position", "ಪಾತ್ರ"]) || "All-Rounder",
-          age:          findValue(row, ["age", "years", "ವಯಸ್ಸು"]) || "-",
+          age:          Number(findValue(row, ["age", "years", "ವಯಸ್ಸು"])) || 0,
           dob:          findValue(row, ["dob", "date of birth", "birth", "ಹುಟ್ಟಿದ ದಿನಾಂಕ"]) || "",
           battingStyle: findValue(row, ["batting", "battingStyle", "style", "ಬ್ಯಾಟಿಂಗ್"]) || "Right Hand",
           bowlingStyle: findValue(row, ["bowling", "bowlingStyle", "ಬೌಲಿಂಗ್"]) || "-",
