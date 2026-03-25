@@ -1624,7 +1624,9 @@ function LiveAuctionContent() {
                    Round {isRoundTwo ? '02' : '01'}
                 </span>
               </div>
-              <p className="text-[9px] sm:text-[10px] text-violet-500 font-black tracking-[0.4em] mb-0.5 opacity-60 uppercase animate-pulse">Live Broadcast</p>
+              {socket?.connected && currentPlayerIndex >= 0 && (
+                <p className="text-[9px] sm:text-[10px] text-violet-500 font-black tracking-[0.4em] mb-0.5 opacity-60 uppercase animate-pulse">Live Broadcast</p>
+              )}
               <h1 className="text-lg sm:text-2xl lg:text-4xl font-black tracking-tighter uppercase drop-shadow-2xl leading-tight">
                 {config.name} <span className="text-violet-500 italic font-medium">AUCTION</span>
               </h1>

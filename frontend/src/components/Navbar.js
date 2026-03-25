@@ -25,17 +25,26 @@ export default function Navbar() {
   const isActive = (path) => pathname === path;
 
   // Dynamic nav links based on user role
-  const navLinks = [
-    { href: '/', label: 'Home' },
-    { href: '/services', label: 'Services' },
-    { href: '/about', label: 'About' },
-    // Show Live Auction to all users - goes to auctions list page
+  const isAdmin = session?.user?.role === 'admin';
+  
+  // Common links - visible to all users
+  const commonLinks = [
     { 
       href: '/auctions', 
       label: '🔴 Live Auction', 
       isLive: true 
     }
   ];
+  
+  // Admin-only links
+  const adminLinks = [
+    { href: '/', label: 'Home' },
+    { href: '/services', label: 'Services' },
+    { href: '/about', label: 'About' },
+  ];
+  
+  // Combine links based on role
+  const navLinks = isAdmin ? [...adminLinks, ...commonLinks] : commonLinks;
 
   return (
     <nav className="bg-slate-900/80 backdrop-blur-xl border-b border-slate-800/50 sticky top-0 z-50">
