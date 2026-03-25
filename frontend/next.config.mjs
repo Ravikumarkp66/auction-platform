@@ -1,7 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    domains: ["avatar.iran.liara.run", "api.dicebear.com"],
     remotePatterns: [
       {
         protocol: 'https',
@@ -10,6 +9,14 @@ const nextConfig = {
       {
         protocol: 'https',
         hostname: 'api.dicebear.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'auction-platform-kp.s3.ap-south-1.amazonaws.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'ui-avatars.com',
       },
     ],
     unoptimized: true,
