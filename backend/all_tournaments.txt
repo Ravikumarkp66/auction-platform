@@ -1,0 +1,12 @@
+[
+  {
+    "_id": "69bf5869a029eb687b29dc67",
+    "name": "Parmeshwar Cup",
+    "status": "active"
+  },
+  {
+    "_id": "69c2a0407cb0ef61d6bb6e73",
+    "name": "BROWSE 2026",
+    "status": "completed"
+  }
+]

@@ -22,6 +22,7 @@ if (typeof window !== 'undefined') {
 import Link from "next/link"
 import * as XLSX from "xlsx"
 import { uploadToS3 } from "../../lib/uploadToS3"
+import { API_URL } from "../../lib/apiConfig"
 
 export default function AuctionDashboard() {
   const router = useRouter()
@@ -224,7 +225,7 @@ export default function AuctionDashboard() {
   }, [])
 
   const fetchTournaments = () => {
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournaments`)
+    fetch(`${API_URL}/api/tournaments`)
       .then(res => res.ok ? res.json() : Promise.reject("Offline"))
       .then(data => {
         setPastTournaments(data)
@@ -400,7 +401,7 @@ function findValue(row, keys) {
         setPlayers(imported);
 
         // Process Drive URLs via Proxy to S3
-        const API = process.env.NEXT_PUBLIC_API_URL;
+        const API = API_URL;
         imported.forEach((p, idx) => {
           if (p.imageUrl && p.imageUrl.includes("drive.google.com")) {
             fetch(`${API}/api/upload/proxy-url`, {
@@ -447,7 +448,7 @@ function findValue(row, keys) {
 
     setLoading(true)
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournaments`, {
+      const res = await fetch(`${API_URL}/api/tournaments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

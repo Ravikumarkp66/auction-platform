@@ -2,9 +2,15 @@ const TournamentImage = require('../models/TournamentImage');
 
 const getTournamentImages = async (req, res) => {
   try {
-    const { tournamentId } = req.query;
-    const filter = { isActive: true };
-    if (tournamentId) filter.tournamentId = tournamentId;
+    const { tournamentId, all } = req.query;
+    const filter = {};
+    if (all !== 'true') filter.isActive = true;
+
+    if (tournamentId === 'landing') {
+      filter.$or = [{ tournamentId: { $exists: false } }, { tournamentId: null }];
+    } else if (tournamentId) {
+      filter.tournamentId = tournamentId;
+    }
     
     const images = await TournamentImage.find(filter).sort({ order: 1 });
     res.json({
@@ -81,16 +87,12 @@ const updateTournamentImage = async (req, res) => {
   }
 };
 
-// Delete tournament image
+// Delete tournament image (Hard Delete)
 const deleteTournamentImage = async (req, res) => {
   try {
     const { id } = req.params;
     
-    const deletedImage = await TournamentImage.findByIdAndUpdate(
-      id,
-      { isActive: false },
-      { new: true }
-    );
+    const deletedImage = await TournamentImage.findByIdAndDelete(id);
     
     if (!deletedImage) {
       return res.status(404).json({
@@ -101,7 +103,7 @@ const deleteTournamentImage = async (req, res) => {
     
     res.json({
       success: true,
-      message: 'Tournament image deleted successfully'
+      message: 'Tournament image deleted permanently from database'
     });
   } catch (error) {
     res.status(500).json({

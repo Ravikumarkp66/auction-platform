@@ -15,30 +15,32 @@ const authOptions = {
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
-        const adminEmails = ["lakshmish4638@gmail.com", "mreducator4566@gmail.com"];
+        const adminEmails = ["lakshmish4638@gmail.com", "mreducator4566@gmail.com", "ravikumarkp66@gmail.com"];
+        const email = credentials.email.toLowerCase();
+        
         // Check for admin credentials
         if (
-          adminEmails.includes(credentials.email) &&
+          adminEmails.includes(email) &&
           credentials.password === "15FEBLSRBP"
         ) {
           return {
-            id: credentials.email,
-            email: credentials.email,
+            id: email,
+            email: email,
             name: "Admin",
             role: "admin"
           };
         }
         
         // For demo purposes, create a regular user
-        if (credentials.email && credentials.password) {
+        if (email && credentials.password) {
           // If they used an admin email but wrong password, reject them
-          if (adminEmails.includes(credentials.email)) {
+          if (adminEmails.includes(email)) {
             return null;
           }
           return {
-            id: credentials.email,
-            email: credentials.email,
-            name: credentials.email.split('@')[0],
+            id: email,
+            email: email,
+            name: email.split('@')[0],
             role: "user"
           };
         }
@@ -54,8 +56,9 @@ const authOptions = {
   callbacks: {
     async jwt({ token, user, account }) {
       if (user) {
-        const adminEmails = ["lakshmish4638@gmail.com", "mreducator4566@gmail.com"];
-        token.role = user.role || (adminEmails.includes(user.email) ? "admin" : "user");
+        const adminEmails = ["lakshmish4638@gmail.com", "mreducator4566@gmail.com", "ravikumarkp66@gmail.com"];
+        const userEmail = (user.email || "").toLowerCase();
+        token.role = user.role || (adminEmails.includes(userEmail) ? "admin" : "user");
         token.picture = user.picture || account?.picture;
       }
       return token;

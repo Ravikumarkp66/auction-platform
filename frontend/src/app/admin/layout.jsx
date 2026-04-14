@@ -2,7 +2,7 @@
 
 import { useSession, signOut } from "next-auth/react";
 import { useRouter, usePathname } from "next/navigation";
-import { useEffect, useState, createContext, useContext } from "react";
+import { useEffect, useState, createContext, useContext, useRef } from "react";
 import Link from "next/link";
 import {
   LayoutDashboard,
@@ -21,8 +21,10 @@ import {
   Star,
   ChevronDown,
   Check,
-  Palette
+  Palette,
+  Home
 } from "lucide-react";
+import { API_URL } from "../../lib/apiConfig";
 
 // Create a Context for the selected Auction
 const AuctionContext = createContext(null);
@@ -37,7 +39,9 @@ const navigation = [
   { name: "Icon Players",   href: "/admin/icons",              icon: Star,            emoji: "⭐" },
   { name: "Live Control",   href: "/live-auction",             icon: Zap,             emoji: "⚡" },
   { name: "Branding",       href: "/admin/assets",             icon: Palette,         emoji: "🎨" },
-  { name: "Settings",       href: "/admin/settings",           icon: ImageIcon,       emoji: "⚙️" },
+  { name: "Home Page",      href: "/admin/landing",            icon: Home,            emoji: "🏠" },
+    { name: "Pricing & Services", href: "/admin/services", icon: LayoutDashboard, emoji: "💰" },
+    { name: "Settings",       href: "/admin/settings",           icon: ImageIcon,       emoji: "⚙️" },
 ];
 
 export default function AdminLayout({ children }) {
@@ -58,6 +62,41 @@ export default function AdminLayout({ children }) {
     return null;
   });
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
+  const dropdownRef = useRef(null);
+  const socketRef = useRef(null);
+
+  // System-wide socket monitoring
+  useEffect(() => {
+    import("socket.io-client").then(({ io }) => {
+      const socket = io(API_URL, {
+        transports: ["websocket", "polling"],
+        withCredentials: true
+      });
+      socketRef.current = socket;
+      
+      socket.on("connect", () => setIsConnected(true));
+      socket.on("disconnect", () => setIsConnected(false));
+      socket.on("connect_error", () => setIsConnected(false));
+    });
+
+    return () => {
+      socketRef.current?.disconnect();
+    };
+  }, []);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClick = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setDropdownOpen(false);
+      }
+    };
+    if (dropdownOpen) {
+      document.addEventListener("mousedown", handleClick);
+    }
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [dropdownOpen]);
 
   const handleSelectAuction = (auction) => {
     setSelectedAuction(auction);
@@ -67,16 +106,24 @@ export default function AdminLayout({ children }) {
 
   async function fetchTournaments() {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournaments`);
+      const url = `${API_URL}/api/tournaments`;
+      console.log("Fetching tournaments from:", url);
+      const res = await fetch(url);
       const data = await res.json();
-      setTournaments(data);
+      
+      // Safety check: Ensure data is an array to prevent .map crashes
+      const tournamentsArray = Array.isArray(data) ? data : [];
+      setTournaments(tournamentsArray);
       
       const saved = localStorage.getItem("selectedAuction");
-      if (!saved && data.length > 0) {
-        const active = data.find(t => t.status === "active") || data[0];
+      if (!saved && tournamentsArray.length > 0) {
+        const active = tournamentsArray.find(t => t.status === "active") || tournamentsArray[0];
         handleSelectAuction(active);
       }
-    } catch (err) {}
+    } catch (err) {
+      console.error("Fetch error:", err);
+      setTournaments([]); // Fallback to empty array
+    }
   }
 
   // Fetch all tournaments for the selector
@@ -230,7 +277,7 @@ export default function AdminLayout({ children }) {
               </button>
               
               {/* AUCTION SELECTOR (🔥 THE MOST IMPORTANT PIECE) */}
-              <div className="relative">
+              <div className="relative" ref={dropdownRef}>
                 <button 
                   onClick={() => setDropdownOpen(!dropdownOpen)}
                   className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all min-w-[200px]"
@@ -269,22 +316,32 @@ export default function AdminLayout({ children }) {
             </div>
 
             <div className="flex items-center gap-4">
-              {/* Live Stats Pill */}
-              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-500/10 border border-red-500/20 group">
-                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                <span className="text-[10px] font-black text-red-500 uppercase tracking-widest">Active Server</span>
+              {/* Live Status Pill (Dynamic) */}
+              <div className={`hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${isConnected ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-red-500/10 border-red-500/20'}`}>
+                <span className={`w-2 h-2 rounded-full animate-pulse ${isConnected ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]'}`} />
+                <span className={`text-[9px] font-black uppercase tracking-widest ${isConnected ? 'text-emerald-500' : 'text-red-500'}`}>
+                  {isConnected ? "Server Online" : "Disconnected"}
+                </span>
               </div>
               
-              <Link 
-                href={selectedAuction ? `/live-auction?id=${selectedAuction._id}` : "#"}
-                className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-black
-                  bg-gradient-to-r from-yellow-400 to-yellow-600
-                  shadow-lg shadow-yellow-500/20
-                  hover:scale-105 active:scale-95 transition-all"
-              >
-                Go Live
-              </Link>
+              {/* Prioritize the LIVE auction for the Go Live button, regardless of what's selected in the editor */}
+              {(() => {
+                const live = tournaments.find(t => t.status === "active");
+                const target = live || selectedAuction;
+                return (
+                  <Link 
+                    href={target ? `/live-auction?id=${target._id}` : "#"}
+                    className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-black
+                      bg-gradient-to-r from-yellow-400 to-yellow-600
+                      shadow-lg shadow-yellow-500/20
+                      hover:scale-105 active:scale-95 transition-all"
+                  >
+                    {live && live._id !== selectedAuction?._id ? `Go Live: ${live.shortId || ''}` : "Go Live"}
+                  </Link>
+                );
+              })()}
             </div>
+
           </header>
 
           {/* ── Page content ── */}

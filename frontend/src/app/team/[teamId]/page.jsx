@@ -12,10 +12,11 @@ import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import "./team-squad.css"
+import { DEFAULT_ASSETS, API_URL } from "@/lib/apiConfig";
 
 const getProxiedUrl = (url) => {
   if (!url || url.startsWith('blob:') || url.startsWith('data:') || url.startsWith('/')) return url;
-  return `${process.env.NEXT_PUBLIC_API_URL}/api/upload/proxy-image?url=${encodeURIComponent(url)}`;
+  return `${API_URL}/api/upload/proxy-image?url=${encodeURIComponent(url)}`;
 };
 
 function TeamSquadContent() {
@@ -31,36 +32,72 @@ function TeamSquadContent() {
 
   const teamId = params.teamId
   const tournamentId = searchParams.get('tournament')
+  const highlightId = searchParams.get('highlight')
   const [isPointsSystem, setIsPointsSystem] = useState(false)
   const [squadBg, setSquadBg] = useState('https://auction-platform-kp.s3.ap-south-1.amazonaws.com/backgrounds/sit-stadium-tumkur-stadiums-gxk3uth1uu.avif')
   const [activeAssets, setActiveAssets] = useState({
     squadBgUrl: "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/backgrounds/sit-stadium-tumkur-stadiums-gxk3uth1uu.avif",
     badges: { 
-      leftBadge: "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/public/ChatGPT+Image+Mar+18%2C+2026%2C+12_45_23+PM.png", 
+      leftBadge: DEFAULT_ASSETS.BANNER_LOGO, 
       rightBadge: "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/logos/WhatsApp+Image+2026-03-22+at+1.05.33+AM.jpeg" 
     }
   })
 
   // Simple Player Display - Profile image with price and name below
-  const PlayerItem = ({ player }) => {
+  const PlayerItem = ({ player, delay = 0, isHighlighted = false }) => {
     if (!player) return null;
     
+    const pId = String(player._id || player.id || '');
+    const pAppId = String(player.applicationId || '');
+    const targetId = String(highlightId || '').toLowerCase();
+    
+    // Robust Matching Logic: Match by ID, AppID, or Name
+    const isActuallyHighlighted = isHighlighted || (highlightId && (
+       pId.toLowerCase() === targetId || 
+       pAppId.toLowerCase() === targetId || 
+       player.name.toLowerCase().includes(targetId) ||
+       targetId.includes(player.name.toLowerCase())
+    ));
+
+    if (isActuallyHighlighted) {
+      console.log(`🎯 CINEMATIC MATCH: ${player.name} focused!`);
+    }
+
     return (
-      <div className="player-card" style={{ width: '80px', textAlign: 'center' }}>
-        <div style={{
-          width: '70px',
-          height: '70px',
-          borderRadius: '50%',
-          overflow: 'hidden',
-          border: '2px solid #00ffcc',
-          boxShadow: '0 0 15px rgba(0, 255, 204, 0.3)'
-        }}>
+      <div 
+        id={pId || pAppId}
+        className={`player-card ${isActuallyHighlighted ? 'player-highlight-cinematic' : ''}`} 
+        style={{ 
+          width: '80px', 
+          textAlign: 'center', 
+          animationDelay: isActuallyHighlighted ? '0.8s' : `${delay}s`,
+          position: 'relative',
+          zIndex: isActuallyHighlighted ? 10 : 1
+        }}
+      >
+        <div 
+          className={isActuallyHighlighted ? "player-photo-container cinematic-highlight" : "player-photo-container"}
+          style={{
+            width: '70px',
+            height: '70px',
+            borderRadius: '50%',
+            overflow: 'hidden',
+            border: isActuallyHighlighted ? '3px solid #00ffcc' : '1px solid rgba(0, 255, 204, 0.3)',
+            boxShadow: isActuallyHighlighted ? '0 0 30px #00ffcc' : 'none',
+            transition: 'all 0.3s ease',
+            position: 'relative',
+            zIndex: isActuallyHighlighted ? 99999 : 1
+          }}
+        >
           <Image
             src={player.imageUrl || player.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(player.name)}&background=random`}
             alt={player.name}
-            width={70}
-            height={70}
-            style={{ objectFit: 'cover' }}
+            fill
+            style={{ 
+              objectFit: 'cover', 
+              objectPosition: 'center',
+              transform: 'scale(1.1)' // SLIGHT ZOOM TO FILL FULLY
+            }}
           />
         </div>
         <span style={{
@@ -82,7 +119,7 @@ function TeamSquadContent() {
   };
 
   // Player Row Component - Glass card layout
-  const PlayerRow = ({ title, players, icon }) => {
+  const PlayerRow = ({ title, players, icon, highlightId }) => {
     return (
       <div className="glass-card">
         <div className="section-header">
@@ -104,9 +141,17 @@ function TeamSquadContent() {
           {players.length === 0 ? (
             <span className="empty-state">No players yet</span>
           ) : (
-            players.map((player, index) => (
-              <PlayerItem key={player._id || player.id || index} player={player} />
-            ))
+            players.map((player, index) => {
+              const pId = String(player._id || player.id);
+              return (
+                <PlayerItem 
+                  key={pId || index} 
+                  player={player} 
+                  delay={index * 0.1} 
+                  isHighlighted={pId === highlightId}
+                />
+              );
+            })
           )}
         </div>
       </div>
@@ -415,7 +460,7 @@ function TeamSquadContent() {
     const fetchTeamSquad = async () => {
       try {
         // Try the teams API first
-        let res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}`)
+        let res = await fetch(`${API_URL}/api/teams/${teamId}`)
         
         if (res.ok) {
           const data = await res.json()
@@ -432,7 +477,7 @@ function TeamSquadContent() {
         
         // Fallback to tournament data if teams API fails
         console.log('Teams API not available, trying tournament data...')
-        res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournaments/${tournamentId}`)
+        res = await fetch(`${API_URL}/api/tournaments/${tournamentId}`)
         
         if (res.ok) {
           const tournamentData = await res.json()
@@ -447,7 +492,7 @@ function TeamSquadContent() {
              setActiveAssets({
                 squadBgUrl: tAssets.squadBgUrl || "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/backgrounds/sit-stadium-tumkur-stadiums-gxk3uth1uu.avif",
                 badges: tAssets.badges || { 
-                  leftBadge: "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/public/ChatGPT+Image+Mar+18%2C+2026%2C+12_45_23+PM.png", 
+                  leftBadge: DEFAULT_ASSETS.BANNER_LOGO, 
                   rightBadge: "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/logos/WhatsApp+Image+2026-03-22+at+1.05.33+AM.jpeg" 
                 }
              });
@@ -479,6 +524,21 @@ function TeamSquadContent() {
 
     fetchTeamSquad()
   }, [teamId, tournamentId])
+
+  // Cinematic Auto-Scroll to Highlighted Player
+  useEffect(() => {
+    if (!loading && highlightId) {
+      // Wait a tiny bit for animations to start/DOM to be ready
+      const timer = setTimeout(() => {
+        const element = document.getElementById(highlightId);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          console.log(`🎬 Cinematic Focus: Scrolled to highlighted player ${highlightId}`);
+        }
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [loading, highlightId]);
 
 
   if (status === "loading") {
@@ -524,7 +584,7 @@ function TeamSquadContent() {
 
       {/* TOURNAMENT BADGES (EXTREME RIGHT POSITIONING) */}
       <img 
-        src={activeAssets.badges?.leftBadge || "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/public/ChatGPT+Image+Mar+18%2C+2026%2C+12_45_23+PM.png"}
+        src={activeAssets.badges?.leftBadge || DEFAULT_ASSETS.BANNER_LOGO}
         crossOrigin="anonymous" 
         alt="Tournament Badge" 
         className="badge-top"
@@ -543,7 +603,11 @@ function TeamSquadContent() {
           <div className="top-bar">
             {/* Back Button */}
             <Link 
-              href={tournamentId ? `/teams?tournament=${tournamentId}` : "/teams"}
+              href={
+                searchParams.get('from') === 'sold' 
+                  ? `/admin/players?id=${tournamentId}&tab=sold`
+                  : (tournamentId ? `/teams?tournament=${tournamentId}` : "/teams")
+              }
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -706,54 +770,30 @@ function TeamSquadContent() {
                     ) : (
                       <div className="icon-list">
                         {iconPlayers.map((player, index) => {
-                          // FIXED: Proper image URL priority - check photo.s3/drive first, then imageUrl/image
-                          const playerImage = `https://ui-avatars.com/api/?name=${encodeURIComponent(player.name)}&background=random`;
+                          const pId = String(player._id || player.id);
+                          const isHighlighted = pId === highlightId;
                           
-                          // Determine role badge and color
-                          const roleBadge = player.iconRole === 'captain' ? 'C' : 
-                                           player.iconRole === 'viceCaptain' ? 'VC' : 'R';
-                          const roleColor = player.iconRole === 'captain' ? '#f59e0b' : 
-                                           player.iconRole === 'viceCaptain' ? '#3b82f6' : '#10b981';
-                          const roleName = player.iconRole === 'captain' ? 'Captain' : 
-                                          player.iconRole === 'viceCaptain' ? 'Vice-Captain' : 'Retained';
+                          // ... same logic as before but with delay
+                          const playerImage = `https://ui-avatars.com/api/?name=${encodeURIComponent(player.name)}&background=random`;
+                          const roleBadge = player.iconRole === 'captain' ? 'C' : player.iconRole === 'viceCaptain' ? 'VC' : 'R';
+                          const roleColor = player.iconRole === 'captain' ? '#f59e0b' : player.iconRole === 'viceCaptain' ? '#3b82f6' : '#10b981';
+                          const roleName = player.iconRole === 'captain' ? 'Captain' : player.iconRole === 'viceCaptain' ? 'Vice-Captain' : 'Retained';
                           
                           return (
-                          <div key={player._id || player.id || index} className="player-card">
+                          <div key={pId || index} className={`player-card ${isHighlighted ? 'player-highlight-cinematic' : ''}`} style={{ animationDelay: isHighlighted ? '0.8s' : `${index * 0.15}s` }}>
                             <div style={{
-                              width: '80px',
-                              height: '80px',
-                              borderRadius: '50%',
-                              overflow: 'hidden',
-                              border: '3px solid #10b981',
-                              boxShadow: '0 0 20px rgba(16, 185, 129, 0.4)',
-                              position: 'relative'
+                               width: '80px',
+                               height: '80px',
+                               borderRadius: '50%',
+                               overflow: 'hidden',
+                               border: '3px solid #10b981',
+                               boxShadow: '0 0 20px rgba(16, 185, 129, 0.4)',
+                               position: 'relative'
                             }}>
-                              <Image
-                                src={playerImage}
-                                alt={player.name}
-                                width={80}
-                                height={80}
-                                style={{ objectFit: 'cover' }}
-                              />
-                              {/* Role Badge Overlay */}
-                              <div style={{
-                                position: 'absolute',
-                                top: '2px',
-                                right: '2px',
-                                background: roleColor,
-                                color: 'white',
-                                borderRadius: '50%',
-                                width: '24px',
-                                height: '24px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                fontSize: '12px',
-                                fontWeight: 'bold',
-                                border: '2px solid white'
-                              }}>
-                                {roleBadge}
-                              </div>
+                               <Image src={playerImage} alt={player.name} width={80} height={80} style={{ objectFit: 'cover' }} />
+                               <div style={{ position: 'absolute', top: '2px', right: '2px', background: roleColor, color: 'white', borderRadius: '50%', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 'bold', border: '2px solid white' }}>
+                                 {roleBadge}
+                               </div>
                             </div>
                             <span style={{ fontSize: '11px', color: roleColor, fontWeight: 'bold' }}>{roleName}</span>
                             <span style={{ fontSize: '12px', color: 'white', fontWeight: 'bold', textAlign: 'center', maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{player.name}</span>

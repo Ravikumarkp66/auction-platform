@@ -5,6 +5,7 @@ import { Users, Search, Save, X, AlertTriangle, ShieldCheck, Trophy, AlertCircle
 import { useAuction } from "../layout";
 import { io } from "socket.io-client";
 import ImageEditModal from "../../../components/ImageEditModal";
+import { API_URL } from "../../../lib/apiConfig";
 
 // Socket instance for real-time broadcast
 let socket;
@@ -26,7 +27,7 @@ export default function TeamsRegistry() {
   useEffect(() => {
     if (selectedAuction?._id) {
       fetchTeams();
-      socket = io(process.env.NEXT_PUBLIC_API_URL);
+      socket = io(API_URL);
     } else {
       setLoading(false);
     }
@@ -36,7 +37,7 @@ export default function TeamsRegistry() {
   const fetchTeams = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams?tournamentId=${selectedAuction._id}`);
+      const res = await fetch(`${API_URL}/api/teams?tournamentId=${selectedAuction._id}`);
       const data = await res.json();
       setTeams(data);
     } catch (err) {
@@ -66,7 +67,7 @@ export default function TeamsRegistry() {
     if (confirmText !== "CONFIRM") return;
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${editingTeam._id}`, {
+      const res = await fetch(`${API_URL}/api/teams/${editingTeam._id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
@@ -94,7 +95,7 @@ export default function TeamsRegistry() {
       <div className="flex flex-col items-center justify-center py-20 text-center bg-white/5 rounded-[3rem] border border-white/5">
         <AlertCircle className="w-12 h-12 text-yellow-400 mb-4 opacity-50" />
         <h3 className="text-xl font-black text-white">No Auction Selected</h3>
-        <p className="text-slate-500 mt-2 max-w-xs mx-auto text-sm font-semibold italic">Select a context from the top monitor to manage nodes.</p>
+        <p className="text-slate-500 mt-2 max-w-xs mx-auto text-sm font-semibold italic">Select an auction from the top monitor to manage teams.</p>
       </div>
     );
   }
@@ -105,7 +106,7 @@ export default function TeamsRegistry() {
       {/* ── Table Header ── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-black text-white tracking-tight">Node <span className="text-violet-500 text-2xl">Configuration</span></h1>
+          <h1 className="text-3xl font-black text-white tracking-tight">Team <span className="text-violet-500 text-2xl">Management</span></h1>
           <p className="text-slate-500 text-xs font-bold uppercase tracking-[0.3em] mt-1 opacity-60">Database: {selectedAuction.name}</p>
         </div>
         
@@ -114,7 +115,7 @@ export default function TeamsRegistry() {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-violet-400" />
             <input 
               type="text" 
-              placeholder="Query team node..." 
+              placeholder="Search teams..." 
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
               className="w-full bg-[#111827]/60 backdrop-blur-xl border border-white/10 rounded-2xl pl-11 pr-4 py-3 font-bold text-white focus:border-violet-500 outline-none transition-all placeholder:text-slate-700"
@@ -129,9 +130,9 @@ export default function TeamsRegistry() {
           <table className="w-full text-left border-collapse border-separate border-spacing-0">
             <thead>
               <tr className="bg-white/5 border-b border-white/5">
-                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Team Node</th>
+                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Team Name</th>
                 <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Short Code</th>
-                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Node Population</th>
+                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Team Roster</th>
                 <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Purse Balance</th>
                 <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Status</th>
                 <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 text-right">Actions</th>
@@ -197,7 +198,7 @@ export default function TeamsRegistry() {
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
           <div className="bg-[#0f172a] border border-white/10 rounded-[2.5rem] w-full max-w-lg overflow-hidden shadow-2xl">
             <div className="px-8 py-6 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
-               <h2 className="text-xl font-black text-white">Node <span className="text-violet-500">Refinement</span></h2>
+               <h2 className="text-xl font-black text-white">Team <span className="text-violet-500">Details</span></h2>
                <button onClick={() => setIsManageModalOpen(false)} className="p-2 hover:bg-white/5 rounded-full transition-colors"><X className="w-5 h-5 text-slate-500" /></button>
             </div>
             
@@ -212,7 +213,7 @@ export default function TeamsRegistry() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Short Code</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Drafted Team</label>
                   <input 
                     className="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-violet-500 uppercase"
                     value={formData.shortName}
@@ -222,7 +223,7 @@ export default function TeamsRegistry() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Node Liquidity (₹)</label>
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Remaining Purse (₹)</label>
                 <div className="relative">
                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 font-black text-sm">₹</div>
                    <input 
@@ -299,10 +300,10 @@ export default function TeamsRegistry() {
           onSave={async (file) => {
              try {
                 const fileType = file.type;
-                const { uploadUrl, fileUrl } = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/upload/get-upload-url?fileType=${fileType}&folder=teams`).then(r => r.json());
+                const { uploadUrl, fileUrl } = await fetch(`${API_URL}/api/upload/get-upload-url?fileType=${fileType}&folder=teams`).then(r => r.json());
                 await fetch(uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": fileType } });
                 
-                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${editImageTarget.id}`, {
+                const res = await fetch(`${API_URL}/api/teams/${editImageTarget.id}`, {
                   method: "PATCH",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({ logoUrl: fileUrl })

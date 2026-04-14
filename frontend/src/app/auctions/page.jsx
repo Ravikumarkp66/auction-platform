@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useSession } from "next-auth/react";
 import { Trophy, Play, Users, Calendar, ExternalLink, Clock, XCircle } from "lucide-react";
+import { API_URL, DEFAULT_ASSETS } from "@/lib/apiConfig";
 
 export default function AuctionsPage() {
   const { data: session, status } = useSession();
@@ -34,7 +35,9 @@ export default function AuctionsPage() {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 20000);
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournaments`, {
+      console.log(`Fetching tournaments from: ${API_URL}/api/tournaments`);
+      
+      const response = await fetch(`${API_URL}/api/tournaments`, {
         signal: controller.signal
       });
       clearTimeout(timeout);
@@ -44,7 +47,9 @@ export default function AuctionsPage() {
         setTournaments(data);
         setError(null);
       } else {
-        throw new Error("Failed to fetch tournaments");
+        const errorText = await response.text();
+        console.error("Backend returned error:", response.status, errorText);
+        throw new Error(`Failed to fetch tournaments: ${response.status}`);
       }
     } catch (err) {
       if (err.name === 'AbortError') {
@@ -168,7 +173,7 @@ export default function AuctionsPage() {
           <div className="absolute top-4 right-4 md:top-8 md:right-8 w-28 h-28 md:w-36 md:h-36 rounded-full overflow-hidden border-2 border-amber-400/50 shadow-[0_0_30px_rgba(251,191,36,0.3)] bg-gradient-to-br from-amber-500/20 to-amber-600/20 backdrop-blur-sm">
             <div className="relative w-full h-full">
               <Image 
-                src="https://auction-platform-kp.s3.ap-south-1.amazonaws.com/public/ChatGPT+Image+Mar+18%2C+2026%2C+12_45_23+PM.png" 
+                src={DEFAULT_ASSETS.BANNER_LOGO} 
                 alt="Dr. G Parameshwar Cup"
                 fill
                 className="object-cover"
@@ -341,37 +346,48 @@ export default function AuctionsPage() {
                 const statusLabel = getStatusLabel(tournament.status, tournament.name);
                 
                 return (
-                  <div key={tournament._id} className="bg-slate-800 rounded-lg border border-slate-700 p-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className={`flex items-center gap-2 px-3 py-1 rounded-full border text-xs font-medium ${getStatusColor(tournament.status, isConcluded)}`}>
-                        {isConcluded ? <XCircle className="w-4 h-4" /> : getStatusIcon(tournament.status)}
-                        {statusLabel}
+                  <Link 
+                    href={`/tournaments/${tournament._id}`}
+                    key={tournament._id} 
+                    className="block group h-full"
+                  >
+                    <div className="bg-slate-800/50 hover:bg-slate-800 rounded-2xl border border-slate-700/50 hover:border-violet-500/30 p-6 transition-all duration-300 h-full flex flex-col hover:shadow-[0_0_30px_rgba(139,92,246,0.1)]">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className={`flex items-center gap-2 px-3 py-1 rounded-full border text-[10px] font-black tracking-widest ${getStatusColor(tournament.status, isConcluded)}`}>
+                          {isConcluded ? <XCircle className="w-3 h-3" /> : getStatusIcon(tournament.status)}
+                          {statusLabel}
+                        </div>
+                        <Trophy className="w-4 h-4 text-slate-500 group-hover:text-amber-500 transition-colors" />
                       </div>
-                      <Trophy className="w-4 h-4 text-slate-400" />
-                    </div>
-                    
-                    <h3 className="text-lg font-semibold text-white mb-2">{tournament.name}</h3>
-                    <p className="text-slate-400 text-sm mb-4">
-                      {tournament.organizerName || "Cricket Tournament"}
-                    </p>
-                    
-                    <div className="flex items-center gap-4 mb-4 text-sm text-slate-400">
-                      <div className="flex items-center gap-1">
-                        <Users className="w-4 h-4" />
-                        <span>{tournament.numTeams || 0} Teams</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Trophy className="w-4 h-4" />
-                        <span>{tournament.players?.length || 0} Players</span>
-                      </div>
-                    </div>
-                    
-                    <div className="text-center">
-                      <p className="text-sm text-slate-400 mb-2">
-                        Created: {new Date(tournament.createdAt).toLocaleDateString()}
+                      
+                      <h3 className="text-xl font-black text-white uppercase italic tracking-tight mb-2 group-hover:text-violet-400 transition-colors">
+                        {tournament.name}
+                      </h3>
+                      <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mb-4">
+                        {tournament.organizerName || "Cricket Tournament"}
                       </p>
+                      
+                      <div className="flex items-center gap-4 mb-6 mt-auto text-xs font-black uppercase tracking-wider text-slate-400">
+                        <div className="flex items-center gap-1.5">
+                          <Users className="w-3.5 h-3.5 text-violet-500" />
+                          <span>{tournament.numTeams || 0} Teams</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Users className="w-3.5 h-3.5 text-blue-500" />
+                          <span>{tournament.players?.length || 0} Players</span>
+                        </div>
+                      </div>
+                      
+                      <div className="pt-4 border-t border-white/5 flex items-center justify-between">
+                        <p className="text-[10px] font-bold text-slate-600 uppercase tracking-tighter">
+                          {new Date(tournament.createdAt).toLocaleDateString()}
+                        </p>
+                        <span className="text-[10px] font-black text-violet-500 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">
+                          View Details →
+                        </span>
+                      </div>
                     </div>
-                  </div>
+                  </Link>
                 );
               })}
             </div>
@@ -430,7 +446,7 @@ function SquadList({ team, players }) {
       </div>
       <div className="grid grid-cols-1 gap-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
         {players.length === 0 ? (
-          <div className="py-10 text-center border-2 border-dashed border-white/5 rounded-2xl opacity-40 italic text-xs">Zero players assigned to this node</div>
+          <div className="py-10 text-center border-2 border-dashed border-white/5 rounded-2xl opacity-40 italic text-xs">No players drafted yet</div>
         ) : (
           players.map((p, idx) => (
             <div key={p._id || idx} className="flex items-center gap-3 p-3 bg-white/5 rounded-xl border border-white/5 group/p hover:border-violet-500/30 transition-all">
@@ -461,11 +477,13 @@ function SquadViewModal({ tournament, onClose }) {
   useEffect(() => {
     async function fetchSquads() {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournaments/${tournament._id}`);
+        const res = await fetch(`${API_URL}/api/tournaments/${tournament._id}`);
         if (res.ok) {
           const json = await res.json();
           setData(json);
           if (json.teams?.length > 0) setSelectedTeam(json.teams[0]);
+        } else {
+          console.error("Failed to fetch squad details:", res.status);
         }
       } catch (err) {
         console.error("Failed to fetch squads:", err);
@@ -500,7 +518,7 @@ function SquadViewModal({ tournament, onClose }) {
 
           <div className="flex-1 flex overflow-hidden">
             <div className="w-full md:w-80 border-r border-white/5 overflow-y-auto p-4 space-y-2 bg-black/20">
-              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-4 mb-3">Nodes (Teams)</p>
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-4 mb-3">Teams</p>
               {loading ? (
                 Array(6).fill(0).map((_, i) => (
                   <div key={i} className="h-16 w-full animate-pulse bg-white/5 rounded-2xl border border-white/5" />
@@ -546,7 +564,7 @@ function SquadViewModal({ tournament, onClose }) {
                  />
                ) : (
                  <div className="h-full flex flex-col items-center justify-center opacity-30 italic text-sm">
-                    Select a team node from the sidebar to decode roster
+                    Select a team to view their roster
                  </div>
                )}
             </div>

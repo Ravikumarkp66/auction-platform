@@ -1,7 +1,41 @@
 const express = require("express");
 const router = express.Router();
-const https = require("https");
-const http = require("http");
+
+// Professional Image Proxy - Bypasses CORS and security blocks for S3/Drive images
+const fetchUrl = async (url, res, redirectCount = 0) => {
+  if (redirectCount > 5) return res.status(500).send("Too many redirects");
+
+  try {
+    // Using native fetch (Node 18+) for better reliability and auto-redirect handling
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "image/webp,image/apng,image/*,*/*;q=0.8",
+      }
+    });
+
+    if (!response.ok) {
+      console.warn(`Proxy Fetch Status: ${response.status} for URL: ${url}`);
+      return res.status(response.status).send(`Upstream returned ${response.status}`);
+    }
+
+    const contentType = response.headers.get("content-type");
+    if (contentType && contentType.includes("text/html")) {
+      return res.status(403).send("Resource is a page, not an image");
+    }
+
+    // Set CORS headers to allow frontend canvas manipulation
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Content-Type", contentType || "image/jpeg");
+    res.setHeader("Cache-Control", "public, max-age=86400");
+
+    const buffer = await response.arrayBuffer();
+    res.send(Buffer.from(buffer));
+  } catch (error) {
+    console.error("Proxy System Error:", error.message);
+    if (!res.headersSent) res.status(500).send("Gateway Error");
+  }
+};
 
 // Extracts Google Drive file ID from any Drive URL format
 const extractDriveId = (url) => {
@@ -17,70 +51,23 @@ const extractDriveId = (url) => {
   return null;
 };
 
-const fetchUrl = (url, res, redirectCount = 0) => {
-  if (redirectCount > 5) return res.status(500).send("Too many redirects");
-
-  const protocol = url.startsWith("https") ? https : http;
-  const req = protocol.get(url, {
-    headers: {
-      // Pretend to be a browser — this bypasses Drive's server-block
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
-      "Accept": "image/webp,image/apng,image/*,*/*;q=0.8",
-      "Accept-Language": "en-US,en;q=0.9",
-      "Referer": "https://drive.google.com/",
-    }
-  }, (imgRes) => {
-    // Follow redirects
-    if ([301, 302, 303, 307, 308].includes(imgRes.statusCode)) {
-      const location = imgRes.headers.location;
-      if (!location) return res.status(500).send("Bad redirect");
-      imgRes.resume(); // drain the response
-      return fetchUrl(location, res, redirectCount + 1);
-    }
-
-    const contentType = imgRes.headers["content-type"] || "";
-
-    // If Drive returned HTML (virus warning page), it means the ID didn't work
-    if (contentType.includes("text/html")) {
-      return res.status(404).send("Image not accessible");
-    }
-
-    res.setHeader("Content-Type", contentType || "image/jpeg");
-    res.setHeader("Cache-Control", "public, max-age=86400");
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    imgRes.pipe(res);
-  });
-
-  req.on("error", (e) => {
-    console.error("Proxy error:", e.message);
-    if (!res.headersSent) res.status(500).send("Fetch failed");
-  });
-
-  req.setTimeout(10000, () => {
-    req.destroy();
-    if (!res.headersSent) res.status(504).send("Timeout");
-  });
-};
-
 // GET /api/proxy-image?url=<encoded_url>
-router.get("/", (req, res) => {
+router.get("/", async (req, res) => {
   const { url } = req.query;
   if (!url) return res.status(400).send("Missing url");
 
   const decoded = decodeURIComponent(url);
 
-  // For Google Drive: use the thumbnail API — this NEVER triggers virus scan
+  // Special Handling for Google Drive Thumbnails
   if (decoded.includes("drive.google.com")) {
     const fileId = extractDriveId(decoded);
-    if (!fileId) return res.status(400).send("Could not extract Drive file ID");
-
-    // sz=s800 = 800px size, good quality for player cards
-    const thumbnailUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=s800`;
+    if (!fileId) return res.status(400).send("Invalid Drive URL");
+    const thumbnailUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=s1200`; // Higher res for studio
     return fetchUrl(thumbnailUrl, res);
   }
 
-  // Non-Drive URLs: proxy directly
-  fetchUrl(decoded, res);
+  // Standard Proxy for S3 and other external hosts
+  await fetchUrl(decoded, res);
 });
 
 module.exports = router;

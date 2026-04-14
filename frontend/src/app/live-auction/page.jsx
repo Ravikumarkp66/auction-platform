@@ -13,6 +13,8 @@ import ImageCropperModal from '../../components/ImageCropperModal'
 import { uploadToS3 } from "../../lib/uploadToS3"
 import ResultOverlay from '../../components/ResultOverlay'
 import jsPDF from 'jspdf'
+import { FaUndo, FaUsers, FaHistory, FaGavel, FaImage, FaChevronLeft, FaChevronRight, FaPlay, FaTrophy, FaSignOutAlt, FaCog, FaChartBar } from "lucide-react"
+import { API_URL, DEFAULT_ASSETS } from "@/lib/apiConfig";
 
 // Module-level socket instance to persist across React re-renders in development
 let globalSocket = null
@@ -37,7 +39,8 @@ function LiveAuctionContent() {
     badges: { leftBadge: "", rightBadge: "" }
   });
 
-  const [config, setConfig] = useState({ name: "", baseBudget: 0, totalTeams: 0 })
+  const [config, setConfig] = useState({ name: "", baseBudget: 0, totalTeams: 0, auctionMode: "money" })
+  const [rules, setRules] = useState({})
   const [teams, setTeams] = useState([])
   const [players, setPlayers] = useState([])
   const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0)
@@ -66,36 +69,57 @@ function LiveAuctionContent() {
   const [showRoundTransition, setShowRoundTransition] = useState(null) // { label, subtitle }
   const [result, setResult] = useState(null) // Result Overlay State
 
-  // Smart bid increment logic for Credits system
+  // Smart bid increment logic based on current tournament rules
   const getBidIncrement = (currentBid) => {
-    if (currentBid < 10) return 1;
-    if (currentBid < 20) return 2;
-    if (currentBid < 50) return 5;
-    return 10;
+    // If we have custom increments from the database, use them
+    if (rules.increments && rules.increments.length > 0) {
+      const band = rules.increments.find(b => 
+        currentBid >= b.min && (b.max === null || currentBid < b.max)
+      );
+      if (band) return band.step;
+    }
+
+    // Fallback defaults if no rules defined
+    if (isPointsSystem()) {
+      if (currentBid < 10) return 1;
+      if (currentBid < 20) return 2;
+      if (currentBid < 50) return 5;
+      return 10;
+    }
+    return 100; // Standard money increment
   };
 
-  // Base price logic for Credits system
+  // Base price logic based on current tournament rules
   const getBasePrice = (role) => {
-    if (role?.toLowerCase().includes('all')) return 4;
-    return 2;
+    // If we have role-based base prices in rules, use them
+    if (rules.basePrice) {
+      const r = role?.toLowerCase() || "";
+      if (r.includes('batsman')) return rules.basePrice.batsman || 2;
+      if (r.includes('bowler')) return rules.basePrice.bowler || 2;
+      if (r.includes('all')) return rules.basePrice.allRounder || 4;
+    }
+
+    // Fallback defaults
+    if (isPointsSystem()) {
+      if (role?.toLowerCase().includes('all')) return 4;
+      return 2;
+    }
+    return 100; // Standard money base price
   };
 
-  // Squad size rules
+  // Squad size rules from tournament config
   const getSquadLimits = () => {
     return {
-      minPlayers: 11,
-      maxPlayers: 15
+      minPlayers: selectedAuction?.squad?.minPlayers || 1,
+      maxPlayers: selectedAuction?.squad?.maxPlayers || selectedAuction?.squadSize || 15
     };
   };
 
   // Check if team can bid (budget + squad size + year distribution)
   const canTeamBid = (team) => {
-    const limits = getSquadLimits();
-    const currentSquadSize = team.players?.length || 0;
     const hasBudgetSpace = team.remainingBudget >= (player?.basePrice || 2);
-    const hasSquadSpace = currentSquadSize < limits.maxPlayers;
-    
-    return hasBudgetSpace && hasSquadSpace;
+    // Squad size restriction removed as per user request to allow bidding if budget exists
+    return hasBudgetSpace;
   };
 
   // Check year distribution requirements
@@ -223,9 +247,7 @@ function LiveAuctionContent() {
     const limits = getSquadLimits();
     const currentSquadSize = team.players?.length || 0;
     
-    if (currentSquadSize >= limits.maxPlayers) {
-      return `Squad full (${currentSquadSize}/${limits.maxPlayers})`;
-    }
+    // Squad size check removed to allow buying as long as budget exists
     const minBid = isPointsSystem() ? (player?.basePrice || 2) : 100;
     if (team.remainingBudget < minBid) {
       return `Insufficient ${isPointsSystem() ? 'credits' : 'funds'} (${formatCurrency(team.remainingBudget)})`;
@@ -258,10 +280,9 @@ function LiveAuctionContent() {
     return null;
   };
 
-  // Detect auction type based on base budget
+  // Detect auction type based on tournament mode (Reliable vs baseline heuristic)
   const isPointsSystem = () => {
-    const result = config.baseBudget <= 1000; // Points systems have small budgets (200 CR), regular auctions have large budgets (10000+)
-    return result;
+    return (selectedAuction?.auctionMode === "points" || config.auctionMode === "points");
   };
 
   // Get currency symbol and format based on auction type
@@ -342,7 +363,7 @@ function LiveAuctionContent() {
       const tournamentIdToUpdate = selectedAuction?._id || currentTournamentId;
       if (!tournamentIdToUpdate) throw new Error("No active tournament ID found");
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournaments/${tournamentIdToUpdate}/pools`, {
+      const res = await fetch(`${API_URL}/api/tournaments/${tournamentIdToUpdate}/pools`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ poolA: updatedPoolA, poolB: updatedPoolB })
@@ -366,7 +387,7 @@ function LiveAuctionContent() {
       const { teamId, pool } = lastAssignment;
       const updatedPoolA = pool === 'poolA' ? poolA.filter(id => id !== teamId) : poolA;
       const updatedPoolB = pool === 'poolB' ? poolB.filter(id => id !== teamId) : poolB;
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournaments/${selectedAuction?._id || currentTournamentId}/pools`, {
+      const res = await fetch(`${API_URL}/api/tournaments/${selectedAuction?._id || currentTournamentId}/pools`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ poolA: updatedPoolA, poolB: updatedPoolB })
@@ -383,7 +404,7 @@ function LiveAuctionContent() {
   const handleResetPools = async () => {
     if (!confirm("Reset ALL pool assignments? This cannot be undone.")) return;
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournaments/${selectedAuction?._id || currentTournamentId}/pools`, {
+      const res = await fetch(`${API_URL}/api/tournaments/${selectedAuction?._id || currentTournamentId}/pools`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ poolA: [], poolB: [] })
@@ -406,12 +427,13 @@ function LiveAuctionContent() {
   // Socket connection setup - uses global socket to survive React Strict Mode
   useEffect(() => {
     // Only connect if API_URL is available and not already connected globally
-    if (!process.env.NEXT_PUBLIC_API_URL || globalSocket) {
+    if (!API_URL && typeof window === 'undefined' || globalSocket) {
       if (globalSocket) setSocket(globalSocket)
       return
     }
 
-    const s = io(process.env.NEXT_PUBLIC_API_URL, {
+    const socketUrl = API_URL || (typeof window !== 'undefined' ? window.location.origin : "");
+    const s = io(socketUrl, {
       transports: ['polling', 'websocket'],
       timeout: 10000,
       reconnection: true,
@@ -461,7 +483,7 @@ function LiveAuctionContent() {
 
         // If a tournament ID is in the URL, try it first
         if (targetTournamentId) {
-          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournaments/${targetTournamentId}`, { signal: controller.signal })
+          const res = await fetch(`${API_URL}/api/tournaments/${targetTournamentId}`, { signal: controller.signal })
           if (res.ok) {
             const json = await res.json()
             if (json && json.tournament) {
@@ -475,7 +497,7 @@ function LiveAuctionContent() {
 
         // Fallback: fetch active tournament if URL id was missing or invalid
         if (!data) {
-          const activeRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournaments/status/active`, { signal: controller.signal })
+          const activeRes = await fetch(`${API_URL}/api/tournaments/status/active`, { signal: controller.signal })
           if (activeRes.ok) {
             const activeData = await activeRes.json()
             if (activeData && activeData.tournament) {
@@ -495,8 +517,14 @@ function LiveAuctionContent() {
         setConfig({
           name: tournament.name,
           baseBudget: tournament.baseBudget,
-          totalTeams: tournament.numTeams
+          totalTeams: tournament.numTeams,
+          auctionMode: tournament.auctionMode || "money"
         })
+        
+        // Load custom rules
+        if (data.rules) {
+          setRules(data.rules);
+        }
 
         // Apply Dynamic Assets if they exist
         if (tournament.assets) {
@@ -504,7 +532,7 @@ function LiveAuctionContent() {
             ...prev,
             splashUrl: tournament.assets.splashUrl || "",
             backgroundUrl: tournament.assets.backgroundUrl || "/backgrounds/auction-bg.jpg",
-            badges: tournament.assets.badges || { leftBadge: "", rightBadge: "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/public/ChatGPT+Image+Mar+18%2C+2026%2C+12_45_23+PM.png" }
+            badges: tournament.assets.badges || { leftBadge: "", rightBadge: DEFAULT_ASSETS.BANNER_LOGO }
           }));
           if (tournament.assets.backgroundUrl) setAuctionBg(tournament.assets.backgroundUrl);
         }
@@ -646,6 +674,10 @@ function LiveAuctionContent() {
           setCurrentBid(data.bidAmount)
           setHighestBidder(data.teamId)
           setRoundHistory(prev => [{ team: data.teamName, teamId: data.teamId, bid: data.bidAmount }, ...prev])
+          
+          // Auto-update next bid input for local user
+          const nextAutoBid = isPointsSystem() ? (data.bidAmount + getBidIncrement(data.bidAmount)) : (data.bidAmount + 100);
+          setBidIncrement(nextAutoBid);
         }
 
         return currentPlayers
@@ -695,7 +727,8 @@ function LiveAuctionContent() {
     setRoundHistory([])
     if (player) {
       // Start with base price as initial bid amount based on auction type
-      setBidIncrement(player.basePrice || getBasePriceByAuctionType(player.role || "Batsman"))
+      const startBid = player.basePrice || (isPointsSystem() ? getBasePrice(player.role) : 100);
+      setBidIncrement(startBid);
     }
   }, [currentPlayerIndex])
 
@@ -720,8 +753,11 @@ function LiveAuctionContent() {
       yearDistribution: t.yearDistribution || null
     }))
 
+    const nextPlayerObj = players.slice(currentPlayerIndex + 1).find(p => !p.type) || null;
+
     socket.emit("auctionUpdate", {
       player: activePlayer,
+      nextPlayer: nextPlayerObj ? { name: nextPlayerObj.name, role: nextPlayerObj.role } : null,
       currentBid: currentBid,
       highestBidder: topTeam?.name || null,
       highestBidderLogo: topTeam?.logoUrl || null,
@@ -830,6 +866,11 @@ function LiveAuctionContent() {
     setCurrentBid(bidAmount)
     setHighestBidder(teamId)
     setBidPulse(true)
+    
+    // Calculate and set the NEXT bid amount automatically for the input
+    const nextAutoBid = isPointsSystem() ? (bidAmount + getBidIncrement(bidAmount)) : (bidAmount + 100);
+    setBidIncrement(nextAutoBid);
+    
     setTimeout(() => setBidPulse(false), 400)
 
     setRoundHistory([{ team: biddingTeam.name, teamId: teamId, bid: bidAmount }, ...roundHistory])
@@ -945,18 +986,24 @@ function LiveAuctionContent() {
     try {
       // Save both in parallel for reliability
       const [playerRes, teamRes] = await Promise.all([
-        // Update player with team assignment
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/players/${player.id}`, {
+        // Update player with team assignment and BID HISTORY
+        fetch(`${API_URL}/api/players/${player.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             status: "sold",
             soldPrice: currentBid,
-            team: highestBidder
+            team: highestBidder,
+            bidHistory: roundHistory.map(b => ({
+              teamName: b.team,
+              teamId: b.teamId,
+              bidAmount: b.bid,
+              timestamp: b.timestamp || new Date()
+            }))
           })
         }),
         // Update team remaining budget
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${highestBidder}`, {
+        fetch(`${API_URL}/api/teams/${highestBidder}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -1054,13 +1101,19 @@ function LiveAuctionContent() {
 
     // Persist unsold status on backend
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/players/${player.id}`, {
+      const res = await fetch(`${API_URL}/api/players/${player.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           status: "unsold",
           soldPrice: 0,
-          team: null
+          team: null,
+          bidHistory: roundHistory.map(b => ({
+            teamName: b.team,
+            teamId: b.teamId,
+            bidAmount: b.bid,
+            timestamp: b.timestamp || new Date()
+          }))
         })
       })
 
@@ -1098,7 +1151,7 @@ function LiveAuctionContent() {
       setPlayers(updatedPlayers);
 
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/players/${player.id}`, {
+        const res = await fetch(`${API_URL}/api/players/${player.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -1174,7 +1227,7 @@ function LiveAuctionContent() {
       // Save both in parallel for reliability
       const [playerRes, teamRes] = await Promise.all([
         // Reset player to available
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/players/${player.id}`, {
+        fetch(`${API_URL}/api/players/${player.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -1184,7 +1237,7 @@ function LiveAuctionContent() {
           })
         }),
         // Refund team budget
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${originalTeamId}`, {
+        fetch(`${API_URL}/api/teams/${originalTeamId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -1212,7 +1265,7 @@ function LiveAuctionContent() {
 
         // Refresh teams data to ensure player is removed from team squad
         try {
-          const teamsRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournaments/${currentTournamentId}`)
+          const teamsRes = await fetch(`${API_URL}/api/tournaments/${currentTournamentId}`)
           if (teamsRes.ok) {
             const data = await teamsRes.json()
             setTeams(data.teams?.map(t => ({
@@ -1332,7 +1385,7 @@ function LiveAuctionContent() {
       const isNumberField = ['basePrice', 'age'].includes(field);
       const valueToSend = isNumberField ? Number(newValue) : newValue;
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/players/${id}`, {
+      const res = await fetch(`${API_URL}/api/players/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ [field]: valueToSend })
@@ -1355,7 +1408,7 @@ function LiveAuctionContent() {
   const handleImageSave = async (newUrl) => {
     if (!player) return
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/players/${player.id}`, {
+      const res = await fetch(`${API_URL}/api/players/${player.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ imageUrl: newUrl })
@@ -1385,7 +1438,7 @@ function LiveAuctionContent() {
   const handleTeamNameUpdate = async (id, field, newValue) => {
     if (!newValue.trim() && field === "name") return setEditingTeamId(null);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournaments/teams/${id}`, {
+      const res = await fetch(`${API_URL}/api/tournaments/teams/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ [field]: newValue })
@@ -1550,8 +1603,8 @@ function LiveAuctionContent() {
         {/* HEADER - Responsive Layout */}
         <div className="mb-4 pb-4 border-b border-slate-800">
           <div className="flex items-center justify-between mb-3">
-            <Link href="/auctions" className="bg-violet-600 hover:bg-violet-500 px-4 py-2 rounded-xl text-sm font-bold transition-all border border-violet-500 whitespace-nowrap backdrop-blur-md min-h-[40px] flex items-center shadow-lg">
-              ← Back to Auctions
+            <Link href="/admin/dashboard" className="bg-violet-600 hover:bg-violet-500 px-4 py-2 rounded-xl text-sm font-bold transition-all border border-violet-500 whitespace-nowrap backdrop-blur-md min-h-[40px] flex items-center shadow-lg">
+              ← Back to Dashboard
             </Link>
 
             <div className="flex items-center gap-2">
@@ -1582,11 +1635,18 @@ function LiveAuctionContent() {
           </div>
 
           <div className="flex items-center gap-4 lg:gap-8 grow justify-center">
-            {activeAssets.badges?.leftBadge && (
-              <div className="hidden sm:block w-12 h-12 lg:w-20 lg:h-20 relative">
-                <img src={activeAssets.badges.leftBadge} className="w-full h-full object-contain drop-shadow-2xl" alt="L-Badge" />
-              </div>
-            )}
+            {/* TOURNAMENT / ORGANIZER LOGO (DYNAMIC) */}
+            <div className="flex items-center gap-4">
+               {selectedAuction?.organizerLogo ? (
+                 <div className="w-16 h-16 lg:w-24 lg:h-24 relative bg-slate-900/40 rounded-2xl border border-white/5 p-2 flex items-center justify-center backdrop-blur-md shadow-2xl">
+                    <img src={selectedAuction.organizerLogo} className="w-full h-full object-contain" alt="Tournament Logo" />
+                 </div>
+               ) : (
+                  <div className="hidden sm:block w-12 h-12 lg:w-20 lg:h-20 relative">
+                    <img src={activeAssets.badges?.leftBadge || "/logo.png"} className="w-full h-full object-contain drop-shadow-2xl" alt="L-Badge" />
+                  </div>
+               )}
+            </div>
 
             <div className="text-center">
               <div className="flex justify-center mb-1">
@@ -1600,6 +1660,9 @@ function LiveAuctionContent() {
               <h1 className="text-lg sm:text-2xl lg:text-4xl font-black tracking-tighter uppercase drop-shadow-2xl leading-tight">
                 {config.name} <span className="text-violet-500 italic font-medium">AUCTION</span>
               </h1>
+              {selectedAuction?.organizerName && (
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mt-1">{selectedAuction.organizerName}</p>
+              )}
             </div>
 
             {activeAssets.badges?.rightBadge && (
@@ -1973,9 +2036,9 @@ function LiveAuctionContent() {
             ) : player && players.filter(p => !p.type).length > 0 && (soldPlayers.length + unsoldPlayers.length) < players.filter(p => !p.type).length ? (
               <div className="h-full flex flex-col gap-4 overflow-hidden">
                 {/* HEADER ROW - Glassmorphism Card */}
-                <div className="flex flex-col md:flex-row gap-4 items-stretch p-4 md:p-6 bg-black/45 backdrop-blur-md rounded-2xl border border-cyan-500/20 shadow-[0_8px_32px_rgba(0,0,0,0.6),0_0_10px_rgba(0,255,200,0.2)] transition-all duration-300 ease hover:-translate-y-1 hover:scale-[1.02]">
+                <div className="flex flex-col md:flex-row gap-8 items-stretch p-4 md:p-10 bg-black/45 backdrop-blur-md rounded-2xl border border-cyan-500/20 shadow-[0_8px_32px_rgba(0,0,0,0.6),0_0_10px_rgba(0,255,200,0.2)] transition-all duration-300 ease hover:-translate-y-1 hover:scale-[1.01]">
                   {/* 1. PHOTO - Glass Panel */}
-                  <div className="relative group/photo w-[140px] h-[180px] sm:w-[160px] sm:h-[200px] md:w-[180px] md:h-[220px] rounded-xl overflow-hidden border-2 border-cyan-500/30 shadow-[0_8px_32px_rgba(0,0,0,0.6),0_0_15px_rgba(0,255,200,0.3)] bg-black/50 backdrop-blur-sm ring-4 ring-black/40 transition-all duration-300 ease hover:shadow-[0_12px_40px_rgba(0,255,200,0.4)]">
+                  <div className="relative group/photo w-[140px] h-[180px] sm:w-[160px] sm:h-[200px] md:w-[240px] md:h-[300px] rounded-xl overflow-hidden border-2 border-cyan-500/30 shadow-[0_8px_32px_rgba(0,0,0,0.6),0_0_15px_rgba(0,255,200,0.3)] bg-black/50 backdrop-blur-sm ring-4 ring-black/40 transition-all duration-300 ease hover:shadow-[0_12px_40px_rgba(0,255,200,0.4)]">
                       <Image
                         src={player.photo?.s3 || player.photo?.drive || player.imageUrl || player.image}
                         alt={player.name} fill className={`object-cover ${player.status !== 'available' ? 'grayscale opacity-50' : ''}`} unoptimized={true}
@@ -2028,7 +2091,7 @@ function LiveAuctionContent() {
                     </div>
 
                   {/* 2. PLAYER INFORMATION - Floating Glass */}
-                  <div className="w-full md:w-[45%] flex flex-col justify-center space-y-4 md:px-4 md:border-x md:border-cyan-500/15">
+                  <div className="w-full md:flex-1 flex flex-col justify-center space-y-4 md:px-8 md:border-x md:border-cyan-500/15">
                     <div>
                       {player.status === "available" || player.status === "auction" ? (
                         <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/30 px-3 py-1 rounded-full w-fit animate-pulse mb-3">
@@ -2059,8 +2122,8 @@ function LiveAuctionContent() {
                           <button onClick={() => setEditingPlayerField(null)} className="shrink-0 bg-red-500/20 hover:bg-red-500/40 text-red-400 border border-red-500/30 w-10 h-10 rounded-xl flex items-center justify-center text-xl shadow-lg transition-all">✕</button>
                         </div>
                       ) : (
-                        <div className="flex items-center gap-4 group/playername">
-                          <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tighter leading-none text-white mb-2 drop-shadow-md">{player.name}</h1>
+                        <div className="flex items-center gap-6 group/playername">
+                          <h1 className="text-4xl sm:text-5xl md:text-7xl font-black tracking-tighter leading-none text-white mb-2 drop-shadow-xl uppercase italic" style={{ textShadow: '0 0 30px rgba(255,255,255,0.2)' }}>{player.name}</h1>
                           <button
                             onClick={() => { setEditingPlayerField('name'); setTempValue(player.name); }}
                             className="opacity-0 group-hover/playername:opacity-100 text-xl text-violet-500 hover:text-violet-400 transition-opacity"
@@ -2074,7 +2137,7 @@ function LiveAuctionContent() {
                     <div className="grid grid-cols-2 gap-4">
                       {/* Role */}
                       <div className="space-y-1">
-                        <p className="text-[9px] text-gray-500 font-bold uppercase tracking-wider">Role</p>
+                        <p className="text-xs text-gray-400 font-black uppercase tracking-[0.2em]">Role</p>
                         {editingPlayerField === 'role' ? (
                           <div className="flex items-center gap-1">
                             <input
@@ -2097,7 +2160,7 @@ function LiveAuctionContent() {
 
                       {/* Base Price */}
                       <div className="space-y-1">
-                        <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Base Price</p>
+                        <p className="text-xs text-gray-400 font-black uppercase tracking-[0.2em]">Base Price</p>
                         {editingPlayerField === 'basePrice' ? (
                           <div className="flex items-center gap-1">
                             <input
@@ -2121,7 +2184,7 @@ function LiveAuctionContent() {
 
                       {/* Town/Village */}
                       <div className="space-y-1">
-                        <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Town / Village</p>
+                        <p className="text-xs text-gray-400 font-black uppercase tracking-[0.2em]">Town / Village</p>
                         {editingPlayerField === 'village' ? (
                           <div className="flex items-center gap-1 pr-2">
                             <input
@@ -2144,7 +2207,7 @@ function LiveAuctionContent() {
 
                       {/* DOB/Age */}
                       <div className="space-y-1">
-                        <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">DOB / Age</p>
+                        <p className="text-xs text-gray-400 font-black uppercase tracking-[0.2em]">DOB / Age</p>
                         <div className="flex items-center gap-3">
                           {editingPlayerField === 'dob' ? (
                             <div className="flex items-center gap-1">
@@ -2240,16 +2303,19 @@ function LiveAuctionContent() {
                   </div>
 
                   {/* 3. DYNAMIC STATUS PANEL - Glass Effect */}
-                  <div className="w-full md:w-[20%] auction-card rounded-2xl border border-cyan-500/25 p-4 flex flex-col justify-center items-center text-center relative overflow-hidden group bg-black/45 backdrop-blur-md shadow-[0_8px_32px_rgba(0,0,0,0.6),0_0_10px_rgba(0,255,200,0.2)] transition-all duration-300 ease hover:-translate-y-1 hover:scale-105">
+                  <div className="w-full md:w-[30%] auction-card rounded-2xl border-2 border-cyan-400/30 p-8 flex flex-col justify-center items-center text-center relative overflow-hidden group bg-black/60 backdrop-blur-xl shadow-[0_0_50px_rgba(0,0,0,0.8),0_0_20px_rgba(0,255,200,0.15)] transition-all duration-500 ease hover:scale-[1.03] hover:border-cyan-400/50">
                     {player.status === "available" || player.status === "auction" ? (
                       <>
-                        <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-violet-500 to-transparent"></div>
-                        <p className="text-violet-500/60 uppercase tracking-[0.3em] text-[10px] font-black mb-2">Current Highest Bid</p>
-                        <h1 className={`text-4xl sm:text-5xl md:text-6xl font-black text-violet-400 tabular-nums drop-shadow-[0_0_15px_rgba(52,211,153,0.3)] ${bidPulse ? 'bid-animation' : ''}`}>
-                          {formatCurrency(currentBid)}
-                        </h1>
+                        <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-transparent via-violet-500 to-transparent shadow-[0_0_15px_rgba(139,92,246,0.6)]"></div>
+                        <p className="text-violet-400/80 uppercase tracking-[0.4em] text-[11px] font-black mb-6 drop-shadow-sm">Current Highest Bid</p>
+                        <div className="relative">
+                          <h1 className={`text-6xl sm:text-7xl md:text-9xl font-black text-white tabular-nums drop-shadow-[0_0_30px_rgba(168,85,247,0.5)] leading-none ${bidPulse ? 'bid-animation' : ''}`} style={{ fontFamily: "'Inter', sans-serif" }}>
+                            {formatCurrency(currentBid)}
+                          </h1>
+                          <div className="absolute -inset-4 bg-violet-600/5 blur-3xl rounded-full -z-10 animate-pulse"></div>
+                        </div>
                         {highestBidder && (
-                          <div className="mt-4 flex flex-col items-center">
+                          <div className="mt-8 flex flex-col items-center animate-in slide-in-from-bottom-2 duration-300">
                             <div className="flex items-center gap-3 px-3 py-1.5 bg-violet-500/10 rounded-xl border border-violet-500/20 shadow-lg">
                               <div className="w-5 h-5 rounded-lg overflow-hidden border border-white/10 shrink-0">
                                 <img src={teams.find(t => t.id === highestBidder)?.logoUrl} className="w-full h-full object-cover" />
@@ -2385,7 +2451,7 @@ function LiveAuctionContent() {
                             
                             {/* Squad completion warning */}
                             {currentSquadSize >= limits.maxPlayers && (
-                              <span className="text-[7px] block font-black leading-none text-red-400 animate-pulse">SQUAD FULL</span>
+                              <span className="text-[7px] block font-black leading-none text-violet-400 animate-pulse">LIMIT OVERRIDE</span>
                             )}
                             {currentSquadSize < limits.minPlayers && (
                               <span className="text-[7px] block font-black leading-none text-amber-400">NEED {limits.minPlayers - currentSquadSize}</span>
@@ -2666,7 +2732,7 @@ function LiveAuctionWithSplash({ tournamentId, role }) {
     const fetchMinimalTournament = async () => {
       if (!tournamentId) return;
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournaments/${tournamentId}`);
+        const res = await fetch(`${API_URL}/api/tournaments/${tournamentId}`);
         if (res.ok) {
           const data = await res.json();
           setTournament(data.tournament || data);

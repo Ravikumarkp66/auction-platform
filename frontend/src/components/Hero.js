@@ -1,11 +1,25 @@
 "use client";
 
 import Link from 'next/link';
+import { useState, useEffect } from 'react';
 import { useLanguage } from '../context/LanguageContext';
 import HeroCarousel from './HeroCarousel';
+import { API_URL } from '../lib/apiConfig';
 
 export default function Hero() {
   const { t } = useLanguage();
+  const [customLogo, setCustomLogo] = useState(null);
+
+  useEffect(() => {
+    fetch(`${API_URL}/api/settings`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.data.brandLogo) {
+          setCustomLogo(`${API_URL}${data.data.brandLogo}`);
+        }
+      })
+      .catch(err => console.error("Hero brand fetch error:", err));
+  }, []);
 
   return (
     <div className="relative bg-slate-950 overflow-hidden">
@@ -17,6 +31,27 @@ export default function Hero() {
               
               {/* LEFT SIDE - Text Content */}
               <div className="sm:text-center lg:text-left lg:w-1/2">
+                {/* Bold Vibrant Strike Logo Badge */}
+                <div className="flex items-center gap-4 mb-10 group cursor-pointer transition-all duration-500 hover:scale-[1.03] justify-center lg:justify-start">
+                  <div className="relative flex items-center justify-center p-1">
+                    <div className="absolute inset-0 bg-violet-600/15 blur-[12px] rounded-full scale-125" />
+                    <svg className="w-16 h-16 relative" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M40 80L75 45" stroke="#A855F7" strokeWidth="12" strokeLinecap="round" />
+                      <rect x="68" y="28" width="24" height="14" rx="3" transform="rotate(-45 68 28)" fill="#A855F7" />
+                      <path d="M45 45L80 80" stroke="white" strokeWidth="12" strokeLinecap="round" />
+                      <circle cx="60" cy="60" r="10" fill="#FBBF24" className="animate-pulse shadow-gold" />
+                    </svg>
+                  </div>
+                  <div className="flex flex-col border-l border-white/10 pl-5">
+                    <span className="text-4xl font-[1000] tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-violet-400 leading-none uppercase">
+                      LAKSHMISH
+                    </span>
+                    <span className="text-sm font-black tracking-[0.4em] uppercase text-violet-500 mt-2 pl-0.5">
+                      Cricket Events
+                    </span>
+                  </div>
+                </div>
+
                 <h1 className="text-3xl sm:text-5xl md:text-6xl tracking-tight font-extrabold text-white">
                   <span className="block">{t.hero.title1}</span>{' '}
                   <span className="block text-violet-500 xl:inline">{t.hero.title2}</span>

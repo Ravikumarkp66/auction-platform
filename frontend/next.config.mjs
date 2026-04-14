@@ -21,6 +21,22 @@ const nextConfig = {
     ],
     unoptimized: true,
   },
+  async rewrites() {
+    return [
+      {
+        source: '/api/((?!auth).*)',
+        destination: 'http://3.108.196.205:5000/api/:1',
+      },
+      {
+        source: '/uploads/:path*',
+        destination: 'http://3.108.196.205:5000/uploads/:path*',
+      },
+      {
+        source: '/socket.io/:path*',
+        destination: 'http://3.108.196.205:5000/socket.io/:path*',
+      },
+    ];
+  },
 };
 
 export default nextConfig;

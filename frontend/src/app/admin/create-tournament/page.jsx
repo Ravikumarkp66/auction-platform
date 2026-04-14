@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import * as XLSX from "xlsx";
 import { uploadToS3 } from "../../../lib/uploadToS3";
+import { API_URL } from "../../../lib/apiConfig";
 import {
   CheckCircle, ChevronRight, ChevronLeft, Rocket,
   Upload, RefreshCw, Trash2, AlertCircle, Users,
@@ -26,6 +27,7 @@ const STEP_META = [
 
 const DEFAULT_CONFIG = {
   name: "", numTeams: 10, iconsPerTeam: 3,
+  organizerName: "", organizerLogo: "",
   baseBudget: 10000, defaultBasePrice: 100,
   squadSize: 15, auctionSlots: 120,
   auctionDate: "", auctionType: "live",
@@ -90,7 +92,7 @@ const fixUrl = (url) => {
 
 const proxyUrl = (url) => {
   if (!url || typeof url !== "string" || !url.trim().toLowerCase().startsWith("http")) return "";
-  const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+  const API = API_URL;
   // Only proxy Google Drive links — other URLs load fine directly
   if (url.includes("drive.google.com")) {
     const fixed = fixUrl(url); // convert to uc?export=view first
@@ -601,7 +603,7 @@ export default function CreateTournamentWizard() {
   };
 
   const handleLogoProxy = async (currentTeams, links) => {
-    const API = process.env.NEXT_PUBLIC_API_URL;
+    const API = API_URL;
     setConverting(true);
     try {
       const res = await fetch(`${API}/api/upload/proxy-batch`, {
@@ -698,7 +700,7 @@ export default function CreateTournamentWizard() {
 
   const fixIconImages = async (currentIcons) => {
     const list = currentIcons || icons;
-    const API = process.env.NEXT_PUBLIC_API_URL;
+    const API = API_URL;
     const driveLinks = list.filter(p => p.imageUrl && p.imageUrl.includes("drive.google.com")).map(p => p.imageUrl);
     const uniqueLinks = [...new Set(driveLinks)];
     
@@ -803,7 +805,7 @@ export default function CreateTournamentWizard() {
 
   const fixPlayerImages = async (currentPlayers) => {
     const list = currentPlayers || players;
-    const API = process.env.NEXT_PUBLIC_API_URL;
+    const API = API_URL;
     
     // Use original Drive URLs for S3 upload, not the proxy URLs
     const driveLinks = list
@@ -907,7 +909,7 @@ export default function CreateTournamentWizard() {
   const launchAuction = async () => {
     setLaunching(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournaments`, {
+      const res = await fetch(`${API_URL}/api/tournaments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -943,7 +945,7 @@ export default function CreateTournamentWizard() {
               maxPlayers: config.squadMaxPlayers || rulesConfig.squad?.maxPlayers || 15,
             },
           };
-          fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rules/${tid}`, {
+          fetch(`${API_URL}/api/rules/${tid}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ config: effectiveRules }),
@@ -990,12 +992,69 @@ export default function CreateTournamentWizard() {
       {step === 1 && (
         <StepCard step={1}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div className="md:col-span-2">
+            <div className="md:col-span-1">
               <Field label="Tournament Name *" error={errors.name}>
                 <input className={inputCls(errors.name)} value={config.name}
                   onChange={e => setConfig(p => ({ ...p, name: e.target.value }))}
                   placeholder="e.g. Parameshwar Cup 2026" />
               </Field>
+            </div>
+
+            <div className="md:col-span-1">
+              <Field label="Organizer Name" hint="Display name of the hosting body">
+                <input className={inputCls(false)} value={config.organizerName}
+                  onChange={e => setConfig(p => ({ ...p, organizerName: e.target.value }))}
+                  placeholder="e.g. Lakshmish Cricket Club" />
+              </Field>
+            </div>
+
+            {/* ── TOURNAMENT LOGO UPLOAD ── */}
+            <div className="md:col-span-2">
+                 <Field label="Tournament / Organizer Logo" hint="Shown on posters, overlays and dashboards (Ideal: Transparent PNG)">
+                    <div className="flex items-center gap-6 p-6 rounded-[2rem] bg-slate-900/50 border border-white/5 relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-violet-600/5 blur-[50px] pointer-events-none" />
+                        
+                        <div className="relative w-24 h-24 shrink-0 bg-[#0B0F2A] rounded-2xl border-2 border-dashed border-white/10 flex items-center justify-center overflow-hidden transition-all hover:border-violet-500/30">
+                            {config.organizerLogo ? (
+                                <img src={config.organizerLogo} alt="Logo" className="w-full h-full object-contain" />
+                            ) : (
+                                <Trophy className="w-8 h-8 text-slate-700" />
+                            )}
+                            {uploading && (
+                                <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                                    <RefreshCw className="w-5 h-5 text-white animate-spin" />
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="flex-1 space-y-3">
+                            <input 
+                              type="file" 
+                              accept="image/*" 
+                              id="org-logo" 
+                              className="hidden" 
+                              onChange={(e) => handleImageUpload(e.target.files[0], (url) => setConfig(p => ({ ...p, organizerLogo: url })), "tournaments")} 
+                            />
+                            <label 
+                              htmlFor="org-logo"
+                              className="inline-flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-[10px] font-black uppercase tracking-wider cursor-pointer shadow-lg shadow-violet-600/20 active:scale-95 transition-all"
+                            >
+                                <Upload className="w-3.5 h-3.5" /> {config.organizerLogo ? "Change Logo" : "Upload Brand Logo"}
+                            </label>
+                            {config.organizerLogo && (
+                                <button 
+                                  onClick={() => setConfig(p => ({ ...p, organizerLogo: "" }))}
+                                  className="ml-3 text-[10px] font-bold text-red-400 hover:text-red-300 transition-colors uppercase tracking-widest"
+                                >
+                                   Remove
+                                </button>
+                            )}
+                            <p className="text-[9px] text-slate-500 font-medium italic underline underline-offset-4 decoration-slate-800">
+                                This logo acts as the primary visual identity for the entire tournament.
+                            </p>
+                        </div>
+                    </div>
+                 </Field>
             </div>
 
             {/* ── Auction Type (Live / Demo) ── */}

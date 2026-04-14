@@ -1,45 +1,75 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import ReactCrop, { centerCrop, makeAspectCrop, PixelCrop } from 'react-image-crop'
+import ReactCrop, { centerCrop, makeAspectCrop } from 'react-image-crop'
 import 'react-image-crop/dist/ReactCrop.css'
-import { X, Check, RotateCcw, ZoomIn, ZoomOut } from "lucide-react"
+import { X, Check, RotateCcw, ZoomIn, ZoomOut, Maximize2, Move } from "lucide-react"
 import { uploadToS3 } from "../lib/uploadToS3"
+import { API_URL } from "../lib/apiConfig"
 
-export default function ImageCropperModal({ imageUrl, onSave, onClose, folder = "players" }) {
+export default function ImageCropperModal({ imageUrl, onSave, onClose, folder = "players", initialAspect = 3 / 4 }) {
   const [crop, setCrop] = useState()
   const [completedCrop, setCompletedCrop] = useState()
   const [scale, setScale] = useState(1)
   const [rotate, setRotate] = useState(0)
-  const [aspect, setAspect] = useState(3 / 4) // Default aspect ratio for players
+  const [aspect, setAspect] = useState(initialAspect)
   const [loading, setLoading] = useState(false)
   
   const imgRef = useRef(null)
 
+  // Helper to create a centered crop box
+  const centerAspectCrop = (mediaWidth, mediaHeight, aspect) => {
+    return centerCrop(
+      makeAspectCrop(
+        {
+          unit: '%',
+          width: 100,
+        },
+        aspect,
+        mediaWidth,
+        mediaHeight
+      ),
+      mediaWidth,
+      mediaHeight
+    )
+  }
+
+  // Handle aspect ratio change
+  useEffect(() => {
+    if (imgRef.current && aspect) {
+      const { width, height } = imgRef.current
+      const newCrop = centerAspectCrop(width, height, aspect)
+      setCrop(newCrop)
+    } else if (imgRef.current && !aspect) {
+      // Free crop: default to a large centered box
+      const { width, height } = imgRef.current
+      setCrop({
+        unit: '%',
+        width: 80,
+        height: 80,
+        x: 10,
+        y: 10
+      })
+    }
+  }, [aspect])
+
   // Determine the best source URL for CORS-safe loading
   const getSecureUrl = (rawUrl) => {
     if (!rawUrl) return ""
+    if (rawUrl.startsWith("/") || rawUrl.startsWith("blob:")) return rawUrl
     
-    // Route almost everything through the proxy to guarantee CORS-headers
-    // Only local relative paths or blob: URLs (for local previews) stay bypass
-    if (rawUrl.startsWith("/") || rawUrl.startsWith("blob:")) {
-      return rawUrl
-    }
-    
-    // Otherwise, route through the backend proxy to guarantee CORS headers
-    let API = process.env.NEXT_PUBLIC_API_URL || ""
+    let API = API_URL || ""
     if (API.endsWith("/")) API = API.slice(0, -1)
     
-    const proxiedUrl = `${API}/api/proxy-image?url=${encodeURIComponent(rawUrl)}`
-    console.log("📸 Cropper loading proxied URL:", proxiedUrl)
-    return proxiedUrl
+    return `${API}/api/proxy-image?url=${encodeURIComponent(rawUrl)}`
   }
 
   const safeUrl = getSecureUrl(imageUrl)
 
   function onImageLoad(e) {
-    // We intentionally don't set an initial crop box here
-    // This allows the admin to see the complete, unobstructed photo first
+    const { width, height } = e.currentTarget
+    const initialCrop = centerAspectCrop(width, height, aspect)
+    setCrop(initialCrop)
   }
 
   const handleSave = async () => {
@@ -61,18 +91,12 @@ export default function ImageCropperModal({ imageUrl, onSave, onClose, folder = 
       ctx.scale(pixelRatio, pixelRatio)
       ctx.imageSmoothingQuality = 'high'
       
-      const centerX = image.naturalWidth / 2
-      const centerY = image.naturalHeight / 2
-      
       ctx.save()
       
-      // Move to center of canvas
+      // Move to center of canvas for rotation/scale
       ctx.translate(canvas.width / (2 * pixelRatio), canvas.height / (2 * pixelRatio))
-      // Rotate
       ctx.rotate((rotate * Math.PI) / 180)
-      // Scale
       ctx.scale(scale, scale)
-      // Move back
       ctx.translate(-canvas.width / (2 * pixelRatio), -canvas.height / (2 * pixelRatio))
 
       ctx.drawImage(
@@ -89,15 +113,11 @@ export default function ImageCropperModal({ imageUrl, onSave, onClose, folder = 
       
       ctx.restore()
       
-      // Convert to blob
       const blob = await new Promise((resolve) => {
         canvas.toBlob(resolve, 'image/jpeg', 0.95)
       })
       
-      // Create a File object from blob for S3 upload
       const file = new File([blob], `cropped_${Date.now()}.jpg`, { type: 'image/jpeg' })
-      
-      // Upload to S3
       const newUrl = await uploadToS3(file, folder)
       
       await onSave(newUrl)
@@ -110,73 +130,125 @@ export default function ImageCropperModal({ imageUrl, onSave, onClose, folder = 
     }
   }
 
+  const handleReset = () => {
+    setScale(1)
+    setRotate(0)
+    if (imgRef.current) {
+        const { width, height } = imgRef.current
+        setCrop(centerAspectCrop(width, height, aspect))
+    }
+  }
+
   return (
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/95 backdrop-blur-xl animate-in fade-in duration-300">
-      <div className="relative w-full max-w-4xl bg-slate-900 border border-slate-700/50 rounded-3xl shadow-[0_40px_100px_rgba(0,0,0,0.8)] flex flex-col overflow-hidden max-h-[90vh]">
-        {/* Header */}
-        <div className="p-6 border-b border-white/5 flex items-center justify-between bg-slate-900/40 backdrop-blur-xl shrink-0">
-          <div className="flex items-center gap-4">
-             <div className="w-12 h-12 bg-violet-600/20 rounded-2xl flex items-center justify-center border border-violet-500/30 text-violet-400 shadow-inner">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path></svg>
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-2xl animate-in fade-in duration-500">
+      <div className="relative w-full max-w-5xl bg-[#0a0f1d] border border-white/10 rounded-[2.5rem] shadow-[0_50px_100px_rgba(0,0,0,0.9)] flex flex-col overflow-hidden max-h-[95vh] animate-in zoom-in-95 duration-300">
+        
+        {/* Header - Compact Layout */}
+        <div className="px-10 py-5 border-b border-white/5 flex items-center justify-between bg-white/[0.02] shrink-0">
+          <div className="flex items-center gap-5">
+             <div className="w-14 h-14 bg-gradient-to-br from-violet-600 to-indigo-600 rounded-[1.25rem] flex items-center justify-center text-white shadow-xl shadow-violet-500/20">
+                <Move className="w-7 h-7" />
              </div>
              <div>
-               <h2 className="text-xl font-black text-white uppercase tracking-tight">Image Editor</h2>
-               <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                 <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
-                 Live Crop & Preview
-               </p>
+               <h2 className="text-2xl font-black text-white uppercase tracking-tighter">Image Editor</h2>
+               <div className="flex items-center gap-2 mt-0.5">
+                 <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                 <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Precision Crop & Align</p>
+               </div>
              </div>
           </div>
           <button 
              onClick={onClose} 
-             className="w-10 h-10 flex items-center justify-center bg-slate-800 hover:bg-red-500/20 hover:text-red-500 rounded-full transition-all text-lg font-black"
+             className="w-12 h-12 flex items-center justify-center bg-white/5 hover:bg-red-500/20 hover:text-red-500 rounded-2xl transition-all border border-white/5"
           >
-             ✕
+             <X size={24} />
           </button>
         </div>
 
-        {/* main area */}
-        <div className="flex-1 overflow-auto p-2 flex flex-col items-center justify-center bg-[#020617] relative scrollbar-hide">
-          <div className="max-w-full relative rounded-2xl overflow-hidden border border-white/5 shadow-2xl bg-slate-900/10 p-1 flex items-center justify-center">
-             <ReactCrop
-                crop={crop}
-                onChange={(c) => setCrop(c)}
-                onComplete={(c) => setCompletedCrop(c)}
-                aspect={aspect}
-                className="max-h-[75vh] w-auto h-auto overflow-hidden"
-              >
-                <img
-                  ref={imgRef}
-                  alt="Crop me"
-                  src={safeUrl}
-                  onLoad={onImageLoad}
-                  style={{ transform: `scale(${scale})`, maxWidth: '100%', maxHeight: '75vh', width: 'auto', height: 'auto', transition: 'transform 0.2s ease' }}
-                  crossOrigin="anonymous"
-                />
-              </ReactCrop>
+        {/* Main Editor Section - Centered and Spacious */}
+        <div className="flex-1 min-h-0 p-8 flex flex-col items-center justify-center bg-[#050810] relative group">
+          <div className="relative max-w-full max-h-full flex items-center justify-center transition-all duration-500 ease-out">
+             <div className="absolute inset-0 bg-violet-500/5 blur-[100px] rounded-full"></div>
+             
+             <div className="relative rounded-3xl overflow-hidden border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] bg-slate-900/40 p-2">
+                <ReactCrop
+                    crop={crop}
+                    onChange={(c) => setCrop(c)}
+                    onComplete={(c) => setCompletedCrop(c)}
+                    aspect={aspect}
+                    className="max-w-full max-h-full shadow-2xl"
+                    ruleOfThirds
+                  >
+                    <img
+                      ref={imgRef}
+                      alt="Crop me"
+                      src={safeUrl}
+                      onLoad={onImageLoad}
+                      style={{ 
+                        transform: `scale(${scale}) rotate(${rotate}deg)`, 
+                        maxWidth: '100%', 
+                        maxHeight: 'calc(95vh - 350px)', 
+                        width: 'auto', 
+                        height: 'auto', 
+                        display: 'block',
+                        transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)' 
+                      }}
+                      className="cursor-move"
+                      crossOrigin="anonymous"
+                    />
+                  </ReactCrop>
+             </div>
           </div>
-          <p className="mt-4 text-[10px] font-black text-slate-500 uppercase tracking-widest italic opacity-40">Drag corners to resize • Click and drag to reposition</p>
+          
+          <div className="mt-8 flex items-center gap-3 px-6 py-2 bg-white/5 border border-white/5 rounded-full backdrop-blur-md opacity-60 group-hover:opacity-100 transition-opacity">
+            <Move size={12} className="text-violet-400" />
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Drag to Adjust Selection • Use Controls to Scale</p>
+          </div>
         </div>
 
-        {/* footer controls */}
-        <div className="p-8 border-t border-white/5 bg-slate-950 flex flex-wrap items-center justify-between gap-6 shrink-0">
-          <div className="flex items-center gap-6">
-             <div className="flex flex-col gap-2">
-                <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest pl-1">Zoom</span>
-                <div className="flex bg-slate-900 p-1.5 rounded-2xl border border-white/5 shadow-inner">
-                    <button onClick={() => setScale(s => Math.max(0.5, s - 0.1))} className="p-2.5 hover:bg-slate-800 rounded-xl text-slate-400 hover:text-violet-400 transition-all"><ZoomOut size={18} /></button>
-                    <span className="px-3 flex items-center text-[11px] font-bold tabular-nums text-slate-400">{(scale * 100).toFixed(0)}%</span>
-                    <button onClick={() => setScale(s => Math.min(3, s + 0.1))} className="p-2.5 hover:bg-slate-800 rounded-xl text-slate-400 hover:text-violet-400 transition-all"><ZoomIn size={18} /></button>
+        {/* Improved Controls Footer */}
+        <div className="px-10 py-6 border-t border-white/5 bg-[#0a0f1d] flex flex-wrap items-center justify-between gap-6 shrink-0">
+          <div className="flex items-center gap-8">
+             {/* Zoom Controls */}
+             <div className="space-y-3">
+                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1 block">Magnification</span>
+                <div className="flex bg-white/5 p-1.5 rounded-2xl border border-white/5 shadow-inner">
+                    <button onClick={() => setScale(s => Math.max(0.1, s - 0.1))} className="p-3 hover:bg-white/5 rounded-xl text-slate-400 hover:text-violet-400 transition-all"><ZoomOut size={20} /></button>
+                    <div className="w-16 flex items-center justify-center border-x border-white/5 mx-1">
+                        <span className="text-xs font-black tabular-nums text-white">{(scale * 100).toFixed(0)}%</span>
+                    </div>
+                    <button onClick={() => setScale(s => Math.min(5, s + 0.1))} className="p-3 hover:bg-white/5 rounded-xl text-slate-400 hover:text-indigo-400 transition-all"><ZoomIn size={20} /></button>
                 </div>
              </div>
              
-             <div className="flex flex-col gap-2">
-                <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest pl-1">Framing</span>
-                <div className="flex bg-slate-900 p-1.5 rounded-2xl border border-white/5 shadow-inner gap-1">
-                    <button onClick={() => setAspect(3/4)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${aspect === 3/4 ? 'bg-violet-600/20 text-violet-400' : 'text-slate-500 hover:text-slate-300'}`}>3:4</button>
-                    <button onClick={() => setAspect(3.5/4.5)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${Math.abs(aspect - 3.5/4.5) < 0.01 ? 'bg-violet-600/20 text-violet-400' : 'text-slate-500 hover:text-slate-300'}`}>Passport</button>
-                    <button onClick={() => setAspect(1)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${aspect === 1 ? 'bg-violet-600/20 text-violet-400' : 'text-slate-500 hover:text-slate-300'}`}>1:1</button>
-                    <button onClick={() => setAspect(undefined)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${aspect === undefined ? 'bg-violet-600/20 text-violet-400' : 'text-slate-500 hover:text-slate-300'}`}>Free</button>
+             {/* Aspect Ratio Controls */}
+             <div className="space-y-3">
+                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1 block">Crop Aspect Ratio</span>
+                <div className="flex bg-white/5 p-1.5 rounded-2xl border border-white/5 shadow-inner gap-1">
+                    {[
+                        { label: '16:9', val: 16/9 },
+                        { label: '4:3', val: 4/3 },
+                        { label: '3:4', val: 3/4 },
+                        { label: '1:1', val: 1 },
+                        { label: 'Free', val: undefined }
+                    ].map((r) => (
+                        <button 
+                            key={r.label}
+                            onClick={() => setAspect(r.val)} 
+                            className={`px-4 py-2.5 rounded-xl text-[10px] font-black transition-all ${aspect === r.val ? 'bg-violet-600 text-white shadow-lg shadow-violet-600/20' : 'text-slate-500 hover:text-slate-200 hover:bg-white/5'}`}
+                        >
+                            {r.label}
+                        </button>
+                    ))}
+                </div>
+             </div>
+
+             {/* Utility Buttons */}
+             <div className="space-y-3">
+                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1 block">Tools</span>
+                <div className="flex gap-2">
+                    <button onClick={() => setRotate(r => r + 90)} className="p-3 bg-white/5 hover:bg-white/10 text-slate-400 rounded-2xl border border-white/5 transition-all"><RotateCcw size={20} className="transform scale-x-[-1]" /></button>
+                    <button onClick={handleReset} className="p-3 bg-white/5 hover:bg-white/10 text-slate-400 rounded-2xl border border-white/5 transition-all"><Maximize2 size={20} /></button>
                 </div>
              </div>
           </div>
@@ -184,17 +256,17 @@ export default function ImageCropperModal({ imageUrl, onSave, onClose, folder = 
           <div className="flex items-center gap-4">
              <button 
                 onClick={onClose} 
-                className="px-8 py-4 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] transition-all border border-white/5"
+                className="px-8 py-4 bg-transparent hover:bg-white/5 text-slate-500 hover:text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all"
              >
                 Discard
              </button>
              <button 
                 onClick={handleSave} 
                 disabled={loading || !completedCrop}
-                className="px-10 py-4 bg-gradient-to-r from-violet-600 to-violet-500 hover:from-violet-500 hover:to-violet-400 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.25em] transition-all flex items-center gap-3 shadow-[0_15px_30px_rgba(124,58,237,0.4)]"
+                className="px-10 py-4 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 disabled:opacity-30 disabled:cursor-not-allowed text-white rounded-2xl font-black text-xs uppercase tracking-[0.25em] transition-all flex items-center gap-3 shadow-[0_20px_40px_rgba(124,58,237,0.3)] min-w-[200px] justify-center"
              >
                 {loading ? <div className="w-5 h-5 border-3 border-white/20 border-t-white rounded-full animate-spin"></div> : <Check size={20} />}
-                {loading ? "Processing..." : "Save Changes"}
+                {loading ? "PROCESSING..." : "SAVE CHANGES"}
              </button>
           </div>
         </div>
@@ -202,3 +274,4 @@ export default function ImageCropperModal({ imageUrl, onSave, onClose, folder = 
     </div>
   )
 }
+

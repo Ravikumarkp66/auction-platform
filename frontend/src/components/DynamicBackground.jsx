@@ -1,12 +1,13 @@
 "use client";
 import { useEffect } from "react";
+import { API_URL } from "@/lib/apiConfig";
 
 export default function DynamicBackground() {
   useEffect(() => {
     const fetchBg = async () => {
       try {
         const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/backgrounds/space_bg`
+          `${API_URL}/api/backgrounds/space_bg`
         );
         if (res.ok) {
           const data = await res.json();

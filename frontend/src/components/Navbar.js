@@ -1,12 +1,13 @@
 "use client";
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLanguage } from '../context/LanguageContext';
 import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import AuthButton from './AuthButton';
 import AuthModal from './AuthModal';
+import { API_URL } from '../lib/apiConfig';
 
 export default function Navbar() {
   const { language, changeLanguage, t } = useLanguage();
@@ -16,10 +17,39 @@ export default function Navbar() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [languageDropdownOpen, setLanguageDropdownOpen] = useState(false);
+  const [customLogo, setCustomLogo] = useState(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    fetchBrandSettings();
+  }, []);
+
+  const fetchBrandSettings = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/settings`);
+      const data = await res.json();
+      if (data.success && data.data.brandLogo) {
+        setCustomLogo(`${API_URL}${data.data.brandLogo}`);
+      }
+    } catch (err) {
+      console.error("Brand fetch error:", err);
+    }
+  };
 
   // Hide navbar on these app-specific screens
   if (pathname === '/auction' || pathname === '/live-auction' || pathname === '/overlay' || pathname.startsWith('/team/')) {
     return null;
+  }
+
+  if (!mounted) {
+    return (
+      <nav className="bg-slate-900/80 backdrop-blur-xl border-b border-slate-800/50 sticky top-0 z-50 h-16">
+        <div className="max-w-7xl mx-auto px-4 h-full flex items-center justify-between opacity-0">
+          <div className="text-white font-bold text-xl tracking-tight">Auction Pro</div>
+        </div>
+      </nav>
+    );
   }
 
   const isActive = (path) => pathname === path;
@@ -50,10 +80,38 @@ export default function Navbar() {
     <nav className="bg-slate-900/80 backdrop-blur-xl border-b border-slate-800/50 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Desktop Logo - Hidden on Mobile */}
           <div className="hidden md:flex flex-shrink-0">
-            <Link href="/" className="text-white font-bold text-xl tracking-tight" onClick={() => setMenuOpen(false)}>
-              Auction<span className="text-violet-500">Pro</span>
+            <Link href="/" className="flex items-center gap-2.5 group transition-all duration-300 hover:scale-[1.03]" onClick={() => setMenuOpen(false)}>
+              {/* VIBRANT LEAGUE STRIKE MARK */}
+              <div className="relative flex items-center justify-center">
+                {/* Subtle core radiance */}
+                <div className="absolute inset-0 bg-violet-600/20 blur-[10px] rounded-full scale-125 group-hover:bg-violet-500/40 transition-all duration-500" />
+                
+                <svg className="w-11 h-11 relative" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                   {/* Bold Intersecting Elements (The Strike) */}
+                   {/* Auction Gavel - Neon Accent */}
+                   <path d="M40 80L75 45" stroke="#A855F7" strokeWidth="10" strokeLinecap="round" className="drop-shadow-[0_0_5px_rgba(168,85,247,0.5)]" />
+                   <rect x="68" y="28" width="24" height="14" rx="3" transform="rotate(-45 68 28)" fill="#A855F7" className="drop-shadow-[0_0_5px_rgba(168,85,247,0.5)]" />
+                   
+                   {/* Cricket Bat - Titanium Grade */}
+                   <path d="M45 45L80 80" stroke="white" strokeWidth="10" strokeLinecap="round" />
+                   <path d="M80 80L88 88" stroke="white" strokeWidth="4" strokeLinecap="round" opacity="0.6" />
+                   
+                   {/* Championship Gold Core */}
+                   <circle cx="60" cy="60" r="8" fill="#FBBF24" className="animate-pulse shadow-gold" />
+                   <circle cx="60" cy="60" r="12" stroke="#FBBF24" strokeWidth="1.5" strokeDasharray="4 4" className="animate-[spin_10s_linear_infinite]" />
+                </svg>
+              </div>
+
+              {/* Bold Cinematic Typography */}
+              <div className="flex flex-col">
+                <span className="text-2xl font-[1000] tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-violet-400 leading-[0.85] uppercase drop-shadow-md">
+                  LAKSHMISH
+                </span>
+                <span className="text-[10px] font-black tracking-[0.4em] uppercase text-violet-500 mt-1 pl-0.5 opacity-90">
+                  Cricket Events
+                </span>
+              </div>
             </Link>
           </div>
 
@@ -120,8 +178,17 @@ export default function Navbar() {
           <div className="md:hidden flex items-center justify-between w-full px-1">
             {/* Logo - Extremely small */}
             <div className="flex-shrink-0">
-              <Link href="/" className="text-white font-bold text-sm tracking-tight" onClick={() => setMenuOpen(false)}>
-                A<span className="text-violet-500">P</span>
+              <Link href="/" className="flex items-center gap-2" onClick={() => setMenuOpen(false)}>
+                <div className="relative">
+                   <div className="absolute inset-0 bg-violet-600/30 blur-md rounded-full scale-110" />
+                   <svg className="w-7 h-7 relative" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M40 85L80 45" stroke="#A855F7" strokeWidth="10" strokeLinecap="round" />
+                      <rect x="70" y="30" width="25" height="15" rx="4" transform="rotate(-45 70 30)" fill="#A855F7" />
+                      <path d="M45 40L85 80" stroke="white" strokeWidth="10" strokeLinecap="round" />
+                      <circle cx="62.5" cy="62.5" r="8" fill="#FBBF24" />
+                   </svg>
+                </div>
+                <span className="text-white font-[900] text-sm tracking-tighter">L<span className="text-violet-500">CE</span></span>
               </Link>
             </div>
 

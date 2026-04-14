@@ -1,10 +1,22 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Star, Trophy, Users, ShieldCheck, User, Search, Hash, AlertCircle, Edit3, FileSpreadsheet, Upload, RefreshCw } from "lucide-react";
+import { Star, Trophy, Users, ShieldCheck, User, Search, Hash, AlertCircle, Edit3, FileSpreadsheet, Upload, RefreshCw, X, Camera } from "lucide-react";
 import * as XLSX from "xlsx";
 import { useAuction } from "../layout";
 import { io } from "socket.io-client";
+import { API_URL } from "../../../lib/apiConfig";
+
+// Global helper to proxy images (especially for Google Drive and CORS-restricted S3)
+const getProxiedUrl = (url) => {
+  if (!url) return "";
+  if (typeof url !== 'string') return url;
+  if (url.startsWith('data:')) return url;
+  if (url.includes('drive.google.com') || (url.includes('amazonaws.com') && !url.includes(API_URL))) {
+    return `${API_URL}/api/proxy-image?url=${encodeURIComponent(url)}`;
+  }
+  return url;
+};
 import ImageEditModal from "../../../components/ImageEditModal";
 
 let socket;
@@ -18,6 +30,7 @@ export default function IconPlayersPanel() {
   const [editImageTarget, setEditImageTarget] = useState(null); // { id, url, name }
   const [isImporting, setIsImporting] = useState(false);
   const [importedData, setImportedData] = useState([]); // Store parsed CSV data for display
+  const [editingPlayer, setEditingPlayer] = useState(null); // New state for editing name & details
 
   // Helper: Convert category label to year number
   const getYearNumberFromLabel = (category) => {
@@ -56,7 +69,7 @@ export default function IconPlayersPanel() {
     if (selectedAuction?._id) {
       fetchIcons();
       // Initialize socket connection
-      socket = io(process.env.NEXT_PUBLIC_API_URL, {
+      socket = io(API_URL, {
         reconnection: true,
         reconnectionAttempts: 5,
         reconnectionDelay: 1000
@@ -119,12 +132,7 @@ export default function IconPlayersPanel() {
 
         // Proxy function for Drive links
         const proxyUrl = (url) => {
-          if (!url) return "";
-          if (typeof url !== 'string') return url;
-          if (url.includes('drive.google.com')) {
-            return `https://auction-kp.sitesys.in/api/upload/proxy-image?url=${encodeURIComponent(url)}`;
-          }
-          return url;
+          return getProxiedUrl(url);
         };
 
         const importedIcons = [];
@@ -222,7 +230,7 @@ export default function IconPlayersPanel() {
 
         if (importedIcons.length > 0) {
           // First, get all teams to map team names to IDs
-          const teamsRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams?tournamentId=${selectedAuction._id}`);
+          const teamsRes = await fetch(`${API_URL}/api/teams?tournamentId=${selectedAuction._id}`);
           const teamsData = await teamsRes.json();
           const teamMap = {};
           teamsData.forEach(t => {
@@ -236,7 +244,7 @@ export default function IconPlayersPanel() {
           }));
 
           // Bulk import icons
-          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/players/import`, {
+          const res = await fetch(`${API_URL}/api/players/import`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ 
@@ -274,8 +282,8 @@ export default function IconPlayersPanel() {
     setLoading(true);
     try {
       const [pRes, tRes] = await Promise.all([
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/players?tournamentId=${selectedAuction._id}&isIcon=true`),
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams?tournamentId=${selectedAuction._id}`)
+        fetch(`${API_URL}/api/players?tournamentId=${selectedAuction._id}&isIcon=true`),
+        fetch(`${API_URL}/api/teams?tournamentId=${selectedAuction._id}`)
       ]);
       const pData = await pRes.json();
       const tData = await tRes.json();
@@ -304,7 +312,7 @@ export default function IconPlayersPanel() {
      return (
        <div className="flex flex-col items-center justify-center py-20 bg-white/5 border border-white/5 rounded-[3rem] text-center">
          <AlertCircle className="w-12 h-12 text-yellow-500/50 mb-4" />
-         <h2 className="text-xl font-black text-white">No Auction Registry Context</h2>
+         <h2 className="text-xl font-black text-white">No Auction Selected</h2>
          <p className="text-slate-500 text-sm mt-2 max-w-xs font-semibold">Select an auction system from the topbar to view icon rosters.</p>
        </div>
      );
@@ -320,8 +328,8 @@ export default function IconPlayersPanel() {
               <Star className="w-8 h-8 fill-yellow-500" />
            </div>
            <div>
-              <h1 className="text-4xl font-black text-white tracking-tight">Icon <span className="text-yellow-500">Node</span> Registry</h1>
-              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.4em] mt-1">System Privilege Level 1: Elite Personnel</p>
+              <h1 className="text-4xl font-black text-white tracking-tight">Icon <span className="text-yellow-500">Players</span> List</h1>
+              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.4em] mt-1">Pre-Retained Players for Selected Tournament</p>
            </div>
         </div>
 
@@ -466,7 +474,7 @@ export default function IconPlayersPanel() {
                         className="w-20 h-20 rounded-[2rem] overflow-hidden border-2 border-yellow-500/20 shadow-xl group-hover:scale-110 transition-transform duration-700 cursor-pointer relative group/img"
                      >
                         {p.imageUrl ? (
-                           <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" />
+                           <img src={getProxiedUrl(p.imageUrl)} alt={p.name} className="w-full h-full object-cover" />
                         ) : (
                            <div className="w-full h-full bg-slate-800 flex items-center justify-center font-black text-3xl text-slate-600">
                               {p.name?.[0]}
@@ -481,10 +489,20 @@ export default function IconPlayersPanel() {
                      </div>
                   </div>
                   
-                  <div className="text-right">
+                  <div className="text-right flex flex-col items-end gap-2">
                      <div className="text-[10px] font-black text-yellow-500 bg-yellow-500/10 px-2.5 py-1 rounded-full border border-yellow-500/20 uppercase tracking-widest inline-flex items-center gap-1">
                         ICON ID: {p.iconId}
                      </div>
+                     <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingPlayer(p);
+                        }}
+                        className="p-2 bg-white/5 hover:bg-yellow-500/20 rounded-xl text-slate-400 hover:text-yellow-500 transition-all border border-white/5 hover:border-yellow-500/30 shadow-lg"
+                        title="Edit Player Details"
+                     >
+                        <Edit3 className="w-4 h-4" />
+                     </button>
                   </div>
                </div>
 
@@ -497,7 +515,7 @@ export default function IconPlayersPanel() {
             {/* Allocation Matrix */}
             <div className="px-8 py-6 bg-white/[0.02] border-t border-white/5 grid grid-cols-2 gap-4">
                <div className="space-y-1">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Deployment Node</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Assigned Team</p>
                   <div className="flex items-center gap-2">
                      <Trophy className="w-3.5 h-3.5 text-yellow-500/60" />
                      <p className="text-sm font-black text-white truncate">{getTeamName(p.team)}</p>
@@ -516,7 +534,7 @@ export default function IconPlayersPanel() {
 
         {filteredIcons.length === 0 && (
            <div className="col-span-full py-40 flex flex-col items-center justify-center text-center opacity-30 italic font-black uppercase tracking-[0.5em] text-slate-500">
-              No Elite Units Authorized
+              No Icon Players Found
            </div>
         )}
       </div>
@@ -524,23 +542,23 @@ export default function IconPlayersPanel() {
       {/* ── IMAGE EDIT MODAL ── */}
       {editImageTarget && (
         <ImageEditModal
-          title={`Edit Icon: ${editImageTarget.name}`}
-          initialImage={editImageTarget.url}
+          title={`Edit Photo: ${editImageTarget.name}`}
+          initialImage={getProxiedUrl(editImageTarget.url)}
           onClose={() => setEditImageTarget(null)}
           onSave={async (file) => {
              try {
                 const fileType = file.type;
-                const { uploadUrl, fileUrl } = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/upload/get-upload-url?fileType=${fileType}&folder=players`).then(r => r.json());
+                const { uploadUrl, fileUrl } = await fetch(`${API_URL}/api/upload/get-upload-url?fileType=${fileType}&folder=players`).then(r => r.json());
                 await fetch(uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": fileType } });
                 
-                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/players/${editImageTarget.id}`, {
+                const res = await fetch(`${API_URL}/api/players/${editImageTarget.id}`, {
                   method: "PATCH",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({ imageUrl: fileUrl })
                 });
 
                 if (res.ok) {
-                   socket.emit("auctionUpdate", { type: "system_refresh", auctionId: selectedAuction._id });
+                   socket?.emit("auctionUpdate", { type: "system_refresh", auctionId: selectedAuction._id });
                    fetchIcons();
                 }
              } catch (err) {
@@ -549,6 +567,186 @@ export default function IconPlayersPanel() {
              }
           }}
         />
+      )}
+
+      {/* ── PLAYER EDIT MODAL (Name & Details) ── */}
+      {editingPlayer && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setEditingPlayer(null)} />
+          <div className="relative w-full max-w-md bg-[#111827] border border-white/10 rounded-[2.5rem] overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-8">
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <h3 className="text-xl font-black text-white">Edit <span className="text-yellow-500">Player</span></h3>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Modify registry records</p>
+                </div>
+                <button onClick={() => setEditingPlayer(null)} className="p-2 hover:bg-white/5 rounded-full transition-colors">
+                  <X className="w-5 h-5 text-slate-500" />
+                </button>
+              </div>
+
+              <div className="max-h-[60vh] overflow-y-auto pr-2 space-y-6 scrollbar-thin scrollbar-thumb-white/10">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Full Name</label>
+                    <input 
+                      type="text"
+                      value={editingPlayer.name}
+                      onChange={(e) => setEditingPlayer({ ...editingPlayer, name: e.target.value })}
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 font-bold text-white focus:border-yellow-500 outline-none transition-all"
+                      placeholder="Enter name"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Mobile</label>
+                    <input 
+                      type="text"
+                      value={editingPlayer.mobile || ""}
+                      onChange={(e) => setEditingPlayer({ ...editingPlayer, mobile: e.target.value })}
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 font-bold text-white focus:border-yellow-500 outline-none transition-all"
+                      placeholder="Mobile number"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Village</label>
+                    <input 
+                      type="text"
+                      value={editingPlayer.village || ""}
+                      onChange={(e) => setEditingPlayer({ ...editingPlayer, village: e.target.value })}
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 font-bold text-white focus:border-yellow-500 outline-none transition-all"
+                      placeholder="Village name"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Year (Category)</label>
+                    <select 
+                      value={editingPlayer.category}
+                      onChange={(e) => setEditingPlayer({ ...editingPlayer, category: e.target.value })}
+                      className="w-full bg-[#1e293b] border border-white/10 rounded-2xl px-5 py-4 font-bold text-white focus:border-yellow-500 outline-none transition-all"
+                    >
+                      <option value="1st year" className="bg-[#1e293b] text-white">1st Year</option>
+                      <option value="2nd year" className="bg-[#1e293b] text-white">2nd Year</option>
+                      <option value="3rd year" className="bg-[#1e293b] text-white">3rd Year</option>
+                      <option value="4th year" className="bg-[#1e293b] text-white">4th Year</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Primary Role</label>
+                    <select 
+                      value={editingPlayer.role}
+                      onChange={(e) => setEditingPlayer({ ...editingPlayer, role: e.target.value })}
+                      className="w-full bg-[#1e293b] border border-white/10 rounded-2xl px-5 py-4 font-bold text-white focus:border-yellow-500 outline-none transition-all"
+                    >
+                      <option value="All-Rounder" className="bg-[#1e293b] text-white">All-Rounder</option>
+                      <option value="Batting All-Rounder" className="bg-[#1e293b] text-white">Batting All-Rounder</option>
+                      <option value="Bowling All-Rounder" className="bg-[#1e293b] text-white">Bowling All-Rounder</option>
+                      <option value="Batsman" className="bg-[#1e293b] text-white">Batsman</option>
+                      <option value="Opening Batsman" className="bg-[#1e293b] text-white">Opening Batsman</option>
+                      <option value="Middle Order Batsman" className="bg-[#1e293b] text-white">Middle Order Batsman</option>
+                      <option value="Bowler" className="bg-[#1e293b] text-white">Bowler</option>
+                      <option value="Fast Bowler" className="bg-[#1e293b] text-white">Fast Bowler</option>
+                      <option value="Spin Bowler" className="bg-[#1e293b] text-white">Spin Bowler</option>
+                      <option value="Wicket-Keeper" className="bg-[#1e293b] text-white">Wicket-Keeper</option>
+                      <option value="Wicket-Keeper Batsman" className="bg-[#1e293b] text-white">Wicket-Keeper Batsman</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Icon Role</label>
+                    <select 
+                      value={editingPlayer.iconRole || "none"}
+                      onChange={(e) => setEditingPlayer({ ...editingPlayer, iconRole: e.target.value === "none" ? null : e.target.value })}
+                      className="w-full bg-[#1e293b] border border-white/10 rounded-2xl px-5 py-4 font-bold text-white focus:border-yellow-500 outline-none transition-all"
+                    >
+                      <option value="none" className="bg-[#1e293b] text-white">Standard Icon</option>
+                      <option value="captain" className="bg-[#1e293b] text-white">Captain</option>
+                      <option value="viceCaptain" className="bg-[#1e293b] text-white">Vice Captain</option>
+                      <option value="retained" className="bg-[#1e293b] text-white">Retained</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4 pt-4">
+                  <button 
+                    onClick={() => {
+                        const target = { id: editingPlayer._id, url: editingPlayer.imageUrl, name: editingPlayer.name };
+                        setEditingPlayer(null);
+                        setEditImageTarget(target);
+                    }}
+                    className="flex-1 px-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white hover:bg-white/10 transition-all flex items-center justify-center gap-2"
+                  >
+                    <Camera className="w-4 h-4 text-yellow-500" />
+                    Change Photo
+                  </button>
+                  <button 
+                    onClick={async () => {
+                      if (window.confirm("Are you sure you want to remove this player from the elite registry?")) {
+                         try {
+                           const res = await fetch(`${API_URL}/api/players/${editingPlayer._id}`, {
+                             method: "DELETE"
+                           });
+                           if (res.ok) {
+                             socket?.emit("auctionUpdate", { type: "system_refresh", auctionId: selectedAuction._id });
+                             fetchIcons();
+                             setEditingPlayer(null);
+                           }
+                         } catch (err) {
+                           console.error("Delete failed", err);
+                         }
+                      }
+                    }}
+                    className="px-6 py-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-[10px] font-black uppercase tracking-widest text-red-500 hover:bg-red-500/20 transition-all flex items-center justify-center gap-2"
+                  >
+                    Delete Player
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-8">
+                <button 
+                  onClick={async () => {
+                    try {
+                      setIsImporting(true);
+                      const res = await fetch(`${API_URL}/api/players/${editingPlayer._id}`, {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ 
+                          name: editingPlayer.name,
+                          role: editingPlayer.role,
+                          mobile: editingPlayer.mobile,
+                          village: editingPlayer.village,
+                          category: editingPlayer.category,
+                          iconRole: editingPlayer.iconRole
+                        })
+                      });
+
+                      if (res.ok) {
+                        socket?.emit("auctionUpdate", { type: "system_refresh", auctionId: selectedAuction._id });
+                        fetchIcons();
+                        setEditingPlayer(null);
+                      } else {
+                        alert("Failed to update player");
+                      }
+                    } catch (err) {
+                      console.error("Save failed", err);
+                    } finally {
+                      setIsImporting(false);
+                    }
+                  }}
+                  disabled={isImporting}
+                  className="w-full py-4 bg-gradient-to-r from-yellow-600 to-amber-500 border border-yellow-500/20 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white shadow-xl shadow-yellow-500/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50"
+                >
+                  {isImporting ? "Processing..." : "Save Changes"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

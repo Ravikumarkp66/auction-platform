@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { useSession } from "next-auth/react"
 import Link from "next/link"
 import Image from "next/image"
+import { API_URL } from "@/lib/apiConfig";
 
 function TeamsContent() {
   const router = useRouter()
@@ -28,7 +29,7 @@ function TeamsContent() {
         
         if (!targetTournamentId) {
           console.log('No tournament ID provided, fetching active tournament...')
-          const activeRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournaments/status/active`)
+          const activeRes = await fetch(`${API_URL}/api/tournaments/status/active`)
           if (activeRes.ok) {
             const activeData = await activeRes.json()
             console.log('Active tournament response:', activeData)
@@ -54,7 +55,7 @@ function TeamsContent() {
         console.log('Fetching teams for tournament:', targetTournamentId)
         
         // Fetch tournament data which includes teams
-        let res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournaments/${targetTournamentId}`)
+        let res = await fetch(`${API_URL}/api/tournaments/${targetTournamentId}`)
         
         if (res.ok) {
           const data = await res.json()
@@ -85,7 +86,7 @@ function TeamsContent() {
         
         // Fallback to teams API
         console.log('Tournament data empty, trying teams API...')
-        res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/tournament/${targetTournamentId}`)
+        res = await fetch(`${API_URL}/api/teams/tournament/${targetTournamentId}`)
         
         if (res.ok) {
           const data = await res.json()

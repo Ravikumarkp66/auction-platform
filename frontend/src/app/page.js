@@ -4,8 +4,30 @@ import Hero from "@/components/Hero";
 import ServicesCard from "@/components/ServicesCard";
 import Footer from "@/components/Footer";
 import Link from "next/link";
+import { useState, useEffect } from "react";
+import { API_URL } from "@/lib/apiConfig";
 
 export default function Home() {
+  const [services, setServices] = useState([]);
+
+  useEffect(() => {
+    // Add timestamp to bypass any browser cache
+    fetch(`${API_URL}/api/services?t=${Date.now()}`, {
+      cache: 'no-store',
+      headers: {
+        'Pragma': 'no-cache',
+        'Cache-Control': 'no-cache'
+      }
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          setServices(data);
+        }
+      })
+      .catch(err => console.error("Failed to fetch services:", err));
+  }, []);
+
   return (
     <>
       <Hero />
@@ -14,22 +36,42 @@ export default function Home() {
       <section className="py-20 bg-slate-950">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-extrabold text-white">Our Services</h2>
-            <p className="mt-4 text-xl text-gray-400">Professional auction management</p>
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-[0.2em] mb-4">
+               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+               Reasonable Pricing Guaranteed
+            </div>
+            <h2 className="text-3xl md:text-5xl font-black text-white">Professional Services</h2>
+            <p className="mt-4 text-base text-gray-400 max-w-2xl mx-auto font-medium">
+              High-fidelity auction hosting and expert live commentary at competitive rates. 
+              Get the premium IPL-style experience for your local tournament without breaking the bank.
+            </p>
           </div>
           <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:gap-12 max-w-5xl mx-auto">
-            <ServicesCard 
-              title="Auction Management" 
-              description="Complete tournament auction setup and management"
-              price="₹5,000 per day"
-              icon="⚖️"
-            />
-            <ServicesCard 
-              title="Live Commentary" 
-              description="Professional commentary for your matches"
-              price="₹2,000 per match"
-              icon="🎙️"
-            />
+            {services.map(service => (
+              <ServicesCard 
+                key={service._id}
+                title={service.title}
+                description={service.description}
+                price={service.price}
+                icon={service.icon}
+              />
+            ))}
+            {services.length === 0 && (
+              <>
+                <ServicesCard 
+                  title="Auction Management" 
+                  description="Complete tournament auction setup and management"
+                  price="₹5,000 per day"
+                  icon="⚖️"
+                />
+                <ServicesCard 
+                  title="Live Commentary" 
+                  description="Professional commentary for your matches"
+                  price="₹2,000 per match"
+                  icon="🎙️"
+                />
+              </>
+            )}
           </div>
         </div>
       </section>

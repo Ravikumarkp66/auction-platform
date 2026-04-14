@@ -1,26 +1,42 @@
-"use client"
+import { useEffect, useState } from "react";
+import { API_URL } from "@/lib/apiConfig";
 
-// import Image from "next/image"
-
-const images = [
-  { img: "/tournaments/t1_v2.jpg", name: "Makenahalli Premier League", location: "Makenahalli", year: "2025", teams: "10 Teams" },
-  { img: "/tournaments/t2_v2.jpg", name: "Jakanachari Cup", location: "Tumkur", year: "2024", teams: "10 Teams" },
-  { img: "/tournaments/t3_v2.jpg", name: "Chettanahalli Premier League", location: "Chettanahalli", year: "2024", teams: "10 Teams" },
-  { img: "/tournaments/t4_v2.jpg", name: "Koratagere Premier League", location: "Koratagere", year: "2025", teams: "10 Teams" },
-  { img: "/tournaments/t5_v2.jpg", name: "Makenahalli Premier League", location: "Makenahalli", year: "2025", teams: "10 Teams" }
+const fallbackImages = [
+  { imageUrl: "/tournaments/t1_v2.jpg", name: "Makenahalli Premier League", location: "Makenahalli", year: "2025", teams: "10 Teams" },
+  { imageUrl: "/tournaments/t2_v2.jpg", name: "Jakanachari Cup", location: "Tumkur", year: "2024", teams: "10 Teams" },
+  { imageUrl: "/tournaments/t3_v2.jpg", name: "Chettanahalli Premier League", location: "Chettanahalli", year: "2024", teams: "10 Teams" },
+  { imageUrl: "/tournaments/t4_v2.jpg", name: "Koratagere Premier League", location: "Koratagere", year: "2025", teams: "10 Teams" },
+  { imageUrl: "/tournaments/t5_v2.jpg", name: "Makenahalli Premier League", location: "Makenahalli", year: "2025", teams: "10 Teams" }
 ]
 
 export default function TournamentScroller() {
+  const [scrollerImages, setScrollerImages] = useState(fallbackImages);
+
+  useEffect(() => {
+    async function fetchImages() {
+      try {
+        const res = await fetch(`${API_URL}/api/tournament-images?tournamentId=landing`);
+        const json = await res.json();
+        if (json.success && json.data && json.data.length > 0) {
+          setScrollerImages(json.data);
+        }
+      } catch (err) {
+        console.error("Scroller fetch error:", err);
+      }
+    }
+    fetchImages();
+  }, []);
+
   return (
     <div className="w-full overflow-hidden bg-slate-950 py-10 border-b border-slate-900 border-t">
       <div className="flex animate-scroll gap-6 px-6 hover:[animation-play-state:paused]">
-        {images.concat(images).map((data, index) => (
+        {scrollerImages.concat(scrollerImages).map((data, index) => (
           <div
             key={index}
-            className="relative h-48 w-80 flex-shrink-0 rounded-2xl overflow-hidden group shadow-lg border border-slate-800"
+            className="relative h-48 w-80 flex-shrink-0 rounded-2xl overflow-hidden group shadow-lg border border-slate-800 cursor-pointer"
           >
             <img
-              src={data.img}
+              src={data.imageUrl || data.img}
               alt={data.name}
               className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
             />

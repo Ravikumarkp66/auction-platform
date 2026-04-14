@@ -10,15 +10,20 @@ import {
   BarChart3, MousePointer2, ChevronRight, LayoutDashboard
 } from "lucide-react";
 import { useAuction } from "../layout";
+import { useRouter } from "next/navigation";
+import { API_URL } from "../../../lib/apiConfig";
 
 // ── Stat Card ──────────────────────────────────────────────
-function StatCard({ title, value, icon: Icon, gradient, glow, sub }) {
-  return (
+function StatCard({ title, value, icon: Icon, gradient, glow, sub, href }) {
+  const router = useRouter();
+  
+  const content = (
     <div
-      className="relative group overflow-hidden rounded-2xl border border-white/10
+      onClick={() => href && router.push(href)}
+      className={`relative group overflow-hidden rounded-2xl border border-white/10
         bg-[#111827]/60 backdrop-blur-xl p-6
         hover:scale-[1.03] hover:border-white/20
-        transition-all duration-300 cursor-default shadow-lg"
+        transition-all duration-300 shadow-lg ${href ? 'cursor-pointer' : 'cursor-default'}`}
       style={{ boxShadow: `0 0 0 0 ${glow}` }}
       onMouseEnter={e => e.currentTarget.style.boxShadow = `0 0 30px ${glow}`}
       onMouseLeave={e => e.currentTarget.style.boxShadow = `0 0 0 0 ${glow}`}
@@ -31,7 +36,7 @@ function StatCard({ title, value, icon: Icon, gradient, glow, sub }) {
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 mb-2">{title}</p>
           <p className="text-4xl font-black text-white">{value}</p>
-          {sub && <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-widest">{sub}</p>}
+          {sub && <div className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-widest flex flex-wrap items-center gap-x-2">{sub}</div>}
         </div>
         <div
           className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border border-white/5 shadow-inner"
@@ -42,6 +47,8 @@ function StatCard({ title, value, icon: Icon, gradient, glow, sub }) {
       </div>
     </div>
   );
+
+  return content;
 }
 
 // ── Quick Action Card ──────────────────────────────────────
@@ -78,19 +85,34 @@ function ActionCard({ title, description, emoji, href, gradient }) {
 export default function AdminDashboard() {
   const { data: session } = useSession();
   const { selectedAuction, allTournaments } = useAuction();
-  const [localStats, setLocalStats] = useState({ teams: 0, players: 0, sold: 0, icons: 0 });
+  const [localStats, setLocalStats] = useState({ teams: 0, players: 0, sold: 0, available: 0, unsold: 0, icons: 0, pending: 0 });
   const [loading, setLoading] = useState(false);
+  const [regUrl, setRegUrl] = useState("");
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   async function fetchAuctionStats() {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournaments/${selectedAuction._id}`);
+      const url = `${API_URL}/api/tournaments/${selectedAuction._id}`;
+      console.log("Fetching auction stats from:", url);
+      const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
+        const auctionPlayers = data.players?.filter(p => !p.isIcon) || [];
+        const iconPlayers = data.players?.filter(p => p.isIcon) || [];
+        
         setLocalStats({
           teams: data.teams?.length || 0,
-          players: data.players?.length || 0,
-          sold: data.players?.filter(p => p.status === "sold").length || 0,
-          icons: data.players?.filter(p => p.isIcon).length || 0
+          players: auctionPlayers.length,
+          sold: auctionPlayers.filter(p => p.status === "sold").length,
+          unsold: auctionPlayers.filter(p => p.status === "unsold").length,
+          available: auctionPlayers.filter(p => !p.status || p.status === "available" || p.status === "auction").length,
+          pending: auctionPlayers.filter(p => p.status === "pending").length,
+          icons: iconPlayers.length
         });
       }
     } catch {}
@@ -99,10 +121,8 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     if (selectedAuction) {
-      const timeoutId = setTimeout(() => {
-        fetchAuctionStats();
-      }, 0);
-      return () => clearTimeout(timeoutId);
+      setRegUrl(`${window.location.origin}/register/${selectedAuction._id}`);
+      fetchAuctionStats();
     }
   }, [selectedAuction]);
 
@@ -122,8 +142,10 @@ export default function AdminDashboard() {
           <h1 className="text-4xl font-black tracking-tight text-white">
             Root<span className="text-violet-500">_Console</span>
           </h1>
-          <p className="text-slate-500 text-sm font-bold mt-1">
-            {new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}
+          <p className="text-slate-500 text-sm font-bold mt-1 flex items-center gap-3">
+            <span>{currentTime.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}</span>
+            <span className="w-1 h-1 rounded-full bg-slate-700" />
+            <span className="text-violet-400 tabular-nums">{currentTime.toLocaleTimeString("en-IN", { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}</span>
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -159,59 +181,114 @@ export default function AdminDashboard() {
       {selectedAuction && (
         <>
           {/* ── Context Header ── */}
-          <div className="flex items-center gap-4 p-6 bg-white/[0.03] border border-white/10 rounded-3xl group shadow-inner">
-             <div className="w-16 h-16 bg-gradient-to-br from-violet-600 to-cyan-400 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-violet-500/20 group-hover:scale-110 transition-transform">
-                <BarChart3 className="w-8 h-8" />
-             </div>
-             <div>
-                <p className="text-[10px] font-black text-violet-500 uppercase tracking-[0.2em] mb-1">Active Context</p>
-                <h2 className="text-2xl font-black text-white">{selectedAuction.name}</h2>
-                <div className="flex items-center gap-3 mt-1">
-                   <span className="px-2 py-0.5 rounded-full bg-red-500/10 border border-red-500/20 text-[8px] font-black text-red-500 uppercase tracking-widest">{selectedAuction.status}</span>
-                   <span className="text-[10px] text-slate-600 font-bold uppercase tracking-widest">ID: {selectedAuction._id.slice(-6).toUpperCase()}</span>
-                </div>
-             </div>
+          <div className="flex flex-col lg:flex-row gap-6">
+            <div className="flex-1 flex items-center gap-4 p-6 bg-white/[0.03] border border-white/10 rounded-3xl group shadow-inner">
+               <div className="w-16 h-16 bg-gradient-to-br from-violet-600 to-cyan-400 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-violet-500/20 group-hover:scale-110 transition-transform">
+                  <BarChart3 className="w-8 h-8" />
+               </div>
+               <div>
+                  <p className="text-[10px] font-black text-violet-500 uppercase tracking-[0.2em] mb-1">Active Context</p>
+                  <h2 className="text-2xl font-black text-white">{selectedAuction.name}</h2>
+                  <div className="flex items-center gap-3 mt-1">
+                     <span className="px-2 py-0.5 rounded-full bg-red-500/10 border border-red-500/20 text-[8px] font-black text-red-500 uppercase tracking-widest">{selectedAuction.status}</span>
+                     <span className="text-[10px] text-slate-600 font-bold uppercase tracking-widest">ID: {selectedAuction._id.slice(-6).toUpperCase()}</span>
+                  </div>
+               </div>
+            </div>
+
+            {/* 🔗 Registration Intelligence Panel */}
+            <div className="lg:w-96 flex items-center gap-4 p-5 bg-violet-600/10 border border-violet-500/20 rounded-3xl group relative overflow-hidden">
+               <div className="absolute top-0 right-0 w-20 h-20 bg-violet-500/10 blur-2xl pointer-events-none"></div>
+               <div className="shrink-0 w-12 h-12 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center">
+                  {regUrl && (
+                    <img 
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(regUrl)}`} 
+                      alt="Auction QR"
+                      className="w-10 h-10 invert opacity-50 group-hover:opacity-100 transition-opacity"
+                    />
+                  )}
+               </div>
+               <div className="flex-1 min-w-0">
+                  <p className="text-[9px] font-black text-violet-400 uppercase tracking-widest mb-1">Registration Bridge</p>
+                  <div className="flex items-center gap-2">
+                     <button 
+                       onClick={() => {
+                         navigator.clipboard.writeText(regUrl);
+                         alert("Registration link copied to clipboard!");
+                       }}
+                       className="text-xs font-black text-white hover:text-violet-300 transition-colors truncate"
+                     >
+                        COPY REG LINK
+                     </button>
+                     <div className="w-1 h-1 bg-slate-700 rounded-full"></div>
+                     <Link href={regUrl} target="_blank" className="text-[10px] font-bold text-slate-500 hover:text-white transition-colors">
+                        VISIT →
+                     </Link>
+                  </div>
+               </div>
+            </div>
           </div>
 
           {/* ── Stat Cards ── */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard title="Auction Teams" value={localStats.teams}        icon={Users}      gradient="linear-gradient(135deg,#7c3aed,#06b6d4)" glow="#8b5cf6" sub="Isolation active" />
-            <StatCard title="Athlete Pool"  value={localStats.players}      icon={Trophy}     gradient="linear-gradient(135deg,#3b82f6,#8b5cf6)" glow="#3b82f6" sub={`${localStats.sold} Already Sold`} />
-            <StatCard title="Icon Roster"   value={localStats.icons}        icon={Award}     gradient="linear-gradient(135deg,#f59e0b,#ef4444)" glow="#f59e0b" sub="Pre-retained" />
+            <StatCard title="Auction Teams" value={localStats.teams}        icon={Users}      gradient="linear-gradient(135deg,#7c3aed,#06b6d4)" glow="#8b5cf6" sub="Isolation active" href="/admin/teams" />
+            <StatCard 
+              title="Player Pool"  
+              value={localStats.players}      
+              icon={Trophy}     
+              gradient="linear-gradient(135deg,#3b82f6,#8b5cf6)" 
+              glow="#3b82f6" 
+              sub={(
+                <>
+                  <Link href="/admin/players?tab=AVAILABLE" className="hover:text-cyan-400 transition-colors" onClick={e => e.stopPropagation()}>{localStats.available} Available</Link>
+                  <span className="opacity-20">•</span>
+                  <Link href="/admin/players?tab=PENDING" className="hover:text-yellow-400 transition-colors" onClick={e => e.stopPropagation()}>{localStats.pending} Pending</Link>
+                  <span className="opacity-20">•</span>
+                  <Link href="/admin/players?tab=SOLD" className="hover:text-violet-400 transition-colors" onClick={e => e.stopPropagation()}>{localStats.sold} Sold</Link>
+                  <span className="opacity-20">•</span>
+                  <Link href="/admin/players?tab=UNSOLD" className="hover:text-red-400 transition-colors" onClick={e => e.stopPropagation()}>{localStats.unsold} Unsold</Link>
+                </>
+              )}
+              href="/admin/players" 
+            />
+            <StatCard title="Icon Roster"   value={localStats.icons}        icon={Award}     gradient="linear-gradient(135deg,#f59e0b,#ef4444)" glow="#f59e0b" sub="Pre-retained" href="/admin/icons" />
             <StatCard title="Budget Health" value="100%"                   icon={TrendingUp} gradient="linear-gradient(135deg,#10b981,#06b6d4)" glow="#10b981" sub="System Nominal" />
           </div>
 
           {/* ── Integrated Actions ── */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <ActionCard title="Manage Status"  description="Toggle auction engine states"     emoji="⚙️" href="/admin/status" gradient="linear-gradient(135deg,#3b82f6,#06b6d4)" />
+            <ActionCard title="Region Registry" description="Manage Taluks & Hoblis" emoji="🗺️" href="/admin/locations" gradient="linear-gradient(135deg,#f59e0b,#ef4444)" />
+            <ActionCard title="Registry Auditor" description="Detect identity collisions" emoji="🛡️" href="/admin/audit" gradient="linear-gradient(135deg,#ef4444,#991b1b)" />
+            <ActionCard title="Player Bidding List" description="Verify and edit player stats" emoji="🏏" href="/admin/players" gradient="linear-gradient(135deg,#10b981,#06b6d4)" />
             <ActionCard title="Manage Teams" description="Organize rosters and budgets" emoji="👥" href="/admin/teams" gradient="linear-gradient(135deg,#7c3aed,#3b82f6)" />
-            <ActionCard title="Athlete Pool" description="Verify and edit player stats" emoji="🏏" href="/admin/players" gradient="linear-gradient(135deg,#10b981,#06b6d4)" />
             <ActionCard title="Live Control" description="Enter the broadcast control room" emoji="⚡" href="/live-auction?role=admin" gradient="linear-gradient(135deg,#ef4444,#f97316)" />
           </div>
         </>
       )}
 
-      {/* ── System Topology (History) ── */}
+      {/* ── System Inventory ── */}
       <div className="relative pt-10">
         <div className="absolute top-0 left-0 w-20 h-1 bg-violet-500 rounded-full opacity-50" />
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-600">Archived Systems (All Time)</h2>
+          <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-600">Past & Upcoming Systems</h2>
           <Link href="/admin/tournaments" className="text-[10px] font-black text-violet-400 hover:text-white uppercase tracking-widest flex items-center gap-2 transition-all">
              Full Inventory <ChevronRight className="w-3 h-3" />
           </Link>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {allTournaments.slice(0, 3).map(t => (
+          {allTournaments.filter(t => t.status !== "active").slice(0, 3).map(t => (
             <div key={t._id} className="relative group p-6 rounded-3xl border border-white/5 bg-[#111827]/40 hover:bg-[#111827]/80 hover:border-violet-500/30 transition-all duration-300">
                <div className="flex items-start justify-between mb-4">
-                  <div className={`p-2 rounded-xl border ${t.status === 'active' ? 'bg-red-500/10 border-red-500/20 text-red-400' : 'bg-white/5 border-white/10 text-slate-500'}`}>
-                    <LayoutDashboard className="w-4 h-4" />
+                  <div className={`p-2 rounded-xl border ${t.status === 'completed' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-white/5 border-white/10 text-slate-500'}`}>
+                    {t.status === 'completed' ? <CheckCircle className="w-4 h-4" /> : <LayoutDashboard className="w-4 h-4" />}
                   </div>
-                  <span className="text-[8px] font-black uppercase tracking-widest text-slate-600 italic">2025 SERIES</span>
+                  <span className="text-[8px] font-black uppercase tracking-widest text-slate-600 italic">{t.status}</span>
                </div>
                <h3 className="text-lg font-black text-white group-hover:text-violet-400 transition-colors truncate">{t.name}</h3>
                <div className="flex items-center justify-between mt-4">
-                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{t.numTeams} Node Teams</p>
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{t.numTeams} Teams</p>
                   <button onClick={() => { localStorage.setItem("selectedAuction", JSON.stringify(t)); window.location.reload(); }} className="p-2 bg-white/5 hover:bg-violet-600 text-white rounded-xl transition-all shadow-lg hover:shadow-violet-600/20">
                      <MousePointer2 className="w-3.5 h-3.5" />
                   </button>
@@ -220,6 +297,7 @@ export default function AdminDashboard() {
           ))}
         </div>
       </div>
+
     </div>
   );
 }

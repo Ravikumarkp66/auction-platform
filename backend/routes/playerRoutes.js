@@ -4,41 +4,33 @@ const Player = require("../models/Player");
 const Team = require("../models/Team");
 const TournamentRules = require("../models/TournamentRules");
 const engine = require("../utils/ruleEngine");
+const mongoose = require("mongoose");
 
-/**
- * Re-indexes all non-icon players to ensure no gaps in applicationId
- */
 const reorderApplicationIds = async (tournamentId) => {
     try {
-        const players = await Player.find({ tournamentId, isIcon: { $ne: true } }).sort({ applicationId: 1 });
+        const players = await Player.find({ tournamentId, isIcon: { $ne: true }, isDeleted: { $ne: true } }).sort({ applicationId: 1 });
         if (!players.length) return;
-
         const bulkOps = players.map((p, index) => ({
             updateOne: {
                 filter: { _id: p._id },
                 update: { $set: { applicationId: index + 1 } }
             }
         }));
-
         await Player.bulkWrite(bulkOps);
-        console.log(`[REORDER] Re-indexed ${players.length} players for tournament ${tournamentId}`);
     } catch (err) {
         console.error("[REORDER] Failed:", err.message);
     }
 };
 
-// Get all players (with populated teams)
+// Get all non-deleted players
 router.get("/", async (req, res) => {
   try {
     const { status, tournamentId, isIcon } = req.query;
-    const filter = {};
+    const filter = { isDeleted: { $ne: true } };
     if (status && status !== 'ALL') filter.status = status;
     if (tournamentId) filter.tournamentId = tournamentId;
     if (isIcon !== undefined) filter.isIcon = isIcon === 'true' ? true : { $ne: true };
-    
-    // Default to sorting by applicationId for players, iconId for icons
     const sort = filter.isIcon === true ? { iconId: 1 } : { applicationId: 1 };
-    
     const players = await Player.find(filter).populate("team").sort(sort);
     res.json(players);
   } catch (err) {
@@ -46,22 +38,47 @@ router.get("/", async (req, res) => {
   }
 });
 
+// GET Trashed Players (Admin)
+router.get("/audit/trash", async (req, res) => {
+    try {
+        const { tournamentId } = req.query;
+        if (!tournamentId) return res.status(400).json({ message: "Tournament ID required" });
+        const players = await Player.find({ tournamentId, isDeleted: true }).sort({ deletedAt: -1 });
+        res.json(players);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// Restore a player (Admin)
+router.put("/audit/restore/:id", async (req, res) => {
+    try {
+        const player = await Player.findById(req.params.id);
+        if (!player) return res.status(404).json({ message: "Player not found" });
+
+        player.isDeleted = false;
+        player.deletedAt = null;
+        await player.save();
+        if (player.tournamentId) await reorderApplicationIds(player.tournamentId);
+
+        res.json({ message: "Player restored successfully", player });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
 // STANDALONE Manual Add Player
 router.post("/", async (req, res) => {
   try {
-    const { name, role, basePrice, tournamentId, isIcon, teamId } = req.body;
-    
-    let nextId = null;
-    let finalTeamId = teamId || null;
+    const { isIcon, tournamentId, teamId } = req.body;
+    let nextId = 1;
     let slotId = null;
 
     if (isIcon) {
-       // Calculation for iconId (unique per auction icons range)
-       const lastIcon = await Player.findOne({ tournamentId, isIcon: true }).sort({ iconId: -1 });
+       const lastIcon = await Player.findOne({ tournamentId, isIcon: true, isDeleted: { $ne: true } }).sort({ iconId: -1 });
        nextId = lastIcon ? (lastIcon.iconId || 0) + 1 : 1;
-       
-       if (finalTeamId) {
-          const team = await Team.findById(finalTeamId);
+       if (teamId) {
+          const team = await Team.findById(teamId);
           if (team) {
              slotId = `${team.shortName}${team.playerCount + 1}`;
              team.playerCount += 1;
@@ -69,17 +86,17 @@ router.post("/", async (req, res) => {
           }
        }
     } else {
-       // Calculation for applicationId
-       const lastPlayer = await Player.findOne({ tournamentId, isIcon: { $ne: true } }).sort({ applicationId: -1 });
+       const lastPlayer = await Player.findOne({ tournamentId, isIcon: { $ne: true }, isDeleted: false }).sort({ applicationId: -1 });
        nextId = lastPlayer ? (lastPlayer.applicationId || 0) + 1 : 1;
     }
 
     const player = new Player({
       ...req.body,
+      isDeleted: false,
       iconId: isIcon ? nextId : null,
       applicationId: !isIcon ? nextId : null,
       teamSlotId: slotId,
-      team: finalTeamId
+      team: teamId || null
     });
 
     await player.save();
@@ -89,313 +106,141 @@ router.post("/", async (req, res) => {
   }
 });
 
-// Bulk Insert Players (from Excel)
-router.post("/bulk", async (req, res) => {
-  try {
-    const players = req.body.players;
-    const results = await Player.insertMany(players);
-    res.status(201).json({ message: `${results.length} players added`, count: results.length });
-  } catch (err) {
-    res.status(400).json({ message: err.message });
-  }
-});
-
-// Advanced Import with Duplicate Checking and Image Processing Trigger
-const { startImageProcessing } = require('../utils/image-processor');
-router.post("/import", async (req, res) => {
+// Check Registration Status (Public)
+router.get("/check", async (req, res) => {
     try {
-        const { players, tournamentId } = req.body;
-        if (!players || !Array.isArray(players)) return res.status(400).json({ message: "Invalid players data" });
-
-        let added = 0;
-        let skipped = 0;
-
-        // Get starting applicationId and iconId
-        const lastPlayer = await Player.findOne({ tournamentId, isIcon: { $ne: true } }).sort({ applicationId: -1 });
-        let nextAppId = lastPlayer ? (lastPlayer.applicationId || 0) + 1 : 1;
-        
-        const lastIcon = await Player.findOne({ tournamentId, isIcon: true }).sort({ iconId: -1 });
-        let nextIconId = lastIcon ? (lastIcon.iconId || 0) + 1 : 1;
-
-        // Deduplicate incoming list internally first
-        const uniqueInSheet = [];
-        const seenInSheet = new Set();
-        
-        for (const p of players) {
-            const key = `${p.name?.trim().toLowerCase()}_${p.mobile?.trim()}`;
-            if (seenInSheet.has(key)) continue;
-            seenInSheet.add(key);
-            uniqueInSheet.push(p);
-        }
-
-        for (const p of uniqueInSheet) {
-            const cleanName = p.name?.trim();
-            const cleanMobile = p.mobile?.trim();
-
-            // ROBUST DUPLICATE CHECK: Name (Case-Insensitive) + Mobile
-            const existing = await Player.findOne({
-                tournamentId,
-                name: { $regex: new RegExp(`^${cleanName}$`, "i") },
-                mobile: cleanMobile
-            });
-
-            if (existing) {
-                skipped++;
-                continue;
-            }
-
-            const playerData = {
-                ...p,
-                name: cleanName,
-                mobile: cleanMobile,
-                village: p.village?.trim(),
-                tournamentId,
-                photo: {
-                    drive: p.imageUrl,
-                    status: p.imageUrl ? "pending" : "done"
-                }
-            };
-            
-            // Ensure teamName is preserved if sent from frontend
-            if (p.teamName) {
-                playerData.teamName = p.teamName.trim();
-            }
-            
-            // Assign appropriate ID based on player type
-            if (p.isIcon) {
-                playerData.iconId = nextIconId++;
-                playerData.applicationId = null;
-                playerData.originalApplicationId = null;
-            } else {
-                playerData.applicationId = nextAppId++;
-                playerData.originalApplicationId = playerData.applicationId;
-                playerData.iconId = null;
-            }
-
-            const player = new Player(playerData);
-            await player.save();
-            added++;
-        }
-
-        if (added > 0) {
-            startImageProcessing(tournamentId).catch(err => console.error("Import Image Process Error:", err));
-        }
-
-        res.json({ added, skipped });
-    } catch (err) {
-        console.error("Import Error:", err);
-        res.status(500).json({ message: err.message });
-    }
-});
-// REMOVE EXISTING DUPLICATES (Cleanup Tool)
-router.post("/cleanup-duplicates", async (req, res) => {
-    try {
-        const { tournamentId } = req.body;
-        const players = await Player.find({ tournamentId, isIcon: { $ne: true } }).lean();
-        
-        const seen = new Map();
-        const toDeleteIds = [];
-
-        for (const p of players) {
-            // Identifier: Trimmed Name + Mobile
-            const id = `${p.name?.trim().toLowerCase()}_${p.mobile?.trim()}`;
-            if (seen.has(id)) {
-                toDeleteIds.push(p._id);
-            } else {
-                seen.set(id, p._id);
-            }
-        }
-
-        if (toDeleteIds.length > 0) {
-            await Player.deleteMany({ _id: { $in: toDeleteIds } });
-            await reorderApplicationIds(tournamentId);
-        }
-
-        res.json({ removed: toDeleteIds.length });
-    } catch (err) {
-        res.status(500).json({ message: err.message });
-    }
-});
-
-// RESET TO BASELINE (Keep 1-94 only)
-router.post("/reset-to-baseline", async (req, res) => {
-    try {
-        const { tournamentId } = req.body;
-        const result = await Player.deleteMany({
-            tournamentId,
-            isIcon: { $ne: true },
-            applicationId: { $gt: 94 }
+        const { mobile, tournamentId } = req.query;
+        if (!mobile || !tournamentId) return res.status(400).json({ message: "Mobile and Tournament ID required" });
+        const player = await Player.findOne({ tournamentId, mobile: mobile.trim(), isDeleted: { $ne: true } });
+        if (!player) return res.status(404).json({ message: "No registration found for this number." });
+        res.json({
+            name: player.name,
+            status: player.status, 
+            applicationId: player.applicationId,
+            message: player.status === 'pending' ? "Registration received. Awaiting admin vetting." : "Registration Approved!"
         });
-        await reorderApplicationIds(tournamentId);
-        res.json({ removed: result.deletedCount });
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
 });
 
-// Update player status (e.g., move to auction)
-router.patch("/:id/status", async (req, res) => {
-  try {
-    const { status } = req.body;
-    const player = await Player.findByIdAndUpdate(req.params.id, { status }, { new: true });
-    res.json(player);
-  } catch (err) {
-    res.status(400).json({ message: err.message });
-  }
+// Audit: Find Duplicates (Admin)
+router.get("/audit/duplicates", async (req, res) => {
+    try {
+        const { tournamentId } = req.query;
+        if (!tournamentId) return res.status(400).json({ message: "Tournament ID required" });
+        
+        const mobileDuplicates = await Player.aggregate([
+            { $match: { tournamentId: new mongoose.Types.ObjectId(tournamentId), isDeleted: { $ne: true } } },
+            { $project: { mobileClean: { $trim: { input: { $toString: "$mobile" } } }, root: "$$ROOT" } },
+            { $group: { _id: "$mobileClean", count: { $sum: 1 }, players: { $push: "$root" } } },
+            { $match: { 
+                count: { $gt: 1 }, 
+                _id: { $nin: [null, "", "-", "0", "undefined", "null"] },
+                $expr: { $gt: [{ $strLenCP: { $ifNull: ["$_id", ""] } }, 4] } 
+              } 
+            }
+        ]);
+
+        const aadhaarDuplicates = await Player.aggregate([
+            { $match: { tournamentId: new mongoose.Types.ObjectId(tournamentId), isDeleted: { $ne: true } } },
+            { $project: { aadhaarClean: { $trim: { input: { $toString: "$aadhaarNumber" } } }, root: "$$ROOT" } },
+            { $group: { _id: "$aadhaarClean", count: { $sum: 1 }, players: { $push: "$root" } } },
+            { $match: { 
+                count: { $gt: 1 }, 
+                _id: { $nin: [null, "", "-", "0", "undefined", "null"] },
+                $expr: { $gt: [{ $strLenCP: { $ifNull: ["$_id", ""] } }, 4] }
+              } 
+            }
+        ]);
+
+        res.json({ mobileConflicts: mobileDuplicates, aadhaarConflicts: aadhaarDuplicates });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
 });
 
-// Update player info (Advanced Slot Logic)
-router.patch("/:id", async (req, res) => {
-  try {
-    const updates = req.body;
-    const oldPlayer = await Player.findById(req.params.id);
-    if (!oldPlayer) return res.status(404).json({ message: "Player not found" });
-
-    // ─── Rule Engine: validate before marking sold ───────────────────────
-    if (updates.status === "sold" && updates.team && updates.soldPrice != null) {
-      try {
-        const rulesDoc = await TournamentRules.findOne({
-          tournamentId: oldPlayer.tournamentId,
-        }).lean();
-        const config = rulesDoc?.config ?? {};
-
-        if (engine.isRuleEngineActive(config)) {
-          const team  = await Team.findById(updates.team).lean();
-          const squad = await Player.find({
-            team: updates.team,
-            tournamentId: oldPlayer.tournamentId,
-          }).lean();
-
-          const category     = oldPlayer.category ?? updates.category;
-          const categoryCount = category
-            ? squad.filter((p) => p.category === category).length
-            : 0;
-
-          const validation = engine.validateBid(config, {
-            bidAmount:           updates.soldPrice,
-            teamRemainingBudget: team?.remainingBudget ?? 0,
-            retainedCount:       team?.retainedCount ?? 0,
-            retainedPlayers:     team?.retainedPlayers ?? [],
-            currentPlayerCount:  squad.length,
-            category,
-            categoryCount,
-            player: {
-              role:      oldPlayer.role,
-              basePrice: oldPlayer.basePrice,
-              category,
-            },
-          });
-
-          if (!validation.ok) {
-            return res.status(400).json({
-              message: "Rule engine rejected bid",
-              errors: validation.errors,
-            });
-          }
+// Pre-check for duplicates (Public)
+router.post("/check-duplicate", async (req, res) => {
+    try {
+        const { name, mobile, tournamentId, aadhaarNumber } = req.body;
+        const duplicateCriteria = [{ name: { $regex: new RegExp(`^${name?.trim()}$`, "i") }, mobile: mobile?.trim() }];
+        if (aadhaarNumber) duplicateCriteria.push({ aadhaarNumber: aadhaarNumber.trim() });
+        const existing = await Player.findOne({ tournamentId, $or: duplicateCriteria, isDeleted: { $ne: true } });
+        if (existing) {
+            return res.status(409).json({ message: `Identity collision. Already registered to player: ${existing.name}.` });
         }
-      } catch (ruleErr) {
-        // Rule engine errors must NOT block existing money-based auctions
-        console.error("[RULE ENGINE] Validation error (non-fatal):", ruleErr.message);
-      }
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
     }
-    // ─────────────────────────────────────────────────────────────────────
-
-    // Handle Sold logic -> Assign slot if not yet assigned
-    if (updates.status === 'sold' && (!oldPlayer.teamSlotId || oldPlayer.team?.toString() !== updates.team)) {
-      if (updates.team) {
-         const team = await Team.findById(updates.team);
-         if (team) {
-           updates.teamSlotId = `${team.shortName}${team.playerCount + 1}`;
-           team.playerCount += 1;
-           await team.save();
-         }
-      }
-    } else if (updates.status === 'unsold') {
-       // Clear slot/team if marked as unsold
-       updates.teamSlotId = null;
-       updates.team = null;
-       updates.soldPrice = 0;
-
-       // No move to end.
-    } else if (updates.status === 'available') {
-       // Clear slot/team if moved back to available
-       updates.teamSlotId = null;
-       updates.team = null;
-       updates.soldPrice = 0;
-    }
-
-    const player = await Player.findByIdAndUpdate(req.params.id, updates, { new: true });
-    res.json(player);
-  } catch (err) {
-    res.status(400).json({ message: err.message });
-  }
 });
 
+// Public Player Registration
+router.post("/register", async (req, res) => {
+    try {
+        const { tournamentId } = req.body;
+        const lastPlayer = await Player.findOne({ tournamentId, isIcon: { $ne: true }, isDeleted: { $ne: true } }).sort({ applicationId: -1 });
+        const nextId = lastPlayer ? (lastPlayer.applicationId || 0) + 1 : 1;
+        const player = new Player({ ...req.body, applicationId: nextId, status: 'pending', isDeleted: false });
+        await player.save();
+        res.status(201).json(player);
+    } catch (err) {
+        res.status(400).json({ message: err.message });
+    }
+});
 
-// Delete player with re-indexing
-router.delete("/:id", async (req, res) => {
+// Approve a pending player (Admin)
+router.post("/:id/approve", async (req, res) => {
     try {
         const player = await Player.findById(req.params.id);
         if (!player) return res.status(404).json({ message: "Player not found" });
-        const tid = player.tournamentId;
 
-        await Player.findByIdAndDelete(req.params.id);
-        if (!player.isIcon) await reorderApplicationIds(tid);
-        
-        res.json({ message: "Player deleted and indices updated" });
+        player.status = "available";
+        await player.save();
+
+        res.json({ message: "Player approved and moved to auction pool", player });
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
 });
 
-// Jumble player pool order
-router.post("/jumble", async (req, res) => {
+// Public Player Poster Fetch (minimal info)
+router.get("/public/:id", async (req, res) => {
     try {
-        const { tournamentId } = req.body;
-        const players = await Player.find({ tournamentId, isIcon: { $ne: true } });
-        if (!players.length) return res.status(404).json({ message: "No players found" });
-
-        // Shuffle the array of Mongo documents
-        const shuffled = [...players].sort(() => Math.random() - 0.5);
-        
-        // Update each player with their new applicationId
-        // We'll also set originalApplicationId if it's currently missing
-        for (let i = 0; i < shuffled.length; i++) {
-            const p = shuffled[i];
-            const updates = { applicationId: i + 1 };
-            // If it's the first jumble, record the current ID as original
-            if (p.originalApplicationId === undefined || p.originalApplicationId === null) {
-                updates.originalApplicationId = p.applicationId;
-            }
-            await Player.findByIdAndUpdate(p._id, updates);
-        }
-
-        res.json({ message: `Successfully jumbled ${shuffled.length} players` });
+        const player = await Player.findOne({ _id: req.params.id, isDeleted: { $ne: true } })
+            .select("name imageUrl applicationId role basePrice village battingStyle");
+        if (!player) return res.status(404).json({ message: "Player record not found." });
+        res.json(player);
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
 });
 
-// Revert to original order
-router.post("/revert-order", async (req, res) => {
-    try {
-        const { tournamentId } = req.body;
-        const players = await Player.find({ tournamentId, isIcon: { $ne: true } });
-        if (!players.length) return res.status(404).json({ message: "No players found" });
+// Update player details
+router.put("/:id", async (req, res) => {
+  try {
+    const player = await Player.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    res.json(player);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
 
-        let count = 0;
-        for (const p of players) {
-            if (p.originalApplicationId !== undefined && p.originalApplicationId !== null) {
-                await Player.findByIdAndUpdate(p._id, { applicationId: p.originalApplicationId });
-                count++;
-            }
-        }
-
-        res.json({ message: `Reverted ${count} players to original auction order` });
-    } catch (err) {
-        res.status(500).json({ message: err.message });
+// Soft Delete player (Admin)
+router.delete("/:id", async (req, res) => {
+  try {
+    const player = await Player.findById(req.params.id);
+    if (player) {
+        player.isDeleted = true;
+        player.deletedAt = new Date();
+        await player.save();
+        if (player.tournamentId) await reorderApplicationIds(player.tournamentId);
     }
+    res.json({ message: "Player moved to recycle bin" });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
 });
 
 module.exports = router;
-

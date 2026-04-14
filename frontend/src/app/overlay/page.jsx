@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { io } from "socket.io-client"
 import Image from "next/image"
+import { API_URL } from "../../lib/apiConfig"
 import AuctionOverlayNew from '../../components/AuctionOverlayNew'
 import TeamDrawCinematic from './TeamDrawCinematic'
 import TeamDrawOverlay from '../../components/TeamDrawOverlay'
@@ -205,9 +206,9 @@ export default function OverlayPage() {
   useEffect(() => {
     // Only connect if user is not authenticated
     if (status === "unauthenticated") {
-      console.log('🔌 Attempting socket connection to:', process.env.NEXT_PUBLIC_API_URL);
+      console.log('🔌 Attempting socket connection to:', API_URL);
       
-      const s = io(process.env.NEXT_PUBLIC_API_URL, {
+      const s = io(API_URL, {
         transports: ['polling', 'websocket'], // Try polling first, then websocket
         timeout: 10000,
         reconnection: true,
@@ -232,7 +233,7 @@ export default function OverlayPage() {
       s.on('connect_error', (error) => {
         console.error('❌ Socket connection ERROR:', error.message);
         console.error('Connection details:', {
-          url: process.env.NEXT_PUBLIC_API_URL,
+          url: API_URL,
           transports: s.io.opts.transports,
           readyState: s.readyState
         });
@@ -594,6 +595,7 @@ export default function OverlayPage() {
     <>
       <AuctionOverlayNew
         player={player}
+        nextPlayer={auction.nextPlayer}
         teams={teams}
         currentBid={currentBid}
         highestBidder={highestBidder}

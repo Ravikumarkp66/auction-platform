@@ -13,8 +13,8 @@ $newLines = @(
     '                              </button>'
 )
 
-$before = $lines[0..1454]
-$after = $lines[1455..($lines.Length - 1)]
+$before = $lines[0..$insertAfter]
+$after = $lines[($insertAfter + 1)..($lines.Length - 1)]
 $result = $before + $newLines + $after
 
 [System.IO.File]::WriteAllLines($file, $result, [System.Text.Encoding]::UTF8)

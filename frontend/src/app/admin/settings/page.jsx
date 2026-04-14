@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { uploadToS3 } from "../../../lib/uploadToS3";
 import { useAuction } from "../layout";
+import { API_URL } from "../../../lib/apiConfig";
 
 // ── Toggle Component ──────────────────────────────────────
 const Toggle = ({ active, onToggle }) => (
@@ -54,8 +55,8 @@ export default function AdminSettings() {
     setLoading(true);
     try {
       const [bgRes, imgRes] = await Promise.all([
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/backgrounds?tournamentId=${selectedAuction._id}`),
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournament-images?tournamentId=${selectedAuction._id}`)
+        fetch(`${API_URL}/api/backgrounds?tournamentId=${selectedAuction._id}`),
+        fetch(`${API_URL}/api/tournament-images?tournamentId=${selectedAuction._id}`)
       ]);
       const bgData = await bgRes.json();
       const imgData = await imgRes.json();
@@ -81,7 +82,7 @@ export default function AdminSettings() {
         ? { name: `Custom_${Date.now()}`, imageUrl: url, tournamentId: selectedAuction._id }
         : { name: `Img_${Date.now()}`, location: "Unknown", year: "2026", teams: "All", imageUrl: url, tournamentId: selectedAuction._id };
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${endpoint}`, {
+      const res = await fetch(`${API_URL}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
@@ -133,9 +134,11 @@ export default function AdminSettings() {
             <div key={bg._id} className="group relative aspect-[16/9] rounded-[1.5rem] overflow-hidden border border-white/10 group shadow-lg">
               <img src={bg.imageUrl} alt={bg.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
               <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-6">
-                <div className="flex items-center justify-between">
-                   <p className="text-sm font-black text-white truncate">{bg.name}</p>
-                   <button className="p-2 bg-red-500/20 text-red-400 rounded-xl hover:bg-red-500 hover:text-white transition-all">
+                <div className="flex items-center justify-between gap-4">
+                   <div className="min-w-0">
+                      <p className="text-sm font-black text-white truncate">{bg.name}</p>
+                   </div>
+                   <button className="p-2 bg-red-500/20 text-red-400 rounded-xl hover:bg-red-500 hover:text-white transition-all flex-shrink-0">
                      <Trash2 className="w-4 h-4" />
                    </button>
                 </div>

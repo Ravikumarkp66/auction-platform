@@ -16,20 +16,6 @@ const s3 = new S3Client({
   },
 });
 
-// Get current active tournament
-router.get("/status/active", async (req, res) => {
-  try {
-    const tournament = await Tournament.findOne({ status: "active" }).sort({ updatedAt: -1 });
-    if (!tournament) return res.json(null);
-    
-    // We also need the details to resume
-    const teams = await Team.find({ tournamentId: tournament._id });
-    const players = await Player.find({ tournamentId: tournament._id });
-    res.json({ tournament, teams, players });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
 
 // Create a new tournament
 router.post("/", async (req, res) => {
@@ -326,8 +312,10 @@ router.get("/", async (req, res) => {
       {
         $lookup: {
           from: "players",
-          localField: "_id",
-          foreignField: "tournamentId",
+          let: { tId: "$_id" },
+          pipeline: [
+            { $match: { $expr: { $eq: ["$tournamentId", "$$tId"] }, isDeleted: { $ne: true } } }
+          ],
           as: "playerStats"
         }
       },
@@ -381,7 +369,7 @@ router.get("/status/active", async (req, res) => {
     if (!tournament) return res.status(404).json({ message: "No live tournament found" });
 
     const teams = await Team.find({ tournamentId: tournament._id }).lean();
-    const players = await Player.find({ tournamentId: tournament._id }).sort({ applicationId: 1 }).lean();
+    const players = await Player.find({ tournamentId: tournament._id, isDeleted: { $ne: true } }).sort({ applicationId: 1 }).lean();
     
     res.json({ tournament, teams, players });
   } catch (err) {
@@ -408,12 +396,15 @@ router.get("/:id", async (req, res) => {
     }
 
     if (!tournament) return res.status(404).json({ message: "Tournament not found" });
+    
+    // Fetch rules for this tournament
+    const rules = await TournamentRules.findOne({ tournamentId: tournament._id }).lean();
 
     // Optimization: Use lean() and specific queries
     const teams = await Team.find({ tournamentId: tournament._id }).lean();
-    const players = await Player.find({ tournamentId: tournament._id }).sort({ applicationId: 1 }).lean();
+    const players = await Player.find({ tournamentId: tournament._id, isDeleted: { $ne: true } }).sort({ applicationId: 1 }).lean();
     
-    res.json({ tournament, teams, players });
+    res.json({ tournament, teams, players, rules: rules?.config || {} });
   } catch (err) {
     console.error("Fetch full details error:", err);
     res.status(500).json({ message: err.message });

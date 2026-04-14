@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { Users, ClipboardList, Crosshair, X, ChevronRight, TrendingUp, Award } from "lucide-react";
+import { API_URL } from "../lib/apiConfig";
 
 // Design tokens
 const C = {
@@ -17,8 +18,14 @@ const C = {
   border: 'rgba(255,255,255,0.08)',
 };
 
+const formatCurrency = (val) => {
+  if (val === undefined || val === null) return '₹0';
+  return '₹' + Number(val).toLocaleString('en-IN');
+};
+
 export default function AuctionOverlayNew({ 
   player, 
+  nextPlayer,
   teams, 
   currentBid, 
   highestBidder, 
@@ -34,6 +41,16 @@ export default function AuctionOverlayNew({
   const [lastShownPlayerId, setLastShownPlayerId] = useState(null);
   const [hasShownStatus, setHasShownStatus] = useState(false);
   const [isLoadingSquad, setIsLoadingSquad] = useState(false);
+  const [showNextPill, setShowNextPill] = useState(false);
+
+  // Auto-pop Up Next Pill when nextPlayer changes
+  useEffect(() => {
+    if (nextPlayer?.name) {
+      setShowNextPill(true);
+      const timer = setTimeout(() => setShowNextPill(false), 7000); // Show for 7 seconds
+      return () => clearTimeout(timer);
+    }
+  }, [nextPlayer?.name]);
 
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
@@ -52,7 +69,7 @@ export default function AuctionOverlayNew({
       try {
         console.log('📦 Fetching squad for team:', squadModal.name, 'ID:', teamId);
         // Fetch complete team data with players
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}`);
+        const response = await fetch(`${API_URL}/api/teams/${teamId}`);
         console.log('📡 Response status:', response.status);
         if (response.ok) {
           const data = await response.json();
@@ -447,14 +464,23 @@ export default function AuctionOverlayNew({
       {/* Animation Styles */}
       <style jsx>{`
         @keyframes modalSlideUp {
-          from {
-            transform: translateY(100px);
-            opacity: 0;
-          }
-          to {
-            transform: translateY(0);
-            opacity: 1;
-          }
+          from { transform: translateY(100px); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes entryPop {
+          from { transform: scale(0.9) translateY(20px); opacity: 0; }
+          to { transform: scale(1) translateY(0); opacity: 1; }
+        }
+        @keyframes bidGlow {
+          0% { box-shadow: 0 0 0px rgba(0, 212, 163, 0); transform: scale(1); }
+          50% { box-shadow: 0 0 30px rgba(0, 212, 163, 0.4); transform: scale(1.05); }
+          100% { box-shadow: 0 0 0px rgba(0, 212, 163, 0); transform: scale(1); }
+        }
+        .broadcast-card {
+          animation: entryPop 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        .bid-accent-glow {
+          animation: bidGlow 0.4s ease-out;
         }
       `}</style>
     </div>
@@ -770,52 +796,141 @@ export default function AuctionOverlayNew({
           {/* Center — Player */}
           <main className="flex items-center justify-center">
             {focusMode ? (
-              <div className="flex w-full max-w-5xl gap-10 items-center px-6">
-                {/* Image */}
-                <div className="flex-1 relative overflow-hidden rounded-2xl" style={{ height: '70vh', border: `1px solid ${C.border}` }}>
-                  <Image
-                    src={player?.image || player?.imageUrl || '/players/default.png'}
-                    alt={player?.name || 'Player'}
-                    fill
-                    className="object-cover"
-                    unoptimized
-                    loading="eager"
-                    priority
-                  />
-                  {/* Show badge ONLY when hasShownStatus is true (one-time trigger) */}
-                  {hasShownStatus && (isSold || isUnsold) && (
-                    <div className="absolute inset-0 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.5)' }}>
-                      <div className="px-8 py-3 rounded-xl text-4xl font-bold uppercase tracking-widest rotate-[-10deg]"
-                        style={{ background: isSold ? C.accentSoft : 'rgba(239,68,68,0.15)', border: `2px solid ${isSold ? C.accent : '#ef4444'}`, color: isSold ? C.accent : '#ef4444' }}
-                      >{isSold ? 'Sold' : 'Unsold'}</div>
-                    </div>
-                  )}
-                </div>
-                {/* Bid info */}
-                <div className="w-72 flex flex-col gap-4">
-                  <div>
-                    <p className="text-2xl font-semibold" style={{ color: C.textPrimary }}>{player?.name}</p>
-                    <p className="text-sm mt-1" style={{ color: C.textSecondary }}>{player?.role}</p>
+              <div className="flex flex-col items-center justify-center w-full h-full">
+                <div className="broadcast-card w-[480px] p-10 rounded-[40px] flex flex-col items-center text-center relative" 
+                  style={{ 
+                    background: 'rgba(10, 18, 30, 0.75)',
+                    backdropFilter: 'blur(32px)',
+                    boxShadow: '0 30px 80px rgba(0,0,0,0.8), 0 0 50px rgba(0, 212, 163, 0.25)',
+                    border: `1px solid rgba(255,255,255,0.15)`
+                  }}
+                >
+                  {/* 🔴 LIVE Badge */}
+                  <div className="absolute top-8 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-red-500/10 border border-red-500/30 px-4 py-1.5 rounded-full animate-pulse z-10">
+                    <span className="w-2 h-2 bg-red-500 rounded-full shadow-[0_0_10px_rgba(239,68,68,0.8)]"></span>
+                    <p className="text-red-500 text-[10px] font-black tracking-[0.3em] uppercase">LIVE AUCTION</p>
                   </div>
-                  <div className="rounded-2xl p-6 text-center" style={{ background: C.accentSoft, border: `1px solid ${C.accentBorder}` }}>
-                    <p className="text-xs font-medium mb-2" style={{ color: C.textSecondary }}>{isSold ? 'Final Price' : 'Current Bid'}</p>
-                    <p className="text-5xl font-bold" style={{ color: C.accent }}>{displayBid.toLocaleString()} PTS</p>
-                  </div>
-                  {highestBidder && (
-                    <div className="flex items-center gap-3 p-4 rounded-xl" style={{ background: C.bgCard, border: `1px solid ${C.border}` }}>
-                      {highestBidderLogo && <img src={highestBidderLogo} className="w-10 h-10 rounded-full object-cover" alt="" />}
-                      <div>
-                        <p className="text-xs" style={{ color: C.textSecondary }}>{isSold ? 'Sold to' : 'Leading'}</p>
-                        <p className="text-base font-semibold" style={{ color: C.textPrimary }}>{highestBidderName}</p>
+
+                  {/* 🖼️ Player Image */}
+                  <div className="mt-8 mb-8 relative w-[180px] h-[180px] rounded-[32px] overflow-hidden border-2 border-accent/50 shadow-[0_20px_40px_rgba(0,0,0,0.5)]">
+                    <Image
+                      src={player?.image || player?.imageUrl || '/players/default.png'}
+                      alt={player?.name || 'Player'}
+                      fill
+                      className="object-cover"
+                      unoptimized
+                      loading="eager"
+                      priority
+                    />
+                    {hasShownStatus && (isSold || isUnsold) && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                        <div className="px-5 py-2.5 rounded-xl text-2xl font-black uppercase tracking-widest rotate-[-12deg] border-2"
+                          style={{ borderColor: isSold ? C.accent : '#ef4444', color: isSold ? C.accent : '#ef4444' }}
+                        >
+                          {isSold ? 'Sold' : 'Unsold'}
+                        </div>
                       </div>
+                    )}
+                  </div>
+
+                  {/* 🔥 Name */}
+                  <h1 className="text-5xl font-black text-white uppercase italic tracking-tighter mb-3 leading-none" style={{ textShadow: '0 0 30px rgba(255,255,255,0.2)' }}>
+                    {player?.name}
+                  </h1>
+
+                  {/* 🏷️ Role + Base Price */}
+                  <div className="flex items-center gap-4 mb-6">
+                    <span className="px-4 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-black uppercase tracking-wider">
+                      {player?.role}
+                    </span>
+                    <span className="text-amber-400 font-black text-lg tracking-widest">
+                      {formatCurrency ? formatCurrency(player?.basePrice) : `₹${player?.basePrice}`}
+                    </span>
+                  </div>
+
+                  {/* 📍 Meta Info */}
+                  <div className="flex items-center gap-6 text-sm font-medium text-slate-400 mb-3">
+                    <span className="italic">{player?.village}</span>
+                    <span className="opacity-30">•</span>
+                    <span>{player?.age} YRS</span>
+                  </div>
+
+                  {/* 🏏 Playing Style */}
+                  <div className="text-[11px] font-black uppercase tracking-[0.4em] text-slate-500 mb-10 px-6 py-1.5 border-t border-white/5">
+                    {player?.battingStyle} {player?.bowlingStyle ? `| ${player.bowlingStyle}` : ''}
+                  </div>
+
+                  {/* 💰 Current Bid Section */}
+                  <div className={`w-full p-8 rounded-[32px] flex flex-col items-center transition-all ${bidAmount > 0 ? 'bid-accent-glow' : ''}`}
+                    style={{ 
+                      background: 'radial-gradient(circle at center, #132f3e, #0c2432)',
+                      boxShadow: 'inset 0 0 30px rgba(0,0,0,0.5)',
+                      border: `1px solid ${C.accentBorder}`
+                    }}
+                  >
+                    <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.5em] mb-3">
+                      {isSold ? 'Sold At' : 'Current Bid'}
+                    </p>
+                    <div className="relative">
+                    <h2 className="text-7xl font-black text-white tabular-nums tracking-tighter" 
+                      style={{ textShadow: `0 0 40px ${C.accent}50` }}>
+                      {formatCurrency(displayBid)}
+                    </h2>
+                      {bidAmount > 0 && <div className="absolute -inset-6 bg-accent/20 blur-[60px] rounded-full -z-10 animate-pulse"></div>}
                     </div>
+
+                    {highestBidder && (
+                      <div className="mt-6 flex items-center gap-3 px-4 py-2 bg-accent/10 rounded-2xl border border-accent/20 shadow-lg">
+                        {highestBidderLogo && (
+                          <div className="w-8 h-8 rounded-lg overflow-hidden border border-white/10">
+                            <img src={highestBidderLogo} className="w-full h-full object-cover" alt="" />
+                          </div>
+                        )}
+                        <span className="text-xs font-black text-white uppercase tracking-tight">
+                          {isSold ? 'Purchased by' : 'Leading:'} {highestBidderName}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* ⏭️ Next Player Ticker (Focus Mode) */}
+                <div className={`absolute -bottom-8 left-0 right-0 mx-6 bg-[#0a0a1a]/95 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,1),0_0_40px_rgba(245,158,11,0.2)] flex items-stretch h-20 z-[30] overflow-hidden transition-all duration-1000 ease-in-out ${showNextPill && nextPlayer ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'}`}>
+                  {nextPlayer && (
+                    <>
+                      <div className="flex-[1.5] flex flex-col justify-center px-8 border-r border-white/5 relative">
+                        <div className="absolute top-0 left-0 w-1 h-full bg-amber-500"></div>
+                        <p className="text-[10px] font-black text-amber-500 uppercase tracking-[0.5em] mb-1">UP NEXT</p>
+                        <p className="text-2xl font-black text-white uppercase italic tracking-tight truncate">{nextPlayer.name}</p>
+                      </div>
+                      <div className="flex-1 bg-amber-500/10 flex flex-col justify-center px-8 border-l border-white/5 relative bg-gradient-to-br from-amber-500/5 to-transparent">
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">CANDIDATE ROLE</p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-black text-amber-500 uppercase">{nextPlayer.role}</p>
+                          <span className="w-2 h-2 bg-amber-500 rounded-full animate-pulse shadow-[0_0_12px_rgba(245,158,11,0.8)]"></span>
+                        </div>
+                      </div>
+                    </>
                   )}
                 </div>
               </div>
             ) : (
-              <div className="w-[380px] flex flex-col gap-0">
-                {/* Player image */}
-                <div className="relative overflow-hidden rounded-t-2xl" style={{ height: '420px', border: `1px solid ${C.border}`, borderBottom: 'none' }}>
+              <div className="broadcast-card w-[420px] p-8 rounded-[32px] flex flex-col items-center text-center relative" 
+                style={{ 
+                  background: 'rgba(10, 18, 30, 0.7)',
+                  backdropFilter: 'blur(24px)',
+                  boxShadow: '0 25px 60px rgba(0,0,0,0.7), 0 0 40px rgba(0, 212, 163, 0.2)',
+                  border: `1px solid rgba(255,255,255,0.12)`
+                }}
+              >
+                {/* 🔴 LIVE Badge */}
+                <div className="absolute top-6 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-red-500/10 border border-red-500/30 px-3 py-1 rounded-full animate-pulse z-10">
+                  <span className="w-1.5 h-1.5 bg-red-500 rounded-full shadow-[0_0_8px_rgba(239,68,68,0.8)]"></span>
+                  <p className="text-red-500 text-[9px] font-black tracking-[0.2em] uppercase">LIVE AUCTION</p>
+                </div>
+
+                {/* 🖼️ Player Image */}
+                <div className="mt-6 mb-6 relative w-[140px] h-[140px] rounded-2xl overflow-hidden border-2 border-accent/40 shadow-2xl">
                   <Image
                     src={player?.image || player?.imageUrl || '/players/default.png'}
                     alt={player?.name || 'Player'}
@@ -825,19 +940,94 @@ export default function AuctionOverlayNew({
                     loading="eager"
                     priority
                   />
-                  {/* Show badge ONLY when hasShownStatus is true (one-time trigger) */}
                   {hasShownStatus && (isSold || isUnsold) && (
-                    <div className="absolute inset-0 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.5)' }}>
-                      <div className="px-6 py-2 rounded-xl text-3xl font-bold uppercase tracking-widest rotate-[-10deg]"
-                        style={{ background: isSold ? C.accentSoft : 'rgba(239,68,68,0.15)', border: `2px solid ${isSold ? C.accent : '#ef4444'}`, color: isSold ? C.accent : '#ef4444' }}
-                      >{isSold ? 'Sold' : 'Unsold'}</div>
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                      <div className="px-4 py-2 rounded-lg text-lg font-black uppercase tracking-widest rotate-[-12deg] border-2"
+                        style={{ borderColor: isSold ? C.accent : '#ef4444', color: isSold ? C.accent : '#ef4444' }}
+                      >
+                        {isSold ? 'Sold' : 'Unsold'}
+                      </div>
                     </div>
                   )}
                 </div>
-                {/* Name + role */}
-                <div className="px-5 py-4 rounded-b-2xl" style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderTop: 'none' }}>
-                  <p className="text-xl font-semibold" style={{ color: C.textPrimary }}>{player?.name}</p>
-                  <p className="text-sm mt-0.5" style={{ color: C.textSecondary }}>{player?.role}</p>
+
+                {/* 🔥 Name */}
+                <h1 className="text-4xl font-black text-white uppercase italic tracking-tight mb-2" style={{ textShadow: '0 0 20px rgba(255,255,255,0.15)' }}>
+                  {player?.name}
+                </h1>
+
+                {/* 🏷️ Role + Base Price */}
+                <div className="flex items-center gap-3 mb-4">
+                  <span className="px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-black uppercase tracking-wider">
+                    {player?.role}
+                  </span>
+                  <span className="text-amber-400 font-black text-sm tracking-widest">
+                    BASE: {formatCurrency(player?.basePrice)}
+                  </span>
+                </div>
+
+                {/* 📍 Meta Info */}
+                <div className="flex items-center gap-4 text-xs font-medium text-slate-400 mb-2">
+                  <span className="italic">{player?.village || 'Unknown'}</span>
+                  <span className="opacity-30">•</span>
+                  <span>{player?.age ? `${player.age} YRS` : 'N/A'}</span>
+                </div>
+
+                {/* 🏏 Playing Style */}
+                <div className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 mb-8 px-4 py-1 border-t border-white/5">
+                  {player?.battingStyle} {player?.bowlingStyle ? `| ${player.bowlingStyle}` : ''}
+                </div>
+
+                {/* 💰 Current Bid Section */}
+                <div className={`w-full p-6 rounded-2xl flex flex-col items-center transition-all ${bidAmount > 0 ? 'bid-accent-glow' : ''}`}
+                  style={{ 
+                    background: 'radial-gradient(circle at center, #132f3e, #0c2432)',
+                    boxShadow: 'inset 0 0 20px rgba(0,0,0,0.4)',
+                    border: `1px solid ${C.accentBorder}`
+                  }}
+                >
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] mb-2">
+                    {isSold ? 'Sold At' : 'Current Bid'}
+                  </p>
+                  <div className="relative">
+                    <h2 className="text-5xl font-black text-white tabular-nums tracking-tighter" 
+                      style={{ textShadow: `0 0 30px ${C.accent}40` }}>
+                      {formatCurrency(displayBid)}
+                    </h2>
+                    {bidAmount > 0 && <div className="absolute -inset-4 bg-accent/20 blur-3xl rounded-full -z-10 animate-pulse"></div>}
+                  </div>
+
+                  {highestBidder && (
+                    <div className="mt-4 flex items-center gap-2 px-3 py-1.5 bg-accent/10 rounded-xl border border-accent/20">
+                      {highestBidderLogo && (
+                        <div className="w-5 h-5 rounded overflow-hidden border border-white/10">
+                          <img src={highestBidderLogo} className="w-full h-full object-cover" alt="" />
+                        </div>
+                      )}
+                      <span className="text-[10px] font-black text-white uppercase tracking-tight">
+                        {isSold ? 'Purchased by' : 'Leading:'} {highestBidderName}
+                      </span>
+                    </div>
+                  )}
+                  </div>
+                {/* ⏭️ Next Player Ticker (Standard Mode) */}
+                <div className={`absolute -bottom-10 left-0 right-0 mx-4 bg-[#0a0a1a]/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-[0_30px_60px_rgba(0,0,0,1),0_0_30px_rgba(245,158,11,0.2)] flex items-stretch h-16 z-[30] overflow-hidden transition-all duration-800 ease-in-out ${showNextPill && nextPlayer ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-20'}`}>
+                  {nextPlayer && (
+                    <>
+                      <div className="flex-[1.5] flex flex-col justify-center px-5 border-r border-white/5 relative">
+                        <div className="absolute top-0 left-0 w-1 h-full bg-amber-500"></div>
+                        <p className="text-[9px] font-black text-amber-500 uppercase tracking-[0.4em] mb-0.5">UP NEXT</p>
+                        <p className="text-base font-black text-white uppercase italic tracking-tight truncate">{nextPlayer.name}</p>
+                      </div>
+                      <div className="flex-1 bg-amber-500/5 flex flex-col justify-center px-5 border-l border-white/5 relative">
+                        <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-0.5">ROLE</p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-[10px] font-black text-amber-500 uppercase">{nextPlayer.role}</p>
+                          <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.8)]"></span>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             )}

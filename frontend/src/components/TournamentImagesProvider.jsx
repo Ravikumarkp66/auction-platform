@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from 'react';
+import { API_URL } from '@/lib/apiConfig';
 
 const TournamentImagesContext = createContext();
 
@@ -23,7 +24,7 @@ export const TournamentImagesProvider = ({ children }) => {
 
   const fetchTournamentImages = async () => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournament-images`);
+      const response = await fetch(`${API_URL}/api/tournament-images`);
       
       if (response.ok) {
         const data = await response.json();

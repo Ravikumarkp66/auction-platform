@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 
 import * as XLSX from "xlsx";
+import { API_URL } from "@/lib/apiConfig";
 
 export default function TournamentsPage() {
   const [tournaments, setTournaments] = useState([]);
@@ -30,10 +31,12 @@ export default function TournamentsPage() {
 
   const fetchTournaments = async () => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournaments`);
-      if (res.ok) {
-        const data = await res.json();
+      const res = await fetch(`${API_URL}/api/tournaments`);
+      const data = await res.json();
+      if (Array.isArray(data)) {
         setTournaments(data);
+      } else {
+        setTournaments([]);
       }
     } catch (err) {
       console.error("Failed to fetch tournaments:", err);
@@ -49,7 +52,7 @@ export default function TournamentsPage() {
 
     setResetting(tournamentId);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournaments/${tournamentId}/reset`, {
+      const res = await fetch(`${API_URL}/api/tournaments/${tournamentId}/reset`, {
         method: "POST",
         headers: { "Content-Type": "application/json" }
       });
@@ -75,7 +78,7 @@ export default function TournamentsPage() {
     }
     setActivating(tournamentId);
     try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournaments/${tournamentId}/go-live`, {
+        const res = await fetch(`${API_URL}/api/tournaments/${tournamentId}/go-live`, {
             method: "POST",
             headers: { "Content-Type": "application/json" }
         });
@@ -96,7 +99,7 @@ export default function TournamentsPage() {
         return;
     }
     try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournaments/${tournamentId}/archive`, {
+        const res = await fetch(`${API_URL}/api/tournaments/${tournamentId}/archive`, {
             method: "POST",
             headers: { "Content-Type": "application/json" }
         });
@@ -114,7 +117,7 @@ export default function TournamentsPage() {
 
     setDeleting(tournamentId);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournaments/${tournamentId}`, {
+      const res = await fetch(`${API_URL}/api/tournaments/${tournamentId}`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password })
@@ -168,7 +171,7 @@ export default function TournamentsPage() {
                 isIcon:       findValue(row, ["icon", "isIcon", "star"]) === "yes" || findValue(row, ["isIcon"]) === true
             }));
 
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournaments/${tournamentId}/append-players`, {
+            const res = await fetch(`${API_URL}/api/tournaments/${tournamentId}/append-players`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ players })
@@ -238,8 +241,181 @@ export default function TournamentsPage() {
     );
   }
 
+  const liveTournaments = tournaments.filter(t => t.status === "active" || t.status === "live");
+  const concludedTournaments = tournaments.filter(t => t.status === "completed");
+  const otherTournaments = tournaments.filter(t => t.status !== "active" && t.status !== "live" && t.status !== "completed");
+
+  const renderTournamentCard = (t) => {
+    const meta = getStatusMeta(t.status);
+    const tournamentId = t._id || t.id;
+    return (
+      <div key={tournamentId} className="group relative overflow-hidden rounded-2xl border border-white/10 bg-[#111827]/60 backdrop-blur-xl hover:border-white/20 transition-all duration-300">
+        {/* Status Badge */}
+        <div className="absolute top-6 right-6 z-10">
+          <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest ${meta.bg} ${meta.color} ${meta.border}`}>
+            {meta.icon}
+            {meta.label}
+          </div>
+        </div>
+
+        <div className="p-5 flex items-start gap-4">
+          {/* Tournament Logo */}
+          <div className="w-14 h-14 shrink-0 rounded-xl bg-slate-900 border border-white/5 flex items-center justify-center overflow-hidden">
+            {t.organizerLogo ? (
+              <img src={t.organizerLogo} alt="Logo" className="w-full h-full object-contain p-1" />
+            ) : (
+              <Trophy className="w-6 h-6 text-slate-700" />
+            )}
+          </div>
+
+          {/* Title Section */}
+          <div className="flex-1 pr-16 text-left">
+            <h3 className="text-base font-black text-white group-hover:text-violet-400 transition-colors truncate">
+              {t.name}
+            </h3>
+            <div className="flex items-center gap-2 mt-1 text-slate-500 text-xs font-semibold">
+              <Calendar className="w-3 h-3" />
+              {new Date(t.createdAt).toLocaleDateString("en-IN", { day: 'numeric', month: 'short', year: 'numeric' })}
+            </div>
+            {t.organizerName && (
+               <p className="text-[9px] font-bold text-slate-600 uppercase tracking-widest mt-1.5">{t.organizerName}</p>
+            )}
+          </div>
+        </div>
+
+        <div className="px-5 pb-5">
+
+          {/* Stats Row */}
+          <div className="grid grid-cols-3 gap-3 mb-6">
+            <div className="bg-white/5 rounded-xl p-2.5 text-center border border-white/5">
+              <Users className="w-3.5 h-3.5 text-blue-400 mx-auto mb-1.5" />
+              <p className="text-base font-black text-white">{t.numTeams || t.teams || 0}</p>
+              <p className="text-[9px] text-slate-500 font-bold uppercase tracking-tighter">Teams</p>
+            </div>
+            <div className="bg-white/5 rounded-xl p-2.5 text-center border border-white/5">
+              <Trophy className="w-3.5 h-3.5 text-violet-400 mx-auto mb-1.5" />
+              <p className="text-base font-black text-white">{t.playerCount || t.players?.length || 0}</p>
+              <p className="text-[9px] text-slate-500 font-bold uppercase tracking-tighter">Players</p>
+            </div>
+            <div className="bg-white/5 rounded-xl p-2.5 text-center border border-white/5">
+              <RotateCcw className="w-3.5 h-3.5 text-amber-400 mx-auto mb-1.5" />
+              <p className="text-base font-black text-white">
+                ₹{((t.baseBudget || 10000) / 1000).toFixed(0)}k
+              </p>
+              <p className="text-[9px] text-slate-500 font-bold uppercase tracking-tighter">Budget</p>
+            </div>
+          </div>
+
+          {/* IMAGE PROCESSING PROGRESS */}
+          {t.imageProcessing?.status === "processing" && (
+            <div className="mb-6 space-y-2">
+              <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-tighter text-slate-400">
+                <span>Image Conversion</span>
+                <span>{t.imageProcessing.completed} / {t.imageProcessing.total}</span>
+              </div>
+              <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden border border-white/5">
+                  <div 
+                      className="h-full bg-gradient-to-r from-violet-500 to-cyan-400 transition-all duration-500"
+                      style={{ width: `${(t.imageProcessing.completed / (t.imageProcessing.total || 1)) * 100}%` }}
+                  />
+              </div>
+            </div>
+          )}
+
+          {/* Live Banner / Activation */}
+          {t.status === "active" ? (
+            <div className="mb-4 p-3 rounded-xl bg-gradient-to-r from-red-500/10 to-transparent border-l-4 border-red-500">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-black text-red-400 uppercase tracking-widest">Active Auction</p>
+                  <button 
+                    onClick={() => archiveAuction(tournamentId)}
+                    className="text-[8px] text-slate-500 font-bold hover:text-red-400 transition-colors uppercase tracking-tighter underline underline-offset-2"
+                  >
+                    Mark as Concluded
+                  </button>
+                </div>
+                <Zap className="w-3.5 h-3.5 text-red-500 animate-pulse" />
+              </div>
+            </div>
+          ) : (
+            <div className="mb-4">
+              <button 
+                onClick={() => goLive(tournamentId)}
+                disabled={activating === tournamentId}
+                className={`w-full flex items-center justify-center gap-2 py-2 rounded-xl font-bold text-[9px] uppercase tracking-wider border transition-all ${
+                  t.status === "completed" 
+                  ? "bg-violet-500/10 hover:bg-violet-500/20 text-violet-400 border-violet-500/20"
+                  : "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 border-emerald-500/20"
+                }`}
+              >
+                {activating === tournamentId ? <Clock className="w-3 h-3 animate-spin"/> : <Play className="w-3 h-3"/>}
+                {t.status === "completed" ? "Retry to Live" : "Set As Live Auction"}
+              </button>
+            </div>
+          )}
+
+          {/* Actions Footer */}
+          <div className="flex items-center gap-3">
+            {t.status === "active" ? (
+              <>
+                <Link
+                  href={`/live-auction?id=${tournamentId}`}
+                  className="flex-1 flex items-center justify-center gap-2 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg font-black text-[10px] uppercase tracking-wider shadow-lg shadow-red-600/20 transition-all active:scale-95"
+                >
+                  <Zap className="w-3.5 h-3.5" /> Control
+                </Link>
+                <Link
+                  href={`/overlay?id=${tournamentId}`}
+                  className="flex-1 flex items-center justify-center gap-2 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-black text-[10px] uppercase tracking-wider transition-all active:scale-95"
+                >
+                  <Eye className="w-3.5 h-3.5" /> View
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link
+                  href={`/live-auction?id=${tournamentId}`}
+                  className="flex-1 flex items-center justify-center gap-2 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-lg font-black text-[10px] uppercase tracking-wider transition-all active:scale-95"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" /> Open
+                </Link>
+                <button className="flex-1 flex items-center justify-center gap-2 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg font-black text-[10px] uppercase tracking-wider transition-all active:scale-95 border border-white/5">
+                  <Edit className="w-3.5 h-3.5" /> Edit
+                </button>
+              </>
+            )}
+
+            <div className="flex shrink-0 gap-2">
+              <label className="p-3 bg-violet-500/10 text-violet-400 border border-violet-500/20 rounded-xl hover:bg-violet-500/20 transition-all active:scale-95 cursor-pointer" title="Add More Players (Excel)">
+                {appending === tournamentId ? <RefreshCw className={`w-4 h-4 animate-spin`} /> : <PlusCircle className="w-4 h-4" />}
+                <input type="file" className="hidden" accept=".xlsx,.xls,.csv" onChange={(e) => handleAppendPlayers(tournamentId, e)} />
+              </label>
+              <button 
+                onClick={() => resetAuction(tournamentId)}
+                disabled={resetting === tournamentId}
+                className="p-3 bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded-xl hover:bg-amber-500/20 transition-all active:scale-95 disabled:opacity-50"
+                title="Reset Auction Pool"
+              >
+                <RotateCcw className={`w-4 h-4 ${resetting === tournamentId ? 'animate-spin' : ''}`} />
+              </button>
+              <button 
+                onClick={() => deleteAuction(tournamentId)}
+                disabled={deleting === tournamentId}
+                className="p-3 bg-red-500/10 text-red-500 border border-red-500/20 rounded-xl hover:bg-red-500/20 transition-all active:scale-95 disabled:opacity-50"
+                title="Permanently Delete Auction"
+              >
+                <Trash2 className={`w-4 h-4 ${deleting === tournamentId ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
-    <div className="space-y-8 max-w-7xl mx-auto">
+    <div className="space-y-12 max-w-7xl mx-auto pb-20">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -257,158 +433,59 @@ export default function TournamentsPage() {
         </Link>
       </div>
 
-      {/* Grid */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        {tournaments.map((t) => {
-          const meta = getStatusMeta(t.status);
-          const tournamentId = t._id || t.id;
-          return (
-            <div key={tournamentId} className="group relative overflow-hidden rounded-[2rem] border border-white/10 bg-[#111827]/60 backdrop-blur-xl hover:border-white/20 transition-all duration-300">
-              {/* Status Badge */}
-              <div className="absolute top-6 right-6 z-10">
-                <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest ${meta.bg} ${meta.color} ${meta.border}`}>
-                  {meta.icon}
-                  {meta.label}
-                </div>
-              </div>
+      {/* ── LIVE AUCTIONS SECTION ── */}
+      {liveTournaments.length > 0 && (
+        <section className="space-y-6">
+          <div className="flex items-center gap-4">
+            <h2 className="text-xl font-black text-white uppercase tracking-widest flex items-center gap-2">
+              <Zap className="w-5 h-5 text-red-500 animate-pulse" />
+              Live Auctions
+            </h2>
+            <div className="h-px flex-1 bg-gradient-to-r from-red-500/20 to-transparent" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {liveTournaments.map(renderTournamentCard)}
+          </div>
+        </section>
+      )}
 
-              <div className="p-8">
-                {/* Title Section */}
-                <div className="mb-6 pr-20">
-                  <h3 className="text-xl font-black text-white group-hover:text-violet-400 transition-colors truncate">
-                    {t.name}
-                  </h3>
-                  <div className="flex items-center gap-2 mt-1 text-slate-500 text-xs font-semibold">
-                    <Calendar className="w-3 h-3" />
-                    {new Date(t.createdAt).toLocaleDateString("en-IN", { day: 'numeric', month: 'short', year: 'numeric' })}
-                  </div>
-                </div>
+      {/* ── CONCLUDED AUCTIONS SECTION ── */}
+      <section className="space-y-6">
+        <div className="flex items-center gap-4">
+          <h2 className="text-xl font-black text-white uppercase tracking-widest flex items-center gap-2">
+            <CheckCircle className="w-5 h-5 text-emerald-500" />
+            Concluded Auctions
+          </h2>
+          <div className="h-px flex-1 bg-gradient-to-r from-emerald-500/20 to-transparent" />
+        </div>
+        
+        {concludedTournaments.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {concludedTournaments.map(renderTournamentCard)}
+          </div>
+        ) : (
+          <div className="py-20 rounded-[3rem] border-2 border-dashed border-white/5 flex flex-col items-center justify-center opacity-40">
+            <Trophy className="w-12 h-12 text-slate-500 mb-4" />
+            <p className="font-bold text-slate-500 uppercase tracking-widest text-xs">No concluded auctions yet</p>
+          </div>
+        )}
+      </section>
 
-                {/* Stats Row */}
-                <div className="grid grid-cols-3 gap-4 mb-8">
-                  <div className="bg-white/5 rounded-2xl p-4 text-center border border-white/5">
-                    <Users className="w-4 h-4 text-blue-400 mx-auto mb-2" />
-                    <p className="text-lg font-black text-white">{t.numTeams || t.teams || 0}</p>
-                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tighter">Teams</p>
-                  </div>
-                  <div className="bg-white/5 rounded-2xl p-4 text-center border border-white/5">
-                    <Trophy className="w-4 h-4 text-violet-400 mx-auto mb-2" />
-                    <p className="text-lg font-black text-white">{t.players?.length || 0}</p>
-                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tighter">Players</p>
-                  </div>
-                  <div className="bg-white/5 rounded-2xl p-4 text-center border border-white/5">
-                    <RotateCcw className="w-4 h-4 text-amber-400 mx-auto mb-2" />
-                    <p className="text-lg font-black text-white">
-                      ₹{((t.baseBudget || 10000) / 1000).toFixed(0)}k
-                    </p>
-                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tighter">Budget</p>
-                  </div>
-                </div>
-
-                {/* IMAGE PROCESSING PROGRESS */}
-                {t.imageProcessing?.status === "processing" && (
-                  <div className="mb-6 space-y-2">
-                    <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-tighter text-slate-400">
-                      <span>Image Conversion</span>
-                      <span>{t.imageProcessing.completed} / {t.imageProcessing.total}</span>
-                    </div>
-                    <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden border border-white/5">
-                        <div 
-                            className="h-full bg-gradient-to-r from-violet-500 to-cyan-400 transition-all duration-500"
-                            style={{ width: `${(t.imageProcessing.completed / t.imageProcessing.total) * 100}%` }}
-                        />
-                    </div>
-                  </div>
-                )}
-
-                {/* Live Banner */}
-                {t.status === "active" ? (
-                  <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-red-500/10 to-transparent border-l-4 border-red-500">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-xs font-black text-red-400 uppercase tracking-widest">Active Auction</p>
-                        <button 
-                          onClick={() => archiveAuction(tournamentId)}
-                          className="text-[9px] text-slate-500 font-bold hover:text-red-400 transition-colors uppercase tracking-tighter underline underline-offset-2"
-                        >
-                          Archive this auction
-                        </button>
-                      </div>
-                      <Zap className="w-4 h-4 text-red-500 animate-pulse" />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="mb-6">
-                    <button 
-                      onClick={() => goLive(tournamentId)}
-                      disabled={activating === tournamentId}
-                      className="w-full flex items-center justify-center gap-2 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 rounded-xl font-bold text-[10px] uppercase tracking-wider border border-emerald-500/20 transition-all"
-                    >
-                      {activating === tournamentId ? <Clock className="w-3 h-3 animate-spin"/> : <Play className="w-3 h-3"/>}
-                      Set As Live Auction
-                    </button>
-                  </div>
-                )}
-
-                {/* Actions Footer */}
-                <div className="flex items-center gap-3">
-                  {t.status === "active" ? (
-                    <>
-                      <Link
-                        href={`/live-auction?id=${tournamentId}`}
-                        className="flex-1 flex items-center justify-center gap-2 py-3 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold text-sm shadow-lg shadow-red-600/20 transition-all active:scale-95"
-                      >
-                        <Zap className="w-4 h-4" /> Control
-                      </Link>
-                      <Link
-                        href={`/overlay?id=${tournamentId}`}
-                        className="flex-1 flex items-center justify-center gap-2 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-xl font-bold text-sm transition-all active:scale-95"
-                      >
-                        <Eye className="w-4 h-4" /> View
-                      </Link>
-                    </>
-                  ) : (
-                    <>
-                      <Link
-                        href={`/live-auction?id=${tournamentId}`}
-                        className="flex-1 flex items-center justify-center gap-2 py-3 bg-violet-600 hover:bg-violet-500 text-white rounded-xl font-bold text-sm transition-all active:scale-95"
-                      >
-                        <ExternalLink className="w-4 h-4" /> Open
-                      </Link>
-                      <button className="flex-1 flex items-center justify-center gap-2 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold text-sm transition-all active:scale-95 border border-white/5">
-                        <Edit className="w-4 h-4" /> Edit
-                      </button>
-                    </>
-                  )}
-
-                  <div className="flex shrink-0 gap-2">
-                    <label className="p-3 bg-violet-500/10 text-violet-400 border border-violet-500/20 rounded-xl hover:bg-violet-500/20 transition-all active:scale-95 cursor-pointer" title="Add More Players (Excel)">
-                      {appending === tournamentId ? <RefreshCw className={`w-4 h-4 animate-spin`} /> : <PlusCircle className="w-4 h-4" />}
-                      <input type="file" className="hidden" accept=".xlsx,.xls,.csv" onChange={(e) => handleAppendPlayers(tournamentId, e)} />
-                    </label>
-                    <button 
-                      onClick={() => resetAuction(tournamentId)}
-                      disabled={resetting === tournamentId}
-                      className="p-3 bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded-xl hover:bg-amber-500/20 transition-all active:scale-95 disabled:opacity-50"
-                      title="Reset Auction Pool"
-                    >
-                      <RotateCcw className={`w-4 h-4 ${resetting === tournamentId ? 'animate-spin' : ''}`} />
-                    </button>
-                    <button 
-                      onClick={() => deleteAuction(tournamentId)}
-                      disabled={deleting === tournamentId}
-                      className="p-3 bg-red-500/10 text-red-500 border border-red-500/20 rounded-xl hover:bg-red-500/20 transition-all active:scale-95 disabled:opacity-50"
-                      title="Permanently Delete Auction"
-                    >
-                      <Trash2 className={`w-4 h-4 ${deleting === tournamentId ? 'animate-spin' : ''}`} />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+      {/* ── OTHER/DRAFT SECTION (Optional) ── */}
+      {otherTournaments.length > 0 && (
+        <section className="space-y-6">
+          <div className="flex items-center gap-4">
+            <h2 className="text-xl font-black text-white uppercase tracking-widest flex items-center gap-2">
+              <Clock className="w-5 h-5 text-slate-500" />
+              Draft / Upcoming
+            </h2>
+            <div className="h-px flex-1 bg-gradient-to-r from-slate-500/20 to-transparent" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {otherTournaments.map(renderTournamentCard)}
+          </div>
+        </section>
+      )}
 
       {tournaments.length === 0 && (
         <div className="flex flex-col items-center justify-center py-20 bg-white/5 rounded-[3rem] border-2 border-dashed border-white/10 text-center">

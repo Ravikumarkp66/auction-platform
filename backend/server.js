@@ -25,6 +25,7 @@ app.use(morgan('dev'));
 
 const allowedOrigins = [
   "http://localhost:3000",
+  "http://127.0.0.1:3000",
   "https://auction-platform-beta.vercel.app",
   process.env.FRONTEND_URL
 ].filter(Boolean);
@@ -42,7 +43,7 @@ app.use(cors({
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"]
+  allowedHeaders: ["Content-Type", "Authorization", "Cache-Control", "Pragma"]
 }));
 
 // Production optimized Rate Limiter
@@ -57,19 +58,17 @@ app.use("/api/", limiter);
 
 const io = new Server(server, {
   cors: {
-    origin: function (origin, callback) {
-      if (!origin) return callback(null, true);
-      if (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
-        callback(null, true);
-      } else {
-        callback(null, origin);
-      }
-    },
+    origin: [
+      "http://localhost:3000",
+      "http://127.0.0.1:3000",
+      "https://auction-platform-beta.vercel.app",
+      process.env.FRONTEND_URL
+    ].filter(Boolean),
     methods: ["GET", "POST"],
     credentials: true,
-    allowedHeaders: ["Content-Type", "Authorization"]
+    allowedHeaders: ["Content-Type", "Authorization", "Cache-Control", "Pragma"]
   },
-  transports: ['websocket', 'polling'], // Support both WebSocket and polling
+  transports: ['websocket', 'polling'], 
   pingTimeout: 60000,
   pingInterval: 25000
 });
@@ -102,6 +101,7 @@ const connectDB = async () => {
 connectDB();
 
 app.use(express.json());
+app.use("/uploads", express.static("uploads"));
 
 
 // Root route
@@ -215,6 +215,9 @@ app.use("/api/assets", assetRoutes);
 app.use("/api/proxy-image", proxyImageRoute);
 app.use("/api/rules", rulesRoutes); // Rule Engine API
 app.use("/api/squads", squadRoutes); // Squad generation API
+app.use("/api/location", require("./routes/locationRoutes"));
+app.use("/api/services", require("./routes/serviceRoutes"));
+app.use("/api/settings", require("./routes/settingsRoutes"));
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -234,7 +237,7 @@ app.use((req, res) => {
   });
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5050;
 
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

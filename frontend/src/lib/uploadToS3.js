@@ -5,8 +5,10 @@
  * @param {string} folder - S3 folder: 'players' | 'teams' | 'backgrounds'
  * @returns {Promise<string>} - The public URL of the uploaded file
  */
+import { API_URL } from "./apiConfig";
+ 
 export async function uploadToS3(file, folder = "players") {
-  const API = process.env.NEXT_PUBLIC_API_URL;
+  const API = API_URL;
 
   // 1. Get pre-signed URL from backend
   const res = await fetch(

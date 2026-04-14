@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { ImageIcon, Upload, Check, Trash2, Library, PlusCircle, Layout, Palette, Users, Image as LucideImage } from "lucide-react";
 import { useAuction } from "../layout";
+import { API_URL } from "../../../lib/apiConfig";
 
 export default function AssetManager() {
   const { selectedAuction } = useAuction();
@@ -35,7 +36,7 @@ export default function AssetManager() {
 
   const fetchLibrary = async () => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/assets`);
+      const res = await fetch(`${API_URL}/api/assets`);
       const data = await res.json();
       setLibrary(data);
     } catch (err) { console.error(err); }
@@ -49,14 +50,14 @@ export default function AssetManager() {
     setUploading(true);
     try {
       // 1. Get S3 signed URL
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/upload/get-upload-url?fileName=${file.name}&fileType=${file.type}`);
+      const res = await fetch(`${API_URL}/api/upload/get-upload-url?fileName=${file.name}&fileType=${file.type}`);
       const { uploadUrl, fileUrl } = await res.json();
 
       // 2. Upload to S3
       await fetch(uploadUrl, { method: "PUT", body: file });
 
       // 3. Save to Global Library
-      const assetRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/assets`, {
+      const assetRes = await fetch(`${API_URL}/api/assets`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: file.name, type, url: fileUrl })
@@ -88,7 +89,7 @@ export default function AssetManager() {
 
     // Save to DB
     try {
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournaments/${selectedAuction._id}/assets`, {
+      await fetch(`${API_URL}/api/tournaments/${selectedAuction._id}/assets`, {
          method: "PATCH",
          headers: { "Content-Type": "application/json" },
          body: JSON.stringify(updatedAssets)
@@ -99,7 +100,7 @@ export default function AssetManager() {
   const deleteAsset = async (id) => {
     if (!confirm("Remove from library?")) return;
     try {
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/assets/${id}`, { method: "DELETE" });
+      await fetch(`${API_URL}/api/assets/${id}`, { method: "DELETE" });
       setLibrary(library.filter(a => a._id !== id));
     } catch (err) { console.error(err); }
   };
@@ -169,9 +170,12 @@ export default function AssetManager() {
                </div>
 
                {activeTab !== 'badge' ? (
-                  <div className="w-full h-60 rounded-3xl overflow-hidden bg-slate-900 border border-white/5 flex items-center justify-center relative">
+                  <div className="w-full h-60 rounded-3xl overflow-hidden bg-slate-900 border border-white/5 flex items-center justify-center relative shadow-inner">
                      {getSelectedUrl() ? (
-                        <img src={getSelectedUrl()} className="w-full h-full object-cover" />
+                        <img 
+                          src={`${API_URL}/api/proxy-image?url=${encodeURIComponent(getSelectedUrl())}`} 
+                          className="w-full h-full object-cover" 
+                        />
                      ) : (
                         <div className="text-slate-700 italic font-bold">No Asset Selected</div>
                      )}
@@ -179,15 +183,29 @@ export default function AssetManager() {
                ) : (
                   <div className="grid grid-cols-2 gap-8">
                      <div className="space-y-4">
-                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Left Badge</p>
-                        <div className="h-40 rounded-3xl bg-slate-900 border border-white/5 flex items-center justify-center p-6">
-                           {auctionAssets.badges.leftBadge ? <img src={auctionAssets.badges.leftBadge} className="max-h-full object-contain" /> : <p className="text-xs text-slate-700 italic">Empty</p>}
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Left Badge</p>
+                        <div className="h-40 rounded-3xl bg-slate-900 border border-white/5 flex items-center justify-center p-6 shadow-inner">
+                           {auctionAssets.badges.leftBadge ? (
+                             <img 
+                               src={`${API_URL}/api/proxy-image?url=${encodeURIComponent(auctionAssets.badges.leftBadge)}`} 
+                               className="max-h-full object-contain" 
+                             />
+                           ) : (
+                             <p className="text-xs text-slate-700 italic">Empty</p>
+                           )}
                         </div>
                      </div>
                      <div className="space-y-4">
-                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">Right Badge</p>
-                        <div className="h-40 rounded-3xl bg-slate-900 border border-white/5 flex items-center justify-center p-6">
-                           {auctionAssets.badges.rightBadge ? <img src={auctionAssets.badges.rightBadge} className="max-h-full object-contain" /> : <p className="text-xs text-slate-700 italic">Empty</p>}
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest text-right pr-1">Right Badge</p>
+                        <div className="h-40 rounded-3xl bg-slate-900 border border-white/5 flex items-center justify-center p-6 shadow-inner">
+                           {auctionAssets.badges.rightBadge ? (
+                             <img 
+                               src={`${API_URL}/api/proxy-image?url=${encodeURIComponent(auctionAssets.badges.rightBadge)}`} 
+                               className="max-h-full object-contain" 
+                             />
+                           ) : (
+                             <p className="text-xs text-slate-700 italic">Empty</p>
+                           )}
                         </div>
                      </div>
                   </div>
@@ -204,7 +222,10 @@ export default function AssetManager() {
                <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
                   {library.filter(a => a.type === (activeTab === 'badge' ? 'badge' : activeTab)).map(asset => (
                      <div key={asset._id} className="group relative aspect-video bg-white/5 rounded-3xl border border-white/10 overflow-hidden hover:border-emerald-500/50 transition-all cursor-pointer">
-                        <img src={asset.url} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                        <img 
+                          src={`${API_URL}/api/proxy-image?url=${encodeURIComponent(asset.url)}`} 
+                          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+                        />
                         
                         <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-3">
                            <button 
