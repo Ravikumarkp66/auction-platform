@@ -58,11 +58,18 @@ router.get("/", async (req, res) => {
 
   const decoded = decodeURIComponent(url);
 
-  // Special Handling for Google Drive Thumbnails
+  // Special Handling for Google Drive
   if (decoded.includes("drive.google.com")) {
     const fileId = extractDriveId(decoded);
     if (!fileId) return res.status(400).send("Invalid Drive URL");
-    const thumbnailUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=s1200`; // Higher res for studio
+    
+    // If it's an export or download link, fetch the ACTUAL content
+    if (decoded.includes("/export") || decoded.includes("export=download")) {
+      return fetchUrl(decoded, res);
+    }
+
+    // Otherwise, default to high-res thumbnail for images
+    const thumbnailUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=s1200`; 
     return fetchUrl(thumbnailUrl, res);
   }
 

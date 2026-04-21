@@ -5,25 +5,23 @@
 export const getApiUrl = () => {
   const envUrl = process.env.NEXT_PUBLIC_API_URL;
   
+  // In the browser, we check if a direct API URL is provided via environment variables.
+  // Using a direct URL helps avoid socket.io connection timeouts and proxy issues.
+  if (typeof window !== 'undefined') {
+    if (envUrl && envUrl !== "undefined" && envUrl.startsWith("http")) {
+      return envUrl;
+    }
+    return ""; // Fallback to relative path/proxy
+  }
+
   // Use environment variable if it exists and is not just a placeholder
   if (envUrl && envUrl !== "undefined" && envUrl.length > 0) {
-    // Determine if we should use a relative path (for proxying) to avoid Mixed Content.
-    // We do this if:
-    // 1. We are in production SSR
-    // 2. We are in the browser on a secure (HTTPS) page and the API URL is insecure (HTTP)
-    const isProduction = process.env.NODE_ENV === "production";
-    const isSecurePage = typeof window !== 'undefined' && window.location.protocol === 'https:';
-    const isUrlInsecure = envUrl.startsWith("http://");
-
-    if ((isProduction || isSecurePage) && isUrlInsecure) {
-      return "";
-    }
     return envUrl;
   }
-  
-  // Fallback for development (using 127.0.0.1 for better Windows reliability)
+
+  // Fallback for SSR
   if (process.env.NODE_ENV === "development") {
-    return "http://127.0.0.1:5050";
+    return "http://localhost:5050";
   }
   
   // Final fallback (production default if env missing)

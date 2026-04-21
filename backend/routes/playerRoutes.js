@@ -117,7 +117,9 @@ router.get("/check", async (req, res) => {
             name: player.name,
             status: player.status, 
             applicationId: player.applicationId,
-            message: player.status === 'pending' ? "Registration received. Awaiting admin vetting." : "Registration Approved!"
+            message: player.status === 'pending' ? "Registration received. Awaiting admin approval." : "Registration Approved!",
+            // Include full player details
+            player: player
         });
     } catch (err) {
         res.status(500).json({ message: err.message });
@@ -209,18 +211,39 @@ router.post("/:id/approve", async (req, res) => {
 router.get("/public/:id", async (req, res) => {
     try {
         const player = await Player.findOne({ _id: req.params.id, isDeleted: { $ne: true } })
-            .select("name imageUrl applicationId role basePrice village battingStyle");
+            .select("name imageUrl photo applicationId role basePrice village battingStyle tournamentId")
+            .populate("tournamentId", "name");
+        
         if (!player) return res.status(404).json({ message: "Player record not found." });
-        res.json(player);
+        
+        // Convert to plain object to inject tournamentName
+        const playerObj = player.toObject();
+        if (playerObj.tournamentId && playerObj.tournamentId.name) {
+            playerObj.tournamentName = playerObj.tournamentId.name;
+        }
+        
+        res.json(playerObj);
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
 });
 
-// Update player details
+// Update player details (partial)
+router.patch("/:id", async (req, res) => {
+  try {
+    const player = await Player.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if (!player) return res.status(404).json({ message: "Player not found" });
+    res.json(player);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// Update player details (full)
 router.put("/:id", async (req, res) => {
   try {
     const player = await Player.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if (!player) return res.status(404).json({ message: "Player not found" });
     res.json(player);
   } catch (err) {
     res.status(400).json({ message: err.message });
@@ -241,6 +264,56 @@ router.delete("/:id", async (req, res) => {
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
+});
+
+// Bulk Import Players (Admin)
+router.post("/import", async (req, res) => {
+    try {
+        const { players, tournamentId } = req.body;
+        if (!players || !Array.isArray(players) || !tournamentId) {
+            return res.status(400).json({ message: "Invalid import data" });
+        }
+
+        let added = 0;
+        let skipped = 0;
+
+        // Get the current max application ID for this tournament
+        const lastPlayer = await Player.findOne({ tournamentId, isIcon: { $ne: true }, isDeleted: { $ne: true } }).sort({ applicationId: -1 });
+        let nextId = lastPlayer ? (lastPlayer.applicationId || 0) + 1 : 1;
+
+        for (const p of players) {
+            // Check for potential duplicates (Case-insensitive name + Mobile match)
+            const existing = await Player.findOne({
+                tournamentId,
+                $or: [
+                    { name: { $regex: new RegExp(`^${p.name?.trim()}$`, "i") }, mobile: String(p.mobile).trim() },
+                    { mobile: String(p.mobile).trim(), mobile: { $ne: "-" } }
+                ],
+                isDeleted: { $ne: true }
+            });
+
+            if (existing) {
+                skipped++;
+                continue;
+            }
+
+            const newPlayer = new Player({
+                ...p,
+                tournamentId,
+                applicationId: nextId++,
+                status: "pending", // Default to pending for admin vetting
+                isDeleted: false
+            });
+
+            await newPlayer.save();
+            added++;
+        }
+
+        res.json({ success: true, added, skipped });
+    } catch (err) {
+        console.error("[IMPORT ERROR]:", err);
+        res.status(500).json({ message: err.message });
+    }
 });
 
 module.exports = router;

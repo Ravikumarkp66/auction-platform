@@ -2,16 +2,19 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useSession, signIn } from "next-auth/react";
 import * as XLSX from "xlsx";
 import { uploadToS3 } from "../../../lib/uploadToS3";
 import { API_URL } from "../../../lib/apiConfig";
 import {
   CheckCircle, ChevronRight, ChevronLeft, Rocket,
   Upload, RefreshCw, Trash2, AlertCircle, Users,
-  Trophy, Zap, Settings, PlayCircle, Eye, Maximize, Shuffle, Plus
+  Trophy, Zap, Settings, PlayCircle, Eye, Maximize, Shuffle, Plus,
+  MousePointer2, ExternalLink
 } from "lucide-react";
 import ImageEditModal from "../../../components/ImageEditModal";
 import RulesConfigPanel, { DEFAULT_RULES_CONFIG } from "../../../components/RulesConfigPanel";
+import Script from "next/script";
 
 // ─────────────────────────────────────────────────────────────
 // CONSTANTS
@@ -25,16 +28,25 @@ const STEP_META = [
   { label: "Launch",  icon: "🚀", title: "Review & Launch",          desc: "Confirm and go live" },
 ];
 
+const getTodayDate = () => {
+  const today = new Date();
+  const offset = today.getTimezoneOffset();
+  return new Date(today.getTime() - (offset * 60 * 1000)).toISOString().split("T")[0];
+};
+
 const DEFAULT_CONFIG = {
   name: "", numTeams: 10, iconsPerTeam: 3,
   organizerName: "", organizerLogo: "",
   baseBudget: 10000, defaultBasePrice: 100,
-  squadSize: 15, auctionSlots: 120,
-  auctionDate: "", auctionType: "live",
+  squadSize: 20, auctionSlots: 120,
+  auctionDate: getTodayDate(), auctionType: "live",
   // Auction engine fields
   auctionMode: "money",     // "money" | "points"
   squadMinPlayers: 1,
-  squadMaxPlayers: 15,
+  squadMaxPlayers: 20,
+  // Registration page customizations
+  registrationTitle: "JOIN THE BATTLE",
+  registrationDetails: "",
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -189,20 +201,12 @@ const normalizeRole = (raw) => {
   return found || "All-Rounder";
 };
 
-const normalizeCategory = (raw) => {
-  if (!raw) return null;
-  const s = String(raw).toLowerCase().trim();
-  if (s.includes("1") || s.includes("first")) return "year1";
-  if (s.includes("2") || s.includes("second")) return "year2";
-  if (s.includes("3") || s.includes("third")) return "year3";
-  if (s.includes("4") || s.includes("fourth")) return "year4";
-  return null;
-};
+// Category normalization removed as per user request
 
 // ─────────────────────────────────────────────────────────────
 // PROGRESS BAR
 // ─────────────────────────────────────────────────────────────
-function ProgressBar({ step }) {
+function ProgressBar({ step, onStepClick }) {
   return (
     <div className="px-6 pt-6 pb-0">
       <div className="flex items-center justify-between relative">
@@ -220,20 +224,23 @@ function ProgressBar({ step }) {
           const done = step > n;
           const active = step === n;
           return (
-            <div key={n} className="relative z-10 flex flex-col items-center gap-2">
+            <div key={n} 
+              onClick={() => onStepClick?.(n)}
+              className="relative z-10 flex flex-col items-center gap-2 cursor-pointer group"
+            >
               <div className={`
                 w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs
                 transition-all duration-300
                 ${done   ? "bg-emerald-500 shadow-[0_0_14px_rgba(16,185,129,0.6)]" :
                   active ? "bg-gradient-to-br from-violet-500 to-cyan-400 shadow-[0_0_20px_rgba(124,58,237,0.7)] scale-110" :
-                           "bg-white/5 border border-white/10 text-slate-500"}
+                           "bg-white/5 border border-white/10 text-slate-500 group-hover:bg-white/10 group-hover:border-white/20"}
               `}>
                 {done ? <CheckCircle className="w-5 h-5 text-white" /> : (
-                  <span className={active ? "text-white" : ""}>{s.icon}</span>
+                  <span className={active ? "text-white" : "group-hover:text-slate-300 transition-colors"}>{s.icon}</span>
                 )}
               </div>
-              <span className={`text-[9px] font-black uppercase tracking-widest hidden sm:block
-                ${done ? "text-emerald-400" : active ? "text-violet-300" : "text-slate-600"}`}>
+              <span className={`text-[9px] font-black uppercase tracking-widest hidden sm:block transition-colors
+                ${done ? "text-emerald-400" : active ? "text-violet-300" : "text-slate-600 group-hover:text-slate-400"}`}>
                 {s.label}
               </span>
             </div>
@@ -265,8 +272,8 @@ function StepCard({ step, children, onReset, resetLabel = "Reset" }) {
           </div>
           {onReset && (
             <button onClick={onReset}
-              className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-red-400
-                bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 transition-all">
+              className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-red-400
+                bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 transition-all`}>
               <RefreshCw className="w-3 h-3" /> {resetLabel}
             </button>
           )}
@@ -303,33 +310,33 @@ const inputCls = (err) =>
 // ─────────────────────────────────────────────────────────────
 function NavButtons({ step, onPrev, onNext, onLaunch, launching }) {
   return (
-    <div className="shrink-0 border-t border-white/10 px-6 py-4 flex justify-between items-center
-      bg-[#0B0F2A]/80 backdrop-blur-xl">
+    <div className={`shrink-0 border-t border-white/10 px-6 py-4 flex justify-between items-center
+      bg-[#0B0F2A]/80 backdrop-blur-xl`}>
       <button
         onClick={onPrev}
         disabled={step === 1}
-        className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm
+        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm
           text-slate-400 border border-white/10 hover:border-white/20 hover:text-white
-          disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+          disabled:opacity-30 disabled:cursor-not-allowed transition-all`}
       >
         <ChevronLeft className="w-4 h-4" /> Back
       </button>
       {step < TOTAL_STEPS ? (
         <button onClick={onNext}
-          className="flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm text-white
+          className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm text-white
             bg-gradient-to-r from-violet-600 to-cyan-500
             shadow-[0_0_18px_rgba(124,58,237,0.4)]
             hover:shadow-[0_0_26px_rgba(124,58,237,0.7)]
-            hover:scale-105 transition-all">
+            hover:scale-105 transition-all`}>
           Continue <ChevronRight className="w-4 h-4" />
         </button>
       ) : (
         <button onClick={onLaunch} disabled={launching}
-          className="flex items-center gap-2 px-8 py-2.5 rounded-xl font-black text-sm text-black
+          className={`flex items-center gap-2 px-8 py-2.5 rounded-xl font-black text-sm text-black
             bg-gradient-to-r from-yellow-400 to-yellow-500
             shadow-[0_0_20px_rgba(255,215,0,0.5)]
             hover:shadow-[0_0_32px_rgba(255,215,0,0.8)]
-            hover:scale-105 disabled:opacity-60 disabled:cursor-not-allowed transition-all">
+            hover:scale-105 disabled:opacity-60 disabled:cursor-not-allowed transition-all`}>
           {launching ? (
             <><div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" /> Launching…</>
           ) : (
@@ -345,26 +352,272 @@ function NavButtons({ step, onPrev, onNext, onLaunch, launching }) {
 // MAIN WIZARD
 // ─────────────────────────────────────────────────────────────
 export default function CreateTournamentWizard() {
+  const { data: session } = useSession();
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    // Initialize Google API for Picker
+    if (typeof window !== "undefined") {
+      const loadGapi = () => {
+        if (window.gapi) {
+          window.gapi.load("picker", () => {
+             console.log("Google Picker loaded");
+          });
+        }
+      };
+      if (window.gapi) loadGapi();
+      else window.addEventListener("load", loadGapi);
+    }
+  }, []);
 
   // Persistent state
   const [step,        setStep]        = useState(() => ls("wiz_step", 1));
   const [config,      setConfig]      = useState(() => ls("wiz_config", DEFAULT_CONFIG));
   const [teams,       setTeams]       = useState(() => ls("wiz_teams", []));
-  const [icons,       setIcons]       = useState(() => ls("wiz_icons", []));
   const [players,     setPlayers]     = useState(() => ls("wiz_players", []));
-  const [originalPlayers, setOriginalPlayers] = useState(() => ls("wiz_original_players", []));
-  const [rulesConfig, setRulesConfig] = useState(() => ls("wiz_rules", DEFAULT_RULES_CONFIG));
+  const [originalPlayers, setOriginalPlayers] = useState(() => ls("wiz_orig_players", []));
+  const [showReuploadMenu, setShowReuploadMenu] = useState(false);
+  const [icons,       setIcons]       = useState(() => ls("wiz_icons", []));
   const [parsedData,  setParsedData]  = useState(null); // RAW data for multi-step use
+  const [rulesConfig, setRulesConfig] = useState(() => ls("wiz_rules", DEFAULT_RULES_CONFIG));
   const [errors,      setErrors]      = useState({});
   const [uploading,   setUploading]   = useState(false);
   const [converting,  setConverting]  = useState(false);
   const [launching,   setLaunching]   = useState(false);
   const [editTarget,  setEditTarget]  = useState(null); // { type: 'team'|'icon'|'player', index, url }
+  const [driveToken,  setDriveToken]  = useState(null);
+  
+  // Load Drive Token from storage on mount
+  useEffect(() => {
+    const savedToken = localStorage.getItem("google_drive_token");
+    if (savedToken) setDriveToken(savedToken);
+  }, []);
+
+  // Save Drive Token to storage whenever it updates
+  useEffect(() => {
+    if (driveToken) localStorage.setItem("google_drive_token", driveToken);
+  }, [driveToken]);
 
   // Save to localStorage whenever state changes
   useEffect(() => { sse("wiz_step",    step);    }, [step]);
   useEffect(() => { sse("wiz_config",  config);  }, [config]);
+
+  // Auto-sync Teams Array when numTeams changes
+  useEffect(() => {
+    if (!mounted) return;
+    const n = Number(config.numTeams);
+    if (!n || n < 2) return;
+    setTeams(prev => {
+      if (prev.length === n) return prev;
+      return Array.from({ length: n }, (_, i) => ({
+        name: prev[i]?.name || `Team ${i + 1}`,
+        shortName: prev[i]?.shortName || `T${i + 1}`,
+        logoUrl: prev[i]?.logoUrl || "",
+        color: prev[i]?.color || ["#7c3aed","#06b6d4","#f97316","#ef4444","#10b981","#f59e0b","#8b5cf6","#3b82f6","#ec4899","#14b8a6"][i % 10],
+      }));
+    });
+  }, [config.numTeams, mounted]);
+
+  // ── Google Drive Picker Logic ──────────────────
+  const openPicker = () => openPickerForModal();
+
+  const [playersHeader, setPlayersHeader] = useState({
+    id: "ID",
+    appId: "App ID",
+    name: "Name",
+    mobile: "Mobile Number",
+    role: "Role",
+    age: "Age",
+    village: "Village/Taluk",
+    price: "Base Price"
+  });
+
+  const handleDriveExcelImport = async (url) => {
+    try {
+      const fileId = url.match(/id=([a-zA-Z0-9_-]{10,})/)?.[1] || url.match(/\/d\/([a-zA-Z0-9_-]{10,})/)?.[1];
+      if (!fileId) throw new Error("Could not extract File ID from link");
+
+      // 1. Fetch metadata to check if it's a native Google Sheet
+      const metaRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
+        headers: { 'Authorization': `Bearer ${driveToken}` }
+      });
+      const metadata = await metaRes.json();
+      const isGoogleSheet = metadata.mimeType === "application/vnd.google-apps.spreadsheet";
+
+      // 2. Choose correct endpoint: Export for Google Sheets, alt=media for others
+      const downloadUrl = isGoogleSheet
+        ? `https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`
+        : `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
+
+      const response = await fetch(downloadUrl, {
+        headers: { 'Authorization': `Bearer ${driveToken}` }
+      });
+
+      if (!response.ok) {
+        const errJson = await response.json().catch(() => ({}));
+        throw new Error(errJson.error?.message || `Drive API Error: ${response.status}`);
+      }
+      
+      const arrayBuffer = await response.arrayBuffer();
+      const wb = XLSX.read(arrayBuffer, { type: "array", cellDates: true });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rawRows = XLSX.utils.sheet_to_json(sheet);
+      
+      extractFileHeaders(sheet);
+      processPlayerRows(rawRows);
+    } catch (err) {
+      console.error(err);
+      alert("Google Drive Sync Error: " + err.message);
+    }
+  };
+
+  const extractFileHeaders = (sheet) => {
+    const range = XLSX.utils.decode_range(sheet['!ref']);
+    const headers = {};
+    for (let C = range.s.c; C <= range.e.c; ++C) {
+      const cell = sheet[XLSX.utils.encode_cell({ r: range.s.r, c: C })];
+      if (cell && cell.t) {
+        const val = XLSX.utils.format_cell(cell).toLowerCase().trim();
+        const raw = XLSX.utils.format_cell(cell);
+        if (val.includes("name") || val.includes("ಹೆಸರು")) headers.name = raw;
+        if (val.includes("mobile") || val.includes("phone")) headers.mobile = raw;
+        if (val.includes("role") || val.includes("category")) headers.role = raw;
+        if (val.includes("village") || val.includes("address")) headers.village = raw;
+        if (val.includes("age") || val.includes("dob")) headers.age = raw;
+        if (val.includes("price")) headers.price = raw;
+      }
+    }
+    if (Object.keys(headers).length > 0) {
+      setPlayersHeader(prev => ({ ...prev, ...headers }));
+    }
+  };
+  const handlePlayersExcel = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const wb = XLSX.read(ev.target.result, { type: "binary", cellDates: true });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rawRows = XLSX.utils.sheet_to_json(sheet);
+      extractFileHeaders(sheet);
+      processPlayerRows(rawRows);
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  const processPlayerRows = (rawRows) => {
+    try {
+      // Basic extraction logic
+      const imported = rawRows.filter(r => findValue(r, ["name", "player name", "ಹೆಸರು", "ಹೆಸರು (name)"])).map((row, i) => {
+        const rawUrl = findValue(row, ["photo", "image", "ಚಿತ್ರ", "imageUrl", "link", "photo link", "ಭಾವಚಿತ್ರ (photograph)"]);
+        return {
+          id: i + 1,
+          name: findValue(row, ["name", "player name", "ಹೆಸರು", "ಹೆಸರು (name)"]) || `Player ${i+1}`,
+          mobile: findValue(row, ["mobile", "phone", "contact", "ಫೋನ್ ಸಂಖ್ಯೆ", "ಮೊಬೈಲ್ ಸಂಖ್ಯೆ", "ದೂರವಾಣಿ ಸಂಖ್ಯೆ (mobile number)"]) || "-",
+          village: findValue(row, ["village", "address", "ಊರು", "ಸ್ಥಳ", "ಊರು (village)"]) || "-",
+          role: normalizeRole(findValue(row, ["role", "category", "ಪಾತ್ರ", "ವಿಧ", "ಆಟದ ಶೈಲಿ (playing style)"])),
+          age: calculateAge(findValue(row, ["dob", "age", "ಪುಟ್ಟಿದ ದಿನಾಂಕ", "ವಯಸ್ಸು", "ವಯಸ್ಸು (age)"])) || 20,
+          basePrice: findValue(row, ["basePrice", "price", "base price", "ಮೂಲ ಬೆಲೆ", "ಮೂಲ ಬೆಲೆ (base price)"]) || config.defaultBasePrice || 100,
+          imageUrl: proxyUrl(rawUrl),
+          imageOriginalUrl: rawUrl,
+          imageLoading: false,
+          status: "available",
+        };
+      });
+
+      setPlayers(imported);
+      setOriginalPlayers(imported);
+      setErrors({});
+      setTimeout(() => fixPlayerImages(imported), 1000);
+    } catch (err) {
+      alert("Format error: " + err.message);
+    }
+  };
+
+  const openPickerForModal = (customCallback = null, mode = "image") => {
+    console.log("openPickerForModal triggered", { mode, hasToken: !!driveToken });
+    
+    // 1. If we have a token, launch directly
+    if (driveToken) {
+       launchPicker(driveToken, customCallback, mode);
+       return;
+    }
+
+    // 2. If Google isn't ready, alert and try to load (self-repair)
+    if (!window.google || !window.google.accounts || !window.google.accounts.oauth2) {
+       console.warn("Google GIS not ready, retrying in 1s...");
+       const statusToast = document.createElement("div");
+       statusToast.className = "fixed bottom-10 right-10 z-[300] bg-amber-500 text-black px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest shadow-2xl animate-bounce";
+       statusToast.innerText = "Initializing Google Drive... Try in 1 second";
+       document.body.appendChild(statusToast);
+       setTimeout(() => statusToast.remove(), 3000);
+       return;
+    }
+
+    const client = window.google.accounts.oauth2.initTokenClient({
+      client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "137237976719-tom4ebrn5so6n3jvobj6ni9bhh9fret3.apps.googleusercontent.com",
+      scope: "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file",
+      callback: (res) => {
+        if (res.access_token) {
+          setDriveToken(res.access_token);
+          launchPicker(res.access_token, customCallback, mode);
+        }
+      },
+    });
+    client.requestAccessToken();
+  };
+
+  const launchPicker = (token, customCallback = null, mode = "image") => {
+    if (!window.gapi) return;
+    window.gapi.load("picker", () => {
+      let docsView;
+      if (mode === "excel") {
+        docsView = new window.google.picker.DocsView(window.google.picker.ViewId.DOCS)
+          .setIncludeFolders(true)
+          .setMimeTypes("application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv,application/vnd.google-apps.spreadsheet");
+      } else {
+        docsView = new window.google.picker.DocsView()
+          .setIncludeFolders(true)
+          .setMimeTypes("image/png,image/jpeg,image/jpg");
+      }
+
+      const picker = new window.google.picker.PickerBuilder()
+        .setDeveloperKey(process.env.NEXT_PUBLIC_GOOGLE_API_KEY)
+        .setOAuthToken(token)
+        .addView(docsView)
+        .addView(new window.google.picker.DocsView(window.google.picker.ViewId.FOLDERS))
+        .setCallback((data) => {
+          if (data[window.google.picker.Response.ACTION] === window.google.picker.Action.PICKED) {
+            const doc = data[window.google.picker.Response.DOCUMENTS][0];
+            const driveId = doc[window.google.picker.Document.ID];
+            const driveUrl = `https://drive.google.com/uc?export=view&id=${driveId}`;
+            
+            if (customCallback) {
+               customCallback(driveUrl);
+            } else {
+               handleDriveLinkImport(driveUrl, "tournaments", (s3Url) => {
+                 setConfig(p => ({ ...p, organizerLogo: s3Url }));
+               });
+            }
+          }
+        })
+        .build();
+      picker.setVisible(true);
+    });
+  };
+
+  // Handle Drive Picker request from Modal
+  useEffect(() => {
+    const handlePickerReq = (e) => {
+      console.log("Wizard received open-drive-picker event");
+      const callback = e.detail;
+      openPickerForModal(callback);
+    };
+    window.addEventListener("open-drive-picker", handlePickerReq);
+    return () => window.removeEventListener("open-drive-picker", handlePickerReq);
+  }, [driveToken]);
   useEffect(() => { sse("wiz_teams",   teams);   }, [teams]);
   useEffect(() => { sse("wiz_icons",   icons);   }, [icons]);
   useEffect(() => { sse("wiz_players", players); }, [players]);
@@ -377,6 +630,8 @@ export default function CreateTournamentWizard() {
       setOriginalPlayers([...players]);
     }
   }, [players, originalPlayers]);
+
+  if (!mounted) return null;
 
   // ── Reset ──────────────────────────────────────────────────
   const fullReset = () => {
@@ -425,9 +680,7 @@ export default function CreateTournamentWizard() {
   };
 
   const validateStep5 = () => {
-    if (players.length === 0) {
-      setErrors({ players: "Upload at least one player" }); return false;
-    }
+    // We now allow 0 players initially if they plan to use the registration link
     setErrors({});
     return true;
   };
@@ -444,59 +697,57 @@ export default function CreateTournamentWizard() {
     setErrors({});
     if (step === 1) {
       if (!validateStep1()) return;
-      const n = Number(config.numTeams);
-      const existing = teams.length === n ? teams : Array.from({ length: n }, (_, i) => ({
-        name: teams[i]?.name || `Team ${i + 1}`,
-        shortName: teams[i]?.shortName || `T${i + 1}`,
-        logoUrl: teams[i]?.logoUrl || "",
-        color: ["#7c3aed","#06b6d4","#f97316","#ef4444","#10b981","#f59e0b","#8b5cf6","#3b82f6","#ec4899","#14b8a6"][i % 10],
-      }));
-      setTeams(existing);
+      // Teams are now auto-synced via useEffect, so we just proceed
       setStep(2);
     } else if (step === 2) {
       if (!validateStep2()) return;
-      // Generate icon slots and auto-fill from temporary store if exists
-      const total = config.numTeams * config.iconsPerTeam;
-      const cachedIcons = ls("wiz_temp_icons", []);
       
-      const slots = [];
-      teams.forEach((team, ti) => {
-        const sysT = team.name.toLowerCase().trim();
-        const matchIcons = cachedIcons.filter(ci => {
-          if (ci.assigned) return false;
-          const impT = ci.teamName?.toLowerCase().trim();
-          return impT && (sysT.includes(impT) || impT.includes(sysT));
-        });
-        
-        if (matchIcons.length > 0) {
-          matchIcons.forEach(match => {
-            match.assigned = true;
-            slots.push({ ...match, team: team.name, teamIdx: ti });
+      // Generate icon slots only if none exist
+      if (icons.length === 0) {
+        const cachedIcons = ls("wiz_temp_icons", []);
+        const slots = [];
+        teams.forEach((team, ti) => {
+          const sysT = team.name.toLowerCase().trim();
+          const matchIcons = cachedIcons.filter(ci => {
+            if (ci.assigned) return false;
+            const impT = ci.teamName?.toLowerCase().trim();
+            return impT && (sysT.includes(impT) || impT.includes(sysT));
           });
-        } else {
-          // If no CSV match, populate C & VC only (2 cards max default)
-          for (let j = 0; j < Math.min(2, config.iconsPerTeam); j++) {
-            slots.push({ 
-              name: "To be confirmed", 
-              role: "All-Rounder", 
-              category: "1st year",
-              village: "TBC", 
-              age: "TBC", 
-              applicationId: "-",
-              mobile: "-",
-              imageUrl: team.logoUrl || "", 
-              team: team.name, 
-              teamIdx: ti,
-              iconRole: iconRoleForSlot(j),
+          
+          if (matchIcons.length > 0) {
+            matchIcons.forEach(match => {
+              match.assigned = true;
+              slots.push({ ...match, team: team.name, teamIdx: ti });
             });
+          } else {
+            // Generate icon slots based on config
+            const count = config.iconsPerTeam !== undefined ? config.iconsPerTeam : 2;
+            for (let j = 0; j < count; j++) {
+              slots.push({ 
+                name: "To be confirmed", 
+                role: "All-Rounder", 
+                category: "1st year",
+                village: "TBC", 
+                age: "TBC", 
+                applicationId: "-",
+                mobile: "-",
+                imageUrl: team.logoUrl || "", 
+                team: team.name, 
+                teamIdx: ti,
+                iconRole: iconRoleForSlot(j),
+              });
+            }
           }
-        }
-      });
-      setIcons(slots);
-      
-      // Auto-trigger image fix for Drive links
-      const driveLinks = slots.filter(s => s.imageUrl?.includes("drive.google.com")).map(s => s.imageUrl);
-      if (driveLinks.length > 0) fixIconImages(slots);
+        });
+        setIcons(slots);
+        
+        // Auto-trigger image fix for Drive links
+        const driveLinks = slots.filter(s => s.imageUrl?.includes("drive.google.com")).map(s => s.imageUrl);
+        if (driveLinks.length > 0) fixIconImages(slots);
+      } else {
+        // Clean up any orphaned icons if numTeams was reduced
+        setIcons(prev => prev.filter(ic => ic.teamIdx < config.numTeams));
+      }
       
       setStep(3);
     } else if (step === 3) {
@@ -509,6 +760,8 @@ export default function CreateTournamentWizard() {
   };
 
   const goPrev = () => setStep(s => Math.max(s - 1, 1));
+
+  // (Picker logic moved to top)
 
   // ── Image upload ───────────────────────────────────────────
   const handleImageUpload = async (file, callback, folder = "teams") => {
@@ -625,19 +878,32 @@ export default function CreateTournamentWizard() {
     }
   };
 
-  // Helper: Deduced Year from USN based on 2026
-  const calculateYearFromUSN = (usnStr) => {
-    if (!usnStr || typeof usnStr !== 'string') return "1st year";
-    const match = usnStr.match(/2[0-9]/);
-    if (match) {
-      const yr = parseInt(match[0], 10);
-      const diff = 26 - yr;
-      if (diff === 3) return "3rd year";
-      if (diff === 2) return "2nd year";
-      if (diff >= 4) return "4th year";
+  const handleDriveLinkImport = async (url, folder, callback) => {
+    if (!url || !url.includes("drive.google.com")) {
+      alert("Please enter a valid Google Drive link");
+      return;
     }
-    return "1st year";
+    setConverting(true);
+    try {
+      const res = await fetch(`${API_URL}/api/upload/proxy-url`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url, folder })
+      });
+      const data = await res.json();
+      if (data.s3Url) {
+        callback(data.s3Url);
+      } else {
+        alert("Failed to process drive link: " + (data.error || "Unknown error"));
+      }
+    } catch (err) {
+      alert("Import failed: " + err.message);
+    } finally {
+      setConverting(false);
+    }
   };
+
+  // Helper: USN based year calculation removed to restore legacy system
 
   // ── Helper: Extract Icons Column-wise ──
   const extractIconsFromRow = (row, teamName) => {
@@ -679,12 +945,11 @@ export default function CreateTournamentWizard() {
         imageUrl: proxyUrl(pImg),
         imageOriginalUrl: pImg,
         role: "All-Rounder", // default backend necessity
-        category: calculateYearFromUSN(pUsn || ""), // Dynamic Year calculation from USN
         village: "-", 
         age: 0, 
         teamName, 
         iconRole: roleType,
-        applicationId: pUsn || "-", // Store USN but don't use it for assignment
+        applicationId: "-", // Store placeholder
       };
     };
 
@@ -720,7 +985,6 @@ export default function CreateTournamentWizard() {
           let next = [...prev];
           data.results.forEach(res => {
             if (res.success) {
-              // Update all instances using this URL
               next = next.map(ic => ic.imageOriginalUrl === res.originalUrl ? { ...ic, imageUrl: res.s3Url, imageOriginalUrl: null } : ic);
             }
           });
@@ -745,12 +1009,13 @@ export default function CreateTournamentWizard() {
         let updated = [...icons];
 
         rows.forEach(row => {
-          const teamMatch = findValue(row, ["team","teamName","team name"]);
+          const teamMatch = findValue(row, ["team","teamname","team name","ತಂಡ"]);
           if (!teamMatch) return;
           const tIdx = teams.findIndex(t => {
             const sysT = t.name.toLowerCase().trim();
-            const impT = teamMatch.toLowerCase().trim();
-            return sysT.includes(impT) || impT.includes(sysT);
+            const sysS = (t.shortName || "").toLowerCase().trim();
+            const impT = String(teamMatch).toLowerCase().trim();
+            return sysT.includes(impT) || impT.includes(sysT) || (sysS && (sysS === impT || impT.includes(sysS)));
           });
           if (tIdx === -1) return;
 
@@ -767,7 +1032,6 @@ export default function CreateTournamentWizard() {
                 updated[slot] = {
                   ...updated[slot],
                   name: extItem.name,
-                  category: extItem.category, // Use pre-calculated category from extraction
                   mobile: extItem.mobile,
                   imageUrl: extItem.imageUrl,
                   imageOriginalUrl: extItem.imageOriginalUrl,
@@ -786,18 +1050,33 @@ export default function CreateTournamentWizard() {
              if (slot !== -1) {
                updated[slot] = {
                  ...updated[slot],
-                 name:     findValue(row, ["player name", "playerName", "icon", "name"]) || "",
+                 name:     findValue(row, ["player name", "playerName", "icon", "name"]) || "Unknown Icon",
                  role:     normalizeRole(findValue(row, ["role", "type", "position"])),
                  mobile:   findValue(row, ["phone", "mobile", "phn"]) || "-",
                  imageUrl: proxyUrl(findValue(row, ["imageUrl", "photo", "image", "link", "url"])),
                  imageOriginalUrl: findValue(row, ["imageUrl", "photo", "image", "link", "url"]),
                };
+             } else {
+               // If no slot found, push a new icon for this team
+               updated.push({
+                 name:     findValue(row, ["player name", "playerName", "icon", "name"]) || "Unknown Icon",
+                 role:     normalizeRole(findValue(row, ["role", "type", "position"])),
+                 mobile:   findValue(row, ["phone", "mobile", "phn"]) || "-",
+                 imageUrl: proxyUrl(findValue(row, ["imageUrl", "photo", "image", "link", "url"])),
+                 imageOriginalUrl: findValue(row, ["imageUrl", "photo", "image", "link", "url"]),
+                 team:     teams[tIdx].name,
+                 teamIdx:  tIdx,
+                 iconRole: null,
+                 village:  "-",
+                 applicationId: "-"
+               });
              }
           }
+
         });
         setIcons(updated);
         fixIconImages(updated);
-      } catch { alert("Invalid file format"); }
+      } catch (err) { console.error("Icon upload error:", err); alert("Invalid file format or error parsing rows: " + err.message); }
     };
     reader.readAsBinaryString(file);
     e.target.value = "";
@@ -850,60 +1129,7 @@ export default function CreateTournamentWizard() {
     }
   };
 
-  // ── Excel: Players ─────────────────────────────────────────
-  const handlePlayersExcel = (e) => {
-    const file = e.target.files[0]; if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async (ev) => {
-      try {
-        const wb = XLSX.read(ev.target.result, { type: "binary", cellDates: true });
-        const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
-        
-        const imported = rows.map((row, i) => {
-          const dobVal = findValue(row, ["dob", "date of birth", "birth", "ಹುಟ್ಟಿದ ದಿನಾಂಕ", "d.o.b", "birthdate", "birth_date", "dateofbirth"]);
-          const calcAge = calculateAge(dobVal);
-          const rawAge = findValue(row, ["age", "years", "ವಯಸ್ಸು", "playerage", "player_age"]);
-          const rawUrl = findValue(row, ["imageUrl", "photo", "image", "id card", "idcard", "id card photo", "link", "url", "ಭಾವಚಿತ್ರ"]) || "";
-          const rawUSN = findValue(row, ["usn", "roll no", "id number", "id", "roll"]);
-
-          const r = normalizeRole(findValue(row, [
-              "playing role", "playerrole", "player role", "role", "skill", "type", "position", "playing style", "batting/bowling", "speciality", "specialty", "ಪಾತ್ರ", "ಸ್ಥಾನ", "ವಿಭಾಗ"
-            ]));
-
-          return {
-            id: i + 1,
-            name:         findValue(row, ["player name", "playerName", "name", "player", "ಆಟಗಾರನ ಹೆಸರು"]) || "PLAYER NAME",
-            role: r,
-            category: normalizeCategory(findValue(row, ["year", "yer", "batch", "class", "category", "ವರ್ಷ", "ವರ್ಗ"])),
-            age:         Number(calcAge) || Number(rawAge) || 0,
-            dob:          dobVal ? (dobVal instanceof Date ? dobVal.toLocaleDateString() : String(dobVal)) : "",
-            mobile:       findValue(row, ["phonenumebr", "mobile", "phone", "contact", "ಮೊಬೈಲ್", "ದೂರವಾಣಿ"]) || "-",
-            battingStyle: findValue(row, ["batting", "battingStyle", "style", "ಬ್ಯಾಟಿಂಗ್"]) || "Right Hand",
-            bowlingStyle: findValue(row, ["bowling", "bowlingStyle", "ಬೌಲಿಂಗ್"]) || "-",
-            village:      findValue(row, ["village", "town", "city", "ಗ್ರಾಮ", "ಸ್ಥಳ"]) || "-",
-            basePrice:    config.auctionMode === "points" ? (r === "All-Rounder" ? rulesConfig.basePrice.allRounder : rulesConfig.basePrice.batsman) : (Number(findValue(row, ["basePrice", "price", "base price", "amount", "ಮೂಲ ಬೆಲೆ"])) || config.defaultBasePrice),
-            imageUrl:     proxyUrl(rawUrl),   // shows instantly via proxy
-            imageOriginalUrl: rawUrl,     // kept for S3 conversion later
-            imageLoading: false,          // no loading state needed anymore!
-            status:       "available",
-          };
-        });
-
-        setPlayers(imported);
-        setOriginalPlayers(imported);
-        setErrors({});
-
-        // S3 conversion runs silently — user already sees images via proxy
-        setTimeout(() => fixPlayerImages(imported), 1000);
-
-      } catch (err) { 
-        console.error(err);
-        alert("Invalid player file format"); 
-      }
-    };
-    reader.readAsBinaryString(file);
-    e.target.value = "";
-  };
+  // ── Excel: Players Logic is handled near top of file ──────────────────
 
   // ── Launch ─────────────────────────────────────────────────
   const launchAuction = async () => {
@@ -923,9 +1149,7 @@ export default function CreateTournamentWizard() {
               ...p, 
               isIcon: true, 
               status: "sold", 
-              soldPrice: (config.auctionMode === 'points' && p.iconRole === 'retained') 
-                ? rulesConfig.retention.costPerPlayer 
-                : 0 
+              soldPrice: 0 // Icons always cost 0 in legacy system
             })),
             ...players,
           ],
@@ -977,13 +1201,16 @@ export default function CreateTournamentWizard() {
           <p className="text-slate-500 text-xs mt-0.5">All changes are auto-saved locally</p>
         </div>
         <button onClick={fullReset}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-bold text-red-400
-            bg-red-500/10 border border-red-500/15 hover:bg-red-500/20 transition-all">
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-bold text-red-400
+            bg-red-500/10 border border-red-500/15 hover:bg-red-500/20 transition-all`}>
           <RefreshCw className="w-3 h-3" /> Reset All
         </button>
+
+        <Script src="https://apis.google.com/js/api.js" strategy="lazyOnload" />
+        <Script src="https://accounts.google.com/gsi/client" strategy="lazyOnload" />
       </div>
 
-      <ProgressBar step={step} />
+      <ProgressBar step={step} onStepClick={setStep} />
 
       {/* Step separator */}
       <div className="h-px bg-white/5 mx-6 mt-6" />
@@ -1028,29 +1255,78 @@ export default function CreateTournamentWizard() {
                         </div>
 
                         <div className="flex-1 space-y-3">
-                            <input 
-                              type="file" 
-                              accept="image/*" 
-                              id="org-logo" 
-                              className="hidden" 
-                              onChange={(e) => handleImageUpload(e.target.files[0], (url) => setConfig(p => ({ ...p, organizerLogo: url })), "tournaments")} 
-                            />
-                            <label 
-                              htmlFor="org-logo"
-                              className="inline-flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-[10px] font-black uppercase tracking-wider cursor-pointer shadow-lg shadow-violet-600/20 active:scale-95 transition-all"
-                            >
-                                <Upload className="w-3.5 h-3.5" /> {config.organizerLogo ? "Change Logo" : "Upload Brand Logo"}
-                            </label>
-                            {config.organizerLogo && (
-                                <button 
-                                  onClick={() => setConfig(p => ({ ...p, organizerLogo: "" }))}
-                                  className="ml-3 text-[10px] font-bold text-red-400 hover:text-red-300 transition-colors uppercase tracking-widest"
+                            {/* Google Picker Bridge */}
+                            <Script src="https://apis.google.com/js/api.js" strategy="lazyOnload" />
+                            <Script src="https://accounts.google.com/gsi/client" strategy="lazyOnload" />
+
+                            <div className="flex flex-wrap items-center gap-2">
+                                <input 
+                                  type="file" 
+                                  accept="image/*" 
+                                  id="org-logo" 
+                                  className="hidden" 
+                                  onChange={(e) => handleImageUpload(e.target.files[0], (url) => setConfig(p => ({ ...p, organizerLogo: url })), "tournaments")} 
+                                />
+                                <label 
+                                  htmlFor="org-logo"
+                                  className="inline-flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-[10px] font-black uppercase tracking-wider cursor-pointer shadow-lg shadow-violet-600/20 active:scale-95 transition-all w-fit"
                                 >
-                                   Remove
+                                    <Upload className="w-3.5 h-3.5" /> {config.organizerLogo ? "Change Logo" : "Upload Brand Logo"}
+                                </label>
+
+                                <button 
+                                    type="button"
+                                    onClick={openPicker}
+                                    className="inline-flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider cursor-pointer border border-white/10 active:scale-95 transition-all"
+                                >
+                                    <div className="w-4 h-4 rounded bg-white p-0.5"><img src="https://upload.wikimedia.org/wikipedia/commons/1/12/Google_Drive_icon_%282020%29.svg" alt="" /></div>
+                                    Select from Drive
                                 </button>
-                            )}
-                            <p className="text-[9px] text-slate-500 font-medium italic underline underline-offset-4 decoration-slate-800">
-                                This logo acts as the primary visual identity for the entire tournament.
+                                {config.organizerLogo && (
+                                    <button 
+                                      onClick={() => setConfig(p => ({ ...p, organizerLogo: "" }))}
+                                      className="text-[10px] font-black text-red-500 hover:text-red-400 transition-colors uppercase tracking-widest bg-red-500/10 px-3 py-2 rounded-xl border border-red-500/20"
+                                    >
+                                       Remove
+                                    </button>
+                                )}
+                            </div>
+
+                            <div className="flex items-center gap-2 max-w-sm">
+                                <div className="relative flex-1">
+                                    <ExternalLink className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-500" />
+                                    <input 
+                                        type="text"
+                                        placeholder="Or paste Google Drive link here..."
+                                        className="w-full bg-slate-950/50 border border-white/10 rounded-xl pl-9 pr-3 py-2 text-[10px] font-bold text-white outline-none focus:border-cyan-500/50 transition-all placeholder:text-slate-600"
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                e.preventDefault();
+                                                handleDriveLinkImport(e.target.value, "tournaments", (url) => {
+                                                    setConfig(p => ({ ...p, organizerLogo: url }));
+                                                    e.target.value = "";
+                                                });
+                                            }
+                                        }}
+                                    />
+                                </div>
+                                <button 
+                                    type="button"
+                                    onClick={(e) => {
+                                        const input = e.currentTarget.previousSibling.querySelector('input');
+                                        handleDriveLinkImport(input.value, "tournaments", (url) => {
+                                            setConfig(p => ({ ...p, organizerLogo: url }));
+                                            input.value = "";
+                                        });
+                                    }}
+                                    className="px-4 py-2 bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-cyan-500/20 transition-all active:scale-95"
+                                >
+                                    Import
+                                </button>
+                            </div>
+                            
+                            <p className="text-[9px] text-slate-500 font-medium italic">
+                                Supports Google Drive, Photos, or any direct image URL.
                             </p>
                         </div>
                     </div>
@@ -1069,41 +1345,9 @@ export default function CreateTournamentWizard() {
             {/* ── Auction Date ── */}
             <Field label="Auction Date" hint="Optional planning reference">
               <input type="date" className={inputCls(false)} value={config.auctionDate}
+                min={getTodayDate()}
                 onChange={e => setConfig(p => ({ ...p, auctionDate: e.target.value }))} />
             </Field>
-
-            {/* ── NEW: Auction Currency Mode ── */}
-            <div className="md:col-span-2">
-              <Field label="Auction Currency Mode *"
-                hint={config.auctionMode === 'points' ? 'Budgets and bids will be expressed in Points, not ₹' : 'Standard money-based auction (₹ INR)'}>
-                <div className="grid grid-cols-2 gap-3">
-                  {[{ val: 'money', icon: '💰', title: 'Money (₹)', desc: 'INR-based bidding' },
-                    { val: 'points', icon: '⚡', title: 'Points', desc: 'Point-based bidding' }].map(opt => (
-                    <button
-                      key={opt.val}
-                      type="button"
-                      onClick={() => setConfig(p => ({
-                        ...p,
-                        auctionMode: opt.val,
-                        baseBudget: opt.val === 'points' ? 200 : 10000,
-                        defaultBasePrice: opt.val === 'points' ? 2 : 100,
-                      }))}
-                      className={`flex items-center gap-3 px-4 py-3 rounded-xl border-2 font-bold text-sm transition-all ${
-                        config.auctionMode === opt.val
-                          ? 'border-violet-500 bg-violet-500/15 text-white shadow-[0_0_16px_rgba(124,58,237,0.35)]'
-                          : 'border-white/10 bg-white/[0.03] text-slate-400 hover:border-white/20 hover:text-white'
-                      }`}
-                    >
-                      <span className="text-xl">{opt.icon}</span>
-                      <div className="text-left">
-                        <p className="font-black text-sm">{opt.title}</p>
-                        <p className="text-[10px] font-normal opacity-60">{opt.desc}</p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </Field>
-            </div>
 
             <Field label="Number of Teams *" error={errors.numTeams}>
               <input type="number" min={2} max={30} className={inputCls(errors.numTeams)}
@@ -1120,11 +1364,11 @@ export default function CreateTournamentWizard() {
 
             {/* ── Budget — label/symbol adapts to auctionMode ── */}
             <Field
-              label={config.auctionMode === 'points' ? 'Team Budget (Points) *' : 'Team Budget (₹) *'}
+              label="Team Budget (₹) *"
               error={errors.baseBudget}>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-sm font-black pointer-events-none select-none">
-                  {config.auctionMode === 'points' ? 'Pts' : '₹'}
+                  ₹
                 </span>
                 <input type="number" min={1}
                   className={`${inputCls(errors.baseBudget)} pl-10`}
@@ -1158,7 +1402,7 @@ export default function CreateTournamentWizard() {
                   hint="Max roster incl. icons">
                   <input type="number" min={1} className={inputCls(errors.squadSize)}
                     value={config.squadSize}
-                    onChange={e => setConfig(p => ({ ...p, squadSize: Number(e.target.value) || 0 }))} />
+                    onChange={e => setConfig(p => ({ ...p, squadSize: Number(e.target.value) }))} />
                 </Field>
                 <Field label="Min Players per Team" hint="Soft lower limit">
                   <input type="number" min={1} className={inputCls(false)}
@@ -1168,7 +1412,26 @@ export default function CreateTournamentWizard() {
                 <Field label="Max Players per Team" hint="Hard upper limit">
                   <input type="number" min={1} className={inputCls(false)}
                     value={config.squadMaxPlayers}
-                    onChange={e => setConfig(p => ({ ...p, squadMaxPlayers: Number(e.target.value) || 15 }))} />
+                    onChange={e => setConfig(p => ({ ...p, squadMaxPlayers: Number(e.target.value) }))} />
+                </Field>
+              </div>
+            </div>
+
+            {/* ── NEW: Registration Page Customization ── */}
+            <div className="md:col-span-2 mt-4">
+              <p className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-3 px-0.5">Registration Page Customization</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Field label="Registration Page Title" hint="Main heading displayed on the player portal">
+                  <input type="text" className={inputCls(false)}
+                    value={config.registrationTitle || ""}
+                    placeholder="e.g. JOIN THE BATTLE"
+                    onChange={e => setConfig(p => ({ ...p, registrationTitle: e.target.value }))} />
+                </Field>
+                <Field label="Tournament Details / Guidelines" hint="Displayed to players during registration">
+                  <textarea rows={2} className={`${inputCls(false)} resize-none`}
+                    value={config.registrationDetails || ""}
+                    placeholder="Enter tournament rules, dates, or contact info..."
+                    onChange={e => setConfig(p => ({ ...p, registrationDetails: e.target.value }))} />
                 </Field>
               </div>
             </div>
@@ -1191,10 +1454,7 @@ export default function CreateTournamentWizard() {
             {[
               ["Total Teams",   config.numTeams],
               ["Total Icons",   config.numTeams * config.iconsPerTeam],
-              ["Budget / Team", config.auctionMode === 'points'
-                ? `${Number(config.baseBudget).toLocaleString()} Pts`
-                : `₹${(config.baseBudget).toLocaleString()}`
-              ],
+              ["Budget / Team", `₹${(config.baseBudget).toLocaleString()}`],
             ].map(([label, val]) => (
               <div key={label} className="text-center">
                 <p className="text-xl font-black text-white">{val}</p>
@@ -1214,8 +1474,8 @@ export default function CreateTournamentWizard() {
         }} resetLabel="Reset Teams">
           {/* Bulk upload */}
           <div className="flex items-center gap-3">
-            <label className="flex-1 flex items-center justify-center gap-3 py-3 rounded-xl border-2 border-dashed border-violet-500/30
-              bg-violet-500/5 hover:bg-violet-500/10 cursor-pointer transition-all group">
+            <label className={`flex-1 flex items-center justify-center gap-3 py-3 rounded-xl border-2 border-dashed border-violet-500/30
+              bg-violet-500/5 hover:bg-violet-500/10 cursor-pointer transition-all group`}>
               <Upload className="w-4 h-4 text-violet-400 group-hover:scale-110 transition-transform" />
               <span className="text-sm font-bold text-violet-400">Bulk Upload Teams (Excel / CSV)</span>
               <input type="file" className="hidden" accept=".xlsx,.xls,.csv" onChange={handleTeamsExcel} />
@@ -1279,11 +1539,18 @@ export default function CreateTournamentWizard() {
       {/* ── STEP 3: Icon Players ── */}
       {step === 3 && (
         <StepCard step={3} onReset={() => {
-          // Reset just generates C & VC
-          setIcons(teams.flatMap((t, ti) => [
-            { name: "To be confirmed", role: "All-Rounder", category: "1st year", iconRole: "captain", teamIdx: ti, team: t.name, applicationId: "-", mobile: "-" },
-            { name: "To be confirmed", role: "All-Rounder", category: "1st year", iconRole: "viceCaptain", teamIdx: ti, team: t.name, applicationId: "-", mobile: "-" }
-          ]));
+          // Generate icons based on iconsPerTeam setting
+          setIcons(teams.flatMap((t, ti) => 
+            Array.from({ length: config.iconsPerTeam || 2 }).map((_, i) => ({
+              name: "To be confirmed",
+              role: "All-Rounder",
+              iconRole: i === 0 ? "captain" : i === 1 ? "viceCaptain" : null,
+              teamIdx: ti,
+              team: t.name,
+              applicationId: "-",
+              mobile: "-"
+            }))
+          ));
         }} resetLabel="Reset Icons">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-black text-white">Icon Players</h3>
@@ -1344,7 +1611,7 @@ export default function CreateTournamentWizard() {
                     <span className="font-black text-sm text-white uppercase tracking-wide">{team.name}</span>
                     <span className="text-[10px] text-slate-500 bg-white/5 px-2 py-0.5 rounded-full">{teamIcons.length} icon{teamIcons.length > 1 ? "s" : ""}</span>
                     <button type="button" onClick={() => {
-                        const newIcon = { name: "To be confirmed", role: "All-Rounder", category: "1st year", village: "-", age: "-", applicationId: "-", mobile: "-", imageUrl: "", team: team.name, teamIdx: ti, iconRole: null };
+                        const newIcon = { name: "To be confirmed", role: "All-Rounder", village: "-", mobile: "-", imageUrl: "", team: team.name, teamIdx: ti, iconRole: null };
                         setIcons([...icons, newIcon]);
                     }} className="ml-auto flex items-center gap-1 text-[10px] font-black uppercase text-violet-400 border border-violet-500/20 hover:bg-violet-500/10 px-2 py-1 rounded transition-colors">
                         <Plus className="w-3 h-3" /> Add
@@ -1369,86 +1636,32 @@ export default function CreateTournamentWizard() {
                               }}>
                               <Maximize className="w-4 h-4 text-white" />
                             </div>
-                            {/* Role badge overlay */}
-                            {icon.iconRole && (
-                              <div className={`absolute bottom-0 left-0 right-0 text-center text-[8px] font-black uppercase tracking-widest py-0.5
-                                ${icon.iconRole === "captain"     ? "bg-amber-500/90 text-black"
-                                : icon.iconRole === "viceCaptain" ? "bg-slate-400/90 text-black"
-                                : "bg-emerald-600/90 text-white"}`}>
-                                {icon.iconRole === "captain" ? "C" : icon.iconRole === "viceCaptain" ? "VC" : "R"}
-                              </div>
-                            )}
+                            {/* No role badge overlay as per user request */}
                           </div>
 
                           <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-3">
-                            <div className="col-span-2">
-                              <input placeholder="Icon Name *" value={icon.name}
-                                onChange={e => {
-                                  const ni = [...icons]; ni[globalIdx].name = e.target.value; setIcons(ni);
-                                }}
-                                className={`w-full bg-transparent border-b ${err ? "border-red-500" : "border-white/10"} py-1 font-bold text-white text-sm focus:border-violet-500 outline-none placeholder:text-slate-600 transition-colors`} />
-                            </div>
-                            <select title="Year" value={icon.category || "1st year"}
-                              onChange={e => { const ni = [...icons]; ni[globalIdx].category = e.target.value; setIcons(ni); }}
-                              className="bg-[#0B0F2A] border border-white/10 rounded-lg px-2 py-1 text-xs font-bold text-slate-300 focus:border-violet-500 outline-none">
-                              {["1st year","2nd year","3rd year", "4th year"].map(v => <option key={v}>{v}</option>)}
-                            </select>
-                            <input title="USN / App ID" placeholder="USN" value={icon.applicationId}
-                              onChange={e => { 
-                                const ni = [...icons]; 
-                                ni[globalIdx].applicationId = e.target.value; 
-                                ni[globalIdx].category = calculateYearFromUSN(e.target.value); 
-                                setIcons(ni); 
-                              }}
-                              className="bg-transparent border border-white/10 rounded-lg px-2 py-1 text-xs font-bold text-slate-300 focus:border-violet-500 outline-none placeholder:text-slate-600 transition-colors" />
-                            <input title="Contact Number" placeholder="Phone" value={icon.mobile}
-                              onChange={e => { const ni = [...icons]; ni[globalIdx].mobile = e.target.value; setIcons(ni); }}
-                              className="bg-transparent border border-white/10 rounded-lg px-2 py-1 text-xs font-bold text-slate-300 focus:border-violet-500 outline-none placeholder:text-slate-600 transition-colors" />
-                            {/* USN Display Only - Not used for auction assignment */}
-                            {icon.applicationId && icon.applicationId !== "-" && (
-                              <div className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs font-bold text-slate-400">
-                                USN: {icon.applicationId}
+                              <div className="col-span-2">
+                                <input placeholder="Icon Name *" value={icon.name}
+                                  onChange={e => {
+                                    const ni = [...icons]; ni[globalIdx].name = e.target.value; setIcons(ni);
+                                  }}
+                                  className={`w-full bg-transparent border-b ${err ? "border-red-500" : "border-white/10"} py-1 font-bold text-white text-sm focus:border-violet-500 outline-none placeholder:text-slate-600 transition-colors`} />
                               </div>
-                            )}
+                              <input title="Village" placeholder="Village" value={icon.village || "-"}
+                                onChange={e => { 
+                                  const ni = [...icons]; 
+                                  ni[globalIdx].village = e.target.value; 
+                                  setIcons(ni); 
+                                }}
+                                className="bg-transparent border border-white/10 rounded-lg px-2 py-1 text-xs font-bold text-slate-300 focus:border-violet-500 outline-none placeholder:text-slate-600 transition-colors" />
+                              <input title="Contact Number" placeholder="Phone" value={icon.mobile}
+                                onChange={e => { const ni = [...icons]; ni[globalIdx].mobile = e.target.value; setIcons(ni); }}
+                                className="bg-transparent border border-white/10 rounded-lg px-2 py-1 text-xs font-bold text-slate-300 focus:border-violet-500 outline-none placeholder:text-slate-600 transition-colors" />
                             
                             {/* ── Icon Assignment pills ── */}
                             <div className="col-span-2 md:col-span-4 flex items-center gap-2 pt-1 border-t border-white/5 mt-1">
-                              <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 shrink-0">Assignment:</span>
-                              {[
-                                { val: "captain",     label: "C",   fullLabel: "Captain",      color: "amber" },
-                                { val: "viceCaptain", label: "VC",  fullLabel: "Vice Captain",  color: "slate" },
-                                { val: "retained",   label: "R",   fullLabel: "Retained",      color: "emerald" },
-                              ].map(opt => {
-                                const active = icon.iconRole === opt.val;
-                                const colorMap = {
-                                  amber:   active ? "bg-amber-500/25 border-amber-400 text-amber-300 shadow-[0_0_10px_rgba(245,158,11,0.3)]"   : "border-white/10 text-slate-500 hover:border-amber-400/50 hover:text-amber-400",
-                                  slate:   active ? "bg-slate-400/20 border-slate-300 text-slate-200 shadow-[0_0_10px_rgba(148,163,184,0.25)]" : "border-white/10 text-slate-500 hover:border-slate-400/50 hover:text-slate-300",
-                                  emerald: active ? "bg-emerald-500/20 border-emerald-400 text-emerald-300 shadow-[0_0_10px_rgba(52,211,153,0.25)]" : "border-white/10 text-slate-500 hover:border-emerald-400/50 hover:text-emerald-400",
-                                };
-                                return (
-                                  <button
-                                    key={opt.val}
-                                    type="button"
-                                    title={opt.fullLabel}
-                                    onClick={() => {
-                                      const ni = [...icons];
-                                      if (opt.val === "retained" && ni[globalIdx].iconRole === "retained") {
-                                        ni[globalIdx].iconRole = null;
-                                      } else {
-                                        ni[globalIdx].iconRole = opt.val;
-                                      }
-                                      setIcons(ni);
-                                    }}
-                                    className={`flex items-center gap-1.5 px-3 py-1 rounded-lg border text-[10px] font-black uppercase tracking-wider transition-all ${colorMap[opt.color]}`}
-                                  >
-                                    <span>{opt.label}</span>
-                                    <span className="hidden md:inline opacity-70">{opt.fullLabel}</span>
-                                  </button>
-                                );
-                              })}
-                              {!icon.iconRole && (
-                                <span className="text-[9px] text-slate-600 italic">None</span>
-                              )}
+                              <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 shrink-0">Status:</span>
+                              <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider bg-emerald-500/10 px-3 py-1 rounded-lg border border-emerald-500/20">Pre-Sold Icon</span>
                               
                               <button title="Delete Item" type="button" onClick={() => {
                                  setIcons(icons.filter((_, idx) => idx !== globalIdx));
@@ -1472,19 +1685,80 @@ export default function CreateTournamentWizard() {
       {step === 4 && (
         <StepCard step={4}>
           {players.length === 0 ? (
-            <label className="flex flex-col items-center justify-center gap-4 w-full py-16 rounded-2xl
-              border-2 border-dashed border-violet-500/30 bg-violet-500/5 hover:bg-violet-500/10 cursor-pointer transition-all group">
-              <div className="w-16 h-16 rounded-2xl bg-violet-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                <Upload className="w-8 h-8 text-violet-400" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Option A: Manual/Excel Upload */}
+              <div 
+                onClick={() => {
+                  openPickerForModal((driveUrl) => {
+                     handleDriveExcelImport(driveUrl);
+                  }, "excel"); // Passing a flag to filter for excel/csv
+                }}
+                className={`flex flex-col items-center justify-center gap-4 w-full py-12 px-6 rounded-2xl
+                border-2 border-dashed border-violet-500/30 bg-violet-500/5 hover:bg-violet-500/10 cursor-pointer transition-all group`}
+              >
+                <div className="w-16 h-16 rounded-2xl bg-violet-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Upload className="w-8 h-8 text-violet-400" />
+                </div>
+                <div className="text-center">
+                  <p className="font-black text-violet-300 text-lg">Option A: Bulk Upload</p>
+                  <p className="text-slate-500 text-sm mt-1">Select Excel/CSV from Device or Drive</p>
+                  <p className="text-[10px] text-slate-600 mt-3 font-bold uppercase tracking-wider">Supports .xlsx · .xls · .csv</p>
+                </div>
+                <div className="flex items-center gap-3">
+                   <label 
+                     onClick={(e) => e.stopPropagation()}
+                     className="flex items-center gap-2 px-6 py-2.5 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-[10px] font-black uppercase tracking-wider cursor-pointer active:scale-95 transition-all shadow-lg shadow-violet-500/20"
+                   >
+                     <Upload className="w-3.5 h-3.5" />
+                     Local File
+                     <input type="file" className="hidden" accept=".xlsx,.xls,.csv" onChange={handlePlayersExcel} />
+                   </label>
+                   
+                   <button 
+                     onClick={(e) => {
+                        e.stopPropagation();
+                        openPickerForModal((driveUrl) => {
+                           handleDriveExcelImport(driveUrl);
+                        }, "excel");
+                     }}
+                     className="flex items-center gap-2 px-6 py-2.5 bg-slate-800 border border-white/10 text-white rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-slate-700 transition-all shadow-xl active:scale-95 group"
+                   >
+                     <div className="w-4 h-4 rounded bg-white p-0.5 group-hover:scale-110 transition-transform">
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/1/12/Google_Drive_icon_%282020%29.svg" alt="Drive" />
+                     </div>
+                     Drive Integrated
+                   </button>
+                </div>
               </div>
-              <div className="text-center">
-                <p className="font-black text-violet-300 text-lg">Upload Player Pool</p>
-                <p className="text-slate-500 text-sm mt-1">Supports .xlsx · .xls · .csv</p>
-                <p className="text-slate-600 text-xs mt-2">Columns: Name, Role, Age, DOB, Batting Style, Bowling Style, Village, Base Price, Image URL</p>
+
+              {/* Option B: Self-Registration Link */}
+              <div 
+                className={`flex flex-col items-center justify-center gap-4 w-full py-12 px-6 rounded-2xl
+                border-2 border-dashed border-cyan-500/30 bg-cyan-500/5 hover:bg-cyan-500/10 transition-all group cursor-pointer`}
+                onClick={() => setStep(5)} // Skip to launch
+              >
+                <div className="w-16 h-16 rounded-2xl bg-cyan-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <MousePointer2 className="w-8 h-8 text-cyan-400" />
+                </div>
+                <div className="text-center">
+                  <p className="font-black text-cyan-300 text-lg">Option B: Registration Link</p>
+                  <p className="text-slate-500 text-sm mt-1">No file? Invite players via a link</p>
+                  <p className="text-[10px] text-cyan-600/70 mt-3 font-black uppercase tracking-widest leading-relaxed">
+                    A link will be generated after launch.<br/>Players register themselves directly.
+                  </p>
+                </div>
+                <div className="px-4 py-2 bg-cyan-400/10 border border-cyan-400/20 rounded-full text-[9px] font-black text-cyan-400 uppercase tracking-widest mt-2 group-hover:bg-cyan-400/20 transition-all">
+                   Use Registration Mode →
+                </div>
               </div>
-              {errors.players && <p className="text-red-400 text-sm font-bold flex items-center gap-2"><AlertCircle className="w-4 h-4" />{errors.players}</p>}
-              <input type="file" className="hidden" accept=".xlsx,.xls,.csv" onChange={handlePlayersExcel} />
-            </label>
+
+              {errors.players && (
+                <div className="md:col-span-2 mt-4 p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-3">
+                   <AlertCircle className="w-5 h-5 text-red-500" />
+                   <p className="text-red-400 text-sm font-bold">{errors.players}</p>
+                </div>
+              )}
+            </div>
           ) : (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
@@ -1521,25 +1795,59 @@ export default function CreateTournamentWizard() {
                   </div>
                 )}
 
-                <label className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-violet-400
-                  bg-violet-500/10 border border-violet-500/20 hover:bg-violet-500/20 cursor-pointer transition-all">
-                  <RefreshCw className="w-3 h-3" /> Re-upload
-                  <input type="file" className="hidden" accept=".xlsx,.xls,.csv" onChange={handlePlayersExcel} />
-                </label>
+                {/* Re-upload Action Menu */}
+                <div className="relative group">
+                  <button 
+                    onClick={() => setShowReuploadMenu(!showReuploadMenu)}
+                    className={`flex items-center gap-2 px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest text-violet-400
+                    bg-violet-500/10 border border-violet-500/20 hover:bg-violet-500/20 transition-all shadow-lg shadow-violet-500/5 active:scale-95`}
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${showReuploadMenu ? 'animate-spin' : ''}`} /> 
+                    Re-upload
+                  </button>
+
+                  {showReuploadMenu && (
+                    <>
+                      <div className="fixed inset-0 z-[190]" onClick={() => setShowReuploadMenu(false)} />
+                      <div className="absolute right-0 top-full mt-2 w-48 bg-[#0B0F2A]/95 backdrop-blur-xl border border-white/10 rounded-2xl p-2 shadow-2xl z-[200] animate-in fade-in slide-in-from-top-2 duration-200">
+                        <button 
+                          onClick={() => {
+                            setShowReuploadMenu(false);
+                            openPickerForModal((driveUrl) => handleDriveExcelImport(driveUrl), "excel");
+                          }}
+                          className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-xs font-bold text-slate-300 hover:bg-white/5 hover:text-white transition-all text-left group/item"
+                        >
+                          <div className="w-5 h-5 rounded bg-white p-0.5 group-hover/item:scale-110 transition-transform">
+                             <img src="https://upload.wikimedia.org/wikipedia/commons/1/12/Google_Drive_icon_%282020%29.svg" alt="D" />
+                          </div>
+                          Google Drive
+                        </button>
+                        
+                        <label className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-xs font-bold text-slate-300 hover:bg-white/5 hover:text-white transition-all text-left cursor-pointer group/item">
+                          <div className="w-5 h-5 rounded bg-violet-600 flex items-center justify-center text-[10px] group-hover/item:scale-110 transition-transform">
+                            <Upload className="w-3 h-3 text-white" />
+                          </div>
+                          Local Device
+                          <input type="file" className="hidden" accept=".xlsx,.xls,.csv" onChange={(e) => {
+                            setShowReuploadMenu(false);
+                            handlePlayersExcel(e);
+                          }} />
+                        </label>
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
 
               {/* Preview table */}
               <div className="rounded-2xl border border-white/10 overflow-hidden">
-                <div className={`grid px-5 py-3 bg-white/[0.03] text-[10px] font-black uppercase tracking-widest text-slate-500 border-b border-white/10 gap-3 ${config.auctionMode === 'points' ? "grid-cols-[60px_40px_100px_1fr_1fr_1fr_120px_50px]" : "grid-cols-[60px_60px_1fr_1fr_1fr_80px_1fr_120px_50px]"}`}>
+                <div className={`grid px-5 py-3 bg-white/[0.03] text-[10px] font-black uppercase tracking-widest text-slate-500 border-b border-white/10 gap-3 grid-cols-[60px_1fr_1fr_1fr_1fr_120px_50px]`}>
                   <span>Photo</span>
-                  {config.auctionMode === 'points' && <span>Sl No</span>}
-                  <span>{config.auctionMode === 'points' ? "USN" : "App ID"}</span>
                   <span>Name</span>
+                  <span>Village</span>
                   <span>Mobile</span>
                   <span>Role</span>
-                  {config.auctionMode !== 'points' && <span className="text-center">Age</span>}
-                  {config.auctionMode !== 'points' && <span>Village</span>}
-                  <span className="text-right">Base Price</span>
+                  <span className="text-right">Price</span>
                   <span></span>
                 </div>
                 <div className="max-h-[380px] overflow-y-auto divide-y divide-white/5 custom-scrollbar">
@@ -1549,14 +1857,14 @@ export default function CreateTournamentWizard() {
                     const rowError = nameError || villageError;
 
                     return (
-                      <div key={i} className={`grid px-5 py-2.5 items-center transition-colors gap-3 ${config.auctionMode === 'points' ? "grid-cols-[60px_40px_100px_1fr_1fr_1fr_120px_50px]" : "grid-cols-[60px_60px_1fr_1fr_1fr_80px_1fr_120px_50px]"}
+                      <div key={i} className={`grid px-5 py-2.5 items-center transition-colors gap-3 grid-cols-[60px_1fr_1fr_1fr_1fr_120px_50px]
                         ${rowError ? "bg-red-500/[0.15] border-l-2 border-l-red-500" : "hover:bg-white/[0.02]"}`}>
                         {/* Photo Column */}
                         <div className="relative w-10 h-10 rounded-lg overflow-hidden border border-white/10 bg-white/5 flex items-center justify-center cursor-pointer hover:border-violet-500/50 transition-all shrink-0 group">
                         {p.imageLoading ? (
                           // Shimmer placeholder while S3 is processing
-                          <div className="w-full h-full bg-gradient-to-r from-white/5 via-white/10 to-white/5 
-                            animate-pulse rounded" />
+                          <div className={`w-full h-full bg-gradient-to-r from-white/5 via-white/10 to-white/5 
+                            animate-pulse rounded`} />
                         ) : p.imageUrl ? (
                           <img src={p.imageUrl} alt="" className="w-full h-full object-cover" />
                         ) : (
@@ -1571,16 +1879,17 @@ export default function CreateTournamentWizard() {
                         </div>
                       </div>
 
-                      {config.auctionMode === 'points' && (
-                        <div className="text-[11px] font-black text-slate-500 text-center">
-                          {p.id}
-                        </div>
-                      )}
+                      {/* No USN Column as per user request */}
 
                       {/* Name Editable */}
                       <input value={p.name}
                         onChange={e => { const np = [...players]; np[i].name = e.target.value; setPlayers(np); }}
                         className={`bg-transparent border-b border-transparent hover:border-white/10 focus:border-violet-500 text-sm font-bold outline-none w-full py-1 ${hasNonEng(p.name) ? "text-red-500" : "text-white"}`} />
+
+                      {/* Village Editable */}
+                      <input value={p.village}
+                        onChange={e => { const np = [...players]; np[i].village = e.target.value; setPlayers(np); }}
+                        className="bg-transparent border-b border-transparent hover:border-white/10 focus:border-violet-500 text-xs text-slate-500 outline-none w-full py-1" />
 
                       {/* Mobile Column */}
                       <div className="text-[10px] font-black text-slate-400">
@@ -1592,28 +1901,11 @@ export default function CreateTournamentWizard() {
                         onChange={e => { 
                           const np = [...players]; 
                           np[i].role = e.target.value;
-                          if (config.auctionMode === 'points') {
-                             np[i].basePrice = e.target.value === "All-Rounder" ? rulesConfig.basePrice.allRounder : rulesConfig.basePrice.batsman;
-                          }
                           setPlayers(np); 
                         }}
                         className="bg-[#0B0F2A] border border-white/10 rounded-lg px-2 py-1 text-xs font-semibold text-slate-400 focus:border-violet-500 outline-none w-full">
                         {["Batsman","Bowler","All-Rounder"].map(v => <option key={v}>{v}</option>)}
                       </select>
-
-                      {/* Age Editable */}
-                      {config.auctionMode !== 'points' && (
-                        <input value={p.age}
-                          onChange={e => { const np = [...players]; np[i].age = e.target.value; setPlayers(np); }}
-                          className="bg-transparent border-b border-transparent hover:border-white/10 focus:border-violet-500 text-xs text-slate-400 font-semibold text-center outline-none w-full py-1" />
-                      )}
-
-                      {/* Village Editable */}
-                      {config.auctionMode !== 'points' && (
-                        <input value={p.village}
-                          onChange={e => { const np = [...players]; np[i].village = e.target.value; setPlayers(np); }}
-                          className="bg-transparent border-b border-transparent hover:border-white/10 focus:border-violet-500 text-xs text-slate-500 outline-none w-full py-1" />
-                      )}
 
                       {/* Price Editable */}
                       <div className="flex items-center gap-1 justify-end">
@@ -1666,8 +1958,8 @@ export default function CreateTournamentWizard() {
                   <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Tournament</p>
                   <h3 className="text-xl font-black text-white">{config.name}</h3>
                 </div>
-                <div className="ml-auto px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest
-                  bg-red-500/15 border border-red-500/25 text-red-400 flex items-center gap-1.5">
+                <div className={`ml-auto px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest
+                  bg-red-500/15 border border-red-500/25 text-red-400 flex items-center gap-1.5`}>
                   <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
                   {config.auctionType === "live" ? "Live" : "Demo"}
                 </div>
@@ -1762,6 +2054,8 @@ export default function CreateTournamentWizard() {
           }}
         />
       )}
+      <Script src="https://apis.google.com/js/api.js" strategy="lazyOnload" />
+      <Script src="https://accounts.google.com/gsi/client" strategy="lazyOnload" />
     </div>
   );
 }

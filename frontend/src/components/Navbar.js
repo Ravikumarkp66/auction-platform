@@ -38,7 +38,7 @@ export default function Navbar() {
   };
 
   // Hide navbar on these app-specific screens
-  if (pathname === '/auction' || pathname === '/live-auction' || pathname === '/overlay' || pathname.startsWith('/team/')) {
+  if (pathname === '/auction' || pathname === '/live-auction' || pathname === '/overlay' || pathname.startsWith('/team/') || pathname.startsWith('/admin')) {
     return null;
   }
 

@@ -124,18 +124,18 @@ export default function PublicPlayerCard() {
 
                         {/* TOURNAMENT TITLE - BOLD & PROMINENT (Fit Optimized) */}
                         <div className="relative z-10 flex flex-col items-center mt-4">
-                          <h1 className="text-4xl md:text-5xl font-[1000] text-white italic tracking-tighter uppercase drop-shadow-[0_0_30px_rgba(168,85,247,0.4)] leading-[0.9] text-center max-w-xs md:max-w-sm px-2">
+                          <h1 className="text-4xl md:text-5xl font-[1000] text-white italic tracking-tight uppercase drop-shadow-[0_0_30px_rgba(168,85,247,0.4)] leading-[1.1] text-center max-w-xs md:max-w-sm px-2">
                              {player?.tournamentName ? (
                                 <span className="flex flex-col">
                                     <span className="text-white break-keep">{player.tournamentName.split(' ')[0]}</span>
                                     {player.tournamentName.split(' ').slice(1).join(' ') && (
-                                        <span className="text-xl md:text-2xl font-black text-violet-400 mt-1">{player.tournamentName.split(' ').slice(1).join(' ')}</span>
+                                        <span className="text-lg md:text-xl font-black tracking-widest text-violet-400 mt-2">{player.tournamentName.split(' ').slice(1).join(' ')}</span>
                                     )}
                                 </span>
                             ) : (
                                 <span className="flex flex-col">
                                     <span className="text-white">PARAMESHWAR</span>
-                                    <span className="text-xl md:text-2xl font-black text-violet-400 mt-1">CUP 2026</span>
+                                    <span className="text-lg md:text-xl font-black tracking-widest text-violet-400 mt-2">CUP 2026</span>
                                 </span>
                             )}
                           </h1>
@@ -219,7 +219,7 @@ export default function PublicPlayerCard() {
                         <div className="pt-8 opacity-40">
                            <p className="text-[8px] font-black text-[#475569] uppercase tracking-[0.4em] leading-relaxed">
                               OFFICIAL TOURNAMENT REGISTRY PORTAL <br/>
-                              © 2026 PARMESHWAR CUP • ALL RIGHTS RESERVED
+                              © 2026 {player?.tournamentName || "TOURNAMENT"} • ALL RIGHTS RESERVED
                            </p>
                         </div>
                     </div>

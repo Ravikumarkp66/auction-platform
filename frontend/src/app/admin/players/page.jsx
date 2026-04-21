@@ -67,45 +67,13 @@ function PlayersRegistryContent() {
     mobile: "",
     battingStyle: "Right Hand Bat",
     bowlingStyle: "Right arm fast",
-    photo: null,
-    year: null // CRITICAL: Store as NUMBER (1, 2, 3, 4)
+    photo: null
   });
   
   // Form validation state
   const [formErrors, setFormErrors] = useState({});
 
-  // Helper function to get year from application ID (FIXED RANGES)
-  const getYearFromId = (id) => {
-    if (!id || isNaN(id)) return null;
-    
-    // Fixed ranges as per requirement
-    if (id >= 1 && id <= 22) return 4;      // 1-22 → 4th Year
-    if (id >= 23 && id <= 58) return 3;     // 23-58 → 3rd Year
-    if (id >= 59 && id <= 82) return 2;     // 59-82 → 2nd Year
-    if (id >= 83 && id <= 122) return 1;    // 83-122 → 1st Year
-    
-    // After 122 → cycle pattern: 4, 3, 2, 1
-    const cycle = [4, 3, 2, 1];
-    const index = (id - 123) % 4;
-    return cycle[index];
-  };
-
-  // Convert year number to display label
-  const getYearLabel = (year) => {
-    if (!year) return "Unknown";
-    return `${year}${year === 1 ? 'st' : year === 2 ? 'nd' : year === 3 ? 'rd' : 'th'} Year`;
-  };
-
-  // Get year badge color
-  const getYearBadgeColor = (year) => {
-    switch(year) {
-      case 1: return '#10b981';  // green
-      case 2: return '#3b82f6';  // blue
-      case 3: return '#f59e0b';  // amber
-      case 4: return '#ef4444';  // red
-      default: return '#6b7280'; // gray
-    }
-  };
+  // Removed year distribution logic as per user request to restore old system
   const [isImporting, setIsImporting] = useState(false);
   const [confirmText, setConfirmText] = useState("");
   const [editImageTarget, setEditImageTarget] = useState(null); // { id, url, type }
@@ -138,9 +106,12 @@ function PlayersRegistryContent() {
   const [isCapturing, setIsCapturing] = useState(false);
 
   const getImgUrl = (p) => {
-    if (!p) return "/placeholder-player.png";
+    if (!p) return `https://ui-avatars.com/api/?name=Player&background=random&color=fff`;
+    
     const url = p.imageUrl || p.photo?.s3 || p.photo?.drive;
-    if (!url) return "/placeholder-player.png";
+    const fallback = `https://ui-avatars.com/api/?name=${encodeURIComponent(p.name)}&background=random&color=fff`;
+
+    if (!url) return fallback;
     
     // If it's a relative path starting with /uploads, prepend the API URL
     if (url.startsWith("/uploads")) {
@@ -152,7 +123,7 @@ function PlayersRegistryContent() {
         return `${API_URL}/api/upload/proxy-image?url=${encodeURIComponent(url)}`;
     }
     
-    return url;
+    return url || fallback;
   };
 
   const downloadPosterAsImage = async (p) => {
@@ -258,12 +229,10 @@ function PlayersRegistryContent() {
     const errors = {};
     
     if (!newPlayer.name) errors.name = "Player name is required";
-    if (!newPlayer.photo) errors.photo = "ID card photo is required";
     if (!newPlayer.role) errors.role = "Playing role is required";
     if (!newPlayer.basePrice || newPlayer.basePrice <= 0) errors.basePrice = "Base price is required";
     if (!newPlayer.mobile) errors.mobile = "Contact number is required";
     else if (!/^\d{10}$/.test(newPlayer.mobile)) errors.mobile = "Must be 10 digits";
-    if (!newPlayer.year || ![1,2,3,4].includes(newPlayer.year)) errors.year = "Year selection is required";
     
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
@@ -288,8 +257,7 @@ function PlayersRegistryContent() {
            ...newPlayer, 
            tournamentId: selectedAuction._id,
            imageUrl: photoUrl,
-           photo: { s3: photoUrl },
-           year: Number(newPlayer.year) // ENSURE it's a NUMBER
+           photo: { s3: photoUrl }
          })
        });
        
@@ -299,7 +267,7 @@ function PlayersRegistryContent() {
          setIsAddModalOpen(false);
          setNewPlayer({ 
             name: "", role: "All-Rounder", basePrice: 100, isIcon: false, status: "available", teamId: "",
-            age: 20, village: "", mobile: "", battingStyle: "Right Hand Bat", bowlingStyle: "Right arm fast", photo: null, year: null
+            age: 20, village: "", mobile: "", battingStyle: "Right Hand Bat", bowlingStyle: "Right arm fast", photo: null
          });
          setFormErrors({});
          fetchData();
@@ -720,14 +688,14 @@ function PlayersRegistryContent() {
     <div className="space-y-6 max-w-7xl mx-auto pb-20">
       
       {/* ── TOP ACTION BAR ── */}
-      <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+      <div className="flex flex-col gap-6">
         <div>
-          <h1 className="text-3xl font-black text-white">Player <span className="text-violet-500">Bidding List</span></h1>
+          <h1 className="text-2xl md:text-3xl font-black text-white">Player <span className="text-violet-500">Bidding List</span></h1>
           <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[.3em] mt-1">Auction System v2.0</p>
         </div>
 
-        <div className="flex items-center gap-3">
-           <div className="relative group min-w-[280px]">
+        <div className="flex flex-col lg:flex-row gap-4">
+           <div className="relative group flex-1">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
               <input 
                 placeholder="Search database..." 
@@ -737,61 +705,64 @@ function PlayersRegistryContent() {
               />
            </div>
 
+           <div className="flex flex-wrap items-center gap-2">
+             <button 
+               onClick={downloadPlayersPDF}
+               disabled={isDownloadingPdf}
+               className="flex-1 sm:flex-none px-4 py-3 bg-white/5 border border-white/10 rounded-2xl text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white hover:border-violet-500/50 transition-all flex items-center justify-center gap-2 shadow-xl shadow-black/20 disabled:opacity-50"
+             >
+               {isDownloadingPdf ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+               <span className="truncate">{isDownloadingPdf ? "Compiling..." : "PDF"}</span>
+             </button>
 
-           
-           <button 
-             onClick={downloadPlayersPDF}
-             disabled={isDownloadingPdf}
-             className="px-6 py-3 bg-white/5 border border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white hover:border-violet-500/50 transition-all flex items-center gap-2 shadow-xl shadow-black/20 disabled:opacity-50"
-           >
-             {isDownloadingPdf ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-             {isDownloadingPdf ? "Compiling PDF..." : "Download PDF"}
-           </button>
+              <label className="flex-1 sm:flex-none px-4 py-3 bg-white/5 border border-white/10 rounded-2xl text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white hover:border-violet-500/50 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xl shadow-black/20">
+                {isImporting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4" />}
+                <span className="truncate">{isImporting ? "..." : "Import"}</span>
+                <input type="file" className="hidden" accept=".xlsx,.xls,.csv" onChange={handleImportPlayers} disabled={isImporting} />
+              </label>
 
-            <label className="px-6 py-3 bg-white/5 border border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white hover:border-violet-500/50 transition-all flex items-center gap-2 cursor-pointer shadow-xl shadow-black/20">
-              {isImporting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4" />}
-              {isImporting ? "Processing..." : "Import Sheet"}
-              <input type="file" className="hidden" accept=".xlsx,.xls,.csv" onChange={handleImportPlayers} disabled={isImporting} />
-            </label>
-           <button 
-             onClick={() => setIsAddModalOpen(true)}
-             className="px-6 py-3 bg-gradient-to-r from-violet-600 to-cyan-500 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white shadow-xl shadow-violet-500/20 hover:scale-105 transition-all flex items-center gap-2"
-           >
-             <Plus className="w-4 h-4" /> Add Player
-           </button>
+             <button 
+               onClick={() => setIsAddModalOpen(true)}
+               className="flex-1 sm:flex-none px-4 py-3 bg-gradient-to-r from-violet-600 to-cyan-500 rounded-2xl text-[9px] md:text-[10px] font-black uppercase tracking-widest text-white shadow-xl shadow-violet-500/20 hover:scale-105 transition-all flex items-center justify-center gap-2"
+             >
+               <Plus className="w-4 h-4" /> Add
+             </button>
 
-           <div className="flex items-center gap-2 ml-2">
-              <button 
-                onClick={handleJumble}
-                className="p-3 bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 rounded-2xl hover:bg-cyan-500/20 transition-all active:scale-95 shadow-xl"
-                title="Jumble Sequence"
-              >
-                <Shuffle className="w-4 h-4" />
-              </button>
-              <button 
-                onClick={handleRevertOrder}
-                className="p-3 bg-white/5 text-slate-400 border border-white/10 rounded-2xl hover:bg-white/10 transition-all active:scale-95 shadow-xl"
-                title="Revert to Original Order"
-              >
-                <RefreshCw className="w-4 h-4" />
-              </button>
+             <div className="flex items-center gap-2">
+                <button 
+                  onClick={handleJumble}
+                  className="p-3 bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 rounded-2xl hover:bg-cyan-500/20 transition-all active:scale-95 shadow-xl"
+                  title="Jumble Sequence"
+                >
+                  <Shuffle className="w-4 h-4" />
+                </button>
+                <button 
+                  onClick={handleRevertOrder}
+                  className="p-3 bg-white/5 text-slate-400 border border-white/10 rounded-2xl hover:bg-white/10 transition-all active:scale-95 shadow-xl"
+                  title="Revert to Original Order"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                </button>
+             </div>
            </div>
         </div>
       </div>
 
       {/* ── FILTER TABS ── */}
-      <div className="flex p-1 bg-white/5 rounded-2xl border border-white/10 w-fit">
-        {["ALL", "PENDING", "AVAILABLE", "SOLD", "UNSOLD"].map(tab => (
-          <button 
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-              activeTab === tab ? 'bg-violet-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'
-            }`}
-          >
-            {tab}
-          </button>
-        ))}
+      <div className="flex p-1 bg-white/5 rounded-2xl border border-white/10 w-full overflow-x-auto no-scrollbar">
+        <div className="flex min-w-max gap-1">
+          {["ALL", "PENDING", "AVAILABLE", "SOLD", "UNSOLD"].map(tab => (
+            <button 
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-4 md:px-6 py-2 rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all ${
+                activeTab === tab ? 'bg-violet-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'
+              }`}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* ── DATA TABLE ── */}
@@ -800,44 +771,46 @@ function PlayersRegistryContent() {
           <table className="w-full text-left border-collapse border-separate border-spacing-0">
             <thead>
               <tr className="bg-white/5">
-                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500">Sl No (ID)</th>
-                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500">Player</th>
-                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500">Role</th>
-                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500">Year</th>
-                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500">Status</th>
-                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500">Price</th>
-                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500">Assigned Team</th>
-                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500">Slot</th>
-                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500 text-right">Actions</th>
+                <th className="px-4 md:px-8 py-5 text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-500">SL NO</th>
+                <th className="px-4 md:px-6 py-5 text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-500">Player</th>
+                <th className="hidden md:table-cell px-6 py-5 text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-500">Role</th>
+                <th className="hidden lg:table-cell px-6 py-5 text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-500">Village</th>
+                <th className="px-4 md:px-6 py-5 text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-500">Status</th>
+                <th className="hidden sm:table-cell px-6 py-5 text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-500">Price</th>
+                <th className="hidden xl:table-cell px-6 py-5 text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-500">Team</th>
+                <th className="hidden xl:table-cell px-6 py-5 text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-500">Slot</th>
+                <th className="px-4 md:px-6 py-5 text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-500 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
               {filtered.sort((a, b) => (a.applicationId || 0) - (b.applicationId || 0)).map((p) => (
                 <tr key={p._id} className="group hover:bg-white/[0.03] transition-all">
-                  <td className="px-8 py-4">
-                     <span className="text-sm font-black text-violet-400 bg-violet-500/10 px-3 py-1 rounded-xl border border-violet-500/10">
+                  <td className="px-4 md:px-8 py-4">
+                     <span className="text-xs md:text-sm font-black text-violet-400 bg-violet-500/10 px-2 md:px-3 py-1 rounded-xl border border-violet-500/10">
                         {p.applicationId || "—"}
                      </span>
                   </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
+                  <td className="px-4 md:px-6 py-4">
+                    <div className="flex items-center gap-2 md:gap-3">
                        <div 
                          onClick={() => setEditImageTarget({ id: p._id, url: p.imageUrl, name: p.name })}
-                         className="relative w-9 h-9 rounded-xl overflow-hidden border border-white/10 bg-slate-800 flex items-center justify-center font-black text-white cursor-pointer hover:border-violet-500/50 transition-all group/img"
+                         className="relative w-8 h-8 md:w-9 md:h-9 rounded-xl overflow-hidden border border-white/10 bg-slate-800 flex items-center justify-center font-black text-white cursor-pointer hover:border-violet-500/50 transition-all group/img shrink-0"
                        >
                           <img 
                             src={getImgUrl(p)} 
-                            onError={(e) => { e.currentTarget.src = '/placeholder-player.png'; e.currentTarget.parentElement.innerHTML = '<div class="w-4 h-4 text-slate-600 flex items-center justify-center"><User size={16} /></div>'; }}
+                            onError={(e) => { 
+                               e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(p.name)}&background=random&color=fff`; 
+                            }}
                             className="w-full h-full object-cover" 
                           />
                           <div className="absolute inset-0 bg-black/60 opacity-0 group-hover/img:opacity-100 flex items-center justify-center transition-opacity">
                              <Edit3 className="w-3 h-3 text-white" />
                           </div>
                        </div>
-                       <div className="relative">
+                       <div className="relative min-w-0">
                         <button 
                           onClick={(e) => { e.stopPropagation(); setActiveMenuPlayer(activeMenuPlayer === p._id ? null : p._id); }}
-                          className="text-sm font-black text-white leading-tight hover:text-violet-400 transition-colors block text-left"
+                          className="text-xs md:text-sm font-black text-white leading-tight hover:text-violet-400 transition-colors block text-left truncate max-w-[120px] md:max-w-none"
                         >
                           {p.name}
                         </button>
@@ -861,39 +834,21 @@ function PlayersRegistryContent() {
                           </div>
                         )}
 
-                          {p.isIcon && <span className="text-[8px] font-black uppercase text-yellow-500 tracking-tighter flex items-center gap-0.5 mt-1"><Trophy className="w-2 h-2" /> ICON</span>}
+                          {p.isIcon && <span className="text-[7px] md:text-[8px] font-black uppercase text-yellow-500 tracking-tighter flex items-center gap-0.5 mt-0.5"><Trophy className="w-2 h-2" /> ICON</span>}
+                          <span className="md:hidden block text-[8px] font-bold text-slate-500 uppercase">{p.role}</span>
                        </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-[10px] font-black uppercase text-slate-400">{p.role}</td>
-                  <td className="px-6 py-4">
-                    {(() => {
-                      const yearNum = getYearFromId(p.applicationId);
-                      const yearLabel = getYearLabel(yearNum);
-                      const badgeColor = getYearBadgeColor(yearNum);
-                      
-                      return (
-                        <span 
-                          className="text-xs font-black px-3 py-1 rounded-xl border"
-                          style={{ 
-                            background: `${badgeColor}15`, // 15 = ~10% opacity
-                            borderColor: `${badgeColor}30`, // 30 = ~20% opacity
-                            color: badgeColor
-                          }}
-                        >
-                          {yearLabel}
-                        </span>
-                      );
-                    })()}
-                  </td>
-                  <td className="px-6 py-4">
-                     <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${
+                  <td className="hidden md:table-cell px-6 py-4 text-[10px] font-black uppercase text-slate-400">{p.role}</td>
+                  <td className="hidden lg:table-cell px-6 py-4 text-[10px] font-black uppercase text-slate-400">{p.village || "—"}</td>
+                  <td className="px-4 md:px-6 py-4">
+                     <span className={`text-[7px] md:text-[8px] font-black uppercase tracking-widest px-1.5 md:px-2 py-0.5 rounded-full border ${
                         p.status === 'sold' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 
                         p.status === 'unsold' ? 'bg-red-500/10 border-red-500/20 text-red-400' : 'bg-slate-800 text-slate-500'
                      }`}>{p.status}</span>
                   </td>
-                  <td className="px-6 py-4 font-black text-sm">{p.status === 'sold' ? `₹${p.soldPrice?.toLocaleString()}` : <span className="text-slate-700 italic">₹{p.basePrice}</span>}</td>
-                  <td className="px-6 py-4">
+                  <td className="hidden sm:table-cell px-6 py-4 font-black text-sm">{p.status === 'sold' ? `₹${p.soldPrice?.toLocaleString()}` : <span className="text-slate-700 italic">₹{p.basePrice}</span>}</td>
+                  <td className="hidden xl:table-cell px-6 py-4">
                      <Link 
                         href={`/team/${p.team?._id}?tournament=${selectedAuction._id}&from=sold&highlight=${p._id}`}
                         className="text-[10px] font-black uppercase text-slate-400 hover:text-violet-400 transition-colors truncate max-w-[100px] block"
@@ -901,7 +856,7 @@ function PlayersRegistryContent() {
                         {p.team?.name || "—"}
                      </Link>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="hidden xl:table-cell px-6 py-4">
                      {p.teamSlotId ? (
                         <Link 
                           href={`/team/${p.team?._id || p.team}?tournament=${selectedAuction._id}&from=sold&highlight=${p._id}`}
@@ -911,35 +866,32 @@ function PlayersRegistryContent() {
                         </Link>
                      ) : "—"}
                   </td>
-                  <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
+                  <td className="px-4 md:px-6 py-4 text-right">
+                      <div className="flex items-center justify-end gap-1 md:gap-2">
                         {p.status === 'pending' && (
                           <button 
                             onClick={() => handleApprovePlayer(p)}
-                            className="p-2 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white rounded-xl transition-all" 
+                            className="p-1.5 md:p-2 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white rounded-lg md:rounded-xl transition-all" 
                             title="Approve & Notify (WhatsApp)"
                           >
-                            <Check className="w-4 h-4" />
+                            <Check className="w-3.5 h-3.5 md:w-4 md:h-4" />
                           </button>
                         )}
                         <Link 
                           href={`/live-auction?id=${selectedAuction._id}&player=${p.applicationId}`}
-                          className="p-2 bg-violet-600/10 text-violet-400 hover:bg-violet-600 hover:text-white rounded-xl transition-all" 
+                          className="p-1.5 md:p-2 bg-violet-600/10 text-violet-400 hover:bg-violet-600 hover:text-white rounded-lg md:rounded-xl transition-all" 
                           title="Live Bidding"
                         >
-                          <Zap className="w-4 h-4" />
+                          <Zap className="w-3.5 h-3.5 md:w-4 md:h-4" />
                         </Link>
-                         <button onClick={() => setSelectedVerifyPlayer(p)} className="p-2 bg-white/5 hover:bg-violet-600/20 text-slate-400 hover:text-violet-400 rounded-xl transition-all" title="View Verification Details">
-                           <Eye className="w-4 h-4" />
+                         <button onClick={() => setSelectedVerifyPlayer(p)} className="p-1.5 md:p-2 bg-white/5 hover:bg-violet-600/20 text-slate-400 hover:text-violet-400 rounded-lg md:rounded-xl transition-all" title="View Verification Details">
+                           <Eye className="w-3.5 h-3.5 md:w-4 md:h-4" />
                          </button>
-                         <button onClick={() => sendWhatsAppNotification(p)} className="p-2 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white rounded-xl transition-all" title="Send Official WhatsApp Confirmation">
-                           <Phone size={14} />
+                         <button onClick={() => openManageModal(p)} className="p-1.5 md:p-2 bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white rounded-lg md:rounded-xl transition-all" title="Manage">
+                           <MousePointer2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
                          </button>
-                         <button onClick={() => openManageModal(p)} className="p-2 bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white rounded-xl transition-all" title="Manage">
-                           <MousePointer2 className="w-4 h-4" />
-                         </button>
-                        <button disabled={loading} onClick={() => handleDeletePlayer(p._id)} className="p-2 bg-white/5 hover:bg-red-600 text-slate-400 hover:text-white rounded-xl transition-all disabled:opacity-20 disabled:cursor-not-allowed" title="Delete">
-                          <X className="w-4 h-4" />
+                        <button disabled={loading} onClick={() => handleDeletePlayer(p._id)} className="p-1.5 md:p-2 bg-white/5 hover:bg-red-600 text-slate-400 hover:text-white rounded-lg md:rounded-xl transition-all disabled:opacity-20 disabled:cursor-not-allowed" title="Delete">
+                          <X className="w-3.5 h-3.5 md:w-4 md:h-4" />
                         </button>
                       </div>
                   </td>
@@ -951,6 +903,7 @@ function PlayersRegistryContent() {
         </div>
       </div>
 
+
       {isAddModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm">
            <div className="bg-[#0f172a] border border-white/10 rounded-[2.5rem] w-full max-w-2xl overflow-hidden shadow-2xl animate-in zoom-in-95">
@@ -959,12 +912,12 @@ function PlayersRegistryContent() {
                  <button onClick={() => setIsAddModalOpen(false)} className="p-2 hover:bg-white/5 rounded-full"><X className="w-5 h-5 text-slate-500" /></button>
               </div>
               <div className="p-8 space-y-6 max-h-[80vh] overflow-y-auto custom-scrollbar">
-                 {/* Points System Info Banner */}
-                 <div className="bg-gradient-to-r from-cyan-500/10 to-emerald-500/10 border border-cyan-500/20 rounded-2xl p-4 flex items-start gap-3">
-                    <ShieldCheck className="w-5 h-5 text-cyan-500 flex-shrink-0 mt-0.5" />
+                 {/* Old System Header - Simplified */}
+                 <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex items-start gap-3">
+                    <ShieldCheck className="w-5 h-5 text-violet-500 flex-shrink-0 mt-0.5" />
                     <div>
-                       <h3 className="text-xs font-black text-cyan-500 uppercase tracking-widest mb-1">Points System Auction</h3>
-                       <p className="text-[9px] text-slate-400 font-bold">All prices in PTS (not ₹). Year category is mandatory for squad distribution.</p>
+                       <h3 className="text-xs font-black text-white uppercase tracking-widest mb-1">Standard Player Entry</h3>
+                       <p className="text-[9px] text-slate-400 font-bold">Add a new player to the auction pool.</p>
                     </div>
                  </div>
                  
@@ -1001,28 +954,19 @@ function PlayersRegistryContent() {
                           {formErrors.role && <p className="text-[8px] text-red-400 font-bold mt-1">{formErrors.role}</p>}
                        </div>
 
-                       {/* Year Selection - CRITICAL & REQUIRED */}
-                       <div className="space-y-2">
+                       {/* Base Price - REQUIRED */}
+                       <div className="space-y-1.5">
                           <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-1">
-                            Year Category <span className="text-red-500">*</span>
+                            Base Price <span className="text-red-500">*</span>
                           </label>
-                          <div className="grid grid-cols-4 gap-2">
-                            {[1, 2, 3, 4].map((yr) => (
-                              <button
-                                key={yr}
-                                type="button"
-                                onClick={() => setNewPlayer({...newPlayer, year: yr})}
-                                className={`py-3 rounded-xl text-xs font-black transition-all border-2 ${
-                                  newPlayer.year === yr
-                                    ? 'bg-gradient-to-r from-violet-600 to-cyan-500 border-violet-500 text-white shadow-lg scale-105'
-                                    : 'bg-white/5 border-white/10 text-slate-500 hover:bg-white/10'
-                                }`}
-                              >
-                                {yr}{yr === 1 ? 'st' : yr === 2 ? 'nd' : yr === 3 ? 'rd' : 'th'}
-                              </button>
-                            ))}
-                          </div>
-                          {formErrors.year && <p className="text-[8px] text-red-400 font-bold mt-1">{formErrors.year}</p>}
+                          <input 
+                            type="number" 
+                            className={`w-full bg-slate-900 border ${formErrors.basePrice ? 'border-red-500' : 'border-white/10'} rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-violet-500`} 
+                            value={newPlayer.basePrice} 
+                            onChange={e => setNewPlayer({...newPlayer, basePrice: parseInt(e.target.value) || 0})}
+                            placeholder="Enter amount (e.g., 100)" 
+                          />
+                          {formErrors.basePrice && <p className="text-[8px] text-red-400 font-bold mt-1">{formErrors.basePrice}</p>}
                        </div>
 
                        {/* Contact Number - REQUIRED with Validation */}
@@ -1047,19 +991,23 @@ function PlayersRegistryContent() {
 
                     {/* Right Column - Price & Photo */}
                     <div className="space-y-4">
-                       {/* Base Price - REQUIRED (PTS not ₹) */}
+                       {/* Mobile Number - REQUIRED */}
                        <div className="space-y-1.5">
                           <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-1">
-                            Base Price (PTS) <span className="text-red-500">*</span>
+                            Contact Number <span className="text-red-500">*</span>
                           </label>
                           <input 
-                            type="number" 
-                            className={`w-full bg-slate-900 border ${formErrors.basePrice ? 'border-red-500' : 'border-white/10'} rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-violet-500`} 
-                            value={newPlayer.basePrice} 
-                            onChange={e => setNewPlayer({...newPlayer, basePrice: parseInt(e.target.value) || 0})}
-                            placeholder="Enter points (e.g., 50)" 
+                            type="tel"
+                            maxLength={10}
+                            className={`w-full bg-slate-900 border ${formErrors.mobile ? 'border-red-500' : 'border-white/10'} rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-violet-500`} 
+                            value={newPlayer.mobile} 
+                            onChange={e => {
+                              const val = e.target.value.replace(/\D/g, ''); 
+                              setNewPlayer({...newPlayer, mobile: val});
+                            }}
+                            placeholder="10-digit mobile number" 
                           />
-                          {formErrors.basePrice && <p className="text-[8px] text-red-400 font-bold mt-1">{formErrors.basePrice}</p>}
+                          {formErrors.mobile && <p className="text-[8px] text-red-400 font-bold mt-1">{formErrors.mobile}</p>}
                        </div>
 
                        {/* Age & Village (Optional) */}
@@ -1074,27 +1022,26 @@ function PlayersRegistryContent() {
                           </div>
                        </div>
 
-                       {/* Photo Upload - REQUIRED */}
-                       <div className="space-y-1.5">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-1">
-                            Upload ID Card / Player Photo <span className="text-red-500">*</span>
+                       {/* Photo Upload */}
+                       <div className="space-y-1.5 pt-2 border-t border-white/5">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                            Player Photo
                           </label>
-                          <div className={`relative h-28 bg-white/5 border-2 ${formErrors.photo ? 'border-red-500' : 'border-dashed border-white/10'} rounded-2xl flex flex-col items-center justify-center group hover:border-violet-500/50 transition-all`}>
+                          
+                          <div className={`relative h-28 bg-white/5 border-2 ${formErrors.photo ? 'border-red-500' : 'border-dashed border-white/10'} rounded-2xl flex flex-col items-center justify-center group hover:border-violet-500/50 transition-all overflow-hidden`}>
                              {newPlayer.photo ? (
-                                <div className="text-center w-full h-full p-2">
-                                   <img src={URL.createObjectURL(newPlayer.photo)} alt="Preview" className="w-full h-full object-cover rounded-xl" />
+                                <div className="text-center w-full h-full">
+                                   <img src={newPlayer.photo instanceof File ? URL.createObjectURL(newPlayer.photo) : newPlayer.photo} alt="Preview" className="w-full h-full object-cover" />
                                    <button type="button" onClick={() => setNewPlayer({...newPlayer, photo: null})} className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full hover:bg-red-600"><X size={12} /></button>
                                 </div>
                              ) : (
                                 <>
                                    <Plus className="w-6 h-6 text-slate-600 group-hover:text-violet-500 transition-colors" />
-                                   <p className="text-[10px] font-black text-slate-600 uppercase mt-1">Click to upload image</p>
-                                   <p className="text-[8px] text-slate-700 font-bold mt-0.5">JPG, PNG (Max 5MB)</p>
+                                   <p className="text-[10px] font-black text-slate-600 uppercase mt-1">Upload Photo</p>
+                                   <input type="file" accept="image/*" onChange={e => setNewPlayer({...newPlayer, photo: e.target.files[0]})} className="absolute inset-0 opacity-0 cursor-pointer" />
                                 </>
                              )}
-                             <input type="file" accept="image/*" onChange={e => setNewPlayer({...newPlayer, photo: e.target.files[0]})} className="absolute inset-0 opacity-0 cursor-pointer" disabled={!!newPlayer.photo} />
                           </div>
-                          {formErrors.photo && <p className="text-[8px] text-red-400 font-bold mt-1">{formErrors.photo}</p>}
                        </div>
 
                        {/* Batting & Bowling Styles (Optional) */}

@@ -6,15 +6,16 @@ import { translations } from "../data/translations";
 const LanguageContext = createContext();
 
 export const LanguageProvider = ({ children }) => {
-  const [language, setLanguage] = useState(() => {
+  const [language, setLanguage] = useState("en");
+
+  React.useEffect(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("language");
       if (saved && ["en", "hi", "kn"].includes(saved)) {
-        return saved;
+        setLanguage(saved);
       }
     }
-    return "en";
-  });
+  }, []);
 
   const changeLanguage = (lang) => {
     setLanguage(lang);

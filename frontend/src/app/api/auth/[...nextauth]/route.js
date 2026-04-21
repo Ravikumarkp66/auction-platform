@@ -7,6 +7,13 @@ const authOptions = {
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      authorization: {
+        params: {
+          scope: "openid email profile https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file",
+          access_type: "offline",
+          response_type: "code"
+        }
+      }
     }),
     CredentialsProvider({
       name: "credentials",
@@ -61,6 +68,9 @@ const authOptions = {
         token.role = user.role || (adminEmails.includes(userEmail) ? "admin" : "user");
         token.picture = user.picture || account?.picture;
       }
+      if (account?.access_token) {
+        token.accessToken = account.access_token;
+      }
       return token;
     },
     async session({ session, token }) {
@@ -68,6 +78,7 @@ const authOptions = {
         session.user.id = token.sub;
         session.user.role = token.role;
         session.user.image = token.picture || session.user.image;
+        session.accessToken = token.accessToken;
       }
       return session;
     },

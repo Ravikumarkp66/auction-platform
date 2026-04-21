@@ -24,16 +24,16 @@ const nextConfig = {
   async rewrites() {
     return [
       {
-        source: '/api/((?!auth).*)',
-        destination: 'http://3.108.196.205:5000/api/:1',
+        source: '/api/:path((?!auth).*)',
+        destination: 'http://127.0.0.1:5050/api/:path*',
       },
       {
         source: '/uploads/:path*',
-        destination: 'http://3.108.196.205:5000/uploads/:path*',
+        destination: 'http://127.0.0.1:5050/uploads/:path*',
       },
       {
         source: '/socket.io/:path*',
-        destination: 'http://3.108.196.205:5000/socket.io/:path*',
+        destination: 'http://127.0.0.1:5050/socket.io/:path*',
       },
     ];
   },

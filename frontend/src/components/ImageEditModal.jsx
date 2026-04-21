@@ -208,7 +208,7 @@ export default function ImageEditModal({ initialImage, onSave, onClose, title = 
 
   return (
     <>
-      <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
         <div className="absolute inset-0 bg-[#020617]/98 backdrop-blur-3xl" onClick={onClose} />
 
       <div className="relative w-full max-w-5xl bg-[#0B0F2A] border border-white/10 rounded-[2.5rem] overflow-hidden shadow-[0_0_100px_rgba(0,0,0,0.8)] flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-500">
@@ -276,22 +276,93 @@ export default function ImageEditModal({ initialImage, onSave, onClose, title = 
                   )}
                 </div>
               ) : (
-                <div className="flex flex-col items-center justify-center text-center py-20 bg-white/5 rounded-3xl border border-white/10 px-10">
-                   <AlertCircle className="w-12 h-12 text-red-500 mb-6" />
-                   <p className="text-xs text-slate-400 mb-8 max-w-[200px] uppercase font-bold tracking-widest">Gateway Access Refused</p>
-                   <label className="px-8 py-4 bg-emerald-400 text-[#0B0F2A] font-black text-[10px] uppercase rounded-2xl cursor-pointer active:scale-95 transition-all">
-                     Load Local File
-                     <input type="file" className="hidden" accept="image/*" onChange={(e)=>{
-                       const f=e.target.files[0]; if(f){const r=new FileReader(); r.onload=()=>{setImage(r.result); setReadyForAI(true); setIsRestricted(false); setProxyStatus("success"); setError(false);}; r.readAsDataURL(f);}
-                     }}/>
-                   </label>
+                <div className="flex flex-col items-center justify-center text-center py-10 bg-white/5 rounded-3xl border border-white/10 px-10 max-w-md w-full">
+                   <div className="w-16 h-16 bg-red-500/10 rounded-2xl flex items-center justify-center mb-6">
+                      <AlertCircle className="w-8 h-8 text-red-500" />
+                   </div>
+                   <h4 className="text-white font-black text-sm uppercase tracking-widest mb-2">Source Protected or Invalid</h4>
+                   <p className="text-[10px] text-slate-500 mb-8 uppercase font-bold tracking-widest">External proxy failed or URL restricted.</p>
+                   
+                   <div className="w-full space-y-3">
+                      <label className="block w-full px-8 py-4 bg-emerald-400 text-[#0B0F2A] font-black text-[10px] uppercase rounded-2xl cursor-pointer hover:bg-emerald-300 active:scale-95 transition-all text-center">
+                        Select Local File
+                        <input type="file" className="hidden" accept="image/*" onChange={(e)=>{
+                          const f=e.target.files[0]; if(f){const r=new FileReader(); r.onload=()=>{setImage(r.result); setReadyForAI(true); setIsRestricted(false); setProxyStatus("success"); setError(false);}; r.readAsDataURL(f);}
+                        }}/>
+                      </label>
+
+                      <div className="relative">
+                         <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+                            <ExternalLink className="w-4 h-4 text-slate-600" />
+                         </div>
+                         <input 
+                           className="w-full bg-black/40 border border-white/10 rounded-2xl pl-12 pr-4 py-4 text-xs font-bold text-white outline-none focus:border-violet-500 transition-all placeholder:text-slate-700"
+                           placeholder="Paste Drive Link..."
+                           onKeyDown={async (e) => {
+                             if (e.key === 'Enter') {
+                               const url = e.target.value.trim();
+                               if (!url) return;
+                               setScanStatus("Importing from Drive...");
+                               setIsScanning(true);
+                               try {
+                                  // Directly set the initialImage URL, the useEffect in this component will handle proxying
+                                  // BUT we want to force it to refresh or handle it here if it failed initially.
+                                  // So we call the manual prepare logic
+                                  const proxyUrl = `${API_URL}/api/proxy-image?url=${encodeURIComponent(url)}`;
+                                  const response = await fetch(proxyUrl);
+                                  if (!response.ok) throw new Error("Import failed");
+                                  const blob = await response.blob();
+                                  setImage(URL.createObjectURL(blob));
+                                  setReadyForAI(true);
+                                  setIsRestricted(false);
+                                  setProxyStatus("success");
+                                  setError(false);
+                               } catch (err) { alert("Drive import failed. Ensure link is public."); }
+                               finally { setIsScanning(false); }
+                             }
+                           }}
+                         />
+                      </div>
+                   </div>
                 </div>
               )}
             </div>
           ) : (
-            <div className="self-center opacity-10 flex flex-col items-center">
-              <Camera className="w-20 h-20 text-white mb-4" />
-              <p className="text-sm font-black uppercase tracking-[0.4em] text-white">System Cold</p>
+            <div className="self-center flex flex-col items-center gap-10 animate-in fade-in slide-in-from-bottom-5 duration-700">
+              <div className="relative">
+                 <div className="absolute inset-0 bg-violet-500/20 blur-[60px] rounded-full animate-pulse" />
+                 <Camera className="w-24 h-24 text-white relative z-10" />
+              </div>
+              
+              <div className="space-y-4 text-center">
+                <h4 className="text-sm font-black uppercase tracking-[0.4em] text-white">IMAGE SOURCE REQUIRED</h4>
+                <p className="text-[10px] text-slate-500 uppercase font-bold tracking-widest max-w-[240px]">Select a source to begin the professional AI cropping process.</p>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 w-full max-w-[320px]">
+                <label className="flex items-center justify-center gap-4 px-8 py-5 bg-white text-black font-black text-xs uppercase rounded-[1.5rem] cursor-pointer hover:bg-violet-400 hover:text-white transition-all shadow-xl active:scale-95 group">
+                  <Upload className="w-5 h-5 group-hover:scale-125 transition-transform" />
+                  Local Computer
+                  <input type="file" className="hidden" accept="image/*" onChange={(e)=>{
+                    const f=e.target.files[0]; if(f){const r=new FileReader(); r.onload=()=>{setImage(r.result); setReadyForAI(true); setIsRestricted(false); setProxyStatus("success"); setError(false);}; r.readAsDataURL(f);}
+                  }}/>
+                </label>
+
+                <button 
+                  onClick={() => {
+                    console.log("Drive button clicked in Modal");
+                    const event = new CustomEvent("open-drive-picker", { detail: (url) => {
+                       console.log("Modal received URL from Picker:", url);
+                       setImage(url);
+                    }});
+                    window.dispatchEvent(event);
+                  }}
+                  className="flex items-center justify-center gap-4 px-8 py-5 bg-slate-800 text-white font-black text-xs uppercase rounded-[1.5rem] cursor-pointer border border-white/10 hover:bg-slate-700 transition-all shadow-xl active:scale-95 group"
+                >
+                  <div className="w-5 h-5 rounded-lg bg-white p-0.5"><img src="https://upload.wikimedia.org/wikipedia/commons/1/12/Google_Drive_icon_%282020%29.svg" alt="" /></div>
+                  Google Drive
+                </button>
+              </div>
             </div>
           )}
           

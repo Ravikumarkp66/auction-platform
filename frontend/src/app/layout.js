@@ -17,7 +17,7 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning className={`dark ${inter.variable} ${noto.variable}`}>
-      <body className="main-container text-slate-50 min-h-screen flex flex-col font-sans antialiased">
+      <body suppressHydrationWarning className="main-container text-slate-50 min-h-screen flex flex-col font-sans antialiased">
         <DynamicBackground />
         <AuthProvider>
           <LanguageProvider>

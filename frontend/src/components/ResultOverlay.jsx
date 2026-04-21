@@ -47,11 +47,15 @@ const ResultOverlay = ({ type, playerName, price, teamName, teamLogo, teamColor,
   const isSold = type === 'SOLD';
 
   useEffect(() => {
+    console.log("ResultOverlay mounted with type:", type);
     if (isSold) {
+      console.log("Sold event detected, starting hammer animation sequence...");
       const s1 = setTimeout(() => {
+        console.log("Triggering hammer appearance");
         setShowHammer(true);
       }, 300);
       const s2 = setTimeout(() => {
+        console.log("Hammer IMPACT!");
         setIsImpact(true);
       }, 700);
       const s3 = setTimeout(() => {
@@ -61,8 +65,9 @@ const ResultOverlay = ({ type, playerName, price, teamName, teamLogo, teamColor,
         setShowTeamName(true);
       }, 950);
       const s5 = setTimeout(() => {
+        console.log("Hiding hammer");
         setShowHammer(false);
-      }, 2000);
+      }, 2500);
 
       return () => { 
         clearTimeout(s1); 
@@ -207,11 +212,11 @@ const ResultOverlay = ({ type, playerName, price, teamName, teamLogo, teamColor,
                       top: '50%', 
                       left: '50%',
                       transform: isImpact 
-                        ? 'translate(-50px, -50px) rotate(-20deg) scale(1.2)'  // Perfectly centered on logo, slightly larger
-                        : 'translate(200px, -300px) rotate(45deg) scale(1.2)',  // Arrives from top right, larger
-                      transition: 'transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1)',
+                        ? 'translate(-50%, -50%) rotate(-20deg) scale(1.4)'  // Perfectly centered on logo
+                        : 'translate(150%, -200%) rotate(45deg) scale(1.4)',  // Arrives from top right
+                      transition: 'transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)', // Added overshoot for "thump" feel
                       opacity: 1,
-                      filter: 'drop-shadow(0 10px 20px rgba(0,0,0,0.8))' // Add shadow for visibility
+                      filter: 'drop-shadow(0 20px 40px rgba(0,0,0,0.9))'
                     }}
                   >
                     <svg width="180" height="180" viewBox="0 0 100 100" className="drop-shadow-2xl">

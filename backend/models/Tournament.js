@@ -11,6 +11,8 @@ const tournamentSchema = new mongoose.Schema({
   defaultBasePrice: { type: Number, default: 0 },
   squadSize: { type: Number, default: 11 },
   auctionSlots: { type: Number, default: 9 },
+  registrationTitle: { type: String, default: "JOIN THE BATTLE" },
+  registrationDetails: { type: String, default: "" },
   status: { type: String, enum: ["draft", "active", "completed"], default: "draft" },
 
   // ─── Auction Engine fields (added for multi-tournament engine) ───────────
@@ -31,7 +33,7 @@ const tournamentSchema = new mongoose.Schema({
   // once the rule engine is active — for now squadSize is still the operative field).
   squad: {
     minPlayers: { type: Number, default: 1 },
-    maxPlayers: { type: Number, default: 15 },
+    maxPlayers: { type: Number, default: 20 },
   },
   // ────────────────────────────────────────────────────────────────────────
 

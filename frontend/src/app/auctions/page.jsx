@@ -105,11 +105,10 @@ export default function AuctionsPage() {
   };
 
   const getStatusLabel = (status, tournamentName) => {
-    // If it's not BROWSE or not active, mark as CONCLUDED
-    const isBrowseActive = tournamentName?.toLowerCase().includes('browse') && 
-                           (status?.toLowerCase() === "active" || status?.toLowerCase() === "live");
+    // Show LIVE if status is active or live
+    const isActive = (status?.toLowerCase() === "active" || status?.toLowerCase() === "live");
     
-    if (!isBrowseActive) {
+    if (!isActive && status?.toLowerCase() !== "upcoming") {
       return "CONCLUDED";
     }
     
@@ -150,13 +149,11 @@ export default function AuctionsPage() {
   }
 
   const liveTournaments = tournaments.filter(t => 
-    t.name?.toLowerCase().includes('browse') && 
     (t.status?.toLowerCase() === "active" || t.status?.toLowerCase() === "live")
   );
   
   const otherTournaments = tournaments.filter(t => 
-    !t.name?.toLowerCase().includes('browse') || 
-    t.status?.toLowerCase() !== "active"
+    t.status?.toLowerCase() !== "active" && t.status?.toLowerCase() !== "live"
   );
 
   return (
@@ -169,12 +166,12 @@ export default function AuctionsPage() {
       <div className="relative z-10 pt-8 pb-12 px-4">
         <div className="max-w-6xl mx-auto">
           
-          {/* Organizer Badge - Top Right */}
-          <div className="absolute top-4 right-4 md:top-8 md:right-8 w-28 h-28 md:w-36 md:h-36 rounded-full overflow-hidden border-2 border-amber-400/50 shadow-[0_0_30px_rgba(251,191,36,0.3)] bg-gradient-to-br from-amber-500/20 to-amber-600/20 backdrop-blur-sm">
-            <div className="relative w-full h-full">
+          {/* Organizer Badge - Relative on mobile, Absolute on desktop */}
+          <div className="flex justify-center md:absolute md:top-8 md:right-8 mb-8 md:mb-0">
+            <div className="w-24 h-24 md:w-36 md:h-36 rounded-full overflow-hidden border-2 border-amber-400/50 shadow-[0_0_30px_rgba(251,191,36,0.3)] bg-gradient-to-br from-amber-500/20 to-amber-600/20 backdrop-blur-sm relative">
               <Image 
-                src={DEFAULT_ASSETS.BANNER_LOGO} 
-                alt="Dr. G Parameshwar Cup"
+                src={liveTournaments[0]?.organizerLogo ? `${API_URL}${liveTournaments[0].organizerLogo}` : DEFAULT_ASSETS.BANNER_LOGO} 
+                alt={liveTournaments[0]?.name || "Organizer Logo"}
                 fill
                 className="object-cover"
                 unoptimized
@@ -185,24 +182,24 @@ export default function AuctionsPage() {
           
           {/* Live Indicator + Title Row */}
           <div className="flex items-center justify-center gap-4 mb-6">
-            <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/30 px-4 py-2 rounded-full">
-              <span className="w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.8)]"></span>
-              <span className="text-red-400 font-black uppercase tracking-[0.2em] text-sm">Live Now</span>
+            <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/30 px-3 py-1.5 md:px-4 md:py-2 rounded-full">
+              <span className="w-2 h-2 md:w-2.5 md:h-2.5 bg-red-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.8)]"></span>
+              <span className="text-red-400 font-black uppercase tracking-[0.2em] text-[10px] md:text-sm">Live Now</span>
             </div>
           </div>
           
           {/* Main Title */}
           <div className="text-center mb-4">
-            <h1 className="text-5xl md:text-7xl font-black text-white uppercase tracking-tight drop-shadow-[0_0_30px_rgba(255,255,255,0.3)]">
-              Parmeshwar Cup
+            <h1 className="text-3xl sm:text-4xl md:text-7xl font-black text-white uppercase tracking-tight drop-shadow-[0_0_30px_rgba(255,255,255,0.3)] leading-tight">
+              {liveTournaments[0]?.name || "Live Auctions"}
             </h1>
-            <p className="text-violet-400 text-xl md:text-2xl font-bold uppercase tracking-[0.3em] mt-2">
-              2026
+            <p className="text-violet-400 text-lg md:text-2xl font-bold uppercase tracking-[0.3em] mt-2">
+              {liveTournaments[0] ? "Tournament Live" : "Portal"}
             </p>
           </div>
           
           {/* Subtitle */}
-          <p className="text-center text-slate-400 text-lg md:text-xl max-w-2xl mx-auto mb-8">
+          <p className="text-center text-slate-400 text-sm md:text-xl max-w-2xl mx-auto mb-8 px-4">
             ⚡ Live Cricket Auction • Real-time bidding • Real teams • Real pressure
           </p>
           
@@ -211,10 +208,10 @@ export default function AuctionsPage() {
             <div className="flex justify-center mb-12">
               <Link
                 href={status === "authenticated" ? `/live-auction?id=${liveTournaments[0].shortId || liveTournaments[0]._id}&role=admin` : `/overlay`}
-                className="group relative px-10 py-5 bg-gradient-to-r from-violet-500 to-teal-500 text-white font-black uppercase tracking-wider text-lg rounded-2xl overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-[0_0_40px_rgba(16,185,129,0.5)]"
+                className="group relative px-6 py-4 md:px-10 md:py-5 bg-gradient-to-r from-violet-500 to-teal-500 text-white font-black uppercase tracking-wider text-base md:text-lg rounded-2xl overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-[0_0_40px_rgba(16,185,129,0.5)]"
               >
                 <span className="relative z-10 flex items-center gap-3">
-                  <Play className="w-6 h-6 fill-current" />
+                  <Play className="w-5 h-5 md:w-6 md:h-6 fill-current" />
                   Enter Live Auction
                 </span>
                 <div className="absolute inset-0 bg-gradient-to-r from-teal-500 to-violet-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
@@ -284,29 +281,29 @@ export default function AuctionsPage() {
                     </p>
 
                     {/* Stats Grid */}
-                    <div className="grid grid-cols-3 gap-4 mb-6">
-                      <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-3 text-center">
-                        <div className="text-2xl font-black text-white">{tournament.numTeams || 0}</div>
-                        <div className="text-xs text-slate-500 uppercase tracking-wider">Teams</div>
+                    <div className="grid grid-cols-3 gap-2 md:gap-4 mb-6">
+                      <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-2 md:p-3 text-center">
+                        <div className="text-xl md:text-2xl font-black text-white">{tournament.numTeams || 0}</div>
+                        <div className="text-[9px] md:text-xs text-slate-500 uppercase tracking-wider">Teams</div>
                       </div>
-                      <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-3 text-center">
-                        <div className="text-2xl font-black text-violet-400">{tournament.playerCount || tournament.players?.length || 0}</div>
-                        <div className="text-xs text-slate-500 uppercase tracking-wider">Players</div>
+                      <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-2 md:p-3 text-center">
+                        <div className="text-xl md:text-2xl font-black text-violet-400">{tournament.playerCount || tournament.players?.length || 0}</div>
+                        <div className="text-[9px] md:text-xs text-slate-500 uppercase tracking-wider">Players</div>
                       </div>
-                      <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-3 text-center">
-                        <div className="text-2xl font-black text-amber-400">{tournament.iconCount || tournament.players?.filter(p => p.isIcon).length || 0}</div>
-                        <div className="text-xs text-slate-500 uppercase tracking-wider">Icons</div>
+                      <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-2 md:p-3 text-center">
+                        <div className="text-xl md:text-2xl font-black text-amber-400">{tournament.iconCount || tournament.players?.filter(p => p.isIcon).length || 0}</div>
+                        <div className="text-[9px] md:text-xs text-slate-500 uppercase tracking-wider">Icons</div>
                       </div>
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="flex gap-3">
+                    <div className="flex flex-wrap gap-2">
                       <Link
                         href={status === "authenticated" ? `/live-auction?id=${tournament.shortId || tournament._id}&role=admin` : `/overlay`}
-                        className="group/btn relative flex-1 px-6 py-4 bg-gradient-to-r from-violet-500 to-teal-500 text-white font-black uppercase tracking-wider rounded-xl overflow-hidden transition-all duration-300 hover:shadow-[0_0_30px_rgba(16,185,129,0.4)] flex items-center justify-center gap-3"
+                        className="group/btn relative flex-[2_1_0%] min-w-[120px] px-4 py-3 md:py-4 bg-gradient-to-r from-violet-500 to-teal-500 text-white font-black uppercase tracking-wider text-xs md:text-base rounded-xl overflow-hidden transition-all duration-300 hover:shadow-[0_0_30px_rgba(16,185,129,0.4)] flex items-center justify-center gap-2"
                       >
-                        <span className="relative z-10 flex items-center gap-3">
-                          <Play className="w-5 h-5 fill-current" />
+                        <span className="relative z-10 flex items-center gap-2">
+                          <Play className="w-4 h-4 md:w-5 md:h-5 fill-current" />
                           Watch
                         </span>
                         <div className="absolute inset-0 bg-gradient-to-r from-teal-500 to-violet-500 opacity-0 group-hover/btn:opacity-100 transition-opacity duration-300"></div>
@@ -314,11 +311,19 @@ export default function AuctionsPage() {
 
                       <button
                         onClick={() => setSquadViewTournament(tournament)}
-                        className="flex-1 px-6 py-4 bg-white/5 hover:bg-white/10 text-white border border-white/10 font-black uppercase tracking-wider rounded-xl transition-all duration-300 flex items-center justify-center gap-2 group/squad"
+                        className="flex-1 min-w-[100px] px-3 py-3 md:py-4 bg-white/5 hover:bg-white/10 text-white border border-white/10 font-black uppercase tracking-wider text-xs md:text-base rounded-xl transition-all duration-300 flex items-center justify-center gap-2 group/squad"
                       >
-                        <Users className="w-5 h-5 group-hover:text-violet-400 transition-colors" />
+                        <Users className="w-4 h-4 md:w-5 md:h-5 group-hover:text-violet-400 transition-colors" />
                         Squads
                       </button>
+
+                      <Link
+                        href={`/tournaments/${tournament._id}`}
+                        className="flex-1 min-w-[100px] px-3 py-3 md:py-4 bg-white/5 hover:bg-white/10 text-white border border-white/10 font-black uppercase tracking-wider text-xs md:text-base rounded-xl transition-all duration-300 flex items-center justify-center gap-2 group/details"
+                      >
+                        <ExternalLink className="w-4 h-4 md:w-5 md:h-5 group-hover/details:text-blue-400 transition-colors" />
+                        Details
+                      </Link>
                     </div>
                   </div>
                 </div>
@@ -342,7 +347,8 @@ export default function AuctionsPage() {
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {otherTournaments.map((tournament) => {
-                const isConcluded = !tournament.name?.toLowerCase().includes('browse') || tournament.status?.toLowerCase() !== "active";
+                const isConcluded = tournament.status?.toLowerCase() === "completed" || 
+                                   (tournament.status?.toLowerCase() !== "active" && tournament.status?.toLowerCase() !== "live" && tournament.status?.toLowerCase() !== "upcoming");
                 const statusLabel = getStatusLabel(tournament.status, tournament.name);
                 
                 return (

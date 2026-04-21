@@ -84,6 +84,7 @@ export default function OverlayPage() {
         teamColor: data.teamColor || '#a855f7',
         teamShortName: data.teamShortName,
         playerImage: data.playerImage,
+        currency: data.currency || (data.isPointsSystem ? "" : "₹"),
         isPointsSystem: data.isPointsSystem ?? false
       };
       
@@ -105,6 +106,7 @@ export default function OverlayPage() {
         type: 'UNSOLD',
         playerName: data.playerName,
         playerImage: data.playerImage,
+        currency: data.currency || (data.isPointsSystem ? "" : "₹"),
         isPointsSystem: data.isPointsSystem ?? false
       };
       
@@ -209,13 +211,12 @@ export default function OverlayPage() {
       console.log('🔌 Attempting socket connection to:', API_URL);
       
       const s = io(API_URL, {
-        transports: ['polling', 'websocket'], // Try polling first, then websocket
-        timeout: 10000,
+        transports: ['websocket', 'polling'], // Prefer websocket for stability
+        timeout: 20000,
         reconnection: true,
         reconnectionDelay: 1000,
-        reconnectionAttempts: 10,
-        maxReconnectionAttempts: 10,
-        forceNew: true, // Force new connection
+        reconnectionAttempts: 20,
+        forceNew: true,
         autoConnect: true
       })
       
@@ -619,6 +620,7 @@ export default function OverlayPage() {
           onSkip={() => {
             setAuctionResult(null);
           }}
+          currency={auctionResult.currency}
           isPointsSystem={auctionResult.isPointsSystem}
         />
       )}

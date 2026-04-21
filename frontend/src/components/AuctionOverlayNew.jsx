@@ -96,67 +96,7 @@ export default function AuctionOverlayNew({
     }
   }, [squadModal]);
 
-  // Predefined year limits (MINIMUM required)
-  const YEAR_LIMITS = {
-    1: 2,
-    2: 2,
-    3: 2,
-    4: 2
-  };
-
-  // Normalize year from various formats ("year1", "year2", "year3", "year4", "1st", "2nd", etc.)
-  const normalizeYear = (player) => {
-    // Check category field first (your DB uses this)
-    const raw = player.category ?? player.yearCategory ?? player.year;
-
-    if (!raw) return null;
-
-    const str = String(raw).toLowerCase().trim();
-
-    // Handle "year1", "year2", "year3", "year4" format (from your DB)
-    if (str.includes("year1")) return 1;
-    if (str.includes("year2")) return 2;
-    if (str.includes("year3")) return 3;
-    if (str.includes("year4")) return 4;
-
-    // Handle generic formats: "1st", "2nd", "3rd", "4th", "1", "2", etc.
-    if (str.includes("1")) return 1;
-    if (str.includes("2")) return 2;
-    if (str.includes("3")) return 3;
-    if (str.includes("4")) return 4;
-
-    return null;
-  };
-
-  // Calculate year distribution from players
-  const calculateYearDistribution = (players) => {
-    const distribution = { 1: 0, 2: 0, 3: 0, 4: 0 };
-    
-    players.forEach(player => {
-      const year = normalizeYear(player);
-      if (year) {
-        distribution[year]++;
-      }
-    });
-    return distribution;
-  };
-
-  // Get year badge color
-  const getYearBadgeColor = (year) => {
-    switch(year) {
-      case 1: return '#10b981'; // green
-      case 2: return '#3b82f6'; // blue
-      case 3: return '#f59e0b'; // amber
-      case 4: return '#ef4444'; // red
-      default: return '#6b7280'; // gray
-    }
-  };
-
-  // Check if year limit exceeded
-  const isLimitExceeded = (year, count) => {
-    const limit = YEAR_LIMITS[year];
-    return limit && count > limit;
-  };
+  // Year-based logic removed to restore legacy system
 
   const isMobile = windowWidth < 768;
 
@@ -273,74 +213,7 @@ export default function AuctionOverlayNew({
               {squadModal.players && squadModal.players.length > 0 && (
                 <div className="mb-6">
                   <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-xs font-black uppercase tracking-widest" style={{ color: C.textSecondary }}>Year Distribution</h3>
-                    <div className="flex items-center gap-2">
-                      {/* View PDF Button */}
-                      {(squadModal.squadPdfUrl || squadModal.pdfUrl) && (
-                        <button
-                          onClick={() => window.open(squadModal.squadPdfUrl || squadModal.pdfUrl, '_blank')}
-                          className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all hover:scale-110 active:scale-95 flex items-center gap-1"
-                          style={{ 
-                            background: C.accentSoft, 
-                            border: `1px solid ${C.accentBorder}`,
-                            color: C.accent
-                          }}
-                          title="View Squad PDF"
-                        >
-                          👁 View
-                        </button>
-                      )}
-                      {/* Download PDF Button */}
-                      {(squadModal.squadPdfUrl || squadModal.pdfUrl) && (
-                        <a
-                          href={squadModal.squadPdfUrl || squadModal.pdfUrl}
-                          download
-                          className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all hover:scale-110 active:scale-95 flex items-center gap-1"
-                          style={{ 
-                            background: C.accentSoft, 
-                            border: `1px solid ${C.accentBorder}`,
-                            color: C.accent
-                          }}
-                          title="Download Squad PDF"
-                        >
-                          ⬇ Download
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-4 gap-2">
-                    {[1, 2, 3, 4].map((year) => {
-                      const count = squadModal.players.filter(p => normalizeYear(p) === year).length;
-                      const limit = YEAR_LIMITS[year];
-                      const exceeded = count < limit; // Highlight when BELOW minimum
-                      
-                      return (
-                        <div
-                          key={year}
-                          className="rounded-xl p-3 text-center relative overflow-hidden transition-all"
-                          style={{ 
-                            background: C.bgMain, 
-                            border: `1px solid ${exceeded ? '#ef4444' : C.border}`,
-                            boxShadow: exceeded ? '0 0 15px rgba(239, 68, 68, 0.3)' : '0 4px 6px rgba(0,0,0,0.3)',
-                            borderColor: exceeded ? '#ef4444' : undefined
-                          }}
-                        >
-                          <p className="text-[10px] font-medium mb-1" style={{ color: getYearBadgeColor(year) }}>
-                            {year}{year === 1 ? 'st' : year === 2 ? 'nd' : year === 3 ? 'rd' : 'th'} Year
-                          </p>
-                          <p 
-                            className="text-2xl font-black"
-                            style={{ 
-                              color: exceeded ? '#ef4444' : C.accent,
-                              textShadow: exceeded ? '0 0 10px rgba(239, 68, 68, 0.5)' : 'none'
-                            }}
-                          >
-                            {count} <span style={{ fontSize: '12px', opacity: 0.6 }}>/{limit}</span>
-                          </p>
-                        </div>
-                      );
-                    })}
-                  </div>
+
                 </div>
               )}
 
@@ -406,20 +279,7 @@ export default function AuctionOverlayNew({
                           </div>
                         )}
                         
-                        {/* Year Badge - Show on right side if role badge exists */}
-                        {yearCategory && (
-                          <div 
-                            className="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[9px] font-black z-10"
-                            style={{ 
-                              background: getYearBadgeColor(yearCategory),
-                              color: '#000',
-                              boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
-                              ...(hasRoleBadge ? { right: '2px', fontSize: '8px' } : { left: '2px' })
-                            }}
-                          >
-                            {yearCategory}{yearCategory === 1 ? 'st' : yearCategory === 2 ? 'nd' : yearCategory === 3 ? 'rd' : 'th'}
-                          </div>
-                        )}
+
                         
                         {/* Player Image */}
                         <div className="w-16 h-16 rounded-full overflow-hidden mx-auto mb-2 border-2 mt-4" style={{ borderColor: C.accent }}>

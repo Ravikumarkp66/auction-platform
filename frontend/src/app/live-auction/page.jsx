@@ -122,125 +122,7 @@ function LiveAuctionContent() {
     return hasBudgetSpace;
   };
 
-  // Check year distribution requirements
-  const getYearDistribution = (team) => {
-    const players = team.players || [];
-    const distribution = {
-      '1st year': 0,
-      '2nd year': 0,
-      '3rd year': 0,
-      '4th year': 0
-    };
-    
-    players.forEach(player => {
-      const normalizedYear = normalizeYearCategory(player);
-      distribution[normalizedYear]++;
-    });
-    
-    return distribution;
-  };
-
-  // Normalize year category - CRITICAL FIX
-  const normalizeYearCategory = (player) => {
-    // Try Application ID range-based year detection first (most reliable)
-    if (player.applicationId) {
-      const appYear = getYearFromApplicationId(player.applicationId);
-      if (appYear) {
-        return appYear;
-      }
-    }
-    
-    // Try multiple possible fields for year information
-    const yearFields = [
-      player.category,
-      player.year,
-      player.yearCategory,
-      player.batch,
-      player.classYear,
-      player.academicYear
-    ].filter(Boolean);
-    
-    // If no year field found, default to 1st year
-    if (yearFields.length === 0) {
-      return '1st year';
-    }
-    
-    const yearValue = yearFields[0].toString().toLowerCase().trim();
-    
-    // Strict year mapping
-    if (yearValue.includes('4th') || yearValue.includes('fourth') || yearValue === '4' || yearValue.includes('4 year')) {
-      return '4th year';
-    }
-    if (yearValue.includes('3rd') || yearValue.includes('third') || yearValue === '3' || yearValue.includes('3 year')) {
-      return '3rd year';
-    }
-    if (yearValue.includes('2nd') || yearValue.includes('second') || yearValue === '2' || yearValue.includes('2 year')) {
-      return '2nd year';
-    }
-    if (yearValue.includes('1st') || yearValue.includes('first') || yearValue === '1' || yearValue.includes('1 year')) {
-      return '1st year';
-    }
-    
-    // Number-based detection
-    if (yearValue.includes('4')) {
-      return '4th year';
-    }
-    if (yearValue.includes('3')) {
-      return '3rd year';
-    }
-    if (yearValue.includes('2')) {
-      return '2nd year';
-    }
-    if (yearValue.includes('1')) {
-      return '1st year';
-    }
-    
-    // Default fallback
-    return '1st year';
-  };
-
-  // Extract year from Application ID range
-  const getYearFromApplicationId = (applicationId) => {
-    if (!applicationId) return null;
-    
-    const appId = parseInt(applicationId.toString().trim());
-    
-    // Year mapping based on application ID ranges
-    if (appId >= 1 && appId <= 22) {
-      return '4th year';
-    } else if (appId >= 23 && appId <= 58) {
-      return '3rd year';
-    } else if (appId >= 59 && appId <= 82) {
-      return '2nd year';
-    } else {
-      return '1st year';
-    }
-  };
-
-  // Validate year distribution requirements - DISABLED (no restrictions)
-  const getYearDistributionIssues = (team) => {
-    return []; // No year distribution requirements
-  };
-
-  // Check max year distribution limits - DISABLED (no limits)
-  const getYearDistributionLimits = () => {
-    return {
-      '1st year': { min: 0, max: Infinity },
-      '2nd year': { min: 0, max: Infinity },
-      '3rd year': { min: 0, max: Infinity },
-      '4th year': { min: 0, max: Infinity }
-    };
-  };
-
-  // Check if team can bid based on year limits - ALWAYS TRUE (no restrictions)
-  const canBidForPlayerYear = (team, player) => {
-    return true; // No year-based restrictions
-  };
-
-  // Get year restriction reason - ALWAYS NULL (no restrictions)
-  const getYearRestrictionReason = (team, player) => {
-    return null; // No year restrictions
-  };
+  // Year distribution logic removed as per user request to restore old system
 
   // Get bid restriction reason
   const getBidRestrictionReason = (team) => {
@@ -424,51 +306,65 @@ function LiveAuctionContent() {
     if (socket) socket.emit('togglePoolView', { show: newState });
   };
 
-  // Socket connection setup - uses global socket to survive React Strict Mode
+  // Socket connection setup - uses global socket to survive React dev re-renders
   useEffect(() => {
-    // Only connect if API_URL is available and not already connected globally
-    if (!API_URL && typeof window === 'undefined' || globalSocket) {
-      if (globalSocket) setSocket(globalSocket)
-      return
+    // Determine the correct socket URL
+    const socketUrl = API_URL || (typeof window !== 'undefined' ? window.location.origin : "");
+    
+    if (!socketUrl && typeof window === 'undefined') return;
+
+    // Use existing global socket if available to prevent multiple connections in dev
+    if (globalSocket && globalSocket.connected) {
+      console.log('🔌 Using existing global socket connection');
+      setSocket(globalSocket);
+      return;
     }
 
-    const socketUrl = API_URL || (typeof window !== 'undefined' ? window.location.origin : "");
+    console.log('🔌 Initializing new socket connection to:', socketUrl);
+    
     const s = io(socketUrl, {
-      transports: ['polling', 'websocket'],
-      timeout: 10000,
+      transports: ['websocket', 'polling'],
+      timeout: 20000,
       reconnection: true,
       reconnectionDelay: 1000,
-      reconnectionAttempts: 5
-    })
+      reconnectionAttempts: 10,
+      forceNew: false // Allow reusing connection if possible
+    });
 
-    globalSocket = s
-    setSocket(s)
+    globalSocket = s;
+    setSocket(s);
 
-    // Connection events
     s.on('connect', () => {
-      console.log('✅ Socket connected')
-    })
+      console.log('✅ Socket connected successfully. ID:', s.id);
+    });
 
     s.on('disconnect', (reason) => {
-      console.log('Socket disconnected:', reason)
-    })
-
-    s.on('playerUpdate', (data) => {
-      console.log('Player update received via socket:', data.id);
-      setPlayers(prev => prev.map(p => {
-        if (p._id === data.id || p.id === data.id) {
-          return { ...p, ...data, photo: data.photo, imageUrl: data.imageUrl };
-        }
-        return p;
-      }));
+      console.log('⚠️ Socket disconnected. Reason:', reason);
+      if (reason === 'io server disconnect') {
+        s.connect();
+      }
     });
 
     s.on('connect_error', (error) => {
-      console.error('Socket connection error:', error.message)
-    })
+      console.error('❌ Socket connection error:', error.message);
+      // If direct connection fails and we were using a full URL, maybe try relative as fallback?
+      // But for now, we just log it clearly.
+    });
 
-    // No cleanup - socket persists for the lifetime of the page
-  }, [])
+    s.on('playerUpdate', (data) => {
+      console.log('📡 Player update received:', data.id);
+      setPlayers(prev => prev.map(p => (p._id === data.id || p.id === data.id) ? { ...p, ...data } : p));
+    });
+
+    // Cleanup: We keep the globalSocket alive in development
+    return () => {
+      // In production, we might want to disconnect, but in dev it causes issues with HMR
+      if (process.env.NODE_ENV === 'production') {
+        s.disconnect();
+        globalSocket = null;
+      }
+    };
+  }, []);
 
   // Tournament validation
   useEffect(() => {
@@ -982,6 +878,20 @@ function LiveAuctionContent() {
       color: "text-violet-400 bg-violet-500/10"
     }, ...results])
 
+    // 1. Show Result Overlay IMMEDIATELY for snappy animation
+    setResult({
+      type: "SOLD",
+      price: currentBid,
+      teamName: winningTeam?.name,
+      teamLogo: winningTeam?.logoUrl,
+      teamColor: winningTeam?.color,
+      teamShortName: winningTeam?.shortName,
+      playerName: player.name,
+      playerImage: player.photo?.s3 || player.photo?.drive || player.imageUrl || player.image,
+      currency: isPointsSystem() ? "" : "₹",
+      isPointsSystem: isPointsSystem()
+    });
+
     // Save to backend - Update BOTH player and team budget together
     try {
       // Save both in parallel for reliability
@@ -1041,21 +951,10 @@ function LiveAuctionContent() {
             teamLogo: winningTeam?.logoUrl,
             teamColor: winningTeam?.color,
             playerImage: player.photo?.s3 || player.photo?.drive || player.imageUrl || player.image,
+            currency: isPointsSystem() ? "" : "₹",
             isPointsSystem: isPointsSystem()
           });
         }
-
-        setResult({
-          type: "SOLD",
-          price: currentBid,
-          teamName: winningTeam?.name,
-          teamLogo: winningTeam?.logoUrl,
-          playerName: player.name,
-          playerImage: player.photo?.s3 || player.photo?.drive || player.imageUrl || player.image,
-          currency: isPointsSystem() ? "" : "₹",
-          isPointsSystem: isPointsSystem()
-        });
-
       } else {
         console.error("❌ Failed to save sale data:",
           !playerRes.ok ? "Player update failed" : "",
@@ -1095,9 +994,19 @@ function LiveAuctionContent() {
         playerId: player.id,
         playerName: player.name,
         playerImage: player.photo?.s3 || player.photo?.drive || player.imageUrl || player.image,
+        currency: isPointsSystem() ? "" : "₹",
         isPointsSystem: isPointsSystem()
       });
     }
+
+    // Show unsold overlay immediately
+    setResult({
+      type: "UNSOLD",
+      playerName: player.name,
+      playerImage: player.photo?.s3 || player.photo?.drive || player.imageUrl || player.image,
+      currency: isPointsSystem() ? "" : "₹",
+      isPointsSystem: isPointsSystem()
+    });
 
     // Persist unsold status on backend
     try {
@@ -1118,13 +1027,6 @@ function LiveAuctionContent() {
       })
 
       if (res.ok) {
-        setResult({
-          type: "UNSOLD",
-          playerName: player.name,
-          playerImage: player.photo?.s3 || player.photo?.drive || player.imageUrl || player.image,
-          currency: isPointsSystem() ? "" : "₹",
-          isPointsSystem: isPointsSystem()
-        });
         console.log(`✅ MARKED UNSOLD: ${player.name} (Round 1)`);
       } else {
         console.error("❌ Failed to save UNSOLD status for player:", player.name)
@@ -1149,6 +1051,7 @@ function LiveAuctionContent() {
         status: "available"
       };
       setPlayers(updatedPlayers);
+      setResult(null); // Clear the UNSOLD overlay
 
       try {
         const res = await fetch(`${API_URL}/api/players/${player.id}`, {
@@ -1218,6 +1121,7 @@ function LiveAuctionContent() {
 
     setTeams(updatedTeams)
     setPlayers(updatedPlayers)
+    setResult(null); // Clear the SOLD overlay
 
     // Update backend - Reset BOTH player and refund team budget together
     try {
@@ -1520,7 +1424,11 @@ function LiveAuctionContent() {
           price={result.price}
           teamName={result.teamName}
           teamLogo={result.teamLogo}
+          teamColor={result.teamColor}
+          teamShortName={result.teamShortName}
           playerImage={result.playerImage}
+          currency={result.currency}
+          isPointsSystem={result.isPointsSystem}
           onSkip={() => {
             setResult(null);
             nextPlayer();
@@ -1603,8 +1511,9 @@ function LiveAuctionContent() {
         {/* HEADER - Responsive Layout */}
         <div className="mb-4 pb-4 border-b border-slate-800">
           <div className="flex items-center justify-between mb-3">
-            <Link href="/admin/dashboard" className="bg-violet-600 hover:bg-violet-500 px-4 py-2 rounded-xl text-sm font-bold transition-all border border-violet-500 whitespace-nowrap backdrop-blur-md min-h-[40px] flex items-center shadow-lg">
-              ← Back to Dashboard
+            <Link href="/admin/dashboard" className="bg-violet-600 hover:bg-violet-500 px-3 py-2 md:px-4 md:py-2 rounded-xl text-xs md:text-sm font-bold transition-all border border-violet-500 whitespace-nowrap backdrop-blur-md min-h-[40px] flex items-center shadow-lg">
+              <span className="hidden md:inline">← Back to Dashboard</span>
+              <span className="md:hidden">← Dashboard</span>
             </Link>
 
             <div className="flex items-center gap-2">
@@ -1702,18 +1611,20 @@ function LiveAuctionContent() {
 
           {/* MOBILE SIDEBAR PANEL (Bottom Bar Style) */}
           {!activeSidebar && (
-            <div className="md:hidden fixed bottom-0 left-0 right-0 bg-slate-900/40 backdrop-blur-xl border-t border-slate-700/50 flex justify-around items-center h-16 z-50 pb-[env(safe-area-inset-bottom)]">
-              <button onClick={() => setActiveSidebar('teams')} className="flex flex-col items-center gap-1">
-                <span className="text-xl">👥</span>
-                <span className="text-[10px] font-black uppercase text-slate-400">Teams</span>
+            <div className="md:hidden fixed bottom-0 left-0 right-0 bg-slate-950/60 backdrop-blur-2xl border-t border-white/10 flex justify-around items-center h-16 z-50 pb-[env(safe-area-inset-bottom)] shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+              <button onClick={() => setActiveSidebar('teams')} className="flex flex-col items-center gap-1 flex-1 py-2">
+                <span className="text-2xl drop-shadow-md">👥</span>
+                <span className="text-[10px] font-black uppercase text-slate-300 tracking-tighter">Teams</span>
               </button>
-              <button onClick={() => setActiveSidebar('stats')} className="flex flex-col items-center gap-1">
-                <span className="text-xl">📊</span>
-                <span className="text-[10px] font-black uppercase text-slate-400">Stats</span>
+              <div className="w-[1px] h-8 bg-white/5"></div>
+              <button onClick={() => setActiveSidebar('stats')} className="flex flex-col items-center gap-1 flex-1 py-2">
+                <span className="text-2xl drop-shadow-md">📊</span>
+                <span className="text-[10px] font-black uppercase text-slate-300 tracking-tighter">Stats</span>
               </button>
-              <button onClick={() => setActiveSidebar('pools')} className="flex flex-col items-center gap-1">
-                <span className="text-xl">🗳️</span>
-                <span className="text-[10px] font-black uppercase text-slate-400">Pools</span>
+              <div className="w-[1px] h-8 bg-white/5"></div>
+              <button onClick={() => setActiveSidebar('pools')} className="flex flex-col items-center gap-1 flex-1 py-2">
+                <span className="text-2xl drop-shadow-md">🗳️</span>
+                <span className="text-[10px] font-black uppercase text-slate-300 tracking-tighter">Pools</span>
               </button>
             </div>
           )}
@@ -1755,15 +1666,11 @@ function LiveAuctionContent() {
                       {[...teams].sort((a, b) => a.remainingBudget - b.remainingBudget).map((team, idx) => {
                         const squad = categorizeTeamPlayers(team);
                         const limits = getSquadLimits();
-                        const yearDistribution = getYearDistribution(team);
-                        const yearIssues = getYearDistributionIssues(team);
                         const currentSquadSize = team.players?.length || 0;
                         const isCompleteSquad = currentSquadSize >= limits.minPlayers;
                         
                         return (
-                          <div key={team.id} className={`bg-slate-900/40 border rounded-2xl p-4 shadow-2xl hover:bg-slate-800/40 transition-all ${
-                            yearIssues.length > 0 ? 'border-amber-500/30' : 'border-slate-700/50'
-                          }`}>
+                          <div key={team.id} className="bg-slate-900/40 border border-slate-700/50 rounded-2xl p-4 shadow-2xl hover:bg-slate-800/40 transition-all">
                             {/* Team Header */}
                             <div className="flex items-center justify-between mb-3">
                               <div className="flex items-center gap-3">
@@ -1783,28 +1690,7 @@ function LiveAuctionContent() {
                               </div>
                             </div>
 
-                            {/* Year Distribution */}
-                            <div className="mb-3">
-                              <p className="text-[8px] font-black text-slate-400 uppercase tracking-wider mb-2">Year Distribution</p>
-                              <div className="grid grid-cols-4 gap-1">
-                                {Object.entries(yearDistribution).map(([year, count]) => (
-                                  <div key={year} className="text-center p-1 bg-slate-800/50 rounded border border-slate-700/30">
-                                    <p className="text-[8px] text-slate-400">{year}</p>
-                                    <p className={`text-sm font-black ${count >= 2 ? 'text-green-400' : count > 0 ? 'text-amber-400' : 'text-red-400'}`}>
-                                      {count}
-                                    </p>
-                                  </div>
-                                ))}
-                              </div>
-                              {yearIssues.length > 0 && (
-                                <div className="mt-2 p-2 bg-amber-500/10 border border-amber-500/20 rounded-lg">
-                                  <p className="text-[8px] font-black text-amber-400 uppercase tracking-wider">⚠️ Requirements</p>
-                                  {yearIssues.map((issue, i) => (
-                                    <p key={i} className="text-[8px] text-amber-300 mt-1">• {issue}</p>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
+
 
                             {/* Special Players */}
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
@@ -1814,7 +1700,7 @@ function LiveAuctionContent() {
                                   <span className="px-1.5 py-0.5 bg-amber-500 text-black text-[8px] font-black rounded-full">C</span>
                                   <div className="flex-1 min-w-0">
                                     <p className="text-xs font-black text-white truncate">{squad.captain.name}</p>
-                                    <p className="text-[8px] text-slate-400">{squad.captain.role} • {normalizeYearCategory(squad.captain)} • {formatCurrency(squad.captain.soldPrice || squad.captain.basePrice)}</p>
+                                    <p className="text-[8px] text-slate-400">{squad.captain.role} • {formatCurrency(squad.captain.soldPrice || squad.captain.basePrice)}</p>
                                   </div>
                                 </div>
                               )}
@@ -1825,7 +1711,7 @@ function LiveAuctionContent() {
                                   <span className="px-1.5 py-0.5 bg-slate-400 text-black text-[8px] font-black rounded-full">VC</span>
                                   <div className="flex-1 min-w-0">
                                     <p className="text-xs font-black text-white truncate">{squad.viceCaptain.name}</p>
-                                    <p className="text-[8px] text-slate-400">{squad.viceCaptain.role} • {normalizeYearCategory(squad.viceCaptain)} • {formatCurrency(squad.viceCaptain.soldPrice || squad.viceCaptain.basePrice)}</p>
+                                    <p className="text-[8px] text-slate-400">{squad.viceCaptain.role} • {formatCurrency(squad.viceCaptain.soldPrice || squad.viceCaptain.basePrice)}</p>
                                   </div>
                                 </div>
                               )}
@@ -1840,7 +1726,7 @@ function LiveAuctionContent() {
                                     <div key={player._id || player.id || i} className="flex items-center gap-2 bg-emerald-500/5 border border-emerald-500/10 rounded-lg p-1.5">
                                       <span className="px-1.5 py-0.5 bg-emerald-500 text-white text-[8px] font-black rounded-full">R</span>
                                       <p className="text-xs font-black text-white truncate flex-1">{player.name}</p>
-                                      <p className="text-[8px] text-slate-400">{normalizeYearCategory(player)} • {formatCurrency(player.soldPrice || player.basePrice)}</p>
+                                      <p className="text-[8px] text-slate-400">{formatCurrency(player.soldPrice || player.basePrice)}</p>
                                     </div>
                                   ))}
                                 </div>
@@ -2038,7 +1924,7 @@ function LiveAuctionContent() {
                 {/* HEADER ROW - Glassmorphism Card */}
                 <div className="flex flex-col md:flex-row gap-8 items-stretch p-4 md:p-10 bg-black/45 backdrop-blur-md rounded-2xl border border-cyan-500/20 shadow-[0_8px_32px_rgba(0,0,0,0.6),0_0_10px_rgba(0,255,200,0.2)] transition-all duration-300 ease hover:-translate-y-1 hover:scale-[1.01]">
                   {/* 1. PHOTO - Glass Panel */}
-                  <div className="relative group/photo w-[140px] h-[180px] sm:w-[160px] sm:h-[200px] md:w-[240px] md:h-[300px] rounded-xl overflow-hidden border-2 border-cyan-500/30 shadow-[0_8px_32px_rgba(0,0,0,0.6),0_0_15px_rgba(0,255,200,0.3)] bg-black/50 backdrop-blur-sm ring-4 ring-black/40 transition-all duration-300 ease hover:shadow-[0_12px_40px_rgba(0,255,200,0.4)]">
+                  <div className="relative group/photo w-[120px] h-[150px] sm:w-[160px] sm:h-[200px] md:w-[240px] md:h-[300px] mx-auto md:mx-0 rounded-xl overflow-hidden border-2 border-cyan-500/30 shadow-[0_8px_32px_rgba(0,0,0,0.6),0_0_15px_rgba(0,255,200,0.3)] bg-black/50 backdrop-blur-sm ring-4 ring-black/40 transition-all duration-300 ease hover:shadow-[0_12px_40px_rgba(0,255,200,0.4)] shrink-0">
                       <Image
                         src={player.photo?.s3 || player.photo?.drive || player.imageUrl || player.image}
                         alt={player.name} fill className={`object-cover ${player.status !== 'available' ? 'grayscale opacity-50' : ''}`} unoptimized={true}
@@ -2104,9 +1990,9 @@ function LiveAuctionContent() {
                         </div>
                       )}
 
-                      {/* Application ID */}
-                      <div className="bg-blue-600/20 border border-blue-500/30 px-3 py-1 rounded-full w-fit mb-2">
-                        <p className="text-blue-400 text-[10px] font-black tracking-widest uppercase">Application ID: {player.applicationId || (currentPlayerIndex + 1).toString().padStart(2, '0')}</p>
+                      {/* Village and Role */}
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{player.village || "Unknown Village"}</span>
                       </div>
 
                       {editingPlayerField === 'name' ? (
@@ -2122,11 +2008,11 @@ function LiveAuctionContent() {
                           <button onClick={() => setEditingPlayerField(null)} className="shrink-0 bg-red-500/20 hover:bg-red-500/40 text-red-400 border border-red-500/30 w-10 h-10 rounded-xl flex items-center justify-center text-xl shadow-lg transition-all">✕</button>
                         </div>
                       ) : (
-                        <div className="flex items-center gap-6 group/playername">
-                          <h1 className="text-4xl sm:text-5xl md:text-7xl font-black tracking-tighter leading-none text-white mb-2 drop-shadow-xl uppercase italic" style={{ textShadow: '0 0 30px rgba(255,255,255,0.2)' }}>{player.name}</h1>
+                        <div className="flex items-center gap-2 group/playername">
+                          <h1 className="text-3xl sm:text-5xl md:text-7xl font-black tracking-tighter leading-none text-white mb-2 drop-shadow-xl uppercase italic" style={{ textShadow: '0 0 30px rgba(255,255,255,0.2)' }}>{player.name}</h1>
                           <button
                             onClick={() => { setEditingPlayerField('name'); setTempValue(player.name); }}
-                            className="opacity-0 group-hover/playername:opacity-100 text-xl text-violet-500 hover:text-violet-400 transition-opacity"
+                            className="opacity-0 group-hover/playername:opacity-100 text-sm md:text-xl text-violet-500 hover:text-violet-400 transition-opacity"
                           >
                             ✎
                           </button>
@@ -2309,7 +2195,7 @@ function LiveAuctionContent() {
                         <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-transparent via-violet-500 to-transparent shadow-[0_0_15px_rgba(139,92,246,0.6)]"></div>
                         <p className="text-violet-400/80 uppercase tracking-[0.4em] text-[11px] font-black mb-6 drop-shadow-sm">Current Highest Bid</p>
                         <div className="relative">
-                          <h1 className={`text-6xl sm:text-7xl md:text-9xl font-black text-white tabular-nums drop-shadow-[0_0_30px_rgba(168,85,247,0.5)] leading-none ${bidPulse ? 'bid-animation' : ''}`} style={{ fontFamily: "'Inter', sans-serif" }}>
+                          <h1 className={`text-4xl sm:text-7xl md:text-9xl font-black text-white tabular-nums drop-shadow-[0_0_30px_rgba(168,85,247,0.5)] leading-none ${bidPulse ? 'bid-animation' : ''}`} style={{ fontFamily: "'Inter', sans-serif" }}>
                             {formatCurrency(currentBid)}
                           </h1>
                           <div className="absolute -inset-4 bg-violet-600/5 blur-3xl rounded-full -z-10 animate-pulse"></div>
@@ -2397,13 +2283,13 @@ function LiveAuctionContent() {
                         <button
                           onClick={sellPlayer}
                           disabled={!highestBidder}
-                          className={`flex-1 group py-4 rounded-xl font-black transition-all active:scale-95 uppercase flex items-center justify-center gap-2 border-2 shadow-lg ${highestBidder
+                          className={`flex-1 group py-3 md:py-4 rounded-xl font-black transition-all active:scale-95 uppercase flex items-center justify-center gap-2 border-2 shadow-lg ${highestBidder
                             ? "bg-violet-600 border-violet-500 shadow-violet-900/20"
                             : "bg-slate-800/50 text-slate-600 border-slate-700 opacity-50 cursor-not-allowed"
                             }`}
                         >
-                          <span className="text-lg md:text-xl">🔨 SELL PLAYER</span>
-                          {highestBidder && <span className="text-[10px] font-bold text-violet-100 opacity-80 bg-black/20 px-2 py-0.5 rounded-full">{formatCurrency(currentBid)}</span>}
+                          <span className="text-sm sm:text-lg md:text-xl">🔨 SELL <span className="hidden sm:inline">PLAYER</span></span>
+                          {highestBidder && <span className="text-[8px] md:text-[10px] font-bold text-violet-100 opacity-80 bg-black/20 px-2 py-0.5 rounded-full">{formatCurrency(currentBid)}</span>}
                         </button>
 
                         <button

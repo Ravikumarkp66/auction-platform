@@ -147,6 +147,7 @@ router.get("/get-upload-url", async (req, res) => {
 
 router.get("/proxy-image", async (req, res) => {
   const { url } = req.query;
+  console.log(`[PROXY-IMAGE REQUEST]: ${url}`);
   if (!url) return res.status(400).send("URL is required");
 
   try {

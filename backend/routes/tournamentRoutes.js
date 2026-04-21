@@ -23,6 +23,7 @@ router.post("/", async (req, res) => {
     const { 
       name, organizerName, organizerLogo, numTeams, iconsPerTeam, 
       baseBudget, defaultBasePrice, squadSize, auctionSlots, 
+      registrationTitle, registrationDetails,
       // ── New auction-engine fields (all optional; fall back to money defaults) ──
       auctionMode = "money",
       squadMinPlayers,
@@ -44,6 +45,7 @@ router.post("/", async (req, res) => {
     const tournament = new Tournament({ 
       name, organizerName, organizerLogo, numTeams, iconsPerTeam,
       baseBudget, defaultBasePrice, squadSize, auctionSlots,
+      registrationTitle, registrationDetails,
       // New engine fields
       auctionMode,
       budget: { total: baseBudget || 0, unit: budgetUnit },
@@ -60,11 +62,7 @@ router.post("/", async (req, res) => {
       // Logic for points-based retention: 
       // If any of the players assigned to this team are "retained", deduct 50 pts.
       let initialBudget = baseBudget;
-      if (auctionMode === "points") {
-        const teamIcons = players.filter(p => p.isIcon && p.team === team.name);
-        const hasRetained = teamIcons.some(p => p.iconRole === "retained");
-        if (hasRetained) initialBudget -= 50;
-      }
+      // Retention budget deduction removed to restore legacy system
 
       return new Team({
         name: team.name,
@@ -104,7 +102,7 @@ router.post("/", async (req, res) => {
         teamSlotId: slotId,
         status: "sold",
         // SOLD PRICE: 50 for retained players (per rule), 0 for CP/VC (pre-included in team)
-        soldPrice: player.iconRole === "retained" ? 50 : 0,
+        soldPrice: 0,
         isIcon: true,
         iconRole: player.iconRole || null,
         photo: {
@@ -209,7 +207,7 @@ router.post("/:id/append-players", async (req, res) => {
           team: teamId,  // ✅ Store ObjectId, not string
           teamSlotId: slotId,
           status: isIconPlayer ? "sold" : "available",
-          soldPrice: isIconPlayer && player.iconRole === "retained" ? 50 : 0,
+          soldPrice: 0, // Icons always cost 0 in legacy system
           isIcon: isIconPlayer || false,
           iconRole: player.iconRole || null,
           photo: {
@@ -271,7 +269,7 @@ router.post("/:id/assign-icons-to-teams", async (req, res) => {
           Player.findByIdAndUpdate(player._id, {
             team: teamId,  // ✅ CRITICAL FIX - Set the team ObjectId reference
             status: "sold",
-            soldPrice: player.iconRole === "retained" ? 50 : 0
+            soldPrice: 0 // Icons always cost 0 in legacy system
           })
         );
         
@@ -499,6 +497,22 @@ router.post("/:id/go-live", async (req, res) => {
 });
 
 // Archive / Set to Completed manually
+// Update Tournament
+router.put("/:id", async (req, res) => {
+  try {
+    const { registrationTitle, registrationDetails } = req.body;
+    const tournament = await Tournament.findByIdAndUpdate(
+      req.params.id, 
+      { $set: { registrationTitle, registrationDetails } }, 
+      { new: true }
+    );
+    if (!tournament) return res.status(404).json({ message: "Tournament not found" });
+    res.json({ message: "Tournament updated successfully", tournament });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 router.post("/:id/archive", async (req, res) => {
   try {
     const tournament = await Tournament.findByIdAndUpdate(

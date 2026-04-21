@@ -50,17 +50,18 @@ export default function AdminLayout({ children }) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [tournaments, setTournaments] = useState([]);
-  const [selectedAuction, setSelectedAuction] = useState(() => {
+  const [selectedAuction, setSelectedAuction] = useState(null);
+
+  useEffect(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("selectedAuction");
       if (saved) {
         try {
-          return JSON.parse(saved);
+          setSelectedAuction(JSON.parse(saved));
         } catch (e) {}
       }
     }
-    return null;
-  });
+  }, []);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const dropdownRef = useRef(null);
@@ -109,6 +110,10 @@ export default function AdminLayout({ children }) {
       const url = `${API_URL}/api/tournaments`;
       console.log("Fetching tournaments from:", url);
       const res = await fetch(url);
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`Server error: ${res.status} ${text}`);
+      }
       const data = await res.json();
       
       // Safety check: Ensure data is an array to prevent .map crashes
@@ -265,29 +270,29 @@ export default function AdminLayout({ children }) {
           <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-violet-600/5 blur-[120px] rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none" />
 
           {/* ── Topbar ── */}
-          <header className="shrink-0 h-16 flex items-center justify-between px-4 lg:px-8
+          <header className="shrink-0 h-14 md:h-16 flex items-center justify-between px-3 md:px-8
             border-b border-white/5 bg-[#0B0F2A]/70 backdrop-blur-xl z-30">
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 md:gap-4 flex-1 min-w-0">
               <button
                 onClick={() => setSidebarOpen(true)}
                 className="lg:hidden p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-all"
               >
-                <Menu className="w-6 h-6" />
+                <Menu className="w-5 h-5 md:w-6 md:h-6" />
               </button>
               
-              {/* AUCTION SELECTOR (🔥 THE MOST IMPORTANT PIECE) */}
-              <div className="relative" ref={dropdownRef}>
+              {/* AUCTION SELECTOR */}
+              <div className="relative flex-1 max-w-[240px]" ref={dropdownRef}>
                 <button 
                   onClick={() => setDropdownOpen(!dropdownOpen)}
-                  className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all min-w-[200px]"
+                  className="flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all w-full"
                 >
-                  <Trophy className="w-4 h-4 text-yellow-400" />
+                  <Trophy className="w-3.5 h-3.5 text-yellow-400 shrink-0" />
                   <div className="flex-1 text-left min-w-0">
-                    <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">Selected Auction</p>
-                    <p className="text-xs font-black text-white truncate">{selectedAuction ? selectedAuction.name : "Select Auction"}</p>
+                    <p className="text-[7px] md:text-[8px] font-black uppercase tracking-widest text-slate-500">Selected Auction</p>
+                    <p className="text-[10px] md:text-xs font-black text-white truncate">{selectedAuction ? selectedAuction.name : "Select Auction"}</p>
                   </div>
-                  <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
+                  <ChevronDown className={`w-3.5 h-3.5 text-slate-500 transition-transform shrink-0 ${dropdownOpen ? 'rotate-180' : ''}`} />
                 </button>
 
                 {dropdownOpen && (
@@ -331,12 +336,16 @@ export default function AdminLayout({ children }) {
                 return (
                   <Link 
                     href={target ? `/live-auction?id=${target._id}` : "#"}
-                    className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-black
+                    className="px-3 py-2 md:px-4 md:py-2 rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest text-black
                       bg-gradient-to-r from-yellow-400 to-yellow-600
                       shadow-lg shadow-yellow-500/20
                       hover:scale-105 active:scale-95 transition-all"
                   >
-                    {live && live._id !== selectedAuction?._id ? `Go Live: ${live.shortId || ''}` : "Go Live"}
+                    {live && live._id !== selectedAuction?._id ? (
+                      <span className="flex items-center gap-1">
+                        LIVE: <span className="opacity-70">{live.shortId || live.name.slice(0, 3)}</span>
+                      </span>
+                    ) : "Go Live"}
                   </Link>
                 );
               })()}

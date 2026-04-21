@@ -22,6 +22,10 @@ app.use(helmet({
 }));
 app.use(compression());
 app.use(morgan('dev'));
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  next();
+});
 
 const allowedOrigins = [
   "http://localhost:3000",
@@ -204,6 +208,9 @@ const assetRoutes = require("./routes/assetRoutes");
 const proxyImageRoute = require("./routes/proxyImage");
 const rulesRoutes = require("./routes/rulesRoutes"); // Rule Engine API
 const squadRoutes = require("./routes/squadRoutes"); // Squad generation API
+// Test route to verify API mounting
+app.get("/api/test", (req, res) => res.json({ success: true, message: "API test working" }));
+
 app.use("/api/players", playerRoutes);
 app.use("/api/tournaments", tournamentRoutes);
 app.use("/api/upload", uploadRoutes);
@@ -231,6 +238,7 @@ app.use((err, req, res, next) => {
 
 // 404 handler
 app.use((req, res) => {
+  console.log('404 hit for:', req.originalUrl || req.url);
   res.status(404).json({
     success: false,
     message: 'Route not found'

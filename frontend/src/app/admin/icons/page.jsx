@@ -32,38 +32,7 @@ export default function IconPlayersPanel() {
   const [importedData, setImportedData] = useState([]); // Store parsed CSV data for display
   const [editingPlayer, setEditingPlayer] = useState(null); // New state for editing name & details
 
-  // Helper: Convert category label to year number
-  const getYearNumberFromLabel = (category) => {
-    if (!category) return 4;
-    const cat = category.toLowerCase();
-    if (cat.includes("1st") || cat.includes("1") || cat.includes("first")) return 1;
-    if (cat.includes("2nd") || cat.includes("2") || cat.includes("second")) return 2;
-    if (cat.includes("3rd") || cat.includes("3") || cat.includes("third")) return 3;
-    if (cat.includes("4th") || cat.includes("4") || cat.includes("fourth")) return 4;
-    return 4; // default
-  };
-
-  // Helper: Get year label from number
-  const getYearLabel = (yearNum) => {
-    switch(yearNum) {
-      case 1: return "1st Year";
-      case 2: return "2nd Year";
-      case 3: return "3rd Year";
-      case 4: return "4th Year";
-      default: return "4th Year";
-    }
-  };
-
-  // Helper: Get year badge color
-  const getYearBadgeColor = (yearNum) => {
-    switch(yearNum) {
-      case 1: return "#10b981"; // green
-      case 2: return "#3b82f6"; // blue
-      case 3: return "#f59e0b"; // amber
-      case 4: return "#ef4444"; // red
-      default: return "#6b7280"; // gray
-    }
-  };
+  // Year logic removed as per user request to restore old system
 
   useEffect(() => {
     if (selectedAuction?._id) {
@@ -116,19 +85,7 @@ export default function IconPlayersPanel() {
           return null;
         };
 
-        // Helper: Calculate year from USN (for 2026 tournament)
-        const calculateYearFromUSN = (usnStr) => {
-          if (!usnStr || typeof usnStr !== 'string') return "4th year";
-          const match = usnStr.match(/2[0-9]/);
-          if (match) {
-            const yr = parseInt(match[0], 10);
-            const diff = 26 - yr;
-            if (diff === 3) return "3rd year";
-            if (diff === 2) return "2nd year";
-            if (diff >= 4) return "4th year";
-          }
-          return "4th year"; // Default to 4th for unknown
-        };
+        // Year calculation removed as per user request
 
         // Proxy function for Drive links
         const proxyUrl = (url) => {
@@ -157,70 +114,27 @@ export default function IconPlayersPanel() {
               }
             });
             return;
-          }
-
-          // Extract Captain - Name and Year only
-          const capName = findValue(row, ["Captain Name", "captain name", "capt name", "C Name", "captain"]);
-          const capYear = findValue(row, ["Captain Year", "captain year", "cap year", "C Year", "year"]);
+             // Extract Generic Icons from row
+          const possibleIconNames = ["Captain Name", "Vice Captain Name", "Retain Player Name", "icon name", "name", "player name"];
           
-          if (capName && capName.toLowerCase() !== "yes" && capName.toLowerCase() !== "no") {
-            const capIcon = {
-              name: capName,
-              mobile: "-",
-              imageUrl: "",
-              role: "All-Rounder",
-              category: capYear || "4th year",
-              village: "-",
-              age: 0,
-              teamName: teamName.trim(),
-              iconRole: "captain",
-              isIcon: true
-            };
-            importedIcons.push(capIcon);
-            tableData.push({ ...capIcon, type: 'Captain' });
-          }
-
-          // Extract Vice-Captain - Name and Year only
-          const vcName = findValue(row, ["Vice Captain Name", "vice captain name", "vc name", "vice name", "VC Name", "vice captain"]);
-          const vcYear = findValue(row, ["Vice Captain Year", "vice captain year", "vc year", "VC Year", "year"]);
-          
-          if (vcName && vcName.toLowerCase() !== "yes" && vcName.toLowerCase() !== "no") {
-            const vcIcon = {
-              name: vcName,
-              mobile: "-",
-              imageUrl: "",
-              role: "All-Rounder",
-              category: vcYear || "4th year",
-              village: "-",
-              age: 0,
-              teamName: teamName.trim(),
-              iconRole: "viceCaptain",
-              isIcon: true
-            };
-            importedIcons.push(vcIcon);
-            tableData.push({ ...vcIcon, type: 'Vice Captain' });
-          }
-
-          // Extract ONE Retained Player - Name and Year only
-          const retName = findValue(row, [`Retain Player Name`, `retained name`, `ret name`, `retained player`, `retained`]);
-          const retYear = findValue(row, [`Retain Player Year`, `retained year`, `ret year`, `year`]);
-          
-          if (retName && retName.toLowerCase() !== "yes" && retName.toLowerCase() !== "no") {
-            const retIcon = {
-              name: retName,
-              mobile: "-",
-              imageUrl: "",
-              role: "All-Rounder",
-              category: retYear || "4th year",
-              village: "-",
-              age: 0,
-              teamName: teamName.trim(),
-              iconRole: "retained",
-              isIcon: true
-            };
-            importedIcons.push(retIcon);
-            tableData.push({ ...retIcon, type: 'Retained' });
-          }
+          possibleIconNames.forEach(key => {
+            const val = findValue(row, [key]);
+            if (val && val.toLowerCase() !== "yes" && val.toLowerCase() !== "no") {
+              const icon = {
+                name: val,
+                mobile: "-",
+                imageUrl: "",
+                role: "All-Rounder",
+                village: "-",
+                age: 0,
+                teamName: teamName.trim(),
+                iconRole: null, // No special roles as per user request
+                isIcon: true
+              };
+              importedIcons.push(icon);
+              tableData.push({ ...icon, type: 'Icon' });
+            }
+          });         }
         });
 
         // Store parsed data for display
@@ -262,7 +176,9 @@ export default function IconPlayersPanel() {
               socket.emit("auctionUpdate", { type: "system_refresh", auctionId: selectedAuction._id });
             }
           } else {
-            alert("Failed to import icon players");
+            const errorText = await res.text();
+            console.error("Import failed:", errorText);
+            alert(`Failed to import icon players: ${res.status} ${res.statusText}`);
           }
         } else {
           alert("No icon players found in CSV");
@@ -285,6 +201,16 @@ export default function IconPlayersPanel() {
         fetch(`${API_URL}/api/players?tournamentId=${selectedAuction._id}&isIcon=true`),
         fetch(`${API_URL}/api/teams?tournamentId=${selectedAuction._id}`)
       ]);
+      
+      if (!pRes.ok) {
+        const errorText = await pRes.text();
+        throw new Error(`Failed to fetch players: ${pRes.status} ${errorText}`);
+      }
+      if (!tRes.ok) {
+        const errorText = await tRes.text();
+        throw new Error(`Failed to fetch teams: ${tRes.status} ${errorText}`);
+      }
+
       const pData = await pRes.json();
       const tData = await tRes.json();
       
@@ -369,11 +295,9 @@ export default function IconPlayersPanel() {
               <thead>
                 <tr className="bg-white/5 border-b border-white/10">
                   <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Team</th>
-                  <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Type</th>
                   <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Name</th>
-                  <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">USN</th>
                   <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Number</th>
-                  <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Year</th>
+                  <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Village</th>
                   <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Photo</th>
                 </tr>
               </thead>
@@ -403,31 +327,10 @@ export default function IconPlayersPanel() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="text-sm font-mono text-slate-400">{row.applicationId}</span>
-                    </td>
-                    <td className="px-6 py-4">
                       <span className="text-sm font-bold text-slate-400">{row.mobile}</span>
                     </td>
                     <td className="px-6 py-4">
-                      {(() => {
-                        // Use the category field directly instead of calculating from USN
-                        const yearNum = getYearNumberFromLabel(row.category);
-                        const yearLabel = getYearLabel(yearNum);
-                        const badgeColor = getYearBadgeColor(yearNum);
-                        
-                        return (
-                          <span 
-                            className="text-xs font-black px-3 py-1 rounded-xl border"
-                            style={{ 
-                              background: `${badgeColor}15`,
-                              borderColor: `${badgeColor}30`,
-                              color: badgeColor
-                            }}
-                          >
-                            {yearLabel}
-                          </span>
-                        );
-                      })()}
+                      <span className="text-sm font-bold text-slate-400">{row.village || "-"}</span>
                     </td>
                     <td className="px-6 py-4">
                       {row.imageUrl ? (
@@ -515,17 +418,16 @@ export default function IconPlayersPanel() {
             {/* Allocation Matrix */}
             <div className="px-8 py-6 bg-white/[0.02] border-t border-white/5 grid grid-cols-2 gap-4">
                <div className="space-y-1">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Assigned Team</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Village</p>
                   <div className="flex items-center gap-2">
-                     <Trophy className="w-3.5 h-3.5 text-yellow-500/60" />
-                     <p className="text-sm font-black text-white truncate">{getTeamName(p.team)}</p>
+                     <p className="text-sm font-black text-white truncate">{p.village || "-"}</p>
                   </div>
                </div>
                <div className="space-y-1 text-right">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Access Key</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Assigned Team</p>
                   <div className="flex items-center justify-end gap-2">
-                     <p className="text-sm font-black text-white">{p.teamSlotId || "PRE-PROCESSED"}</p>
-                     <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                     <Trophy className="w-3.5 h-3.5 text-yellow-500/60" />
+                     <p className="text-sm font-black text-white">{getTeamName(p.team)}</p>
                   </div>
                </div>
             </div>
@@ -548,7 +450,10 @@ export default function IconPlayersPanel() {
           onSave={async (file) => {
              try {
                 const fileType = file.type;
-                const { uploadUrl, fileUrl } = await fetch(`${API_URL}/api/upload/get-upload-url?fileType=${fileType}&folder=players`).then(r => r.json());
+                const response = await fetch(`${API_URL}/api/upload/get-upload-url?fileType=${fileType}&folder=players`);
+                if (!response.ok) throw new Error(`Upload URL failed: ${response.status}`);
+                const { uploadUrl, fileUrl } = await response.json();
+                
                 await fetch(uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": fileType } });
                 
                 const res = await fetch(`${API_URL}/api/players/${editImageTarget.id}`, {
@@ -560,6 +465,9 @@ export default function IconPlayersPanel() {
                 if (res.ok) {
                    socket?.emit("auctionUpdate", { type: "system_refresh", auctionId: selectedAuction._id });
                    fetchIcons();
+                } else {
+                   const errorData = await res.json().catch(() => ({ message: "Update failed" }));
+                   throw new Error(errorData.message || "Failed to update player image");
                 }
              } catch (err) {
                 console.error("Photo update failed", err);
@@ -609,7 +517,7 @@ export default function IconPlayersPanel() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4">
                   <div className="space-y-2">
                     <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Village</label>
                     <input 
@@ -619,19 +527,6 @@ export default function IconPlayersPanel() {
                       className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 font-bold text-white focus:border-yellow-500 outline-none transition-all"
                       placeholder="Village name"
                     />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Year (Category)</label>
-                    <select 
-                      value={editingPlayer.category}
-                      onChange={(e) => setEditingPlayer({ ...editingPlayer, category: e.target.value })}
-                      className="w-full bg-[#1e293b] border border-white/10 rounded-2xl px-5 py-4 font-bold text-white focus:border-yellow-500 outline-none transition-all"
-                    >
-                      <option value="1st year" className="bg-[#1e293b] text-white">1st Year</option>
-                      <option value="2nd year" className="bg-[#1e293b] text-white">2nd Year</option>
-                      <option value="3rd year" className="bg-[#1e293b] text-white">3rd Year</option>
-                      <option value="4th year" className="bg-[#1e293b] text-white">4th Year</option>
-                    </select>
                   </div>
                 </div>
 
@@ -694,6 +589,9 @@ export default function IconPlayersPanel() {
                              socket?.emit("auctionUpdate", { type: "system_refresh", auctionId: selectedAuction._id });
                              fetchIcons();
                              setEditingPlayer(null);
+                           } else {
+                             const errorData = await res.json().catch(() => ({ message: "Delete failed" }));
+                             alert(`Delete failed: ${errorData.message || res.statusText}`);
                            }
                          } catch (err) {
                            console.error("Delete failed", err);
@@ -720,7 +618,6 @@ export default function IconPlayersPanel() {
                           role: editingPlayer.role,
                           mobile: editingPlayer.mobile,
                           village: editingPlayer.village,
-                          category: editingPlayer.category,
                           iconRole: editingPlayer.iconRole
                         })
                       });
@@ -730,7 +627,8 @@ export default function IconPlayersPanel() {
                         fetchIcons();
                         setEditingPlayer(null);
                       } else {
-                        alert("Failed to update player");
+                        const errorData = await res.json().catch(() => ({ message: "Unknown error" }));
+                        alert(`Failed to update player: ${errorData.message || res.statusText}`);
                       }
                     } catch (err) {
                       console.error("Save failed", err);
