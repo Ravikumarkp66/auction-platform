@@ -42,10 +42,21 @@ export default function AdminSettings() {
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [auctionConfig, setAuctionConfig] = useState({
+    startingBid: 0,
+    bidIncrement: 0,
+    auctionMode: 'money'
+  });
+  const [savingConfig, setSavingConfig] = useState(false);
 
   useEffect(() => {
     if (selectedAuction?._id) {
       fetchAssets();
+      setAuctionConfig({
+        startingBid: selectedAuction.startingBid || 0,
+        bidIncrement: selectedAuction.bidIncrement || 0,
+        auctionMode: selectedAuction.auctionMode || 'money'
+      });
     } else {
       setLoading(false);
     }
@@ -96,6 +107,31 @@ export default function AdminSettings() {
     }
   };
 
+  const handleSaveAuctionConfig = async () => {
+    if (!selectedAuction) return;
+    setSavingConfig(true);
+    try {
+      const res = await fetch(`${API_URL}/api/tournaments/${selectedAuction._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(auctionConfig)
+      });
+      if (res.ok) {
+        alert("Auction configuration updated successfully!");
+        // Update local storage so other components see the change
+        const updated = { ...selectedAuction, ...auctionConfig };
+        localStorage.setItem("selectedAuction", JSON.stringify(updated));
+      } else {
+        const data = await res.json();
+        alert("Failed to update: " + (data.message || "Unknown error"));
+      }
+    } catch (err) {
+      alert("Save error: " + err.message);
+    } finally {
+      setSavingConfig(false);
+    }
+  };
+
   if (!selectedAuction) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center bg-white/5 rounded-[3rem] border border-white/5">
@@ -127,6 +163,68 @@ export default function AdminSettings() {
           <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
         </button>
       </div>
+
+      <Section title="Auction Engine" desc="Bidding and rule configuration" icon={Zap}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="space-y-4">
+             <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Starting Bid (Global Min)</p>
+                <div className="relative">
+                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">₹</span>
+                   <input 
+                     type="number" 
+                     value={auctionConfig.startingBid}
+                     onChange={e => setAuctionConfig({...auctionConfig, startingBid: Number(e.target.value)})}
+                     className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 pl-10 font-black text-white outline-none focus:border-violet-500 transition-all"
+                   />
+                </div>
+                <p className="text-[9px] text-slate-600 mt-2 font-bold uppercase">Fallback if player base price is not set</p>
+             </div>
+             <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Fixed Bid Increment</p>
+                <div className="relative">
+                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">₹</span>
+                   <input 
+                     type="number" 
+                     value={auctionConfig.bidIncrement}
+                     onChange={e => setAuctionConfig({...auctionConfig, bidIncrement: Number(e.target.value)})}
+                     className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 pl-10 font-black text-white outline-none focus:border-violet-500 transition-all"
+                   />
+                </div>
+                <p className="text-[9px] text-slate-600 mt-2 font-bold uppercase">Applies to Money/RS mode auctions</p>
+             </div>
+             
+             <button 
+               onClick={handleSaveAuctionConfig}
+               disabled={savingConfig}
+               className="w-full py-4 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white font-black uppercase tracking-widest rounded-2xl transition-all shadow-lg shadow-violet-600/20 flex items-center justify-center gap-2"
+             >
+               {savingConfig ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Settings className="w-4 h-4" />}
+               Save Configuration
+             </button>
+          </div>
+          
+          <div className="bg-violet-600/10 border border-violet-500/20 rounded-3xl p-6 flex flex-col justify-center">
+             <div className="flex items-center gap-3 mb-4">
+                <Info className="w-5 h-5 text-violet-400" />
+                <h4 className="text-sm font-black text-white uppercase">Engine Behavior</h4>
+             </div>
+             <ul className="space-y-3">
+                {[
+                  "Starting bid acts as the global floor price",
+                  "Increments are added to current bid on each click",
+                  "Points mode uses custom band-based increments",
+                  "Updates take effect immediately on the live stage"
+                ].map((item, i) => (
+                  <li key={i} className="flex items-start gap-3 text-[11px] font-bold text-slate-400 uppercase tracking-tight">
+                    <span className="w-1.5 h-1.5 rounded-full bg-violet-500 mt-1 shrink-0" />
+                    {item}
+                  </li>
+                ))}
+             </ul>
+          </div>
+        </div>
+      </Section>
 
       <Section title="Auction Backgrounds" desc="Visual branding for the live stage" icon={Palette}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

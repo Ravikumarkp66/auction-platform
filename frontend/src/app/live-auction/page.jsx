@@ -87,7 +87,7 @@ function LiveAuctionContent() {
       if (currentBid < 50) return 5;
       return 10;
     }
-    return 100; // Standard money increment
+    return config.bidIncrement || 100; // Standard money increment
   };
 
   // Base price logic based on current tournament rules
@@ -118,22 +118,46 @@ function LiveAuctionContent() {
 
   // Check if team can bid (budget + squad size + year distribution)
   const canTeamBid = (team) => {
-    const hasBudgetSpace = team.remainingBudget >= (player?.basePrice || 2);
-    // Squad size restriction removed as per user request to allow bidding if budget exists
-    return hasBudgetSpace;
+    if (!team) return false;
+    const limits = getSquadLimits();
+    const currentSquadSize = team.players?.length || 0;
+    const remainingSlots = limits.maxPlayers - currentSquadSize;
+
+    // If squad is already full, cannot bid
+    if (remainingSlots <= 0) return false;
+
+    const minPricePerSlot = isPointsSystem() ? 2 : (config.startingBid || 100);
+    
+    // We must reserve enough budget for the remaining slots (excluding the one we are bidding for)
+    const reserveNeeded = Math.max(0, remainingSlots - 1) * minPricePerSlot;
+    const maxAllowedBid = team.remainingBudget - reserveNeeded;
+
+    // Next possible bid must be at least the base price of the current player
+    const playerBasePrice = player?.basePrice || minPricePerSlot;
+    
+    return maxAllowedBid >= playerBasePrice;
   };
 
   // Year distribution logic removed as per user request to restore old system
 
   // Get bid restriction reason
   const getBidRestrictionReason = (team) => {
+    if (!team) return "Team not found";
     const limits = getSquadLimits();
     const currentSquadSize = team.players?.length || 0;
+    const remainingSlots = limits.maxPlayers - currentSquadSize;
     
-    // Squad size check removed to allow buying as long as budget exists
-    const minBid = isPointsSystem() ? (player?.basePrice || 2) : 100;
-    if (team.remainingBudget < minBid) {
-      return `Insufficient ${isPointsSystem() ? 'credits' : 'funds'} (${formatCurrencyText(team.remainingBudget)})`;
+    if (remainingSlots <= 0) return "Squad is full";
+
+    const minPricePerSlot = isPointsSystem() ? 2 : (config.startingBid || 100);
+    const reserveNeeded = Math.max(0, remainingSlots - 1) * minPricePerSlot;
+    const affordableAmount = team.remainingBudget - reserveNeeded;
+    
+    if (affordableAmount < (player?.basePrice || minPricePerSlot)) {
+      if (reserveNeeded > 0) {
+        return `Insufficient funds. Must reserve ${formatCurrencyText(reserveNeeded)} for ${remainingSlots - 1} remaining slots.`;
+      }
+      return `Insufficient ${isPointsSystem() ? 'credits' : 'funds'}`;
     }
     return null;
   };
@@ -217,8 +241,8 @@ function LiveAuctionContent() {
       // Points System: Role-based pricing (2/4 CR)
       return getBasePrice(role);
     } else {
-      // Regular Auction: Use existing basePrice or default 100
-      return 100; // Default for regular auctions
+      // Regular Auction: Use configured starting bid or default 100
+      return config.startingBid || 100;
     }
   };
 
@@ -442,7 +466,9 @@ function LiveAuctionContent() {
           name: tournament.name,
           baseBudget: tournament.baseBudget,
           totalTeams: tournament.numTeams,
-          auctionMode: tournament.auctionMode || "money"
+          auctionMode: tournament.auctionMode || "money",
+          startingBid: tournament.startingBid || 0,
+          bidIncrement: tournament.bidIncrement || 0
         })
         
         // Load custom rules
@@ -754,7 +780,7 @@ function LiveAuctionContent() {
 
     // Validation 2: Ensure it follows base price or current bid rules
     let newBid = riseAmount
-    const minBid = isPointsSystem() ? (player.basePrice || getBasePrice(player.role)) : 100;
+    const minBid = isPointsSystem() ? (player.basePrice || getBasePrice(player.role)) : (player.basePrice || config.startingBid || 100);
     
     if (currentBid === 0) {
       // First bid must be at least the base price
@@ -772,6 +798,19 @@ function LiveAuctionContent() {
 
     // Check if team has enough budget and squad space
     const biddingTeam = teams.find(t => t.id === teamId)
+    
+    // Budget Safety Check (Affordability Logic)
+    const limits = getSquadLimits();
+    const currentSquadSize = biddingTeam.players?.length || 0;
+    const remainingSlots = limits.maxPlayers - currentSquadSize;
+    const minPricePerSlot = isPointsSystem() ? 2 : (config.startingBid || 100);
+    const reserveNeeded = Math.max(0, remainingSlots - 1) * minPricePerSlot;
+    
+    if (newBid > (biddingTeam.remainingBudget - reserveNeeded)) {
+      alert(`Overbid! To complete a squad of ${limits.maxPlayers}, you must keep ${formatCurrencyText(reserveNeeded)} for the remaining ${remainingSlots - 1} players.`);
+      return;
+    }
+
     if (!canTeamBid(biddingTeam)) {
       const reason = getBidRestrictionReason(biddingTeam);
       alert(`${biddingTeam.name} cannot bid: ${reason}`);

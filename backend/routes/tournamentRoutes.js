@@ -26,6 +26,8 @@ router.post("/", async (req, res) => {
       registrationTitle, registrationDetails, registrationEndDate, registrationEndTime, closedMessage,
       // ── New auction-engine fields (all optional; fall back to money defaults) ──
       auctionMode = "money",
+      startingBid = 0,
+      bidIncrement = 0,
       squadMinPlayers,
       squadMaxPlayers,
       // ────────────────────────────────────────────────────────────────────────
@@ -49,6 +51,8 @@ router.post("/", async (req, res) => {
       assets: req.body.assets || { splashUrl: req.body.splashUrl },
       // New engine fields
       auctionMode,
+      startingBid,
+      bidIncrement,
       budget: { total: baseBudget || 0, unit: budgetUnit },
       squad: {
         minPlayers: squadMinPlayers || 1,
@@ -505,12 +509,12 @@ router.put("/:id", async (req, res) => {
   try {
     const { 
       registrationTitle, registrationDetails, registrationEndDate, registrationEndTime, 
-      closedMessage, assets, auctionMode, currencyUnit 
+      closedMessage, assets, auctionMode, currencyUnit, startingBid, bidIncrement
     } = req.body;
     
     const updateData = { 
       registrationTitle, registrationDetails, registrationEndDate, registrationEndTime, 
-      closedMessage, auctionMode, currencyUnit 
+      closedMessage, auctionMode, currencyUnit, startingBid, bidIncrement
     };
     if (assets) {
       updateData.assets = assets;
