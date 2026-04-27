@@ -27,7 +27,7 @@
 
 body {
   position: relative;
-  background: url('/space-bg.jpg') center/cover no-repeat fixed;
+  background: url('https://auction-platform-kp.s3.ap-south-1.amazonaws.com/static/space-bg.jpg') center/cover no-repeat fixed;
   color: var(--foreground);
   isolation: isolate;
 }

@@ -118,6 +118,7 @@ uploads/
 *.doc
 *.docx
 
+
 # Database files
 *.db
 *.sqlite

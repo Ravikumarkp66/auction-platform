@@ -31,7 +31,7 @@ function LiveAuctionContent() {
   // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [auctionBg, setAuctionBg] = useState('/splash-screen.png')
+  const [auctionBg, setAuctionBg] = useState('https://auction-platform-kp.s3.ap-south-1.amazonaws.com/static/splash-screen.png')
 
   const [currentTournamentId, setCurrentTournamentId] = useState(tournamentId)
   const [activeAssets, setActiveAssets] = useState({
@@ -778,12 +778,7 @@ function LiveAuctionContent() {
       return
     }
 
-    // Check year distribution limits (only for points system)
-    if (isPointsSystem() && !canBidForPlayerYear(biddingTeam, player)) {
-      const yearReason = getYearRestrictionReason(biddingTeam, player);
-      alert(`${biddingTeam.name} cannot bid: ${yearReason}`);
-      return
-    }
+    // Year distribution limits removed as per user request
 
     setLastBidTime(now)
     const bidAmount = newBid
@@ -1437,7 +1432,7 @@ function LiveAuctionContent() {
       {/* Background Layer - Fixed & Clear */}
       <div className="fixed inset-0 z-0">
         <img
-          src={activeAssets.backgroundUrl || '/splash-screen.png'}
+          src={activeAssets.backgroundUrl || 'https://auction-platform-kp.s3.ap-south-1.amazonaws.com/static/splash-screen.png'}
           className="w-full h-full object-cover scale-100"
           alt=""
           style={{ 
@@ -2349,12 +2344,8 @@ function LiveAuctionContent() {
                         {teams.map(team => {
                           const limits = getSquadLimits();
                           const currentSquadSize = team.players?.length || 0;
-                          const canBid = canPlaceBid && highestBidder !== team.id && canTeamBid(team);
-                          const canBidYear = isPointsSystem() ? canBidForPlayerYear(team, player) : true;
-                          const finalCanBid = canBid && canBidYear;
-                          const restrictionReason = getBidRestrictionReason(team);
-                          const yearRestrictionReason = isPointsSystem() ? getYearRestrictionReason(team, player) : null;
-                          const finalReason = !finalCanBid ? (yearRestrictionReason || restrictionReason) : null;
+                          const finalCanBid = canPlaceBid && highestBidder !== team.id && canTeamBid(team);
+                          const finalReason = !finalCanBid ? getBidRestrictionReason(team) : null;
                           
                           return (
                           <button
