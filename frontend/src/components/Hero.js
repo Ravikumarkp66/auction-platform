@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { useLanguage } from '../context/LanguageContext';
 import HeroCarousel from './HeroCarousel';
-import { API_URL } from '../lib/apiConfig';
+import { API_URL, getMediaUrl } from '../lib/apiConfig';
 
 export default function Hero() {
   const { t } = useLanguage();
@@ -15,7 +15,7 @@ export default function Hero() {
       .then(res => res.json())
       .then(data => {
         if (data.success && data.data.brandLogo) {
-          setCustomLogo(`${API_URL}${data.data.brandLogo}`);
+          setCustomLogo(getMediaUrl(data.data.brandLogo));
         }
       })
       .catch(err => console.error("Hero brand fetch error:", err));

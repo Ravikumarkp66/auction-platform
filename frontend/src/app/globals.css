@@ -255,3 +255,24 @@ body::after {
   animation: cinematicZoomOut 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
   will-change: transform, opacity, filter;
 }
+
+@keyframes scan {
+  0% { top: 0%; opacity: 0; }
+  20% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+
+.animate-scan {
+  animation: scan 2.5s ease-in-out infinite;
+}
+
+@keyframes progress-loading {
+  0% { transform: translateX(-100%); }
+  50% { transform: translateX(0%); }
+  100% { transform: translateX(100%); }
+}
+
+.animate-progress {
+  animation: progress-loading 2s ease-in-out infinite;
+}

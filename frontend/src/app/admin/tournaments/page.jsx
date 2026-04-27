@@ -5,11 +5,11 @@ import Link from "next/link";
 import { 
   Trophy, Play, Eye, Edit, Trash2, Users, 
   Calendar, RotateCcw, PlusCircle, Clock, 
-  CheckCircle, Zap, ExternalLink, RefreshCw
+  CheckCircle, Zap, ExternalLink, RefreshCw, Settings, X
 } from "lucide-react";
 
 import * as XLSX from "xlsx";
-import { API_URL } from "@/lib/apiConfig";
+import { API_URL, getMediaUrl } from "@/lib/apiConfig";
 
 export default function TournamentsPage() {
   const [tournaments, setTournaments] = useState([]);
@@ -18,6 +18,8 @@ export default function TournamentsPage() {
   const [appending, setAppending] = useState(null);
   const [activating, setActivating] = useState(null);
   const [deleting, setDeleting] = useState(null);
+  const [editingTournament, setEditingTournament] = useState(null);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   useEffect(() => {
     fetchTournaments();
@@ -194,6 +196,36 @@ export default function TournamentsPage() {
     }
   };
 
+  const handleUpdateSettings = async (e) => {
+    e.preventDefault();
+    if (!editingTournament) return;
+
+    setIsUpdating(true);
+    try {
+      const res = await fetch(`${API_URL}/api/tournaments/${editingTournament._id || editingTournament.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          auctionMode: editingTournament.auctionMode,
+          currencyUnit: editingTournament.currencyUnit
+        })
+      });
+
+      if (res.ok) {
+        alert("Tournament settings updated successfully!");
+        setEditingTournament(null);
+        fetchTournaments();
+      } else {
+        alert("Failed to update tournament settings");
+      }
+    } catch (err) {
+      console.error("Update error:", err);
+      alert("Error updating settings");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
   const getStatusMeta = (status) => {
     switch (status) {
       case "active":
@@ -249,60 +281,68 @@ export default function TournamentsPage() {
     const meta = getStatusMeta(t.status);
     const tournamentId = t._id || t.id;
     return (
-      <div key={tournamentId} className="group relative overflow-hidden rounded-2xl border border-white/10 bg-[#111827]/60 backdrop-blur-xl hover:border-white/20 transition-all duration-300">
-        {/* Status Badge */}
-        <div className="absolute top-6 right-6 z-10">
-          <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest ${meta.bg} ${meta.color} ${meta.border}`}>
-            {meta.icon}
-            {meta.label}
+      <div key={tournamentId} className="group relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-[#111827]/60 backdrop-blur-xl hover:border-violet-500/30 transition-all duration-500 hover:shadow-[0_20px_50px_rgba(124,58,237,0.1)]">
+        {/* Banner Area */}
+        <div className="relative h-32 w-full overflow-hidden">
+           <img 
+              src={getMediaUrl(t.assets?.splashUrl, "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=600&auto=format&fit=crop")} 
+              className="w-full h-full object-cover opacity-40 group-hover:scale-110 group-hover:opacity-60 transition-all duration-700"
+              alt="Banner"
+           />
+           <div className="absolute inset-0 bg-gradient-to-t from-[#111827] to-transparent"></div>
+           
+           {/* Status Badge */}
+           <div className="absolute top-4 right-4 z-10">
+             <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-[9px] font-black uppercase tracking-widest backdrop-blur-md ${meta.bg} ${meta.color} ${meta.border}`}>
+               {meta.icon}
+               {meta.label}
+             </div>
+           </div>
+        </div>
+
+        <div className="px-6 -mt-10 relative z-10">
+          <div className="flex items-end gap-4 mb-6">
+             {/* Tournament Logo */}
+             <div className="w-20 h-20 shrink-0 rounded-2xl bg-slate-950 border-2 border-white/10 flex items-center justify-center overflow-hidden shadow-2xl group-hover:border-violet-500/50 transition-colors">
+               {t.organizerLogo ? (
+                 <img src={t.organizerLogo} alt="Logo" className="w-full h-full object-contain p-2" />
+               ) : (
+                 <Trophy className="w-8 h-8 text-slate-700" />
+               )}
+             </div>
+
+             <div className="flex-1 pb-1">
+                <h3 className="text-lg font-black text-white group-hover:text-violet-400 transition-colors truncate tracking-normal italic">
+                  {t.name}
+                </h3>
+                <div className="flex items-center gap-2 mt-0.5 text-slate-500 text-[10px] font-black uppercase tracking-widest">
+                  <Calendar className="w-3 h-3 text-violet-500" />
+                  {new Date(t.createdAt).toLocaleDateString("en-IN", { day: 'numeric', month: 'short', year: 'numeric' })}
+                </div>
+             </div>
           </div>
         </div>
 
-        <div className="p-5 flex items-start gap-4">
-          {/* Tournament Logo */}
-          <div className="w-14 h-14 shrink-0 rounded-xl bg-slate-900 border border-white/5 flex items-center justify-center overflow-hidden">
-            {t.organizerLogo ? (
-              <img src={t.organizerLogo} alt="Logo" className="w-full h-full object-contain p-1" />
-            ) : (
-              <Trophy className="w-6 h-6 text-slate-700" />
-            )}
-          </div>
-
-          {/* Title Section */}
-          <div className="flex-1 pr-16 text-left">
-            <h3 className="text-base font-black text-white group-hover:text-violet-400 transition-colors truncate">
-              {t.name}
-            </h3>
-            <div className="flex items-center gap-2 mt-1 text-slate-500 text-xs font-semibold">
-              <Calendar className="w-3 h-3" />
-              {new Date(t.createdAt).toLocaleDateString("en-IN", { day: 'numeric', month: 'short', year: 'numeric' })}
-            </div>
-            {t.organizerName && (
-               <p className="text-[9px] font-bold text-slate-600 uppercase tracking-widest mt-1.5">{t.organizerName}</p>
-            )}
-          </div>
-        </div>
-
-        <div className="px-5 pb-5">
+        <div className="px-6 pb-6">
 
           {/* Stats Row */}
           <div className="grid grid-cols-3 gap-3 mb-6">
             <div className="bg-white/5 rounded-xl p-2.5 text-center border border-white/5">
               <Users className="w-3.5 h-3.5 text-blue-400 mx-auto mb-1.5" />
               <p className="text-base font-black text-white">{t.numTeams || t.teams || 0}</p>
-              <p className="text-[9px] text-slate-500 font-bold uppercase tracking-tighter">Teams</p>
+              <p className="text-[9px] text-slate-500 font-bold uppercase tracking-normal">Teams</p>
             </div>
             <div className="bg-white/5 rounded-xl p-2.5 text-center border border-white/5">
               <Trophy className="w-3.5 h-3.5 text-violet-400 mx-auto mb-1.5" />
               <p className="text-base font-black text-white">{t.playerCount || t.players?.length || 0}</p>
-              <p className="text-[9px] text-slate-500 font-bold uppercase tracking-tighter">Players</p>
+              <p className="text-[9px] text-slate-500 font-bold uppercase tracking-normal">Players</p>
             </div>
             <div className="bg-white/5 rounded-xl p-2.5 text-center border border-white/5">
               <RotateCcw className="w-3.5 h-3.5 text-amber-400 mx-auto mb-1.5" />
               <p className="text-base font-black text-white">
-                ₹{((t.baseBudget || 10000) / 1000).toFixed(0)}k
+                {t.currencyUnit === "₹" ? `₹${((t.baseBudget || 10000) / 1000).toFixed(0)}k` : `${(t.baseBudget || 10000).toLocaleString()} ${t.currencyUnit || 'CR'}`}
               </p>
-              <p className="text-[9px] text-slate-500 font-bold uppercase tracking-tighter">Budget</p>
+              <p className="text-[9px] text-slate-500 font-bold uppercase tracking-normal">Budget</p>
             </div>
           </div>
 
@@ -363,13 +403,25 @@ export default function TournamentsPage() {
                   href={`/live-auction?id=${tournamentId}`}
                   className="flex-1 flex items-center justify-center gap-2 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg font-black text-[10px] uppercase tracking-wider shadow-lg shadow-red-600/20 transition-all active:scale-95"
                 >
-                  <Zap className="w-3.5 h-3.5" /> Control
+                  <Zap className="w-3.5 h-3.5" /> Start Engine
                 </Link>
-                <Link
-                  href={`/overlay?id=${tournamentId}`}
-                  className="flex-1 flex items-center justify-center gap-2 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-black text-[10px] uppercase tracking-wider transition-all active:scale-95"
+                <button
+                  onClick={() => {
+                    const url = `${window.location.origin}/register/${tournamentId}`;
+                    navigator.clipboard.writeText(url);
+                    alert("Registration Link Copied!");
+                  }}
+                  className="w-10 h-10 flex items-center justify-center bg-violet-600/20 hover:bg-violet-600 text-violet-400 hover:text-white rounded-lg transition-all border border-violet-500/20"
+                  title="Copy Registration Link"
                 >
-                  <Eye className="w-3.5 h-3.5" /> View
+                  <Users className="w-3.5 h-3.5" />
+                </button>
+                <Link
+                  href={`/register/${tournamentId}?edit=true`}
+                  className="w-10 h-10 flex items-center justify-center bg-slate-800 hover:bg-slate-700 text-white rounded-lg transition-all active:scale-95 border border-white/5"
+                  title="Configure Portal"
+                >
+                  <Edit className="w-3.5 h-3.5" />
                 </Link>
               </>
             ) : (
@@ -378,15 +430,36 @@ export default function TournamentsPage() {
                   href={`/live-auction?id=${tournamentId}`}
                   className="flex-1 flex items-center justify-center gap-2 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-lg font-black text-[10px] uppercase tracking-wider transition-all active:scale-95"
                 >
-                  <ExternalLink className="w-3.5 h-3.5" /> Open
+                  <ExternalLink className="w-3.5 h-3.5" /> Review Results
                 </Link>
-                <button className="flex-1 flex items-center justify-center gap-2 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg font-black text-[10px] uppercase tracking-wider transition-all active:scale-95 border border-white/5">
-                  <Edit className="w-3.5 h-3.5" /> Edit
+                <button
+                  onClick={() => {
+                    const url = `${window.location.origin}/register/${tournamentId}`;
+                    navigator.clipboard.writeText(url);
+                    alert("Registration Link Copied!");
+                  }}
+                  className="w-10 h-10 flex items-center justify-center bg-violet-600/20 hover:bg-violet-600 text-violet-400 hover:text-white rounded-lg transition-all border border-violet-500/20"
+                  title="Copy Registration Link"
+                >
+                  <Users className="w-3.5 h-3.5" />
                 </button>
+                <Link
+                  href={`/register/${tournamentId}?edit=true`}
+                  className="flex-1 flex items-center justify-center gap-2 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg font-black text-[10px] uppercase tracking-wider transition-all active:scale-95 border border-white/5"
+                >
+                  <Edit className="w-3.5 h-3.5" /> Portal Settings
+                </Link>
               </>
             )}
 
             <div className="flex shrink-0 gap-2">
+              <button 
+                onClick={() => setEditingTournament(t)}
+                className="p-3 bg-violet-500/10 text-violet-400 border border-violet-500/20 rounded-xl hover:bg-violet-500/20 transition-all active:scale-95"
+                title="Tournament Settings"
+              >
+                <Settings className="w-4 h-4" />
+              </button>
               <label className="p-3 bg-violet-500/10 text-violet-400 border border-violet-500/20 rounded-xl hover:bg-violet-500/20 transition-all active:scale-95 cursor-pointer" title="Add More Players (Excel)">
                 {appending === tournamentId ? <RefreshCw className={`w-4 h-4 animate-spin`} /> : <PlusCircle className="w-4 h-4" />}
                 <input type="file" className="hidden" accept=".xlsx,.xls,.csv" onChange={(e) => handleAppendPlayers(tournamentId, e)} />
@@ -487,17 +560,67 @@ export default function TournamentsPage() {
         </section>
       )}
 
-      {tournaments.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-20 bg-white/5 rounded-[3rem] border-2 border-dashed border-white/10 text-center">
-          <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center text-4xl mb-6 grayscale opacity-50">🏟️</div>
-          <h3 className="text-xl font-black text-white">No Tournaments Found</h3>
-          <p className="text-slate-500 mt-2 max-w-xs mx-auto">You haven&apos;t created any auctions yet. Start by building your first one!</p>
-          <Link
-            href="/admin/create-tournament"
-            className="mt-8 px-8 py-3 bg-violet-600 text-white rounded-2xl font-black text-sm shadow-xl shadow-violet-600/20 hover:bg-violet-500 transition-all active:scale-95"
-          >
-            Create Your First Tournament
-          </Link>
+      {/* Settings Modal */}
+      {editingTournament && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-[#111827] border border-white/10 rounded-[2.5rem] overflow-hidden shadow-2xl">
+            <div className="px-8 py-6 border-b border-white/5 flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-black text-white">Auction Settings</h2>
+                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">{editingTournament.name}</p>
+              </div>
+              <button onClick={() => setEditingTournament(null)} className="p-2 hover:bg-white/5 rounded-full text-slate-400">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateSettings} className="p-8 space-y-6">
+              <div className="space-y-4">
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Auction Engine</label>
+                  <select 
+                    className="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-white font-bold outline-none focus:border-violet-500 transition-all"
+                    value={editingTournament.auctionMode || "money"}
+                    onChange={(e) => setEditingTournament({...editingTournament, auctionMode: e.target.value})}
+                  >
+                    <option value="money">Money-Based Auction</option>
+                    <option value="points">Points-Based Auction</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Currency Unit</label>
+                  <select 
+                    className="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-white font-bold outline-none focus:border-violet-500 transition-all"
+                    value={editingTournament.currencyUnit || (editingTournament.auctionMode === "points" ? "CR" : "₹")}
+                    onChange={(e) => setEditingTournament({...editingTournament, currencyUnit: e.target.value})}
+                  >
+                    <option value="CR">CR (Credits)</option>
+                    <option value="PTS">PTS (Points)</option>
+                    <option value="RS">RS (Rupees Text)</option>
+                    <option value="₹">₹ (Rupee Symbol)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="pt-4 flex gap-3">
+                <button 
+                  type="button"
+                  onClick={() => setEditingTournament(null)}
+                  className="flex-1 py-3 border border-white/10 rounded-xl text-slate-400 font-bold hover:bg-white/5 transition-all"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  disabled={isUpdating}
+                  className="flex-1 py-3 bg-gradient-to-r from-violet-600 to-cyan-500 text-white rounded-xl font-bold shadow-lg shadow-violet-600/20 hover:scale-105 transition-all disabled:opacity-50"
+                >
+                  {isUpdating ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

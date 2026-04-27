@@ -5,11 +5,12 @@ import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { io } from "socket.io-client"
 import Image from "next/image"
-import { API_URL } from "../../lib/apiConfig"
+import { API_URL, getMediaUrl } from "../../lib/apiConfig"
 import AuctionOverlayNew from '../../components/AuctionOverlayNew'
 import TeamDrawCinematic from './TeamDrawCinematic'
 import TeamDrawOverlay from '../../components/TeamDrawOverlay'
 import ResultOverlay from '../../components/ResultOverlay'
+import SplashScreen from '../../components/SplashScreen'
 
 function getStoredBreakState() {
   if (typeof window === 'undefined') {
@@ -543,50 +544,7 @@ export default function OverlayPage() {
   }
 
   if (!auction || !auction.player) {
-    // Waiting state - same golden background, but now with a PREMIUM BROADCAST STANDBY message
-    return (
-      <div 
-        className="min-h-screen w-full flex items-center justify-center relative overflow-hidden bg-slate-950"
-      >
-        <img 
-          src={splashUrl || '/splash-screen.png'} 
-          className="absolute inset-0 w-full h-full object-cover opacity-100 transition-transform duration-1000 rotate-0 scale-100 group-hover:scale-105" 
-          alt="Splash" 
-        />
-        
-        {/* Cinematic Overlay to make it feel premium */}
-        <div 
-          className="absolute inset-0"
-          style={{
-            background: 'radial-gradient(circle at 50% 50%, transparent 0%, rgba(0,0,0,0.5) 100%)'
-          }}
-        />
-
-        {/* PREMIUM BROADCAST STANDBY BADGE - CENTERED (Responsive) */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 w-full px-4 flex flex-col items-center gap-6">
-          <div className="flex items-center gap-3 md:gap-5 bg-black/40 backdrop-blur-3xl px-6 md:px-12 py-4 md:py-6 rounded-2xl md:rounded-[2.5rem] border border-white/20 shadow-[0_0_100px_rgba(0,0,0,0.8)] animate-pulse">
-            <div className="relative flex h-3 w-3 md:h-4 md:w-4">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3 w-3 md:h-4 md:w-4 bg-emerald-500"></span>
-            </div>
-            <span className="text-[12px] md:text-[24px] font-black uppercase tracking-[0.3em] md:tracking-[0.6em] text-white whitespace-nowrap leading-none">Waiting for Broadcast</span>
-          </div>
-        </div>
-
-        {/* Subtle animated light sweep */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-0 -left-full w-1/2 h-full bg-gradient-to-r from-transparent via-white/5 to-transparent skew-x-[-25deg] animate-[sweep_4s_infinite_ease-in-out]"></div>
-        </div>
-
-        <style jsx>{`
-          @keyframes sweep {
-            0% { left: -100%; }
-            50% { left: 150%; }
-            100% { left: 150%; }
-          }
-        `}</style>
-      </div>
-    )
+    return <SplashScreen src={getMediaUrl(splashUrl)} title={auction?.tournamentName} />
   }
 
   const { player, currentBid, highestBidder, highestBidderLogo, tournamentName, teams, roundHistory } = auction
@@ -604,6 +562,7 @@ export default function OverlayPage() {
         tournamentName={tournamentName}
         roundHistory={roundHistory}
         auctionResult={auctionResult}
+        currencyUnit={auction.tournament?.currencyUnit || (auction.tournament?.auctionMode === "points" ? "CR" : "₹")}
       />
       
       {/* SOLD/UNSOLD ANIMATION - Exact same logic as admin auction */}
@@ -647,7 +606,7 @@ export default function OverlayPage() {
         <div 
           className="min-h-screen w-full flex items-center justify-center relative overflow-hidden"
           style={{
-            backgroundImage: `url('${splashUrl}')`,
+            backgroundImage: `url('${getMediaUrl(splashUrl)}')`,
             backgroundSize: 'cover',
             backgroundPosition: 'center',
             backgroundRepeat: 'no-repeat'
@@ -739,50 +698,7 @@ export default function OverlayPage() {
         </div>
       )}
       
-      {/* WAITING STATE */}
-      {!auction || !auction.player && (
-        <div 
-          className="min-h-screen w-full flex items-center justify-center relative overflow-hidden bg-slate-950"
-        >
-          <img 
-            src={splashUrl || '/splash-screen.png'} 
-            className="absolute inset-0 w-full h-full object-cover opacity-100 transition-transform duration-1000 rotate-0 scale-100 group-hover:scale-105" 
-            alt="Splash" 
-          />
-          
-          {/* Cinematic Overlay to make it feel premium */}
-          <div 
-            className="absolute inset-0"
-            style={{
-              background: 'radial-gradient(circle at 50% 50%, transparent 0%, rgba(0,0,0,0.5) 100%)'
-            }}
-          />
 
-          {/* PREMIUM BROADCAST STANDBY BADGE - CENTERED (Responsive) */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 w-full px-4 flex flex-col items-center gap-6">
-            <div className="flex items-center gap-3 md:gap-5 bg-black/40 backdrop-blur-3xl px-6 md:px-12 py-4 md:py-6 rounded-2xl md:rounded-[2.5rem] border border-white/20 shadow-[0_0_100px_rgba(0,0,0,0.8)] animate-pulse">
-              <div className="relative flex h-3 w-3 md:h-4 md:w-4">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 md:h-4 md:w-4 bg-emerald-500"></span>
-              </div>
-              <span className="text-[12px] md:text-[24px] font-black uppercase tracking-[0.3em] md:tracking-[0.6em] text-white whitespace-nowrap leading-none">Waiting for Broadcast</span>
-            </div>
-          </div>
-
-          {/* Subtle animated light sweep */}
-          <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <div className="absolute top-0 -left-full w-1/2 h-full bg-gradient-to-r from-transparent via-white/5 to-transparent skew-x-[-25deg] animate-[sweep_4s_infinite_ease-in-out]"></div>
-          </div>
-
-          <style jsx>{`
-            @keyframes sweep {
-              0% { left: -100%; }
-              50% { left: 150%; }
-              100% { left: 150%; }
-            }
-          `}</style>
-        </div>
-      )}
     </>
   )
 }

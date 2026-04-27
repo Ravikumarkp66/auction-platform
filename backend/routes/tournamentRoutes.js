@@ -23,7 +23,7 @@ router.post("/", async (req, res) => {
     const { 
       name, organizerName, organizerLogo, numTeams, iconsPerTeam, 
       baseBudget, defaultBasePrice, squadSize, auctionSlots, 
-      registrationTitle, registrationDetails,
+      registrationTitle, registrationDetails, registrationEndDate, registrationEndTime, closedMessage,
       // ── New auction-engine fields (all optional; fall back to money defaults) ──
       auctionMode = "money",
       squadMinPlayers,
@@ -45,7 +45,8 @@ router.post("/", async (req, res) => {
     const tournament = new Tournament({ 
       name, organizerName, organizerLogo, numTeams, iconsPerTeam,
       baseBudget, defaultBasePrice, squadSize, auctionSlots,
-      registrationTitle, registrationDetails,
+      registrationTitle, registrationDetails, registrationEndDate, registrationEndTime, closedMessage,
+      assets: req.body.assets || { splashUrl: req.body.splashUrl },
       // New engine fields
       auctionMode,
       budget: { total: baseBudget || 0, unit: budgetUnit },
@@ -333,8 +334,11 @@ router.get("/", async (req, res) => {
           shortId: 1,
           assets: 1,
           imageProcessing: 1,
+          registrationEndDate: 1,
+          registrationEndTime: 1,
           // ── Auction engine fields ──
           auctionMode: 1,
+          currencyUnit: 1,
           budget: 1,
           squad: 1,
           // ─────────────────────────
@@ -496,14 +500,25 @@ router.post("/:id/go-live", async (req, res) => {
   }
 });
 
-// Archive / Set to Completed manually
 // Update Tournament
 router.put("/:id", async (req, res) => {
   try {
-    const { registrationTitle, registrationDetails } = req.body;
+    const { 
+      registrationTitle, registrationDetails, registrationEndDate, registrationEndTime, 
+      closedMessage, assets, auctionMode, currencyUnit 
+    } = req.body;
+    
+    const updateData = { 
+      registrationTitle, registrationDetails, registrationEndDate, registrationEndTime, 
+      closedMessage, auctionMode, currencyUnit 
+    };
+    if (assets) {
+      updateData.assets = assets;
+    }
+    
     const tournament = await Tournament.findByIdAndUpdate(
       req.params.id, 
-      { $set: { registrationTitle, registrationDetails } }, 
+      { $set: updateData }, 
       { new: true }
     );
     if (!tournament) return res.status(404).json({ message: "Tournament not found" });
@@ -561,8 +576,8 @@ router.delete("/:id", async (req, res) => {
   try {
     const { password } = req.body;
     
-    // Verify password matching hardcoded admin or env admin
-    if (password !== "15FEBLSRBP" && password !== process.env.ADMIN_PASSWORD) {
+    // Verify password matching environment admin password
+    if (!process.env.ADMIN_PASSWORD || password !== process.env.ADMIN_PASSWORD) {
       return res.status(401).json({ message: "Invalid password for deletion." });
     }
 

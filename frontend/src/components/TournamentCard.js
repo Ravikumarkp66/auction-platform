@@ -1,24 +1,61 @@
-export default function TournamentCard({ name, location, year, image }) {
+import { MapPin, Calendar, Trophy, ArrowRight } from "lucide-react";
+
+export default function TournamentCard({ name, location, year, image, status = "Upcoming" }) {
   return (
-    <div className="bg-slate-800 rounded-lg overflow-hidden shadow-lg border border-slate-700 hover:shadow-violet-500/10 hover:shadow-2xl transition-all group">
-      <div className="relative h-48 w-full overflow-hidden">
+    <div className="group relative overflow-hidden rounded-[2rem] border border-white/5 bg-[#0B0F2A]/60 backdrop-blur-xl transition-all duration-500 hover:scale-[1.02] hover:border-violet-500/30 hover:shadow-[0_20px_50px_rgba(124,58,237,0.15)]">
+      {/* Image Container with Overlay */}
+      <div className="relative h-56 w-full overflow-hidden">
         <img 
-          src={image} 
+          src={image || "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=1000&auto=format&fit=crop"} 
           alt={name} 
-          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 group-hover:rotate-1"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-900 to-transparent opacity-80"></div>
-        <div className="absolute bottom-4 left-4 right-4 flex justify-between items-end">
-          <span className="bg-violet-600 text-white text-xs font-bold px-2 py-1 rounded">{year}</span>
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0B0F2A] via-[#0B0F2A]/40 to-transparent opacity-90"></div>
+        
+        {/* Status Badge */}
+        <div className="absolute top-4 right-4">
+          <span className="bg-violet-600/20 backdrop-blur-md border border-violet-500/30 text-violet-400 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest">
+            {status}
+          </span>
+        </div>
+
+        {/* Year Badge */}
+        <div className="absolute bottom-4 left-4">
+           <div className="flex items-center gap-2 px-3 py-1 bg-white/10 backdrop-blur-md border border-white/10 rounded-lg">
+              <Calendar className="w-3 h-3 text-violet-400" />
+              <span className="text-white text-[10px] font-black uppercase tracking-normal">{year}</span>
+           </div>
         </div>
       </div>
-      <div className="p-5">
-        <h3 className="text-xl font-bold text-white mb-2">{name}</h3>
-        <div className="flex items-center text-gray-400">
-          <svg className="w-4 h-4 mr-2 text-violet-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-          <span className="text-sm">{location}</span>
+
+      {/* Content Section */}
+      <div className="p-6 space-y-4">
+        <div>
+          <h3 className="text-xl font-black text-white italic tracking-normal group-hover:text-violet-400 transition-colors duration-300">
+            {name}
+          </h3>
+          <div className="flex items-center gap-2 mt-2 text-slate-500">
+            <MapPin className="w-3.5 h-3.5 text-violet-500" />
+            <span className="text-[11px] font-bold uppercase tracking-wider">{location}</span>
+          </div>
+        </div>
+
+        {/* Bottom Bar */}
+        <div className="pt-4 border-t border-white/5 flex items-center justify-between">
+           <div className="flex items-center gap-1.5 text-emerald-400">
+              <Trophy className="w-4 h-4" />
+              <span className="text-[10px] font-black uppercase tracking-widest">Major Event</span>
+           </div>
+           
+           <button className="flex items-center gap-2 text-[10px] font-black text-white uppercase tracking-widest group/btn">
+              Explore <ArrowRight className="w-3 h-3 group-hover/btn:translate-x-1 transition-transform" />
+           </button>
         </div>
       </div>
+
+      {/* Hover Glow Effect */}
+      <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-violet-600/10 blur-[50px] rounded-full pointer-events-none group-hover:bg-violet-600/20 transition-all duration-500" />
     </div>
   );
 }
+

@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import { Users, ClipboardList, Crosshair, X, ChevronRight, TrendingUp, Award } from "lucide-react";
+import { Users, ClipboardList, Crosshair, X, ChevronRight, TrendingUp, Award, IndianRupee } from "lucide-react";
 import { API_URL } from "../lib/apiConfig";
+import CurrencySymbol from "./CurrencySymbol";
 
 // Design tokens
 const C = {
@@ -18,9 +19,22 @@ const C = {
   border: 'rgba(255,255,255,0.08)',
 };
 
-const formatCurrency = (val) => {
-  if (val === undefined || val === null) return '₹0';
-  return '₹' + Number(val).toLocaleString('en-IN');
+const formatCurrency = (val, unit = '₹') => {
+  if (val === undefined || val === null) val = 0;
+  const formattedAmount = Number(val).toLocaleString('en-IN');
+  
+  return (
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+      {unit === '₹' && <IndianRupee className="w-[0.8em] h-[0.8em] stroke-[3px]" />}
+      <span>{formattedAmount}</span>
+      {unit !== '₹' && <CurrencySymbol unit={unit} className="scale-90 origin-left" />}
+    </span>
+  );
+};
+
+const normalizeYear = (player) => {
+  if (!player) return null;
+  return player.year || player.category || null;
 };
 
 export default function AuctionOverlayNew({ 
@@ -32,7 +46,8 @@ export default function AuctionOverlayNew({
   highestBidderLogo, 
   tournamentName, 
   roundHistory,
-  auctionResult
+  auctionResult,
+  currencyUnit = '₹'
 }) {
   const [focusMode, setFocusMode] = useState(false);
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
@@ -170,7 +185,7 @@ export default function AuctionOverlayNew({
               </div>
               <div className="flex-1 min-w-0">
                 <h2 className="text-2xl font-black truncate" style={{ color: C.textPrimary }}>{squadModal.name || squadModal.shortName}</h2>
-                <p className="text-sm mt-0.5" style={{ color: C.accent }}>Budget: {(squadModal.remainingBudget ?? squadModal.budget ?? 10000).toLocaleString()} PTS</p>
+                <p className="text-sm mt-0.5" style={{ color: C.accent }}>Budget: {formatCurrency(squadModal.remainingBudget ?? squadModal.budget ?? 10000, currencyUnit)}</p>
                 <p className="text-xs mt-0.5" style={{ color: C.textSecondary }}>{squadModal.players?.length || 0} Players</p>
               </div>
             </div>
@@ -213,7 +228,7 @@ export default function AuctionOverlayNew({
               {squadModal.players && squadModal.players.length > 0 && (
                 <div className="mb-6">
                   <div className="flex items-center justify-between mb-3">
-
+                  </div>
                 </div>
               )}
 
@@ -298,7 +313,7 @@ export default function AuctionOverlayNew({
                         
                         {/* Player Price */}
                         <p className="text-sm font-black" style={{ color: C.accent }}>
-                          {playerPrice} PTS
+                          {formatCurrency(playerPrice, currencyUnit)}
                         </p>
                       </div>
                     );
@@ -367,7 +382,7 @@ export default function AuctionOverlayNew({
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-xs font-semibold truncate" style={{ color: C.textPrimary }}>{teamName}</p>
-          <p className="text-xs font-bold" style={{ color: C.accent }}>{(team.remainingBudget ?? team.budget ?? 10000).toLocaleString()} PTS</p>
+          <p className="text-xs font-bold" style={{ color: C.accent }}>{formatCurrency(team.remainingBudget ?? team.budget ?? 10000, currencyUnit)}</p>
         </div>
         <ChevronRight size={14} color={C.textSecondary} />
       </div>
@@ -469,7 +484,7 @@ export default function AuctionOverlayNew({
                 {/* Bid box */}
                 <div className="rounded-xl p-4 text-center" style={{ background: C.accentSoft, border: `1px solid ${C.accentBorder}` }}>
                   <p className="text-xs font-medium mb-1" style={{ color: C.textSecondary }}>{isSold ? 'Final Price' : 'Current Bid'}</p>
-                  <p className="text-3xl font-bold" style={{ color: C.accent }}>{displayBid.toLocaleString()} PTS</p>
+                  <p className="text-3xl font-bold" style={{ color: C.accent }}>{formatCurrency(displayBid, currencyUnit)}</p>
                 </div>
         
                 {/* Leading team */}
@@ -525,7 +540,7 @@ export default function AuctionOverlayNew({
                 {/* Bid box */}
                 <div className="rounded-xl p-4 text-center" style={{ background: C.accentSoft, border: `1px solid ${C.accentBorder}` }}>
                   <p className="text-xs font-medium mb-1" style={{ color: C.textSecondary }}>{isSold ? 'Final Price' : 'Current Bid'}</p>
-                  <p className="text-4xl font-bold" style={{ color: C.accent }}>{displayBid.toLocaleString()} PTS</p>
+                  <p className="text-4xl font-bold" style={{ color: C.accent }}>{formatCurrency(displayBid, currencyUnit)}</p>
                 </div>
         
                 {/* Leading team */}
@@ -587,7 +602,7 @@ export default function AuctionOverlayNew({
                           <span className="text-xs" style={{ color: C.textSecondary }}>#{roundHistory.length - i}</span>
                           <span className="text-sm font-medium" style={{ color: C.textPrimary }}>{h.team}</span>
                         </div>
-                        <span className="text-sm font-bold" style={{ color: C.accent }}>{h.bid.toLocaleString()} PTS</span>
+                        <span className="text-sm font-bold" style={{ color: C.accent }}>{formatCurrency(h.bid, currencyUnit)}</span>
                       </div>
                     ))
                   }
@@ -704,7 +719,7 @@ export default function AuctionOverlayNew({
                       {player?.role}
                     </span>
                     <span className="text-amber-400 font-black text-lg tracking-widest">
-                      {formatCurrency ? formatCurrency(player?.basePrice) : `₹${player?.basePrice}`}
+                      {formatCurrency(player?.basePrice, currencyUnit)}
                     </span>
                   </div>
 
@@ -734,7 +749,7 @@ export default function AuctionOverlayNew({
                     <div className="relative">
                     <h2 className="text-7xl font-black text-white tabular-nums tracking-tighter" 
                       style={{ textShadow: `0 0 40px ${C.accent}50` }}>
-                      {formatCurrency(displayBid)}
+                      {formatCurrency(displayBid, currencyUnit)}
                     </h2>
                       {bidAmount > 0 && <div className="absolute -inset-6 bg-accent/20 blur-[60px] rounded-full -z-10 animate-pulse"></div>}
                     </div>

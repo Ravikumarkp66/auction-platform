@@ -7,7 +7,7 @@ import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import AuthButton from './AuthButton';
 import AuthModal from './AuthModal';
-import { API_URL } from '../lib/apiConfig';
+import { API_URL, getMediaUrl } from '../lib/apiConfig';
 
 export default function Navbar() {
   const { language, changeLanguage, t } = useLanguage();
@@ -30,7 +30,7 @@ export default function Navbar() {
       const res = await fetch(`${API_URL}/api/settings`);
       const data = await res.json();
       if (data.success && data.data.brandLogo) {
-        setCustomLogo(`${API_URL}${data.data.brandLogo}`);
+        setCustomLogo(getMediaUrl(data.data.brandLogo));
       }
     } catch (err) {
       console.error("Brand fetch error:", err);
@@ -59,6 +59,7 @@ export default function Navbar() {
   
   // Common links - visible to all users
   const commonLinks = [
+    { href: '/', label: 'Home' },
     { 
       href: '/auctions', 
       label: '🔴 Live Auction', 
@@ -68,7 +69,6 @@ export default function Navbar() {
   
   // Admin-only links
   const adminLinks = [
-    { href: '/', label: 'Home' },
     { href: '/services', label: 'Services' },
     { href: '/about', label: 'About' },
   ];

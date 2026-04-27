@@ -16,13 +16,15 @@ import {
   Menu,
   X,
   ChevronRight,
+  ChevronLeft,
   User,
   Layout,
   Star,
   ChevronDown,
   Check,
   Palette,
-  Home
+  Home,
+  Eye
 } from "lucide-react";
 import { API_URL } from "../../lib/apiConfig";
 
@@ -39,9 +41,9 @@ const navigation = [
   { name: "Icon Players",   href: "/admin/icons",              icon: Star,            emoji: "⭐" },
   { name: "Live Control",   href: "/live-auction",             icon: Zap,             emoji: "⚡" },
   { name: "Branding",       href: "/admin/assets",             icon: Palette,         emoji: "🎨" },
-  { name: "Home Page",      href: "/admin/landing",            icon: Home,            emoji: "🏠" },
-    { name: "Pricing & Services", href: "/admin/services", icon: LayoutDashboard, emoji: "💰" },
-    { name: "Settings",       href: "/admin/settings",           icon: ImageIcon,       emoji: "⚙️" },
+  { name: "Landing Editor", href: "/admin/landing",            icon: Layout,          emoji: "🏗️" },
+  { name: "Pricing & Services", href: "/admin/services", icon: LayoutDashboard, emoji: "💰" },
+  { name: "Settings",       href: "/admin/settings",           icon: ImageIcon,       emoji: "⚙️" },
 ];
 
 export default function AdminLayout({ children }) {
@@ -49,16 +51,21 @@ export default function AdminLayout({ children }) {
   const router = useRouter();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
   const [tournaments, setTournaments] = useState([]);
   const [selectedAuction, setSelectedAuction] = useState(null);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("selectedAuction");
-      if (saved) {
+      const savedAuction = localStorage.getItem("selectedAuction");
+      if (savedAuction) {
         try {
-          setSelectedAuction(JSON.parse(saved));
+          setSelectedAuction(JSON.parse(savedAuction));
         } catch (e) {}
+      }
+      const savedCollapsed = localStorage.getItem("sidebarCollapsed");
+      if (savedCollapsed) {
+        setCollapsed(savedCollapsed === "true");
       }
     }
   }, []);
@@ -176,48 +183,82 @@ export default function AdminLayout({ children }) {
 
         {/* ══════════ SIDEBAR ══════════ */}
         <aside className={`
-          fixed inset-y-0 left-0 z-50 w-64
+          fixed inset-y-0 left-0 z-50 
           bg-[#0f172a]/90 backdrop-blur-2xl
           border-r border-white/10
           flex flex-col
-          transition-transform duration-300 ease-in-out
+          transition-all duration-300 ease-in-out
           lg:static lg:translate-x-0
           ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
+          ${collapsed ? "w-20" : "w-64"}
         `}>
 
           {/* Logo */}
-          <div className="flex items-center justify-between px-6 h-16 border-b border-white/10 shrink-0">
-            <Link href="/admin/dashboard" className="flex items-center gap-2 group">
-              <span className="text-lg font-black tracking-tight group-hover:text-violet-400 transition-colors">
+          <div className={`flex items-center ${collapsed ? 'justify-center' : 'justify-between'} px-6 h-16 border-b border-white/10 shrink-0 relative`}>
+            <Link href="/" className="flex items-center gap-2 group">
+              <span className={`text-lg font-black tracking-tight group-hover:text-violet-400 transition-colors ${collapsed ? 'hidden' : 'block'}`}>
                 🟡 Admin <span className="text-white">Panel</span>
               </span>
+              {collapsed && <span className="text-xl">🟡</span>}
             </Link>
-            <button
-              onClick={() => setSidebarOpen(false)}
-              className="lg:hidden text-slate-400 hover:text-white transition-colors"
+            {!collapsed && (
+              <button
+                onClick={() => setSidebarOpen(false)}
+                className="lg:hidden text-slate-400 hover:text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            )}
+
+            {/* Collapse Toggle (Desktop Only Ribbon) */}
+            <button 
+              onClick={() => {
+                const newState = !collapsed;
+                setCollapsed(newState);
+                localStorage.setItem("sidebarCollapsed", newState);
+              }}
+              className="hidden lg:flex absolute top-1/2 -right-3 -translate-y-1/2 w-6 h-12 bg-[#1e293b] border border-white/10 rounded-lg items-center justify-center text-slate-400 hover:text-white hover:bg-violet-600 transition-all z-50 shadow-xl"
             >
-              <X className="w-5 h-5" />
+              {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
             </button>
           </div>
 
+          {/* New: Quick link to Public Site */}
+          <div className={`px-4 pt-4 ${collapsed ? 'flex justify-center' : ''}`}>
+            <Link 
+              href="/"
+              className={`flex items-center justify-between bg-violet-600/10 hover:bg-violet-600/20 border border-violet-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest text-violet-400 hover:text-white transition-all
+                ${collapsed ? 'w-10 h-10 justify-center' : 'px-4 py-3 w-full'}
+              `}
+              title="View Public Site"
+            >
+              <span className={collapsed ? 'hidden' : 'block'}>Return to Home</span>
+              <Home className={collapsed ? 'w-5 h-5' : 'w-4 h-4 text-violet-500'} />
+            </Link>
+          </div>
+
           {/* Global Action */}
-          <div className="px-4 py-6">
+          <div className={`px-4 py-6 ${collapsed ? 'flex justify-center' : ''}`}>
             <Link
               href="/admin/create-tournament"
-              className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl font-black text-xs text-black transition-all
+              className={`flex items-center justify-center gap-2 rounded-2xl font-black text-xs text-black transition-all
                 bg-gradient-to-r from-violet-400 to-cyan-400
                 shadow-[0_0_15px_rgba(139,92,246,0.3)]
                 hover:shadow-[0_0_25px_rgba(139,92,246,0.6)]
-                hover:scale-105 active:scale-95"
+                hover:scale-105 active:scale-95
+                ${collapsed ? 'w-12 h-12' : 'w-full py-3'}
+              `}
               onClick={() => setSidebarOpen(false)}
+              title="Create Auction"
             >
-              <PlusCircle className="w-4 h-4" /> 🏗️ CREATE AUCTION
+              <PlusCircle className="w-5 h-5" />
+              <span className={collapsed ? 'hidden' : 'block'}>🏗️ CREATE AUCTION</span>
             </Link>
           </div>
 
           {/* Nav links */}
-          <nav className="flex-1 px-3 space-y-1 overflow-y-auto custom-scrollbar">
-            <p className="px-5 mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-600">Console</p>
+          <nav className="flex-1 px-3 space-y-1 overflow-y-auto custom-scrollbar overflow-x-hidden">
+            {!collapsed && <p className="px-5 mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-600">Console</p>}
             {navigation.map((item) => {
               const isActive = pathname === item.href || (item.href !== "/admin/dashboard" && pathname.startsWith(item.href));
               return (
@@ -225,46 +266,54 @@ export default function AdminLayout({ children }) {
                   key={item.name}
                   href={item.href}
                   onClick={() => setSidebarOpen(false)}
+                  title={collapsed ? item.name : ""}
                   className={`
-                    group flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold
+                    group flex items-center gap-3 rounded-xl text-sm font-semibold
                     transition-all duration-200 relative overflow-hidden
+                    ${collapsed ? 'px-0 justify-center h-12' : 'px-4 py-3'}
                     ${isActive
                       ? "bg-gradient-to-r from-violet-600 to-cyan-500 text-white shadow-[0_0_20px_rgba(139,92,246,0.4)]"
                       : "text-slate-400 hover:text-white hover:bg-white/5"
                     }
                   `}
                 >
-                  <span className="text-base grayscale group-hover:grayscale-0 transition-[filter]">{item.emoji}</span>
-                  <span className="flex-1">{item.name}</span>
-                  {isActive && <ChevronRight className="w-4 h-4 opacity-70" />}
+                  <span className={`text-base grayscale group-hover:grayscale-0 transition-[filter] ${collapsed ? 'scale-110' : ''}`}>{item.emoji}</span>
+                  <span className={`flex-1 transition-opacity duration-300 ${collapsed ? 'opacity-0 w-0' : 'opacity-100'}`}>{item.name}</span>
+                  {(isActive && !collapsed) && <ChevronRight className="w-4 h-4 opacity-70" />}
                 </Link>
               );
             })}
           </nav>
 
           {/* User footer */}
-          <div className="shrink-0 border-t border-white/10 p-4 space-y-3">
-            <div className="flex items-center gap-3 px-2">
+          <div className={`shrink-0 border-t border-white/10 p-4 space-y-3 ${collapsed ? 'flex flex-col items-center' : ''}`}>
+            <div className={`flex items-center gap-3 ${collapsed ? 'px-0' : 'px-2'}`}>
               <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-violet-500 to-cyan-500 flex items-center justify-center font-black text-lg shadow-lg shadow-violet-500/30 shrink-0">
                 {initials}
               </div>
-              <div className="min-w-0">
-                <p className="text-sm font-black text-white truncate">{session.user?.name}</p>
-                <p className="text-[10px] text-yellow-400 font-black uppercase tracking-widest opacity-80">Root Master</p>
-              </div>
+              {!collapsed && (
+                <div className="min-w-0">
+                  <p className="text-sm font-black text-white truncate">{session.user?.name}</p>
+                  <p className="text-[10px] text-yellow-400 font-black uppercase tracking-widest opacity-80">Root Master</p>
+                </div>
+              )}
             </div>
             <button
               onClick={() => signOut({ callbackUrl: "/" })}
-              className="flex items-center gap-3 w-full px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest text-slate-500 hover:text-white hover:bg-red-500/10 hover:border-red-500/20 border border-transparent transition-all"
+              title="Sign Out"
+              className={`flex items-center gap-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all
+                ${collapsed ? 'w-10 h-10 justify-center p-0' : 'w-full px-4 py-2.5 hover:bg-red-500/10 hover:border-red-500/20 border border-transparent'}
+                text-slate-500 hover:text-white
+              `}
             >
               <LogOut className="w-4 h-4" />
-              Sign Out
+              {!collapsed && <span>Sign Out</span>}
             </button>
           </div>
         </aside>
 
         {/* ══════════ MAIN AREA ══════════ */}
-        <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+        <div className={`flex-1 flex flex-col min-w-0 overflow-hidden relative transition-all duration-300`}>
           
           {/* Background glow behind content */}
           <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-violet-600/5 blur-[120px] rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none" />

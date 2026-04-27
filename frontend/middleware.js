@@ -21,6 +21,7 @@ export default withAuth(
           '/auction/live',
           '/live-auction',
           '/overlay',
+          '/register',
           '/api/auth',
           '/login'
         ];

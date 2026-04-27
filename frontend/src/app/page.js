@@ -3,6 +3,7 @@
 import Hero from "@/components/Hero";
 import ServicesCard from "@/components/ServicesCard";
 import Footer from "@/components/Footer";
+import ActiveTournaments from "@/components/ActiveTournaments";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { API_URL } from "@/lib/apiConfig";
@@ -30,6 +31,7 @@ export default function Home() {
 
   return (
     <>
+      <ActiveTournaments />
       <Hero />
       
       {/* Services Section */}

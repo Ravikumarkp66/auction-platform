@@ -119,7 +119,7 @@ const Toggle = ({ checked, onChange, label }) => (
 // ─────────────────────────────────────────────────────────────────────────────
 // MAIN COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
-export default function RulesConfigPanel({ tournamentId, auctionMode, config, onChange }) {
+export default function RulesConfigPanel({ tournamentId, auctionMode, currencyUnit = "CR", config, onChange }) {
   const [issues, setIssues] = useState([]);
 
   // Only active for points-based auctions
@@ -232,7 +232,7 @@ export default function RulesConfigPanel({ tournamentId, auctionMode, config, on
               <NumberInput value={get("retention.maxPlayers")} onChange={(v) => set("retention.maxPlayers", v)} min={0} />
             </div>
             <div>
-              <Label>Cost per Retained Player (pts)</Label>
+              <Label>Cost per Retained Player ({currencyUnit})</Label>
               <NumberInput value={get("retention.costPerPlayer")} onChange={(v) => set("retention.costPerPlayer", v)} min={0} />
             </div>
           </div>

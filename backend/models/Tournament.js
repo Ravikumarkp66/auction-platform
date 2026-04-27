@@ -13,6 +13,9 @@ const tournamentSchema = new mongoose.Schema({
   auctionSlots: { type: Number, default: 9 },
   registrationTitle: { type: String, default: "JOIN THE BATTLE" },
   registrationDetails: { type: String, default: "" },
+  registrationEndDate: { type: Date },
+  registrationEndTime: { type: String, default: "23:59" },
+  closedMessage: { type: String, default: "Registration is currently closed. Please contact the tournament organizer for more details." },
   status: { type: String, enum: ["draft", "active", "completed"], default: "draft" },
 
   // ─── Auction Engine fields (added for multi-tournament engine) ───────────
@@ -22,6 +25,10 @@ const tournamentSchema = new mongoose.Schema({
     type: String,
     enum: ["money", "points"],
     default: "money",
+  },
+  currencyUnit: {
+    type: String,
+    default: "CR",
   },
   // budget mirrors baseBudget but carries the unit explicitly.
   // Kept in sync by the create route; existing reads of baseBudget still work.

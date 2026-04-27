@@ -42,11 +42,15 @@ const DEFAULT_CONFIG = {
   auctionDate: getTodayDate(), auctionType: "live",
   // Auction engine fields
   auctionMode: "money",     // "money" | "points"
+  currencyUnit: "CR",       // "CR" | "PTS" | "RS"
   squadMinPlayers: 1,
   squadMaxPlayers: 20,
   // Registration page customizations
   registrationTitle: "JOIN THE BATTLE",
   registrationDetails: "",
+  registrationEndDate: "",
+  registrationEndTime: "23:59",
+  closedMessage: "Registration is currently closed. Please contact the tournament organizer for more details.",
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -1333,12 +1337,67 @@ export default function CreateTournamentWizard() {
                  </Field>
             </div>
 
+            {/* ── TOURNAMENT BANNER UPLOAD ── */}
+            <div className="md:col-span-2">
+                 <Field label="Tournament Cinematic Banner / Thumbnail" hint="This image will be used as the background for your registration portal and list cards. (Ideal: 1200x400 or larger)">
+                    <div className="flex flex-col gap-4 p-6 rounded-[2.5rem] bg-[#0B0F2A] border border-white/5 relative overflow-hidden group">
+                        <div className="relative w-full h-40 bg-slate-900/50 rounded-3xl border-2 border-dashed border-white/10 flex items-center justify-center overflow-hidden transition-all hover:border-violet-500/30">
+                            {config.splashUrl ? (
+                                <img src={config.splashUrl} alt="Banner" className="w-full h-full object-cover" />
+                            ) : (
+                                <div className="flex flex-col items-center gap-2">
+                                   <Upload className="w-8 h-8 text-slate-700" />
+                                   <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest">No Banner Selected</p>
+                                </div>
+                            )}
+                            {uploading && (
+                                <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                                    <RefreshCw className="w-6 h-6 text-white animate-spin" />
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-3">
+                            <input 
+                              type="file" id="banner-upload" className="hidden" accept="image/*"
+                              onChange={e => handleImageUpload(e.target.files[0], (url) => setConfig(p => ({ ...p, splashUrl: url })), "banners")} />
+                            <button onClick={() => document.getElementById("banner-upload").click()}
+                              className="px-6 py-2.5 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-300 hover:text-white hover:bg-white/10 transition-all">
+                              Upload Banner Image
+                            </button>
+                            <button onClick={() => openPicker((url) => handleDriveLinkImport(url, "banners", (s3) => setConfig(p => ({ ...p, splashUrl: s3 }))))}
+                              className="px-6 py-2.5 bg-violet-600/20 border border-violet-500/30 rounded-xl text-[10px] font-black uppercase tracking-widest text-violet-400 hover:text-white hover:bg-violet-600/40 transition-all flex items-center gap-2">
+                              <Upload className="w-3 h-3" /> Select from Drive
+                            </button>
+                        </div>
+                    </div>
+                 </Field>
+            </div>
+
             {/* ── Auction Type (Live / Demo) ── */}
             <Field label="Auction Mode Type *">
               <select className={inputCls(false)} value={config.auctionType}
                 onChange={e => setConfig(p => ({ ...p, auctionType: e.target.value }))}>
                 <option value="live">🔴 Live Auction</option>
                 <option value="demo">🟡 Demo / Practice</option>
+              </select>
+            </Field>
+            
+            <Field label="Auction Engine *">
+              <select className={inputCls(false)} value={config.auctionMode}
+                onChange={e => setConfig(p => ({ ...p, auctionMode: e.target.value }))}>
+                <option value="money">💰 Money Based (₹)</option>
+                <option value="points">⚡ Points Based (CR/PTS)</option>
+              </select>
+            </Field>
+
+            <Field label="Currency Unit *">
+              <select className={inputCls(false)} value={config.currencyUnit}
+                onChange={e => setConfig(p => ({ ...p, currencyUnit: e.target.value }))}>
+                <option value="CR">CR (Credits)</option>
+                <option value="PTS">PTS (Points)</option>
+                <option value="RS">RS (Rupees)</option>
+                <option value="₹">₹ (Symbol)</option>
               </select>
             </Field>
 
@@ -1433,6 +1492,24 @@ export default function CreateTournamentWizard() {
                     placeholder="Enter tournament rules, dates, or contact info..."
                     onChange={e => setConfig(p => ({ ...p, registrationDetails: e.target.value }))} />
                 </Field>
+                <div className="grid grid-cols-2 gap-4">
+                  <Field label="Registration End Date" hint="Players cannot register after this date">
+                    <input type="date" className={inputCls(false)}
+                      value={config.registrationEndDate || ""}
+                      onChange={e => setConfig(p => ({ ...p, registrationEndDate: e.target.value }))} />
+                  </Field>
+                  <Field label="End Time" hint="Specific time (e.g. 11:59 PM)">
+                    <input type="time" className={inputCls(false)}
+                      value={config.registrationEndTime || "23:59"}
+                      onChange={e => setConfig(p => ({ ...p, registrationEndTime: e.target.value }))} />
+                  </Field>
+                </div>
+                <Field label="Custom 'Closed' Message" hint="Shown when registration is over">
+                  <textarea rows={2} className={`${inputCls(false)} resize-none`}
+                    value={config.closedMessage || ""}
+                    placeholder="Registration is closed. Contact us..."
+                    onChange={e => setConfig(p => ({ ...p, closedMessage: e.target.value }))} />
+                </Field>
               </div>
             </div>
           </div>
@@ -1443,6 +1520,7 @@ export default function CreateTournamentWizard() {
               <div className="h-px bg-white/5 my-2" />
               <RulesConfigPanel
                 auctionMode={config.auctionMode}
+                currencyUnit={config.currencyUnit}
                 config={rulesConfig}
                 onChange={setRulesConfig}
               />
@@ -1454,7 +1532,7 @@ export default function CreateTournamentWizard() {
             {[
               ["Total Teams",   config.numTeams],
               ["Total Icons",   config.numTeams * config.iconsPerTeam],
-              ["Budget / Team", `₹${(config.baseBudget).toLocaleString()}`],
+              ["Budget / Team", config.currencyUnit === "₹" ? `₹${(config.baseBudget).toLocaleString()}` : `${(config.baseBudget).toLocaleString()} ${config.currencyUnit}`],
             ].map(([label, val]) => (
               <div key={label} className="text-center">
                 <p className="text-xl font-black text-white">{val}</p>

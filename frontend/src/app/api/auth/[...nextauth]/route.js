@@ -22,13 +22,13 @@ const authOptions = {
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
-        const adminEmails = ["lakshmish4638@gmail.com", "mreducator4566@gmail.com", "ravikumarkp66@gmail.com"];
+        const adminEmails = (process.env.ADMIN_EMAILS || "").toLowerCase().split(",");
         const email = credentials.email.toLowerCase();
         
         // Check for admin credentials
         if (
           adminEmails.includes(email) &&
-          credentials.password === "15FEBLSRBP"
+          credentials.password === process.env.ADMIN_PASSWORD
         ) {
           return {
             id: email,
@@ -63,7 +63,7 @@ const authOptions = {
   callbacks: {
     async jwt({ token, user, account }) {
       if (user) {
-        const adminEmails = ["lakshmish4638@gmail.com", "mreducator4566@gmail.com", "ravikumarkp66@gmail.com"];
+        const adminEmails = (process.env.ADMIN_EMAILS || "").toLowerCase().split(",");
         const userEmail = (user.email || "").toLowerCase();
         token.role = user.role || (adminEmails.includes(userEmail) ? "admin" : "user");
         token.picture = user.picture || account?.picture;

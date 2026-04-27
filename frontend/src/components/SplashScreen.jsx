@@ -3,23 +3,39 @@
 import Image from "next/image";
 
 export default function SplashScreen({ src, title }) {
-  const displayTitle = title || "Dr. G Parameshwar Cup";
-  const displaySrc = src || "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/backgrounds/1774129817002.png";
+  const displaySrc = src || "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/backgrounds/auction-bg.jpg";
+  
   return (
-    <div className="fixed inset-0 bg-[#0a0f18] flex items-center justify-center overflow-hidden">
-      {/* Background glow effect */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(251,191,36,0.15)_0%,_transparent_70%)]"></div>
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[radial-gradient(circle,_rgba(251,191,36,0.2)_0%,_transparent_70%)] blur-[100px]"></div>
-      
+    <div className="fixed inset-0 bg-[#0a0f18] flex items-center justify-center overflow-hidden z-[200]">
+      {/* Background Image */}
+      <div className="absolute inset-0">
+        <img 
+          src={displaySrc} 
+          className="w-full h-full object-cover opacity-60 scale-110 animate-zoomIn" 
+          alt="Splash Background" 
+          onError={(e) => { e.target.style.display = 'none'; }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0a0f18] via-transparent to-[#0a0f18] opacity-80" />
+        <div className="absolute inset-0 bg-black/40" />
+      </div>
+
       {/* Content */}
-      {/* Waiting for Broadcast Message (Centered & Responsive) */}
-      <div className="relative z-20 flex flex-col items-center gap-6 w-full px-4 text-center">
-        <div className="flex items-center gap-3 md:gap-5 bg-black/40 backdrop-blur-3xl px-6 md:px-10 py-4 md:py-5 rounded-xl md:rounded-full border border-white/20 shadow-2xl animate-pulse">
-          <div className="relative flex h-2.5 w-2.5 md:h-3.5 md:w-3.5">
+      <div className="relative z-20 flex flex-col items-center gap-10 w-full px-4 text-center">
+        {/* Animated Badge */}
+        <div className="flex items-center gap-5 bg-black/60 backdrop-blur-3xl px-12 py-6 rounded-[2.5rem] border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] animate-pulse">
+          <div className="relative flex h-4 w-4">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2.5 w-2.5 md:h-3.5 md:w-3.5 bg-emerald-500"></span>
+            <span className="relative inline-flex rounded-full h-4 w-4 bg-emerald-500"></span>
           </div>
-          <span className="text-[10px] md:text-[20px] font-black uppercase tracking-[0.3em] md:tracking-[0.5em] text-white whitespace-nowrap leading-none">Waiting for Broadcast</span>
+          <span className="text-[20px] font-black uppercase tracking-[0.6em] text-white whitespace-nowrap leading-none">Broadcast Starting</span>
+        </div>
+
+        {/* Title */}
+        <div className="space-y-4">
+           <h1 className="text-5xl md:text-8xl font-black text-white uppercase tracking-tighter italic drop-shadow-2xl">
+             {title || "CRICKET AUCTION"}
+           </h1>
+           <div className="h-1.5 w-32 bg-violet-600 mx-auto rounded-full" />
         </div>
       </div>
 

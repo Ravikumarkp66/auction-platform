@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useSession } from "next-auth/react";
 import { Trophy, Play, Users, Calendar, ExternalLink, Clock, XCircle } from "lucide-react";
-import { API_URL, DEFAULT_ASSETS } from "@/lib/apiConfig";
+import { API_URL, DEFAULT_ASSETS, getMediaUrl } from "@/lib/apiConfig";
 
 export default function AuctionsPage() {
   const { data: session, status } = useSession();
@@ -170,7 +170,7 @@ export default function AuctionsPage() {
           <div className="flex justify-center md:absolute md:top-8 md:right-8 mb-8 md:mb-0">
             <div className="w-24 h-24 md:w-36 md:h-36 rounded-full overflow-hidden border-2 border-amber-400/50 shadow-[0_0_30px_rgba(251,191,36,0.3)] bg-gradient-to-br from-amber-500/20 to-amber-600/20 backdrop-blur-sm relative">
               <Image 
-                src={liveTournaments[0]?.organizerLogo ? `${API_URL}${liveTournaments[0].organizerLogo}` : DEFAULT_ASSETS.BANNER_LOGO} 
+                src={getMediaUrl(liveTournaments[0]?.organizerLogo)} 
                 alt={liveTournaments[0]?.name || "Organizer Logo"}
                 fill
                 className="object-cover"

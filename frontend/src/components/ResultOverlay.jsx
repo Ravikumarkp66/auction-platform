@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import CurrencySymbol from './CurrencySymbol';
 
 const ResultOverlay = ({ type, playerName, price, teamName, teamLogo, teamColor, teamShortName, playerImage, onSkip, currency, isPointsSystem = true }) => {
   const [showHammer, setShowHammer] = useState(false);
@@ -181,7 +182,11 @@ const ResultOverlay = ({ type, playerName, price, teamName, teamLogo, teamColor,
                   filter: `drop-shadow(0 0 ${15 * priceProgress}px rgba(16,185,129,${0.8 * priceProgress}))`
                 }}
               >
-                {isPointsSystem ? `${displayPrice} PTS` : `${currency}${displayPrice.toLocaleString()}`}
+                <span className="flex items-center gap-3 justify-center">
+                  {currency === "₹" && <CurrencySymbol unit={currency} className="scale-150" iconClassName="w-[0.8em] h-[0.8em]" />}
+                  <span>{displayPrice.toLocaleString()}</span>
+                  {currency !== "₹" && currency && <CurrencySymbol unit={currency} className="scale-150" />}
+                </span>
               </p>
             </div>
             

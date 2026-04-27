@@ -36,3 +36,23 @@ export const DEFAULT_ASSETS = {
   DEFAULT_PLAYER: "https://ui-avatars.com/api/?background=random",
   DEFAULT_TEAM: "https://ui-avatars.com/api/?background=random"
 };
+
+/**
+ * Safely construct a media URL
+ * @param {string} path - The path to the media asset
+ * @param {string} fallback - The fallback URL if path is missing
+ * @returns {string} - The full URL
+ */
+export const getMediaUrl = (path, fallback = DEFAULT_ASSETS.BANNER_LOGO) => {
+  if (!path) return fallback;
+  if (path.startsWith('http')) return path;
+  
+  const baseUrl = API_URL || "";
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  
+  // If baseUrl ends with /, remove it to avoid //
+  const cleanBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+  
+  return `${cleanBase}${normalizedPath}`;
+};
+

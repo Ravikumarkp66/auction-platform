@@ -3,6 +3,7 @@ import Navbar from '../components/Navbar';
 import DynamicBackground from '../components/DynamicBackground';
 import { LanguageProvider } from '../context/LanguageContext';
 import AuthProvider from '../components/AuthProvider';
+import VisitorTracker from '../components/VisitorTracker';
 
 import { Inter, Noto_Sans_Kannada } from 'next/font/google';
 
@@ -20,6 +21,7 @@ export default function RootLayout({ children }) {
       <body suppressHydrationWarning className="main-container text-slate-50 min-h-screen flex flex-col font-sans antialiased">
         <DynamicBackground />
         <AuthProvider>
+          <VisitorTracker />
           <LanguageProvider>
             <div className="app flex flex-col min-h-screen w-full">
               <Navbar />

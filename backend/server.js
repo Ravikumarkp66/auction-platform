@@ -17,8 +17,19 @@ const server = http.createServer(app);
 
 // Security and Performance
 app.use(helmet({ 
-  crossOriginResourcePolicy: false, // Allow images to be loaded from other origins if needed
-  contentSecurityPolicy: false // Disable CSP if it causes issues with S3 images initially, but recommend configuring in prod
+  crossOriginResourcePolicy: false,
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      imgSrc: ["'self'", "data:", "blob:", "https://*.amazonaws.com", "https://*.google.com", "https://*.googleusercontent.com", "https://ui-avatars.com"],
+      connectSrc: ["'self'", "https://*.amazonaws.com", "wss://*.socket.io", "https://*.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      objectSrc: ["'none'"],
+      upgradeInsecureRequests: [],
+    },
+  },
 }));
 app.use(compression());
 app.use(morgan('dev'));
@@ -42,7 +53,8 @@ app.use(cors({
     if (allowedOrigins.indexOf(origin) !== -1 || origin.endsWith('.vercel.app')) {
       callback(null, true);
     } else {
-      callback(null, true); // Fallback to allow but recommend strict in prod
+      console.warn(`CORS blocked request from: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
     }
   },
   credentials: true,
@@ -225,6 +237,7 @@ app.use("/api/squads", squadRoutes); // Squad generation API
 app.use("/api/location", require("./routes/locationRoutes"));
 app.use("/api/services", require("./routes/serviceRoutes"));
 app.use("/api/settings", require("./routes/settingsRoutes"));
+app.use("/api/visitors", require("./routes/visitorRoutes"));
 
 // Error handling middleware
 app.use((err, req, res, next) => {

@@ -14,7 +14,8 @@ import { uploadToS3 } from "../../lib/uploadToS3"
 import ResultOverlay from '../../components/ResultOverlay'
 import jsPDF from 'jspdf'
 import { FaUndo, FaUsers, FaHistory, FaGavel, FaImage, FaChevronLeft, FaChevronRight, FaPlay, FaTrophy, FaSignOutAlt, FaCog, FaChartBar } from "lucide-react"
-import { API_URL, DEFAULT_ASSETS } from "@/lib/apiConfig";
+import { API_URL, DEFAULT_ASSETS, getMediaUrl } from "@/lib/apiConfig";
+import CurrencySymbol from "@/components/CurrencySymbol";
 
 // Module-level socket instance to persist across React re-renders in development
 let globalSocket = null
@@ -132,7 +133,7 @@ function LiveAuctionContent() {
     // Squad size check removed to allow buying as long as budget exists
     const minBid = isPointsSystem() ? (player?.basePrice || 2) : 100;
     if (team.remainingBudget < minBid) {
-      return `Insufficient ${isPointsSystem() ? 'credits' : 'funds'} (${formatCurrency(team.remainingBudget)})`;
+      return `Insufficient ${isPointsSystem() ? 'credits' : 'funds'} (${formatCurrencyText(team.remainingBudget)})`;
     }
     return null;
   };
@@ -167,20 +168,47 @@ function LiveAuctionContent() {
     return (selectedAuction?.auctionMode === "points" || config.auctionMode === "points");
   };
 
-  // Get currency symbol and format based on auction type
-  const formatCurrency = (amount, options = {}) => {
+  const getCurrencyUnit = () => {
+    return selectedAuction?.currencyUnit || config.currencyUnit || (isPointsSystem() ? "CR" : "₹");
+  };
+
+  // For text-only context (alerts, confirms, console)
+  const formatCurrencyText = (amount, options = {}) => {
+    if (amount === undefined || amount === null) amount = 0;
     const { showSymbol = true, abbreviate = false } = options;
-    
-    if (isPointsSystem()) {
-      // Points System: Use Credits (CR)
-      return showSymbol ? `${amount} CR` : `${amount}`;
-    } else {
-      // Regular Auction: Use Rupees (₹)
-      const formattedAmount = abbreviate && amount >= 1000 
-        ? `${(amount / 1000).toFixed(1)}K` 
-        : amount.toLocaleString();
-      return showSymbol ? `₹${formattedAmount}` : formattedAmount;
-    }
+    const unit = getCurrencyUnit();
+    const formattedAmount = abbreviate && amount >= 1000 
+      ? `${(amount / 1000).toFixed(1)}K` 
+      : Number(amount).toLocaleString('en-IN');
+
+    if (!showSymbol) return formattedAmount;
+    if (unit === "₹") return `₹${formattedAmount}`;
+    return `${formattedAmount} ${unit}`;
+  };
+
+  // For UI context (returns JSX with stylized symbols)
+  const formatCurrency = (amount, options = {}) => {
+    if (amount === undefined || amount === null) amount = 0;
+    const { showSymbol = true, abbreviate = false, className = "" } = options;
+    const unit = getCurrencyUnit();
+    const formattedAmount = abbreviate && amount >= 1000 
+      ? `${(amount / 1000).toFixed(1)}K` 
+      : Number(amount).toLocaleString('en-IN');
+
+    if (!showSymbol) return formattedAmount;
+
+    return (
+      <span className={`inline-flex items-center gap-1 whitespace-nowrap ${className}`}>
+        {unit === "₹" && <CurrencySymbol unit={unit} />}
+        <span>{formattedAmount}</span>
+        {unit !== "₹" && <CurrencySymbol unit={unit} />}
+      </span>
+    );
+  };
+
+  const normalizeYearCategory = (player) => {
+    if (!player) return "N/A";
+    return player.year || player.category || "N/A";
   };
 
   // Get base price based on auction type
@@ -731,13 +759,13 @@ function LiveAuctionContent() {
     if (currentBid === 0) {
       // First bid must be at least the base price
       if (riseAmount < minBid) {
-        alert(`The first bid must be at least the base price (${formatCurrency(minBid)}).`)
+        alert(`The first bid must be at least the base price (${formatCurrencyText(minBid)}).`)
         return
       }
     } else {
       // Subsequent bids must be higher than current
       if (riseAmount <= currentBid) {
-        alert(`Bid must be higher than current bid (${formatCurrency(currentBid)}).`)
+        alert(`Bid must be higher than current bid (${formatCurrencyText(currentBid)}).`)
         return
       }
     }
@@ -826,11 +854,11 @@ function LiveAuctionContent() {
 
     // Prevent selling for 0 or negative amount
     if (currentBid <= 0) {
-      alert("Cannot sell player for 0 CR or less. Please place a bid first.")
+      alert(`Cannot sell player for 0 ${getCurrencyUnit()} or less. Please place a bid first.`)
       return
     }
 
-    if (!confirm(`Sell ${player.name} to ${teams.find(t => t.id === highestBidder)?.name} for ${currentBid} CR?`)) return
+    if (!confirm(`Sell ${player.name} to ${teams.find(t => t.id === highestBidder)?.name} for ${currentBid} ${getCurrencyUnit()}?`)) return
 
     // Edge Case 6: SOLD clicked twice prevention (local check)
     if (player.status === "sold") return
@@ -888,7 +916,7 @@ function LiveAuctionContent() {
       teamShortName: winningTeam?.shortName,
       playerName: player.name,
       playerImage: player.photo?.s3 || player.photo?.drive || player.imageUrl || player.image,
-      currency: isPointsSystem() ? "" : "₹",
+      currency: getCurrencyUnit(),
       isPointsSystem: isPointsSystem()
     });
 
@@ -951,7 +979,7 @@ function LiveAuctionContent() {
             teamLogo: winningTeam?.logoUrl,
             teamColor: winningTeam?.color,
             playerImage: player.photo?.s3 || player.photo?.drive || player.imageUrl || player.image,
-            currency: isPointsSystem() ? "" : "₹",
+            currency: getCurrencyUnit(),
             isPointsSystem: isPointsSystem()
           });
         }
@@ -994,7 +1022,7 @@ function LiveAuctionContent() {
         playerId: player.id,
         playerName: player.name,
         playerImage: player.photo?.s3 || player.photo?.drive || player.imageUrl || player.image,
-        currency: isPointsSystem() ? "" : "₹",
+        currency: getCurrencyUnit(),
         isPointsSystem: isPointsSystem()
       });
     }
@@ -1004,7 +1032,7 @@ function LiveAuctionContent() {
       type: "UNSOLD",
       playerName: player.name,
       playerImage: player.photo?.s3 || player.photo?.drive || player.imageUrl || player.image,
-      currency: isPointsSystem() ? "" : "₹",
+      currency: getCurrencyUnit(),
       isPointsSystem: isPointsSystem()
     });
 
@@ -1088,9 +1116,9 @@ function LiveAuctionContent() {
     const soldPrice = player.soldPrice
     const originalTeamId = player.team
 
-    if (!confirm(`Revert sale of ${player.name}?\n\nThis will remove the player from ${teams.find(t => t.id === originalTeamId)?.name} and refund ${formatCurrency(soldPrice)}.\n\nClick OK to proceed.`)) return
+    if (!confirm(`Revert sale of ${player.name}?\n\nThis will remove the player from ${teams.find(t => t.id === originalTeamId)?.name} and refund ${formatCurrencyText(soldPrice)}.\n\nClick OK to proceed.`)) return
 
-    const startFromLastBid = confirm(`Do you want to retain the final bid of ${formatCurrency(soldPrice)} by ${teams.find(t => t.id === originalTeamId)?.name}?\n\nClick OK to keep the bid.\nClick Cancel to completely restart from ${formatCurrency(0)}.`);
+    const startFromLastBid = confirm(`Do you want to retain the final bid of ${formatCurrencyText(soldPrice)} by ${teams.find(t => t.id === originalTeamId)?.name}?\n\nClick OK to keep the bid.\nClick Cancel to completely restart from ${formatCurrencyText(0)}.`);
 
     // Get the original team and calculate correct refund
     const originalTeam = teams.find(t => t.id === originalTeamId)
@@ -1401,13 +1429,23 @@ function LiveAuctionContent() {
 
   return (
     <div className="min-h-screen font-sans text-white overflow-hidden relative">
+      <style jsx global>{`
+        img:not([src]), img[src=""], img:invalid {
+          display: none !important;
+        }
+      `}</style>
       {/* Background Layer - Fixed & Clear */}
       <div className="fixed inset-0 z-0">
         <img
           src={activeAssets.backgroundUrl || '/splash-screen.png'}
           className="w-full h-full object-cover scale-100"
           alt=""
-          style={{ filter: 'none' }}
+          style={{ 
+            filter: 'none',
+            visibility: 'hidden'
+          }}
+          onLoad={(e) => { e.target.style.visibility = 'visible'; }}
+          onError={(e) => { e.target.style.display = 'none'; }}
         />
         {/* Subtle gradient overlay - NOT heavy dark */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/40 to-black/30" />
@@ -1546,14 +1584,15 @@ function LiveAuctionContent() {
           <div className="flex items-center gap-4 lg:gap-8 grow justify-center">
             {/* TOURNAMENT / ORGANIZER LOGO (DYNAMIC) */}
             <div className="flex items-center gap-4">
-               {selectedAuction?.organizerLogo ? (
+                {selectedAuction?.organizerLogo && (
                  <div className="w-16 h-16 lg:w-24 lg:h-24 relative bg-slate-900/40 rounded-2xl border border-white/5 p-2 flex items-center justify-center backdrop-blur-md shadow-2xl">
-                    <img src={selectedAuction.organizerLogo} className="w-full h-full object-contain" alt="Tournament Logo" />
+                    <img 
+                      src={selectedAuction.organizerLogo} 
+                      className="w-full h-full object-contain" 
+                      alt="Tournament Logo" 
+                      onError={(e) => { e.target.style.display = 'none'; }}
+                    />
                  </div>
-               ) : (
-                  <div className="hidden sm:block w-12 h-12 lg:w-20 lg:h-20 relative">
-                    <img src={activeAssets.badges?.leftBadge || "/logo.png"} className="w-full h-full object-contain drop-shadow-2xl" alt="L-Badge" />
-                  </div>
                )}
             </div>
 
@@ -1574,11 +1613,7 @@ function LiveAuctionContent() {
               )}
             </div>
 
-            {activeAssets.badges?.rightBadge && (
-              <div className="hidden sm:block w-12 h-12 lg:w-20 lg:h-20 relative">
-                <img src={activeAssets.badges.rightBadge} className="w-full h-full object-contain drop-shadow-2xl" alt="R-Badge" />
-              </div>
-            )}
+
           </div>
         </div>
 
@@ -2204,7 +2239,11 @@ function LiveAuctionContent() {
                           <div className="mt-8 flex flex-col items-center animate-in slide-in-from-bottom-2 duration-300">
                             <div className="flex items-center gap-3 px-3 py-1.5 bg-violet-500/10 rounded-xl border border-violet-500/20 shadow-lg">
                               <div className="w-5 h-5 rounded-lg overflow-hidden border border-white/10 shrink-0">
-                                <img src={teams.find(t => t.id === highestBidder)?.logoUrl} className="w-full h-full object-cover" />
+                                <img 
+                                  src={teams.find(t => t.id === highestBidder)?.logoUrl} 
+                                  className="w-full h-full object-cover" 
+                                  onError={(e) => { e.target.style.display = 'none'; }}
+                                />
                               </div>
                               <span className="text-[11px] font-black text-white uppercase tracking-tight truncate max-w-[100px]">{teams.find(t => t.id === highestBidder)?.name}</span>
                             </div>
@@ -2266,7 +2305,7 @@ function LiveAuctionContent() {
                       <div className="flex items-center gap-2 px-2 shrink-0">
                         <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Next Bid:</span>
                         <div className="flex items-center gap-1">
-                          <span className="text-slate-600 text-[10px] font-black">{isPointsSystem() ? 'PTS' : '₹'}</span>
+                          <span className="text-slate-600 text-[10px] font-black">{getCurrencyUnit()}</span>
                           <input
                             type="number"
                             value={bidIncrement}
@@ -2413,7 +2452,7 @@ function LiveAuctionContent() {
                         doc.text(`SOLD: ${sold.length} players`, 20, 47);
                         doc.text(`UNSOLD: ${unsold.length} players`, 80, 47);
                         const totalSpend = sold.reduce((s, p) => s + (p.soldPrice || 0), 0);
-                        doc.text(`TOTAL SPEND: ${totalSpend} CR`, 140, 47);
+                        doc.text(`TOTAL SPEND: ${totalSpend} ${getCurrencyUnit()}`, 140, 47);
 
                         // Table header
                         let y = 60;
@@ -2443,7 +2482,7 @@ function LiveAuctionContent() {
                           const teamName = teams.find(t => t.id === p.team || t._id === p.team)?.name || '-';
                           doc.text(`${teamName.substring(0, 18)}`, 135, y + 5);
                           doc.setTextColor(180, 150, 255);
-                          doc.text(`${(p.soldPrice || 0)} CR`, 175, y + 5);
+                          doc.text(`${(p.soldPrice || 0)} ${getCurrencyUnit()}`, 175, y + 5);
                           y += 7;
                         });
 
@@ -2533,7 +2572,12 @@ function LiveAuctionContent() {
                                 {team ? (
                                   <div className="flex items-center gap-2">
                                     <div className="w-7 h-7 rounded overflow-hidden border border-slate-700 shrink-0">
-                                      <img src={team.logoUrl} className="w-full h-full object-cover" alt="" />
+                                      <img 
+                                        src={team.logoUrl} 
+                                        className="w-full h-full object-cover" 
+                                        alt="" 
+                                        onError={(e) => { e.target.style.display = 'none'; }}
+                                      />
                                     </div>
                                     <span className="text-[11px] font-black text-white uppercase truncate max-w-[120px]">{team.name}</span>
                                   </div>
@@ -2649,7 +2693,7 @@ function LiveAuctionWithSplash({ tournamentId, role }) {
       {showSplash && (
         <div className={`fixed inset-0 z-[9999] transition-all duration-700 ${fadeOut ? 'opacity-0 scale-110 blur-md' : 'opacity-100 scale-100'}`}>
           <SplashScreen
-            src={tournament?.assets?.splashUrl}
+            src={getMediaUrl(tournament?.assets?.splashUrl)}
             title={tournament?.name}
           />
         </div>

@@ -9,11 +9,11 @@ import {
   Calendar, CreditCard, ClipboardCheck, Navigation2,
   Activity, Users, UserPlus, UploadCloud, X,
   Trash2, Search, ChevronDown, Zap, SearchCode,
-  Edit2, Save, Plus
+  Edit2, Save, Plus, Clock
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { uploadToS3 } from "../../../lib/uploadToS3";
-import { API_URL } from "../../../lib/apiConfig";
+import { API_URL, getMediaUrl } from "../../../lib/apiConfig";
 
 const DICT = {
   "PLAYER PORTAL": "ಆಟಗಾರರ ಪೋರ್ಟಲ್",
@@ -71,6 +71,64 @@ const DICT = {
   "Global Dashboard": "ಡ್ಯಾಶ್‌ಬೋರ್ಡ್"
 };
 
+const SearchingOverlay = ({ mobile }) => {
+  const [msgIndex, setMsgIndex] = useState(0);
+  const messages = [
+    "Initializing Secure Protocol...",
+    "Scanning Central Registry...",
+    "Accessing Player Database...",
+    "Verifying Identity Nodes...",
+    "Retrieving Registration State...",
+    "Filtering Regional Records...",
+    "Compiling Status Report..."
+  ];
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setMsgIndex(p => (p + 1) % messages.length);
+    }, 700);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="fixed inset-0 z-[1000] bg-[#020617]/95 backdrop-blur-xl flex flex-col items-center justify-center p-6 animate-in fade-in duration-500">
+       <div className="relative w-64 h-64 mb-12">
+          <div className="absolute inset-0 border border-violet-500/20 rounded-full animate-ping duration-[3000ms]"></div>
+          <div className="absolute inset-4 border border-cyan-500/20 rounded-full animate-ping duration-[2000ms]"></div>
+          <div className="absolute inset-8 border border-white/5 rounded-full"></div>
+          <div className="absolute top-1/2 left-0 w-full h-px bg-gradient-to-r from-transparent via-violet-500 to-transparent animate-scan shadow-[0_0_15px_rgba(139,92,246,0.5)]"></div>
+          
+          <div className="absolute inset-0 flex items-center justify-center">
+             <div className="w-32 h-32 rounded-3xl bg-slate-900 border border-white/10 flex flex-col items-center justify-center gap-3 shadow-2xl relative overflow-hidden group">
+                <div className="absolute inset-0 bg-gradient-to-br from-violet-600/20 to-transparent opacity-50"></div>
+                <Search className="w-10 h-10 text-white animate-pulse" />
+                <div className="flex gap-1">
+                   <div className="w-1.5 h-1.5 bg-violet-500 rounded-full animate-bounce delay-0"></div>
+                   <div className="w-1.5 h-1.5 bg-cyan-500 rounded-full animate-bounce delay-150"></div>
+                   <div className="w-1.5 h-1.5 bg-white rounded-full animate-bounce delay-300"></div>
+                </div>
+             </div>
+          </div>
+       </div>
+
+       <div className="text-center space-y-6">
+          <div className="space-y-2">
+             <h3 className="text-2xl font-[1000] text-white italic tracking-widest uppercase animate-pulse">Searching Identity</h3>
+             <p className="text-[10px] font-black text-violet-400 tracking-[0.4em] uppercase">{mobile}</p>
+          </div>
+          
+          <div className="h-4 flex items-center justify-center">
+             <p className="text-[9px] font-black text-slate-500 tracking-[0.2em] uppercase italic transition-all duration-500">{messages[msgIndex]}</p>
+          </div>
+
+          <div className="w-48 h-1 bg-white/5 rounded-full mx-auto overflow-hidden relative">
+             <div className="absolute inset-0 bg-gradient-to-r from-violet-600 to-cyan-500 animate-progress w-full"></div>
+          </div>
+       </div>
+    </div>
+  );
+};
+
 export default function PlayerRegistrationPage() {
   const { id: tournamentId } = useParams();
   const router = useRouter();
@@ -81,8 +139,16 @@ export default function PlayerRegistrationPage() {
   const t = (text) => lang === "KN" ? (DICT[text] || text) : text;
 
   const [isEditing, setIsEditing] = useState(false);
-  const [editValues, setEditValues] = useState({ title: "", details: "" });
+  const [editValues, setEditValues] = useState({ 
+    title: "", 
+    details: "", 
+    splashUrl: "",
+    registrationEndDate: "",
+    registrationEndTime: "23:59",
+    closedMessage: ""
+  });
   const [savingSettings, setSavingSettings] = useState(false);
+  const [uploadingBanner, setUploadingBanner] = useState(false);
 
   const [step, setStep] = useState(0);
   const [tournament, setTournament] = useState(null);
@@ -97,6 +163,8 @@ export default function PlayerRegistrationPage() {
   const [checkMobile, setCheckMobile] = useState("");
   const [checkResult, setCheckResult] = useState(null);
   const [checking, setChecking] = useState(false);
+  const [isUrgent, setIsUrgent] = useState(false);
+  const [dateLabel, setDateLabel] = useState("");
 
   // Location Data States
   const [taluks, setTaluks] = useState([]);
@@ -120,6 +188,71 @@ export default function PlayerRegistrationPage() {
   });
 
   const [previews, setPreviews] = useState({ photo: null, aadhaar: null });
+  const [greeting, setGreeting] = useState("");
+  const [timeLeft, setTimeLeft] = useState("");
+  const [isClosed, setIsClosed] = useState(false);
+
+  useEffect(() => {
+    const updateGreeting = () => {
+      const hour = new Date().getHours();
+      if (hour < 12) setGreeting("Good Morning");
+      else if (hour < 17) setGreeting("Good Afternoon");
+      else setGreeting("Good Evening");
+    };
+    updateGreeting();
+    const timer = setInterval(updateGreeting, 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!tournament?.registrationEndDate) return;
+    
+    const updateCountdown = () => {
+      const now = new Date().getTime();
+      const dateStr = tournament.registrationEndDate.includes('T') 
+        ? tournament.registrationEndDate.split('T')[0] 
+        : tournament.registrationEndDate;
+      const timeStr = tournament.registrationEndTime || "23:59";
+      const end = new Date(`${dateStr}T${timeStr}`).getTime();
+      const diff = end - now;
+      
+      if (diff <= 0) {
+        setIsClosed(true);
+        setTimeLeft("00d 00h 00m 00s");
+      } else {
+        const d = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const s = Math.floor((diff % (1000 * 60)) / 1000);
+        setTimeLeft(`${d}d ${h}h ${m}m ${s}s`);
+        setIsClosed(false);
+        setIsUrgent(d < 1);
+
+        const endDay = new Date(dateStr);
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        endDay.setHours(0,0,0,0);
+        const diffDays = Math.round((endDay - today) / (1000 * 60 * 60 * 24));
+        
+        if (diffDays === 0) setDateLabel("Today");
+        else if (diffDays === 1) setDateLabel("Tomorrow");
+        else setDateLabel(new Date(tournament.registrationEndDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }));
+      }
+    };
+    
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+    return () => clearInterval(interval);
+  }, [tournament]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("edit") === "true") {
+        setIsEditing(true);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     fetchTournamentDetails();
@@ -134,10 +267,14 @@ export default function PlayerRegistrationPage() {
       if (res.ok) {
         const data = await res.json();
         setTournament(data.tournament);
-        setEditValues({
-           title: data.tournament?.registrationTitle || "",
-           details: data.tournament?.registrationDetails || ""
-        });
+         setEditValues({
+            title: data.tournament?.registrationTitle || "",
+            details: data.tournament?.registrationDetails || "",
+            splashUrl: data.tournament?.assets?.splashUrl || "",
+            registrationEndDate: data.tournament?.registrationEndDate?.split('T')[0] || "",
+            registrationEndTime: data.tournament?.registrationEndTime || "23:59",
+            closedMessage: data.tournament?.closedMessage || ""
+         });
         if (data.tournament?.defaultBasePrice) {
             setFormData(prev => ({ ...prev, basePrice: data.tournament.defaultBasePrice }));
         }
@@ -182,7 +319,9 @@ export default function PlayerRegistrationPage() {
      setChecking(true);
      setCheckResult(null);
      try {
-        const res = await fetch(`${API_URL}/api/players/check?mobile=${checkMobile}&tournamentId=${tournamentId}`);
+         // Cinematic delay
+         await new Promise(r => setTimeout(r, 2200));
+         const res = await fetch(`${API_URL}/api/players/check?mobile=${checkMobile}&tournamentId=${tournamentId}`);
         const data = await res.json();
         
         if (res.ok && data.name) {
@@ -207,15 +346,31 @@ export default function PlayerRegistrationPage() {
        const res = await fetch(`${API_URL}/api/tournaments/${tournamentId}`, {
          method: "PUT",
          headers: { "Content-Type": "application/json" },
-         body: JSON.stringify({ 
-            registrationTitle: editValues.title,
-            registrationDetails: editValues.details
+         body: JSON.stringify({
+           registrationTitle: editValues.title,
+           registrationDetails: editValues.details,
+           registrationEndDate: editValues.registrationEndDate,
+           registrationEndTime: editValues.registrationEndTime,
+           closedMessage: editValues.closedMessage,
+           assets: {
+             ...tournament.assets,
+             splashUrl: editValues.splashUrl
+           }
          }),
        });
        if (res.ok) {
-         setTournament(prev => ({ ...prev, registrationTitle: editValues.title, registrationDetails: editValues.details }));
-         setIsEditing(false);
-       } else {
+           setTournament(prev => ({ 
+             ...prev, 
+             registrationTitle: editValues.title, 
+             registrationDetails: editValues.details,
+             registrationEndDate: editValues.registrationEndDate,
+             registrationEndTime: editValues.registrationEndTime,
+             closedMessage: editValues.closedMessage,
+             assets: { ...prev.assets, splashUrl: editValues.splashUrl }
+           }));
+          setIsEditing(false);
+          alert("✨ Portal Customization Applied Successfully!");
+        } else {
          alert("Failed to save settings.");
        }
      } catch (err) {
@@ -377,192 +532,296 @@ export default function PlayerRegistrationPage() {
 
       <main className="max-w-4xl mx-auto px-6 pt-12 relative z-10">
         
-        {/* Registration Status Modal-like section */}
+        {/* Cinematic Registration Status Modal Overlay */}
         {showStatusCheck && (
-            <div className="mb-12 p-8 bg-violet-600/10 border border-violet-500/20 rounded-[2.5rem] animate-in fade-in slide-in-from-top-6 duration-500 shadow-2xl">
-               <div className="flex items-center justify-between mb-8">
-                  <div className="flex items-center gap-3">
-                     <SearchCode className="text-violet-400" size={20} />
-                     <h3 className="text-sm font-black uppercase tracking-widest text-white italic">Status Lookup Engine</h3>
-                  </div>
-                  <button onClick={() => { setShowStatusCheck(false); setCheckResult(null); }} className="text-slate-500 hover:text-white transition-colors"><X size={16} /></button>
-               </div>
-               <div className="flex flex-col md:flex-row gap-4 items-end">
-                  <div className="flex-1 space-y-3">
-                     <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">{t("Enter Registered Mobile Number")}</label>
-                     <input 
-                       value={checkMobile}
-                       onChange={e => setCheckMobile(e.target.value)}
-                       placeholder="10 DIGIT NUMBER"
-                       className="w-full bg-slate-900 border border-white/10 rounded-2xl p-4 text-xs font-black tracking-widest outline-none focus:border-violet-500 transition-all font-mono"
-                     />
-                  </div>
-                  <button 
-                    onClick={handleCheckStatus}
-                    disabled={checking || checkMobile.length !== 10}
-                    className="px-8 py-4 bg-white text-black rounded-2xl text-[10px] font-black uppercase tracking-widest disabled:opacity-30 hover:scale-105 transition-all shadow-lg shadow-white/10 shrink-0"
-                  >
-                     {checking ? t("Checking...") : t("Verify Registry")}
-                  </button>
-               </div>
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 backdrop-blur-2xl bg-black/60 animate-in fade-in duration-500">
+               <div className="relative w-full max-w-2xl bg-[#0B0F2A]/90 border border-white/10 rounded-[3rem] p-8 md:p-12 shadow-[0_0_100px_rgba(0,0,0,0.8)] overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-10 duration-700 ease-out">
+                  
+                  {/* Moving Glow Background Decor */}
+                  <div className="absolute top-[-20%] left-[-20%] w-[140%] h-[140%] bg-gradient-to-br from-violet-600/10 via-transparent to-cyan-400/10 animate-pulse pointer-events-none" />
+                  
+                  <div className="relative z-10">
+                    <div className="flex items-center justify-between mb-10">
+                       <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-2xl bg-violet-600/20 border border-violet-500/30 flex items-center justify-center shadow-lg shadow-violet-600/20">
+                             <SearchCode className="text-violet-400" size={24} />
+                          </div>
+                          <div>
+                             <h3 className="text-xl font-black uppercase tracking-[0.2em] text-white italic">Status Lookup</h3>
+                             <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Auction Intelligence Engine</p>
+                          </div>
+                       </div>
+                       <button onClick={() => { setShowStatusCheck(false); setCheckResult(null); }} className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center transition-all hover:rotate-90">
+                          <X size={18} className="text-slate-400 hover:text-white" />
+                       </button>
+                    </div>
 
-               {checkResult && (
-                  <div className={`mt-8 p-6 rounded-2xl border ${checkResult.name ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-red-500/10 border-red-500/20'} animate-in zoom-in-95`}>
-                     <div className="flex flex-col md:flex-row items-start gap-6">
-                        {checkResult.name ? (
-                           checkResult.player?.photo?.s3 || checkResult.player?.imageUrl ? (
-                               <img src={checkResult.player.photo?.s3 || checkResult.player.imageUrl} alt={checkResult.name} className="w-16 h-16 rounded-xl object-cover border-2 border-emerald-500/30 shrink-0" />
-                           ) : (
-                               <CheckCircle className="text-emerald-500 shrink-0 mt-1" size={24} />
-                           )
-                        ) : (
-                           <AlertCircle className="text-red-500 shrink-0 mt-1" size={24} />
-                        )}
-                        <div className="flex-1 w-full">
-                           <div className="flex flex-wrap items-center justify-between gap-2">
-                               <p className="text-sm font-black uppercase tracking-widest text-white">{checkResult.name ? checkResult.name : "Registry Error"}</p>
-                               {checkResult.applicationId && (
-                                  <span className="text-[9px] font-black uppercase tracking-widest text-emerald-400/70 bg-emerald-500/10 px-2 py-1 rounded-md border border-emerald-500/20">ID: {checkResult.applicationId}</span>
-                               )}
-                           </div>
-                           <p className={`text-[11px] font-bold uppercase mt-1 ${checkResult.status === 'pending' ? 'text-red-400' : checkResult.name ? 'text-emerald-400' : 'text-red-400'}`}>{checkResult.message}</p>
-                           
-                           {checkResult.player && (
-                              <div className="mt-4 border-t border-emerald-500/20 pt-4">
-                                {checkResult.status === 'pending' ? (
-                                   <div className="bg-slate-900/50 border border-white/5 rounded-xl p-6 cinematic-zoom">
-                                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-6 text-center">Registration Pipeline</p>
-                                      
-                                      <div className="relative flex items-center justify-between w-full max-w-sm mx-auto">
-                                         {/* Line behind circles */}
-                                         <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-1 bg-white/5 rounded-full">
-                                            <div className="h-full bg-emerald-500 rounded-full w-1/2 shadow-[0_0_10px_rgba(16,185,129,0.5)]"></div>
-                                         </div>
-                                         
-                                         {/* Step 1: Submitted */}
-                                         <div className="relative flex flex-col items-center gap-2 z-10">
-                                            <div className="w-8 h-8 rounded-full bg-emerald-500 border-4 border-slate-900 flex items-center justify-center shadow-[0_0_15px_rgba(16,185,129,0.4)]">
-                                               <CheckCircle size={14} className="text-white" />
-                                            </div>
-                                            <span className="text-[9px] font-black uppercase tracking-wider text-emerald-400 absolute -bottom-6 whitespace-nowrap">Submitted</span>
-                                         </div>
-                                         
-                                         {/* Step 2: Approval Pending (Active) */}
-                                         <div className="relative flex flex-col items-center gap-2 z-10">
-                                            <div className="w-8 h-8 rounded-full bg-red-500 border-4 border-slate-900 flex items-center justify-center shadow-[0_0_15px_rgba(239,68,68,0.4)] animate-pulse">
-                                               <Loader2 size={14} className="text-white animate-spin" />
-                                            </div>
-                                            <span className="text-[9px] font-black uppercase tracking-wider text-red-400 absolute -bottom-6 whitespace-nowrap">Approval Pending</span>
-                                         </div>
-                                         
-                                         {/* Step 3: Approved */}
-                                         <div className="relative flex flex-col items-center gap-2 z-10">
-                                            <div className="w-8 h-8 rounded-full bg-slate-800 border-4 border-slate-900 flex items-center justify-center">
-                                               <Trophy size={12} className="text-slate-500" />
-                                            </div>
-                                            <span className="text-[9px] font-black uppercase tracking-wider text-slate-500 absolute -bottom-6 whitespace-nowrap">Approved</span>
-                                         </div>
-                                      </div>
-                                      
-                                      <div className="mt-12 bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-start gap-3">
-                                         <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={16} />
-                                         <div>
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-red-500 mb-1">Details Hidden</p>
-                                            <p className="text-xs text-red-400/80 font-medium">Your full profile details will be visible here once an administrator approves your registration.</p>
-                                         </div>
-                                      </div>
-                                   </div>
-                                ) : (
-                                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                      <div>
-                                         <p className="text-[8px] text-emerald-500/70 font-black uppercase tracking-widest mb-0.5">Role</p>
-                                         <p className="text-[10px] text-white font-bold tracking-wide">{checkResult.player.role || "N/A"}</p>
-                                      </div>
-                                      <div>
-                                         <p className="text-[8px] text-emerald-500/70 font-black uppercase tracking-widest mb-0.5">Style</p>
-                                         <p className="text-[10px] text-white font-bold tracking-wide">{checkResult.player.playingStyle || "N/A"}</p>
-                                      </div>
-                                      <div>
-                                         <p className="text-[8px] text-emerald-500/70 font-black uppercase tracking-widest mb-0.5">Base Price</p>
-                                         <p className="text-[10px] text-white font-bold tracking-wide">₹{checkResult.player.basePrice || "N/A"}</p>
-                                      </div>
-                                      <div>
-                                         <p className="text-[8px] text-emerald-500/70 font-black uppercase tracking-widest mb-0.5">Location</p>
-                                         <p className="text-[10px] text-white font-bold tracking-wide truncate">{checkResult.player.village || checkResult.player.hobli || "N/A"}</p>
-                                      </div>
-                                   </div>
-                                )}
-                              </div>
-                           )}
-                        </div>
-                     </div>
+                    <div className="flex flex-col gap-6">
+                       <div className="space-y-3">
+                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] ml-1">{t("Enter Registered Mobile Number")}</label>
+                          <div className="flex flex-col sm:flex-row gap-3">
+                             <input 
+                               value={checkMobile}
+                               onChange={e => setCheckMobile(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                               placeholder="10 DIGIT NUMBER"
+                               className="flex-1 bg-slate-900/50 border-2 border-white/5 rounded-2xl px-6 py-4 text-xl font-black tracking-[0.4em] text-white outline-none focus:border-violet-500 transition-all text-center sm:text-left"
+                             />
+                             <button 
+                               onClick={handleCheckStatus}
+                               disabled={checking || checkMobile.length !== 10}
+                               className="px-8 py-4 bg-white text-black rounded-2xl text-[11px] font-[1000] uppercase tracking-widest disabled:opacity-30 hover:scale-105 transition-all shadow-xl shadow-white/5 shrink-0"
+                             >
+                                {checking ? t("Processing...") : t("Verify Registry")}
+                             </button>
+                          </div>
+                       </div>
+                    </div>
+
+                    {checkResult && (
+                       <div className={`mt-10 p-8 rounded-[2rem] border ${checkResult.name ? 'bg-emerald-500/5 border-emerald-500/20 shadow-[0_0_40px_rgba(16,185,129,0.05)]' : 'bg-red-500/5 border-red-500/20 shadow-[0_0_40px_rgba(239,68,68,0.05)]'} animate-in zoom-in-95 slide-in-from-bottom-4 duration-500`}>
+                         {checkResult.name ? (
+                            <div className="flex flex-col md:flex-row items-center gap-8">
+                               {/* Player Photo */}
+                               <div className="w-32 h-32 shrink-0 rounded-3xl bg-slate-900 border-2 border-white/10 overflow-hidden shadow-2xl relative group">
+                                  <img 
+                                    src={checkResult.player?.photo?.drive || checkResult.player?.imageUrl || "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=200&auto=format&fit=crop"} 
+                                    alt={checkResult.name}
+                                    className="w-full h-full object-cover transition-all duration-700 group-hover:scale-110"
+                                  />
+                                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                                  <div className="absolute bottom-2 right-2 px-2 py-0.5 bg-violet-600 rounded-md text-[8px] font-black text-white">ID: {checkResult.player.applicationId || checkResult.player.iconId}</div>
+                               </div>
+
+                               <div className="flex-1 text-center md:text-left space-y-4">
+                                  <div>
+                                     <h2 className="text-3xl font-black text-white uppercase italic tracking-normal drop-shadow-md mb-1">{checkResult.name}</h2>
+                                     <p className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.3em] mt-1 italic animate-pulse">Registration Approved!</p>
+                                  </div>
+
+                                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 pt-4 border-t border-white/5">
+                                     <div className="space-y-1">
+                                        <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest">Role</p>
+                                        <p className="text-[10px] text-white font-bold tracking-wide italic">{checkResult.player.role || "All-Rounder"}</p>
+                                     </div>
+                                     <div className="space-y-1">
+                                        <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest">Village</p>
+                                        <p className="text-[10px] text-white font-bold tracking-wide italic truncate">{checkResult.player.village || "N/A"}</p>
+                                     </div>
+                                     <div className="space-y-1">
+                                        <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest">Status</p>
+                                        <p className="text-[10px] text-emerald-400 font-bold tracking-wide italic uppercase">{checkResult.player.status || "Sold"}</p>
+                                     </div>
+                                     <div className="space-y-1">
+                                        <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest">Category</p>
+                                        <p className="text-[10px] text-violet-400 font-bold tracking-wide italic uppercase">{checkResult.player.category || "General"}</p>
+                                     </div>
+                                  </div>
+                               </div>
+                            </div>
+                         ) : (
+                            <div className="flex flex-col items-center gap-4 py-4 text-center">
+                               <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center border border-red-500/20">
+                                  <X className="text-red-500" size={32} />
+                               </div>
+                               <div>
+                                  <h3 className="text-lg font-black text-white uppercase tracking-widest">Record Not Found</h3>
+                                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Check the number and try again</p>
+                               </div>
+                            </div>
+                         )}
+                       </div>
+                    )}
                   </div>
-               )}
-               
-               {checkResult && (
-                  <div className="mt-4 flex justify-end">
-                     <button onClick={() => { setShowStatusCheck(false); setCheckResult(null); setCheckMobile(""); setStep(0); }} className="px-6 py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all">
-                        <ArrowLeft size={14} /> Verify Another Number
-                     </button>
-                  </div>
-               )}
+
+                  {/* Footer Decoration */}
+                  <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-violet-500/50 to-transparent"></div>
+               </div>
             </div>
         )}
 
-        <div className="mb-12 text-center relative group">
+        <div className="mb-16 relative group">
             {isEditing ? (
-              <div className="max-w-3xl mx-auto space-y-4 animate-in zoom-in-95 duration-300">
-                 <input 
-                   type="text"
-                   value={editValues.title}
-                   onChange={e => setEditValues(p => ({ ...p, title: e.target.value }))}
-                   placeholder="Main Heading (e.g. JOIN THE BATTLE)"
-                   className="w-full bg-slate-900/80 border-2 border-violet-500/50 rounded-2xl px-6 py-4 text-center text-3xl font-black text-white uppercase italic tracking-tighter outline-none focus:border-violet-400 focus:shadow-[0_0_30px_rgba(124,58,237,0.3)] transition-all"
-                 />
-                 <textarea
-                   rows={3}
-                   value={editValues.details}
-                   onChange={e => setEditValues(p => ({ ...p, details: e.target.value }))}
-                   placeholder="Enter tournament details, rules, or guidelines..."
-                   className="w-full bg-slate-900/80 border-2 border-emerald-500/50 rounded-2xl px-6 py-4 text-center text-sm font-medium text-slate-300 outline-none focus:border-emerald-400 focus:shadow-[0_0_30px_rgba(16,185,129,0.3)] transition-all resize-none"
-                 />
-                 <div className="flex items-center justify-center gap-3 mt-4">
-                    <button onClick={handleSaveSettings} disabled={savingSettings} className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-lg transition-all"><Save size={14}/> {savingSettings ? "Saving..." : "Save Changes"}</button>
-                    <button onClick={() => setIsEditing(false)} className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-lg transition-all"><X size={14}/> Cancel</button>
+              <div className="max-w-4xl mx-auto space-y-6 animate-in zoom-in-95 duration-300 bg-[#0B0F2A]/90 p-8 rounded-[3rem] border border-violet-500/30 shadow-[0_30px_60px_rgba(0,0,0,0.5)] backdrop-blur-2xl">
+                 <div className="flex items-center gap-3 mb-4">
+                    <Edit2 className="text-violet-500" size={20} />
+                    <h3 className="text-sm font-black uppercase tracking-widest text-white italic">Customize Registration Portal</h3>
+                 </div>
+
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-4">
+                       <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Portal Heading</label>
+                       <input 
+                         type="text"
+                         value={editValues.title}
+                         onChange={e => setEditValues(p => ({ ...p, title: e.target.value }))}
+                         placeholder="e.g. JOIN THE BATTLE"
+                         className="w-full bg-slate-900/80 border border-white/10 rounded-2xl px-6 py-4 text-sm font-black text-white uppercase italic tracking-normal outline-none focus:border-violet-500 transition-all"
+                       />
+                    </div>
+                    <div className="space-y-4">
+                       <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Registration End Date & Time</label>
+                       <div className="flex gap-2">
+                          <input 
+                            type="date"
+                            value={editValues.registrationEndDate}
+                            onChange={e => setEditValues(p => ({ ...p, registrationEndDate: e.target.value }))}
+                            className="flex-1 bg-slate-900/80 border border-white/10 rounded-2xl px-6 py-4 text-sm font-black text-white outline-none focus:border-violet-500 transition-all"
+                          />
+                          <input 
+                            type="time"
+                            value={editValues.registrationEndTime}
+                            onChange={e => setEditValues(p => ({ ...p, registrationEndTime: e.target.value }))}
+                            className="w-32 bg-slate-900/80 border border-white/10 rounded-2xl px-4 py-4 text-sm font-black text-white outline-none focus:border-violet-500 transition-all"
+                          />
+                       </div>
+                    </div>
+                 </div>
+
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-4">
+                       <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Banner Image URL</label>
+                       <div className="flex gap-2">
+                          <input 
+                            type="text"
+                            value={editValues.splashUrl}
+                            onChange={e => setEditValues(p => ({ ...p, splashUrl: e.target.value }))}
+                            placeholder="https://image-url.com/banner.png"
+                            className="flex-1 bg-slate-900/80 border border-white/10 rounded-2xl px-6 py-4 text-xs font-medium text-slate-300 outline-none focus:border-violet-500 transition-all"
+                          />
+                          <label className="shrink-0 w-14 h-14 bg-violet-600/20 border border-violet-500/30 rounded-2xl flex items-center justify-center cursor-pointer hover:bg-violet-600/30 transition-all">
+                             {uploadingBanner ? <Loader2 className="animate-spin text-violet-400" size={20} /> : <UploadCloud className="text-violet-400" size={20} />}
+                             <input 
+                               type="file" 
+                               className="hidden" 
+                               onChange={async (e) => {
+                                 const file = e.target.files[0];
+                                 if (!file) return;
+                                 setUploadingBanner(true);
+                                 try {
+                                   const url = await uploadToS3(file, "banners");
+                                   setEditValues(p => ({ ...p, splashUrl: url }));
+                                 } catch (err) { alert("Upload failed"); }
+                                 setUploadingBanner(false);
+                               }} 
+                             />
+                          </label>
+                       </div>
+                    </div>
+                    <div className="space-y-4">
+                       <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Custom 'Closed' Message</label>
+                       <textarea
+                         rows={2}
+                         value={editValues.closedMessage}
+                         onChange={e => setEditValues(p => ({ ...p, closedMessage: e.target.value }))}
+                         placeholder="e.g. Registration is closed. Contact us for details..."
+                         className="w-full bg-slate-900/80 border border-white/10 rounded-2xl px-6 py-4 text-sm font-medium text-slate-300 outline-none focus:border-violet-500 transition-all resize-none"
+                       />
+                    </div>
+                 </div>
+
+                 <div className="space-y-4">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Tournament Guidelines & Rules</label>
+                    <textarea
+                      rows={4}
+                      value={editValues.details}
+                      onChange={e => setEditValues(p => ({ ...p, details: e.target.value }))}
+                      placeholder="Enter tournament details, rules, or guidelines..."
+                      className="w-full bg-slate-900/80 border border-white/10 rounded-2xl px-6 py-4 text-sm font-medium text-slate-300 outline-none focus:border-violet-500 transition-all resize-none"
+                    />
+                 </div>
+
+                 <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/5">
+                    <button onClick={() => setIsEditing(false)} className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all">Cancel</button>
+                    <button onClick={handleSaveSettings} disabled={savingSettings} className="px-8 py-3 bg-gradient-to-r from-violet-600 to-cyan-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-violet-600/20 transition-all hover:scale-105 active:scale-95 disabled:opacity-50">
+                       {savingSettings ? <Loader2 size={14} className="animate-spin" /> : <Save size={14}/>}
+                       {savingSettings ? "Saving..." : "Apply Changes"}
+                    </button>
                  </div>
               </div>
             ) : (
-              <>
-                <h1 className="text-7xl font-black text-white uppercase italic tracking-tighter leading-none mb-4 transition-all">
-                   {tournament?.registrationTitle ? tournament.registrationTitle : (
-                     <>{t("Join the")} <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-500 to-cyan-400">{t("Battle")}</span></>
+              <div className="relative group overflow-hidden rounded-[3rem] border border-white/5 bg-[#0B0F2A]/40 backdrop-blur-sm">
+                {/* Cinematic Banner Background */}
+                <div className="absolute inset-0 z-0">
+                   <img 
+                      src={getMediaUrl(tournament?.assets?.splashUrl, "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=1200&auto=format&fit=crop")} 
+                      className="w-full h-full object-cover opacity-40 group-hover:scale-105 transition-all duration-1000"
+                      alt="Banner"
+                   />
+                   <div className="absolute inset-0 bg-gradient-to-t from-[#020617] via-[#020617]/60 to-transparent"></div>
+                   <div className="absolute inset-0 bg-gradient-to-r from-[#020617]/80 via-transparent to-[#020617]/80"></div>
+                </div>
+
+                <div className="relative z-10 py-16 px-8 text-center">
+                   <div className="mb-6 animate-in slide-in-from-top-4 duration-700">
+                      <span className="px-4 py-1.5 bg-white/5 backdrop-blur-md border border-white/10 rounded-full text-[10px] font-black uppercase tracking-[0.2em] text-violet-400">
+                         ✨ {greeting}, Hero
+                      </span>
+                   </div>
+
+                   <div className="flex items-center justify-center gap-4 mb-6">
+                      <div className="h-px w-12 bg-gradient-to-r from-transparent to-violet-500"></div>
+                      <p className="text-[10px] font-black text-violet-400 uppercase tracking-[0.5em] drop-shadow-lg">
+                         {t("Registry Gateway for")} <span className="text-white italic">{tournament?.name}</span>
+                      </p>
+                      <div className="h-px w-12 bg-gradient-to-l from-transparent to-violet-500"></div>
+                   </div>
+
+                   <h1 className="text-6xl md:text-8xl font-black text-white uppercase italic tracking-normal leading-[1.1] mb-6 drop-shadow-[0_10px_30px_rgba(0,0,0,0.5)] animate-in slide-in-from-bottom-8 duration-700">
+                      {tournament?.registrationTitle ? tournament.registrationTitle : (
+                        <>{t("Join the")} <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-500 to-cyan-400">{t("Battle")}</span></>
+                      )}
+                   </h1>
+                   {tournament?.registrationEndDate && (
+                     <div className="mb-8 flex flex-col items-center gap-2 animate-in fade-in duration-1000">
+                        <div className={`flex items-center gap-3 px-6 py-2 ${isUrgent ? 'bg-red-600/10 border-red-500/20 shadow-red-600/10' : 'bg-emerald-600/10 border-emerald-500/20 shadow-emerald-600/10'} rounded-2xl backdrop-blur-xl shadow-lg transition-colors duration-500`}>
+                           <Clock className={`w-4 h-4 ${isUrgent ? 'text-red-500 animate-pulse' : 'text-emerald-500'}`} />
+                           <div className="flex items-center gap-4">
+                              <div className="flex flex-col items-start">
+                                 <p className={`text-[8px] font-black ${isUrgent ? 'text-red-400/70' : 'text-emerald-400/70'} uppercase tracking-widest`}>Registration Ends</p>
+                                 <p className="text-[10px] font-black text-white uppercase tracking-wider">{dateLabel}</p>
+                              </div>
+                              <div className="w-px h-6 bg-white/10" />
+                              <div className="flex flex-col items-start">
+                                 <p className={`text-[8px] font-black ${isUrgent ? 'text-red-400/70' : 'text-emerald-400/70'} uppercase tracking-widest`}>Time Remaining</p>
+                                 <p className={`text-[11px] font-[1000] ${isUrgent ? 'text-red-500' : 'text-emerald-500'} uppercase tracking-widest tabular-nums`}>{timeLeft}</p>
+                              </div>
+                           </div>
+                        </div>
+                     </div>
                    )}
-                </h1>
-                <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.5em] leading-relaxed">
-                   {t("Registry Gateway for")} <span className="text-white italic">{tournament?.name}</span>
-                </p>
-                
-                {/* Custom Guidelines Block */}
-                {tournament?.registrationDetails ? (
-                  <div className="mt-8 max-w-2xl mx-auto p-6 bg-violet-900/20 border border-violet-500/20 rounded-2xl text-left animate-in fade-in slide-in-from-bottom-4 shadow-xl relative group-hover:border-violet-500/40 transition-all">
-                    {session && (
-                      <button onClick={() => setIsEditing(true)} className="absolute -top-3 -right-3 w-8 h-8 bg-violet-600 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 hover:scale-110 transition-all shadow-lg shadow-violet-600/30">
-                         <Edit2 size={12} className="text-white" />
-                      </button>
-                    )}
-                    <h3 className="text-xs font-black text-violet-400 uppercase tracking-widest mb-3">Tournament Guidelines & Details</h3>
-                    <p className="text-slate-300 text-sm whitespace-pre-wrap leading-relaxed font-medium">
-                      {tournament.registrationDetails}
-                    </p>
-                  </div>
-                ) : session ? (
-                  <button onClick={() => setIsEditing(true)} className="mt-6 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 border-dashed rounded-xl text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center justify-center gap-2 mx-auto transition-all">
-                    <Plus size={14} /> Add Tournament Details / Rules
-                  </button>
-                ) : null}
-              </>
+
+                   {/* Custom Guidelines Block */}
+                   {tournament?.registrationDetails && (
+                     <div className="mt-8 max-w-2xl mx-auto p-6 bg-white/5 border border-white/10 rounded-3xl text-left animate-in fade-in slide-in-from-bottom-4 shadow-2xl backdrop-blur-md group-hover:border-violet-500/20 transition-all">
+                       {session && (
+                         <button onClick={() => setIsEditing(true)} className="absolute -top-3 -right-3 w-10 h-10 bg-violet-600 rounded-2xl flex items-center justify-center opacity-0 group-hover:opacity-100 hover:scale-110 transition-all shadow-xl shadow-violet-600/30">
+                            <Edit2 size={16} className="text-white" />
+                         </button>
+                       )}
+                       <div className="flex items-center gap-2 mb-3">
+                          <Zap className="w-4 h-4 text-yellow-400" />
+                          <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">Tournament Intelligence & Rules</h3>
+                       </div>
+                       <p className="text-slate-300 text-xs whitespace-pre-wrap leading-loose font-bold italic opacity-80 tracking-wide">
+                         {tournament.registrationDetails}
+                       </p>
+                     </div>
+                   )}
+
+                   {!tournament?.registrationDetails && session && (
+                     <button onClick={() => setIsEditing(true)} className="mt-6 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 border-dashed rounded-xl text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center justify-center gap-2 mx-auto transition-all">
+                       <Plus size={14} /> Configure Tournament Guidelines
+                     </button>
+                   )}
+                </div>
+
+                {/* Decorative Elements */}
+                <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-violet-500/50 to-transparent"></div>
+              </div>
             )}
         </div>
+
+        {checking && <SearchingOverlay mobile={checkMobile} />}
 
         {error && (
             <div className="mb-8 p-6 bg-red-500/10 border border-red-500/20 rounded-3xl flex flex-col md:flex-row items-center gap-6 text-red-500 relative overflow-hidden group shadow-2xl">
@@ -582,7 +841,23 @@ export default function PlayerRegistrationPage() {
         )}
 
         <div className="bg-[#0f172a]/40 border border-white/10 rounded-[3rem] p-8 md:p-12 shadow-2xl relative overflow-hidden backdrop-blur-3xl">
-           <form className="space-y-12 relative z-10">
+           {isClosed ? (
+             <div className="py-20 flex flex-col items-center justify-center text-center animate-in zoom-in-95 duration-700">
+                <div className="w-24 h-24 rounded-[2.5rem] bg-red-600/10 border border-red-500/20 flex items-center justify-center mb-8 shadow-[0_0_50px_rgba(239,68,68,0.15)] relative">
+                   <X className="w-12 h-12 text-red-500" />
+                   <div className="absolute inset-0 rounded-[2.5rem] border-2 border-red-500 animate-ping opacity-20" />
+                </div>
+                <h2 className="text-4xl md:text-5xl font-black text-white uppercase italic tracking-normal mb-4 drop-shadow-xl">Registration <span className="text-red-500">Closed</span></h2>
+                <p className="text-slate-400 text-sm max-w-md mx-auto leading-loose font-bold italic tracking-wide">
+                   {tournament?.closedMessage || "Registration is currently closed. Please contact the tournament organizer for more details."}
+                </p>
+                <div className="mt-12 pt-8 border-t border-white/5 w-full max-w-xs mx-auto">
+                   <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.3em]">For further inquiries</p>
+                   <p className="text-xs font-black text-white uppercase tracking-widest mt-2">{tournament?.organizerName || "Tournament Official"}</p>
+                </div>
+             </div>
+           ) : (
+             <form onSubmit={(e) => e.preventDefault()} className="space-y-12 relative z-10">
               
               {step === 0 && !showStatusCheck && (
                 <div className="space-y-8 animate-in fade-in zoom-in-95 flex flex-col items-center justify-center py-10">
@@ -590,7 +865,7 @@ export default function PlayerRegistrationPage() {
                       <Phone className="w-10 h-10 text-violet-400" />
                    </div>
                    <div className="text-center space-y-4">
-                     <h2 className="text-3xl md:text-4xl font-black text-white uppercase italic tracking-tighter drop-shadow-xl">Enter Mobile Number</h2>
+                     <h2 className="text-3xl md:text-4xl font-black text-white uppercase italic tracking-wide drop-shadow-xl">Enter Mobile Number</h2>
                      <p className="text-xs text-slate-400 font-bold tracking-[0.2em] uppercase max-w-sm leading-relaxed">Enter your 10-digit number to check status or begin registration</p>
                    </div>
                    <div className="w-full max-w-md relative group mt-4">
@@ -600,7 +875,12 @@ export default function PlayerRegistrationPage() {
                        value={checkMobile}
                        onChange={e => setCheckMobile(e.target.value.replace(/\D/g, '').slice(0, 10))}
                        placeholder="10 DIGIT NUMBER"
-                       className="relative w-full bg-slate-900 border-2 border-white/10 rounded-2xl px-6 py-6 text-center text-2xl font-black text-white tracking-[0.3em] outline-none focus:border-violet-500 transition-all placeholder:text-slate-700"
+                       className="relative w-full bg-slate-900 border-2 border-white/10 rounded-2xl px-6 py-6 text-center text-2xl font-black text-white tracking-[0.5em] outline-none focus:border-violet-500 transition-all placeholder:text-slate-700"
+                       onKeyDown={(e) => {
+                          if (e.key === 'Enter' && checkMobile.length === 10 && !checking) {
+                            handleCheckStatus();
+                          }
+                        }}
                      />
                    </div>
                    <button 
@@ -727,6 +1007,7 @@ export default function PlayerRegistrationPage() {
                 </div>
               )}
            </form>
+           )}
         </div>
       </main>
     </div>
