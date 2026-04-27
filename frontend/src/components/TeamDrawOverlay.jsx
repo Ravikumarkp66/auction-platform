@@ -10,7 +10,7 @@ export default function TeamDrawOverlay({ poolA, poolB, drawEvent }) {
       {/* Background Ambience / Persistent Background Image */}
       <div className="absolute inset-0 z-0">
         <img 
-          src={'/backgrounds/auction-bg.jpg'} 
+          src={'https://auction-platform-kp.s3.ap-south-1.amazonaws.com/static/space-bg.jpg'} 
           className="w-full h-full object-cover opacity-10" 
           alt="" 
         />

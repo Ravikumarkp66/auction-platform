@@ -36,7 +36,7 @@ function LiveAuctionContent() {
   const [currentTournamentId, setCurrentTournamentId] = useState(tournamentId)
   const [activeAssets, setActiveAssets] = useState({
     splashUrl: "",
-    backgroundUrl: "/backgrounds/auction-bg.jpg",
+    backgroundUrl: "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/static/space-bg.jpg",
     badges: { leftBadge: "", rightBadge: "" }
   });
 
@@ -455,7 +455,7 @@ function LiveAuctionContent() {
           setActiveAssets(prev => ({
             ...prev,
             splashUrl: tournament.assets.splashUrl || "",
-            backgroundUrl: tournament.assets.backgroundUrl || "/backgrounds/auction-bg.jpg",
+            backgroundUrl: tournament.assets.backgroundUrl || "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/static/space-bg.jpg",
             badges: tournament.assets.badges || { leftBadge: "", rightBadge: DEFAULT_ASSETS.BANNER_LOGO }
           }));
           if (tournament.assets.backgroundUrl) setAuctionBg(tournament.assets.backgroundUrl);

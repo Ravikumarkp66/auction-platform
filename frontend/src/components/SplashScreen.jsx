@@ -3,7 +3,7 @@
 import Image from "next/image";
 
 export default function SplashScreen({ src, title }) {
-  const displaySrc = src || "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/backgrounds/auction-bg.jpg";
+  const displaySrc = src || "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/static/space-bg.jpg";
   
   return (
     <div className="fixed inset-0 bg-[#0a0f18] flex items-center justify-center overflow-hidden z-[200]">
