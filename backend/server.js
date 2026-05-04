@@ -63,6 +63,7 @@ app.use(express.urlencoded({ limit: '10mb', extended: true }));
 const allowedOrigins = [
   process.env.NODE_ENV === 'development' && "http://localhost:3000",
   process.env.NODE_ENV === 'development' && "http://127.0.0.1:3000",
+  "https://auction-platform-beta.vercel.app",
   process.env.FRONTEND_URL
 ].filter(Boolean);
 
