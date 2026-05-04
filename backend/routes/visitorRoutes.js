@@ -109,4 +109,21 @@ router.get('/stats', async (req, res) => {
   }
 });
 
+// Get detailed reaches for analytics page
+router.get('/reaches', async (req, res) => {
+  try {
+    const visitors = await Visitor.find().sort({ timestamp: -1 }).limit(500);
+    const users = await UserLog.find().sort({ lastLogin: -1 }).limit(500);
+    
+    res.json({
+      success: true,
+      visitors,
+      users
+    });
+  } catch (err) {
+    console.error('Reaches fetch error:', err);
+    res.status(500).json({ error: 'Failed to fetch reaches' });
+  }
+});
+
 module.exports = router;

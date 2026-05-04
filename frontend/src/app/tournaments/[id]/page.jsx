@@ -57,7 +57,8 @@ export default function TournamentDetailsPage() {
         // The API returns { tournament, teams, players }
         setTournament(data.tournament);
         setTeams(data.teams || []);
-        setPlayers(data.players || []);
+        // Only show approved/available players in the dashboard pool
+        setPlayers((data.players || []).filter(p => p.status !== 'pending'));
       }
     } catch (err) {
       console.error("Failed to fetch tournament data:", err);
@@ -117,7 +118,8 @@ export default function TournamentDetailsPage() {
 
   // Derive stats
   const soldPlayers = players.filter(p => p.status === 'sold' || p.team);
-  const unsoldPlayers = players.filter(p => !p.team && p.status !== 'sold');
+  const actuallyUnsoldPlayers = players.filter(p => p.status === 'unsold');
+  const availablePlayers = players.filter(p => p.status === 'available' || p.status === 'auction' || (!p.team && p.status !== 'sold' && p.status !== 'unsold'));
   const totalSpend = soldPlayers.reduce((acc, p) => acc + (p.soldPrice || 0), 0);
   const iconPlayers = players.filter(p => p.isIcon);
 
@@ -207,19 +209,20 @@ export default function TournamentDetailsPage() {
         </section>
 
         {/* ── 2. QUICK STATS BAR ────────────────────────────────────────── */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
            {[
              { id: 'teams', label: 'Registered Teams', val: teams.length, icon: Users, color: 'text-violet-400', bg: 'bg-violet-500/5' },
              { id: 'players', label: 'Auction Pool', val: players.length - iconPlayers.length, icon: Users, color: 'text-blue-400', bg: 'bg-blue-500/5' },
              { id: 'icons', label: 'Icon Signings', val: iconPlayers.length, icon: Star, color: 'text-amber-400', bg: 'bg-amber-500/5' },
+             { id: 'available', label: 'Available', val: availablePlayers.filter(p => !p.isIcon).length, icon: Activity, color: 'text-cyan-400', bg: 'bg-cyan-500/5' },
              { id: 'sold', label: 'Players Sold', val: soldPlayers.filter(p => !p.isIcon).length, icon: CheckCircle, color: 'text-emerald-400', bg: 'bg-emerald-500/5' },
-             { id: 'unsold', label: 'Pool Unsold', val: unsoldPlayers.filter(p => !p.isIcon).length, icon: HelpCircle, color: 'text-rose-400', bg: 'bg-rose-500/5' },
+             { id: 'unsold', label: 'Pool Unsold', val: actuallyUnsoldPlayers.filter(p => !p.isIcon).length, icon: HelpCircle, color: 'text-rose-400', bg: 'bg-rose-500/5' },
            ].map((stat, i) => (
              <div 
                key={i} 
                onClick={() => {
-                 if (['teams', 'players', 'icons', 'sold', 'unsold'].includes(stat.id)) {
-                   if (stat.id === 'sold' || stat.id === 'unsold') {
+                 if (['teams', 'players', 'icons', 'available', 'sold', 'unsold'].includes(stat.id)) {
+                   if (['available', 'sold', 'unsold'].includes(stat.id)) {
                      setActiveTab('players');
                      setPlayerFilter(stat.id);
                    } else {
@@ -291,7 +294,7 @@ export default function TournamentDetailsPage() {
                  {activeTab === 'players' && (
                    <div className="flex items-center gap-2">
                       <div className="flex items-center gap-1 p-1 bg-slate-900 border border-white/5 rounded-2xl">
-                        {['all', 'sold', 'unsold'].map((f) => (
+                        {['all', 'available', 'sold', 'unsold'].map((f) => (
                           <button
                             key={f}
                             onClick={() => setPlayerFilter(f)}
@@ -381,8 +384,9 @@ export default function TournamentDetailsPage() {
                       const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
                       const isIcon = p.isIcon;
                       const matchesTab = activeTab === 'icons' ? isIcon : (activeTab === 'players' ? !isIcon : true);
+                      if (playerFilter === 'available') return matchesSearch && matchesTab && (p.status === 'available' || p.status === 'auction' || (!p.team && p.status !== 'sold' && p.status !== 'unsold'));
                       if (playerFilter === 'sold') return matchesSearch && matchesTab && (p.status === 'sold' || p.team);
-                      if (playerFilter === 'unsold') return matchesSearch && matchesTab && !p.team;
+                      if (playerFilter === 'unsold') return matchesSearch && matchesTab && p.status === 'unsold';
                       return matchesSearch && matchesTab;
                    })
                    .sort((a, b) => {
@@ -442,6 +446,8 @@ export default function TournamentDetailsPage() {
                                  </div>
                                  <p className="text-[10px] font-black text-white tabular-nums">₹{Number(p.soldPrice).toLocaleString('en-IN')}</p>
                               </div>
+                            ) : p.status === 'unsold' ? (
+                              <span className="text-[10px] font-black text-red-500 uppercase tracking-[0.2em] italic">Unsold</span>
                             ) : (
                               <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] italic animate-pulse">Awaiting Bid</span>
                             )}
@@ -451,8 +457,8 @@ export default function TournamentDetailsPage() {
                             <div className="min-w-0 flex-1">
                                <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Availability</p>
                                <div className="flex items-center gap-1.5">
-                                 <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-tighter inline-block ${p.team ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/20' : 'bg-slate-500/10 text-slate-400'}`}>
-                                   {p.team ? 'DRAFTED' : 'OPEN'}
+                                 <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-tighter inline-block ${p.team ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/20' : p.status === 'unsold' ? 'bg-red-500/20 text-red-400 border border-red-500/20' : 'bg-slate-500/10 text-slate-400'}`}>
+                                   {p.team ? 'DRAFTED' : p.status === 'unsold' ? 'UNSOLD' : 'OPEN'}
                                  </span>
                                  {p.teamSlotId && (
                                    <span className="text-[8px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-widest bg-blue-500/20 text-blue-400 border border-blue-500/20">

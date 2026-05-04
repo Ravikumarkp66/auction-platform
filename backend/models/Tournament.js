@@ -11,6 +11,8 @@ const tournamentSchema = new mongoose.Schema({
   defaultBasePrice: { type: Number, default: 0 },
   squadSize: { type: Number, default: 11 },
   auctionSlots: { type: Number, default: 9 },
+  startingBid: { type: Number, default: 0 }, // Global minimum starting bid
+  bidIncrement: { type: Number, default: 0 }, // Global increment (used if no specific rules)
   registrationTitle: { type: String, default: "JOIN THE BATTLE" },
   registrationDetails: { type: String, default: "" },
   registrationEndDate: { type: Date },

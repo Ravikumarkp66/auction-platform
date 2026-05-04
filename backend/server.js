@@ -15,42 +15,62 @@ const app = express();
 app.set('trust proxy', 1); // Trust Render Load Balancer
 const server = http.createServer(app);
 
-// Security and Performance
-app.use(helmet({ 
-  crossOriginResourcePolicy: false,
+// ===== SECURITY HEADERS & MIDDLEWARE =====
+
+// Helmet - Secure HTTP headers
+app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-      imgSrc: ["'self'", "data:", "blob:", "https://*.amazonaws.com", "https://*.google.com", "https://*.googleusercontent.com", "https://ui-avatars.com"],
-      connectSrc: ["'self'", "https://*.amazonaws.com", "wss://*.socket.io", "https://*.googleapis.com"],
+      scriptSrc: ["'self'"],  // ✅ NO unsafe-inline, unsafe-eval
+      styleSrc: ["'self'", "https://fonts.googleapis.com"],
+      imgSrc: ["'self'", "data:", "blob:", "https://*.amazonaws.com", "https://ui-avatars.com"],
+      connectSrc: ["'self'", "https://*.amazonaws.com", "wss://localhost:*"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       objectSrc: ["'none'"],
       upgradeInsecureRequests: [],
     },
   },
+  hsts: {
+    maxAge: 31536000,  // 1 year
+    includeSubDomains: true,
+    preload: true
+  },
+  frameguard: {
+    action: 'DENY'  // Prevent clickjacking
+  },
+  xssFilter: true,
+  noSniff: true,
+  referrerPolicy: {
+    policy: 'strict-origin-when-cross-origin'
+  }
 }));
-app.use(compression());
-app.use(morgan('dev'));
-app.use((req, res, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
-  next();
-});
 
+// Compression
+app.use(compression());
+
+// Request logging
+app.use(morgan('combined'));
+
+// Body parser with size limits
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
+
+// ===== CORS CONFIGURATION =====
+// Only allow specific frontends - NO wildcard domains
 const allowedOrigins = [
-  "http://localhost:3000",
-  "http://127.0.0.1:3000",
-  "https://auction-platform-beta.vercel.app",
+  process.env.NODE_ENV === 'development' && "http://localhost:3000",
+  process.env.NODE_ENV === 'development' && "http://127.0.0.1:3000",
   process.env.FRONTEND_URL
 ].filter(Boolean);
 
-// CORS must come BEFORE rate limiter to ensure CORS headers on rate limit responses
 app.use(cors({
   origin: function (origin, callback) {
-    // allow requests with no origin (like mobile apps or curl)
+    // Allow requests with no origin (like mobile apps or direct API calls)
     if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) !== -1 || origin.endsWith('.vercel.app')) {
+
+    // Check if origin is in whitelist
+    if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       console.warn(`CORS blocked request from: ${origin}`);
@@ -59,37 +79,76 @@ app.use(cors({
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "Cache-Control", "Pragma"]
+  allowedHeaders: ["Content-Type", "Authorization", "Cache-Control"],
+  maxAge: 86400  // 24 hours
 }));
 
-// Production optimized Rate Limiter
-const limiter = rateLimit({
-  windowMs: 1 * 60 * 1000, 
-  max: 600, // 600 requests per minute
-  message: { message: "Too many requests from this IP, please try again after a minute" },
+// ===== RATE LIMITING =====
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,  // 15 minutes
+  max: 100,  // 100 requests per window
+  message: {
+    success: false,
+    message: "Too many requests, please try again later"
+  },
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => {
+    // Skip rate limiting for health checks
+    return req.path === '/api/health';
+  }
 });
-app.use("/api/", limiter);
 
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,  // 15 minutes
+  max: 5,  // 5 attempts per window
+  message: {
+    success: false,
+    message: "Too many login attempts, please try again later"
+  },
+  skipSuccessfulRequests: true
+});
+
+app.use("/api/", apiLimiter);
+app.use("/api/auth/", authLimiter);
+
+// ===== SOCKET.IO WITH AUTHENTICATION =====
 const io = new Server(server, {
   cors: {
-    origin: [
-      "http://localhost:3000",
-      "http://127.0.0.1:3000",
-      "https://auction-platform-beta.vercel.app",
-      process.env.FRONTEND_URL
-    ].filter(Boolean),
+    origin: allowedOrigins,
     methods: ["GET", "POST"],
     credentials: true,
-    allowedHeaders: ["Content-Type", "Authorization", "Cache-Control", "Pragma"]
+    allowedHeaders: ["Content-Type", "Authorization"]
   },
-  transports: ['websocket', 'polling'], 
+  transports: ['websocket', 'polling'],
   pingTimeout: 60000,
-  pingInterval: 25000
+  pingInterval: 25000,
+  maxHttpBufferSize: 1e6  // 1MB max message size
+});
+
+// Socket.IO authentication middleware
+io.use((socket, next) => {
+  const token = socket.handshake.auth.token;
+
+  // Public socket events (no auth required for viewing)
+  const publicEvents = ['playerSold', 'playerUnsold', 'auctionUpdate', 'breakTime', 'teamDrawEvent', 'togglePoolView'];
+
+  // For now, allow all socket connections but validate on sensitive events
+  // In production, verify JWT token here
+  if (token) {
+    // TODO: Verify token
+    // const decoded = verifyToken(token);
+    // if (!decoded) return next(new Error('Invalid token'));
+    // socket.userId = decoded.userId;
+  }
+
+  next();
 });
 const { setIo } = require("./utils/image-processor");
 setIo(io);
+
+// Make io accessible to Express routes via req.app.get("io")
+app.set("io", io);
 
 // In-memory break status shared between admin and overlay
 let currentBreak = null;
@@ -100,18 +159,22 @@ let currentAuctionState = null;
 // MongoDB connection with retry logic
 const connectDB = async () => {
   try {
-    const conn = await mongoose.connect(process.env.MONGO_URI, {
-      serverSelectionTimeoutMS: 10000,
+    // ===== STATIC FILES =====
+    // Serve uploads with cache headers
+    app.use("/uploads", express.static("uploads", {
+      maxAge: '1d',  // Cache for 1 day
+      etag: false
+    }
       maxPoolSize: 10,
       retryWrites: true,
       w: 'majority'
     });
-    console.log(`MongoDB Connected: ${conn.connection.host}`);
-  } catch (error) {
-    console.error('MongoDB connection error:', error);
-    console.log('Retrying connection in 5 seconds...');
-    setTimeout(connectDB, 5000);
-  }
+  console.log(`MongoDB Connected: ${conn.connection.host}`);
+} catch (error) {
+  console.error('MongoDB connection error:', error);
+  console.log('Retrying connection in 5 seconds...');
+  setTimeout(connectDB, 5000);
+}
 };
 
 connectDB();
@@ -220,6 +283,7 @@ const assetRoutes = require("./routes/assetRoutes");
 const proxyImageRoute = require("./routes/proxyImage");
 const rulesRoutes = require("./routes/rulesRoutes"); // Rule Engine API
 const squadRoutes = require("./routes/squadRoutes"); // Squad generation API
+const matchRoutes = require("./routes/matchRoutes"); // Advanced scoring match API
 // Test route to verify API mounting
 app.get("/api/test", (req, res) => res.json({ success: true, message: "API test working" }));
 
@@ -236,18 +300,52 @@ app.use("/api/rules", rulesRoutes); // Rule Engine API
 app.use("/api/squads", squadRoutes); // Squad generation API
 app.use("/api/location", require("./routes/locationRoutes"));
 app.use("/api/services", require("./routes/serviceRoutes"));
-app.use("/api/settings", require("./routes/settingsRoutes"));
-app.use("/api/visitors", require("./routes/visitorRoutes"));
+app ===== ERROR HANDLING MIDDLEWARE =====
+  // Global error handler - must be last
+  app.use((err, req, res, next) => {
+    console.error('Error:', {
+      message: err.message,
+      path: req.path,
+      method: req.method,
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    });
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({
-    success: false,
-    message: 'Something went wrong!',
-    error: process.env.NODE_ENV === 'production' ? {} : err.message
+    // Default to 500
+    let status = err.status || 500;
+    let message = 'Internal Server Error';
+
+    // Handle specific error types
+    if (err.message.includes('CORS')) {
+      status = 403;
+      message = 'Cross-Origin Request Blocked';
+    } else if (err.message.includes('Unauthorized')) {
+      status = 401;
+      message = 'Unauthorized';
+    } else if (err.message.includes('Forbidden')) {
+      status = 403;
+      message = 'Forbidden';
+    } else if (err.message.includes('Validation')) {
+      status = 400;
+      message = err.message;
+    }
+
+    // Don't expose sensitive error details in production
+    const errorResponse = {
+      success: false,
+      message
+    };
+
+    if (process.env.NODE_ENV === 'development') {
+      errorResponse.error = err.message;
+      errorResponse.stack = err.stack;
+    }
+
+    res.status(status).json(errorResponsees.status(500).json({
+      success: false,
+      message: 'Something went wrong!',
+      error: process.env.NODE_ENV === 'production' ? {} : err.message
+    });
   });
-});
 
 // 404 handler
 app.use((req, res) => {
@@ -280,4 +378,4 @@ const shutdown = async (signal) => {
 };
 
 process.on('SIGTERM', () => shutdown('SIGTERM'));
-process.on('SIGINT',  () => shutdown('SIGINT'));
+process.on('SIGINT', () => shutdown('SIGINT'));

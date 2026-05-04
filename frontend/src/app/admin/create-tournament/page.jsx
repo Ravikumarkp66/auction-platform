@@ -38,6 +38,7 @@ const DEFAULT_CONFIG = {
   name: "", numTeams: 10, iconsPerTeam: 3,
   organizerName: "", organizerLogo: "",
   baseBudget: 10000, defaultBasePrice: 100,
+  startingBid: 0, bidIncrement: 0,
   squadSize: 20, auctionSlots: 120,
   auctionDate: getTodayDate(), auctionType: "live",
   // Auction engine fields
@@ -1437,20 +1438,40 @@ export default function CreateTournamentWizard() {
             </Field>
 
             {config.auctionMode === 'money' && (
-              <Field
-                label='Default Base Price (₹) *'
-                error={errors.defaultBasePrice}
-                hint="Used when player base price is missing">
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-sm font-black pointer-events-none select-none">
-                    ₹
-                  </span>
-                  <input type="number" min={1}
-                    className={`${inputCls(errors.defaultBasePrice)} pl-10`}
-                    value={config.defaultBasePrice}
-                    onChange={e => setConfig(p => ({ ...p, defaultBasePrice: Number(e.target.value) || 0 }))} />
-                </div>
-              </Field>
+              <>
+                <Field
+                  label='Default Base Price (₹) *'
+                  error={errors.defaultBasePrice}
+                  hint="Used if player base price is missing">
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-sm font-black pointer-events-none select-none">₹</span>
+                    <input type="number" min={1}
+                      className={`${inputCls(errors.defaultBasePrice)} pl-10`}
+                      value={config.defaultBasePrice}
+                      onChange={e => setConfig(p => ({ ...p, defaultBasePrice: Number(e.target.value) || 0 }))} />
+                  </div>
+                </Field>
+
+                <Field label='Global Starting Bid (₹)' hint="Minimum start price for ALL players">
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-sm font-black pointer-events-none select-none">₹</span>
+                    <input type="number" min={0}
+                      className="w-full bg-[#0B0F2A] border border-white/10 rounded-2xl px-6 py-4 pl-10 font-black text-white outline-none focus:border-violet-500/70 transition-all"
+                      value={config.startingBid}
+                      onChange={e => setConfig(p => ({ ...p, startingBid: Number(e.target.value) || 0 }))} />
+                  </div>
+                </Field>
+
+                <Field label='Fixed Bid Increment (₹)' hint="Amount added per bid (Money mode)">
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-sm font-black pointer-events-none select-none">₹</span>
+                    <input type="number" min={1}
+                      className="w-full bg-[#0B0F2A] border border-white/10 rounded-2xl px-6 py-4 pl-10 font-black text-white outline-none focus:border-violet-500/70 transition-all"
+                      value={config.bidIncrement}
+                      onChange={e => setConfig(p => ({ ...p, bidIncrement: Number(e.target.value) || 0 }))} />
+                  </div>
+                </Field>
+              </>
             )}
 
             {/* ── NEW: Squad Size Constraints ── */}
