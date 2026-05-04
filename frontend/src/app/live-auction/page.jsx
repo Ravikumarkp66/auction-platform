@@ -74,7 +74,7 @@ function LiveAuctionContent() {
   const getBidIncrement = (currentBid) => {
     // If we have custom increments from the database, use them
     if (rules.increments && rules.increments.length > 0) {
-      const band = rules.increments.find(b => 
+      const band = rules.increments.find(b =>
         currentBid >= b.min && (b.max === null || currentBid < b.max)
       );
       if (band) return band.step;
@@ -129,7 +129,7 @@ function LiveAuctionContent() {
   const getBidRestrictionReason = (team) => {
     const limits = getSquadLimits();
     const currentSquadSize = team.players?.length || 0;
-    
+
     // Squad size check removed to allow buying as long as budget exists
     const minBid = isPointsSystem() ? (player?.basePrice || 2) : 100;
     if (team.remainingBudget < minBid) {
@@ -143,7 +143,7 @@ function LiveAuctionContent() {
     const players = team.players || [];
     return {
       captain: players.find(p => p.iconRole === 'captain'),
-      viceCaptain: players.find(p => p.iconRole === 'viceCaptain'), 
+      viceCaptain: players.find(p => p.iconRole === 'viceCaptain'),
       retained: players.filter(p => p.iconRole === 'retained'),
       auctioned: players.filter(p => !p.iconRole || p.iconRole === 'auction')
     };
@@ -177,8 +177,8 @@ function LiveAuctionContent() {
     if (amount === undefined || amount === null) amount = 0;
     const { showSymbol = true, abbreviate = false } = options;
     const unit = getCurrencyUnit();
-    const formattedAmount = abbreviate && amount >= 1000 
-      ? `${(amount / 1000).toFixed(1)}K` 
+    const formattedAmount = abbreviate && amount >= 1000
+      ? `${(amount / 1000).toFixed(1)}K`
       : Number(amount).toLocaleString('en-IN');
 
     if (!showSymbol) return formattedAmount;
@@ -191,8 +191,8 @@ function LiveAuctionContent() {
     if (amount === undefined || amount === null) amount = 0;
     const { showSymbol = true, abbreviate = false, className = "" } = options;
     const unit = getCurrencyUnit();
-    const formattedAmount = abbreviate && amount >= 1000 
-      ? `${(amount / 1000).toFixed(1)}K` 
+    const formattedAmount = abbreviate && amount >= 1000
+      ? `${(amount / 1000).toFixed(1)}K`
       : Number(amount).toLocaleString('en-IN');
 
     if (!showSymbol) return formattedAmount;
@@ -338,7 +338,7 @@ function LiveAuctionContent() {
   useEffect(() => {
     // Determine the correct socket URL
     const socketUrl = API_URL || (typeof window !== 'undefined' ? window.location.origin : "");
-    
+
     if (!socketUrl && typeof window === 'undefined') return;
 
     // Use existing global socket if available to prevent multiple connections in dev
@@ -349,7 +349,7 @@ function LiveAuctionContent() {
     }
 
     console.log('🔌 Initializing new socket connection to:', socketUrl);
-    
+
     const s = io(socketUrl, {
       transports: ['websocket', 'polling'],
       timeout: 20000,
@@ -444,7 +444,7 @@ function LiveAuctionContent() {
           totalTeams: tournament.numTeams,
           auctionMode: tournament.auctionMode || "money"
         })
-        
+
         // Load custom rules
         if (data.rules) {
           setRules(data.rules);
@@ -481,7 +481,7 @@ function LiveAuctionContent() {
 
         // Filter: Keep non-icon players (auction players only) - FIXED for points system
         let auctionPlayers = data.players.filter(p => !p.isIcon)
-        
+
         // If no players after filtering, try including all players (points system fix)
         if (auctionPlayers.length === 0) {
           auctionPlayers = data.players
@@ -493,30 +493,31 @@ function LiveAuctionContent() {
         const baseEnriched = auctionPlayers.map(p => {
           // DEBUG: Log each player's base price and category
           const creditsBasePrice = getBasePrice(p.role);
-          
+
           return {
-          id: p._id,
-          name: p.name,
-          role: p.role || "All-Rounder",
-          village: p.village || "-",
-          dob: p.dob || "-",
-          category: p.category, // CRITICAL: Include category field!
-          year: p.year, // Include year field if available
-          age: p.age || 20,
-          town: p.town,
-          image: p.imageUrl || p.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.name)}&background=random`,
-          placeholder: `https://ui-avatars.com/api/?name=${encodeURIComponent(p.name)}&background=random`,
-          basePrice: p.basePrice || creditsBasePrice,
-          soldPrice: p.soldPrice,
-          team: p.team || null,
-          status: p.status || "available",
-          battingStyle: p.battingStyle || "Right Hand",
-          bowlingStyle: p.bowlingStyle || "-",
-          isIcon: p.isIcon || false,
-          photo: p.photo || { s3: p.imageUrl || p.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.name)}&background=random` },
-          applicationId: p.applicationId ? p.applicationId.toString().padStart(2, '0') : "-",
-          _rawAppId: p.applicationId || 0
-        }});
+            id: p._id,
+            name: p.name,
+            role: p.role || "All-Rounder",
+            village: p.village || "-",
+            dob: p.dob || "-",
+            category: p.category, // CRITICAL: Include category field!
+            year: p.year, // Include year field if available
+            age: p.age || 20,
+            town: p.town,
+            image: p.imageUrl || p.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.name)}&background=random`,
+            placeholder: `https://ui-avatars.com/api/?name=${encodeURIComponent(p.name)}&background=random`,
+            basePrice: p.basePrice || creditsBasePrice,
+            soldPrice: p.soldPrice,
+            team: p.team || null,
+            status: p.status || "available",
+            battingStyle: p.battingStyle || "Right Hand",
+            bowlingStyle: p.bowlingStyle || "-",
+            isIcon: p.isIcon || false,
+            photo: p.photo || { s3: p.imageUrl || p.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.name)}&background=random` },
+            applicationId: p.applicationId ? p.applicationId.toString().padStart(2, '0') : "-",
+            _rawAppId: p.applicationId || 0
+          }
+        });
 
         // Round 02: Append UNSOLD players to the end of the list after a marker
         // Their Application IDs STAY THE SAME.
@@ -532,7 +533,7 @@ function LiveAuctionContent() {
             id: '__round_02__'
           });
           enrichedPlayers = enrichedPlayers.concat(
-             round2.map(p => ({ ...p, status: 'available', applicationId: `R2-${p.applicationId}` }))
+            round2.map(p => ({ ...p, status: 'available', applicationId: `R2-${p.applicationId}` }))
           );
         }
 
@@ -598,7 +599,7 @@ function LiveAuctionContent() {
           setCurrentBid(data.bidAmount)
           setHighestBidder(data.teamId)
           setRoundHistory(prev => [{ team: data.teamName, teamId: data.teamId, bid: data.bidAmount }, ...prev])
-          
+
           // Auto-update next bid input for local user
           const nextAutoBid = isPointsSystem() ? (data.bidAmount + getBidIncrement(data.bidAmount)) : (data.bidAmount + 100);
           setBidIncrement(nextAutoBid);
@@ -622,18 +623,18 @@ function LiveAuctionContent() {
 
     const originalPlayers = players.filter(p => !p.type);
     const allProcessed = originalPlayers.every(p => p.status !== 'available' && p.status !== 'auction');
-    
+
     if (allProcessed) {
       const round2Pool = originalPlayers.filter(p => p.status === 'unsold');
       if (round2Pool.length > 0) {
         console.log("🔄 Round 1 Complete. Injecting Round 2 re-auction...");
         setPlayers(prev => {
-           const nextList = [
-              ...prev,
-              { type: 'ROUND', label: 'ROUND 02', subtitle: 'UNSOLD RE-AUCTION', id: '__round_02__' },
-              ...round2Pool.map(p => ({ ...p, status: 'available', applicationId: `R2-${p.applicationId}` }))
-           ];
-           return nextList;
+          const nextList = [
+            ...prev,
+            { type: 'ROUND', label: 'ROUND 02', subtitle: 'UNSOLD RE-AUCTION', id: '__round_02__' },
+            ...round2Pool.map(p => ({ ...p, status: 'available', applicationId: `R2-${p.applicationId}` }))
+          ];
+          return nextList;
         });
       }
     }
@@ -755,7 +756,7 @@ function LiveAuctionContent() {
     // Validation 2: Ensure it follows base price or current bid rules
     let newBid = riseAmount
     const minBid = isPointsSystem() ? (player.basePrice || getBasePrice(player.role)) : 100;
-    
+
     if (currentBid === 0) {
       // First bid must be at least the base price
       if (riseAmount < minBid) {
@@ -790,11 +791,11 @@ function LiveAuctionContent() {
     setCurrentBid(bidAmount)
     setHighestBidder(teamId)
     setBidPulse(true)
-    
+
     // Calculate and set the NEXT bid amount automatically for the input
     const nextAutoBid = isPointsSystem() ? (bidAmount + getBidIncrement(bidAmount)) : (bidAmount + 100);
     setBidIncrement(nextAutoBid);
-    
+
     setTimeout(() => setBidPulse(false), 400)
 
     setRoundHistory([{ team: biddingTeam.name, teamId: teamId, bid: bidAmount }, ...roundHistory])
@@ -881,14 +882,14 @@ function LiveAuctionContent() {
         }
         : team
     )
-    
+
     // DEBUG: Log year distribution after sale
     const updatedWinningTeam = updatedTeams.find(t => t.id === highestBidder);
     const newDistribution = getYearDistribution(updatedWinningTeam);
     console.log(`🏏 PLAYER SOLD: ${player.name} (${normalizeYearCategory(player)}) to ${updatedWinningTeam.name}`);
     console.log(`📊 New Year Distribution for ${updatedWinningTeam.name}:`, newDistribution);
     console.log(`📋 All players in ${updatedWinningTeam.name}:`, updatedWinningTeam.players.map(p => `${p.name} (${normalizeYearCategory(p)})`));
-    
+
     const updatedPlayers = [...players]
     updatedPlayers[currentPlayerIndex] = {
       ...player,
@@ -957,7 +958,7 @@ function LiveAuctionContent() {
         if (socket) {
           // Auto-stop break on any sale
           socket.emit('breakTimeEnd');
-          
+
           console.log('🚀 EMITTING SOLD EVENT:', {
             playerId: player.id,
             playerName: player.name,
@@ -967,7 +968,7 @@ function LiveAuctionContent() {
           });
 
           const soldPlayer = { ...player, status: 'sold', soldPrice: currentBid, team: highestBidder }
-          
+
           // Emit COMPLETE sale data for overlay (not just basic info)
           socket.emit('playerSold', {
             playerId: player.id,
@@ -1016,7 +1017,7 @@ function LiveAuctionContent() {
     // Broadcast unsold state to overlay
     if (socket) {
       socket.emit('breakTimeEnd');
-      
+
       // Emit unsold event for overlay
       socket.emit('playerUnsold', {
         playerId: player.id,
@@ -1440,7 +1441,7 @@ function LiveAuctionContent() {
           src={activeAssets.backgroundUrl || '/splash-screen.png'}
           className="w-full h-full object-cover scale-100"
           alt=""
-          style={{ 
+          style={{
             filter: 'none',
             visibility: 'hidden'
           }}
@@ -1573,7 +1574,7 @@ function LiveAuctionContent() {
                 <button
                   onClick={nextPlayer}
                   disabled={currentPlayerIndex >= players.length - 1 || currentPlayerIndex === -1}
-                  className="px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 disabled:opacity-20 transition-all min-h-[40px]"
+                  className="px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 disabled:opacity-20 transition-all min-h-10"
                 >
                   →
                 </button>
@@ -1584,22 +1585,22 @@ function LiveAuctionContent() {
           <div className="flex items-center gap-4 lg:gap-8 grow justify-center">
             {/* TOURNAMENT / ORGANIZER LOGO (DYNAMIC) */}
             <div className="flex items-center gap-4">
-                {selectedAuction?.organizerLogo && (
-                 <div className="w-16 h-16 lg:w-24 lg:h-24 relative bg-slate-900/40 rounded-2xl border border-white/5 p-2 flex items-center justify-center backdrop-blur-md shadow-2xl">
-                    <img 
-                      src={selectedAuction.organizerLogo} 
-                      className="w-full h-full object-contain" 
-                      alt="Tournament Logo" 
-                      onError={(e) => { e.target.style.display = 'none'; }}
-                    />
-                 </div>
-               )}
+              {selectedAuction?.organizerLogo && (
+                <div className="w-16 h-16 lg:w-24 lg:h-24 relative bg-slate-900/40 rounded-2xl border border-white/5 p-2 flex items-center justify-center backdrop-blur-md shadow-2xl">
+                  <img
+                    src={selectedAuction.organizerLogo}
+                    className="w-full h-full object-contain"
+                    alt="Tournament Logo"
+                    onError={(e) => { e.target.style.display = 'none'; }}
+                  />
+                </div>
+              )}
             </div>
 
             <div className="text-center">
               <div className="flex justify-center mb-1">
                 <span className={`px-3 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${isRoundTwo ? 'bg-amber-500/10 text-amber-500 border-amber-500/30' : 'bg-blue-500/10 text-blue-400 border-blue-500/30'}`}>
-                   Round {isRoundTwo ? '02' : '01'}
+                  Round {isRoundTwo ? '02' : '01'}
                 </span>
               </div>
               {socket?.connected && currentPlayerIndex >= 0 && (
@@ -1703,7 +1704,7 @@ function LiveAuctionContent() {
                         const limits = getSquadLimits();
                         const currentSquadSize = team.players?.length || 0;
                         const isCompleteSquad = currentSquadSize >= limits.minPlayers;
-                        
+
                         return (
                           <div key={team.id} className="bg-slate-900/40 border border-slate-700/50 rounded-2xl p-4 shadow-2xl hover:bg-slate-800/40 transition-all">
                             {/* Team Header */}
@@ -1960,56 +1961,56 @@ function LiveAuctionContent() {
                 <div className="flex flex-col md:flex-row gap-8 items-stretch p-4 md:p-10 bg-black/45 backdrop-blur-md rounded-2xl border border-cyan-500/20 shadow-[0_8px_32px_rgba(0,0,0,0.6),0_0_10px_rgba(0,255,200,0.2)] transition-all duration-300 ease hover:-translate-y-1 hover:scale-[1.01]">
                   {/* 1. PHOTO - Glass Panel */}
                   <div className="relative group/photo w-30 h-37.5 sm:w-40 sm:h-50 md:w-60 md:h-75 mx-auto md:mx-0 rounded-xl overflow-hidden border-2 border-cyan-500/30 shadow-[0_8px_32px_rgba(0,0,0,0.6),0_0_15px_rgba(0,255,200,0.3)] bg-black/50 backdrop-blur-sm ring-4 ring-black/40 transition-all duration-300 ease hover:shadow-[0_12px_40px_rgba(0,255,200,0.4)] shrink-0">
-                      <Image
-                        src={player.photo?.s3 || player.photo?.drive || player.imageUrl || player.image}
-                        alt={player.name} fill className={`object-cover ${player.status !== 'available' ? 'grayscale opacity-50' : ''}`} unoptimized={true}
-                        onError={(e) => { e.target.src = player.placeholder; }}
-                      />
+                    <Image
+                      src={player.photo?.s3 || player.photo?.drive || player.imageUrl || player.image}
+                      alt={player.name} fill className={`object-cover ${player.status !== 'available' ? 'grayscale opacity-50' : ''}`} unoptimized={true}
+                      onError={(e) => { e.target.src = player.placeholder; }}
+                    />
 
-                      {player.photo?.status === "pending" && (
-                        <div className="absolute top-2 right-2 bg-violet-600/80 backdrop-blur-md px-2 py-0.5 rounded-full text-[8px] font-black text-white uppercase tracking-widest border border-white/20 animate-pulse">
-                          Processing Image…
-                        </div>
-                      )}
-
-                      {/* Photo Edit Overlay */}
-                      <div className="absolute inset-0 bg-black/80 opacity-0 group-hover/photo:opacity-100 transition-all duration-300 flex flex-col items-center justify-center p-4 text-center gap-3">
-                        <button
-                          onClick={() => setShowImageEditor(true)}
-                          className="w-full bg-violet-600 hover:bg-violet-500 text-white px-4 py-2.5 rounded-xl backdrop-blur-md transition-all flex items-center justify-center gap-2 group/btn shadow-lg"
-                        >
-                          <span className="text-[10px] font-black uppercase tracking-widest">View & Crop</span>
-                          <span className="group-hover/btn:scale-125 transition-transform text-xs">✂️</span>
-                        </button>
-
-                        <label className="w-full cursor-pointer bg-white/10 hover:bg-white/20 border border-white/20 px-4 py-2.5 rounded-xl backdrop-blur-md transition-all flex items-center justify-center gap-2 group/btn">
-                          <span className="text-[10px] font-black uppercase tracking-widest text-white">Upload New</span>
-                          <input
-                            type="file"
-                            className="hidden"
-                            accept="image/*"
-                            onChange={(e) => handleImageUpload(e, (url) => handlePlayerUpdate(player.id, 'imageUrl', url))}
-                          />
-                          <span className="group-hover/btn:rotate-12 transition-transform text-xs">📸</span>
-                        </label>
+                    {player.photo?.status === "pending" && (
+                      <div className="absolute top-2 right-2 bg-violet-600/80 backdrop-blur-md px-2 py-0.5 rounded-full text-[8px] font-black text-white uppercase tracking-widest border border-white/20 animate-pulse">
+                        Processing Image…
                       </div>
+                    )}
 
-                      {/* STAMP OVERLAY */}
-                      {player.status === "sold" && (
-                        <div className="absolute inset-0 flex items-center justify-center rotate-[-15deg] animate-in zoom-in duration-300">
-                          <div className="border-4 border-violet-500 px-3 py-1 rounded-lg bg-black/60 backdrop-blur-sm">
-                            <span className="text-violet-500 text-2xl font-black italic">SOLD</span>
-                          </div>
-                        </div>
-                      )}
-                      {player.status === "unsold" && (
-                        <div className="absolute inset-0 flex items-center justify-center rotate-[-15deg] animate-in zoom-in duration-300">
-                          <div className="border-4 border-red-600 px-3 py-1 rounded-lg bg-black/60 backdrop-blur-sm">
-                            <span className="text-red-600 text-xl font-black uppercase italic">Unsold</span>
-                          </div>
-                        </div>
-                      )}
+                    {/* Photo Edit Overlay */}
+                    <div className="absolute inset-0 bg-black/80 opacity-0 group-hover/photo:opacity-100 transition-all duration-300 flex flex-col items-center justify-center p-4 text-center gap-3">
+                      <button
+                        onClick={() => setShowImageEditor(true)}
+                        className="w-full bg-violet-600 hover:bg-violet-500 text-white px-4 py-2.5 rounded-xl backdrop-blur-md transition-all flex items-center justify-center gap-2 group/btn shadow-lg"
+                      >
+                        <span className="text-[10px] font-black uppercase tracking-widest">View & Crop</span>
+                        <span className="group-hover/btn:scale-125 transition-transform text-xs">✂️</span>
+                      </button>
+
+                      <label className="w-full cursor-pointer bg-white/10 hover:bg-white/20 border border-white/20 px-4 py-2.5 rounded-xl backdrop-blur-md transition-all flex items-center justify-center gap-2 group/btn">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-white">Upload New</span>
+                        <input
+                          type="file"
+                          className="hidden"
+                          accept="image/*"
+                          onChange={(e) => handleImageUpload(e, (url) => handlePlayerUpdate(player.id, 'imageUrl', url))}
+                        />
+                        <span className="group-hover/btn:rotate-12 transition-transform text-xs">📸</span>
+                      </label>
                     </div>
+
+                    {/* STAMP OVERLAY */}
+                    {player.status === "sold" && (
+                      <div className="absolute inset-0 flex items-center justify-center rotate-[-15deg] animate-in zoom-in duration-300">
+                        <div className="border-4 border-violet-500 px-3 py-1 rounded-lg bg-black/60 backdrop-blur-sm">
+                          <span className="text-violet-500 text-2xl font-black italic">SOLD</span>
+                        </div>
+                      </div>
+                    )}
+                    {player.status === "unsold" && (
+                      <div className="absolute inset-0 flex items-center justify-center rotate-[-15deg] animate-in zoom-in duration-300">
+                        <div className="border-4 border-red-600 px-3 py-1 rounded-lg bg-black/60 backdrop-blur-sm">
+                          <span className="text-red-600 text-xl font-black uppercase italic">Unsold</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
 
                   {/* 2. PLAYER INFORMATION - Floating Glass */}
                   <div className="w-full md:flex-1 flex flex-col justify-center space-y-4 md:px-8 md:border-x md:border-cyan-500/15">
@@ -2227,7 +2228,7 @@ function LiveAuctionContent() {
                   <div className="w-full md:w-[30%] auction-card rounded-2xl border-2 border-cyan-400/30 p-8 flex flex-col justify-center items-center text-center relative overflow-hidden group bg-black/60 backdrop-blur-xl shadow-[0_0_50px_rgba(0,0,0,0.8),0_0_20px_rgba(0,255,200,0.15)] transition-all duration-500 ease hover:scale-[1.03] hover:border-cyan-400/50">
                     {player.status === "available" || player.status === "auction" ? (
                       <>
-                        <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-transparent via-violet-500 to-transparent shadow-[0_0_15px_rgba(139,92,246,0.6)]"></div>
+                        <div className="absolute top-0 inset-x-0 h-1.5 bg-linear-to-r from-transparent via-violet-500 to-transparent shadow-[0_0_15px_rgba(139,92,246,0.6)]"></div>
                         <p className="text-violet-400/80 uppercase tracking-[0.4em] text-[11px] font-black mb-6 drop-shadow-sm">Current Highest Bid</p>
                         <div className="relative">
                           <h1 className={`text-4xl sm:text-7xl md:text-9xl font-black text-white tabular-nums drop-shadow-[0_0_30px_rgba(168,85,247,0.5)] leading-none ${bidPulse ? 'bid-animation' : ''}`} style={{ fontFamily: "'Inter', sans-serif" }}>
@@ -2239,9 +2240,9 @@ function LiveAuctionContent() {
                           <div className="mt-8 flex flex-col items-center animate-in slide-in-from-bottom-2 duration-300">
                             <div className="flex items-center gap-3 px-3 py-1.5 bg-violet-500/10 rounded-xl border border-violet-500/20 shadow-lg">
                               <div className="w-5 h-5 rounded-lg overflow-hidden border border-white/10 shrink-0">
-                                <img 
-                                  src={teams.find(t => t.id === highestBidder)?.logoUrl} 
-                                  className="w-full h-full object-cover" 
+                                <img
+                                  src={teams.find(t => t.id === highestBidder)?.logoUrl}
+                                  className="w-full h-full object-cover"
                                   onError={(e) => { e.target.style.display = 'none'; }}
                                 />
                               </div>
@@ -2355,41 +2356,42 @@ function LiveAuctionContent() {
                           const restrictionReason = getBidRestrictionReason(team);
                           const yearRestrictionReason = isPointsSystem() ? getYearRestrictionReason(team, player) : null;
                           const finalReason = !finalCanBid ? (yearRestrictionReason || restrictionReason) : null;
-                          
-                          return (
-                          <button
-                            key={team.id}
-                            onClick={() => placeBid(team.id)}
-                            disabled={!finalCanBid}
-                            className={`flex flex-col items-center justify-center gap-1 py-1 px-0.5 transition-all duration-200 ${highestBidder === team.id ? 'ring-2 ring-violet-400 rounded-lg scale-[1.08] z-10' : ''} ${!finalCanBid ? 'disabled:opacity-40 disabled:grayscale' : 'hover:opacity-100'} relative group`}
-                            title={!finalCanBid ? finalReason : `Click to bid`}
-                          >
-                            {/* Circular Logo */}
-                            <div className="w-20 h-20 rounded-full overflow-hidden bg-slate-800/40 border-2 border-slate-600 flex items-center justify-center shadow-md shrink-0">
-                              <img src={team.logoUrl} alt={`${team.name} logo`} className="w-20 h-20 object-cover" />
-                            </div>
 
-                            {/* Team Name + Squad Info */}
-                            <span className="text-[9px] block truncate w-full leading-tight text-slate-300 tracking-[0.1em] text-center font-semibold">{team.name}</span>
-                            <span className="text-[10px] block font-black leading-none text-violet-400">{formatCurrency(team.remainingBudget)}</span>
-                            <span className="text-[8px] block font-medium leading-none text-slate-500">{currentSquadSize}/{limits.maxPlayers}</span>
-                            
-                            {/* Squad completion warning */}
-                            {currentSquadSize >= limits.maxPlayers && (
-                              <span className="text-[7px] block font-black leading-none text-violet-400 animate-pulse">LIMIT OVERRIDE</span>
-                            )}
-                            {currentSquadSize < limits.minPlayers && (
-                              <span className="text-[7px] block font-black leading-none text-amber-400">NEED {limits.minPlayers - currentSquadSize}</span>
-                            )}
-                            
-                            {/* Restriction tooltip */}
-                            {!finalCanBid && finalReason && (
-                              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-red-600 text-white text-[8px] rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
-                                {finalReason}
+                          return (
+                            <button
+                              key={team.id}
+                              onClick={() => placeBid(team.id)}
+                              disabled={!finalCanBid}
+                              className={`flex flex-col items-center justify-center gap-1 py-1 px-0.5 transition-all duration-200 ${highestBidder === team.id ? 'ring-2 ring-violet-400 rounded-lg scale-[1.08] z-10' : ''} ${!finalCanBid ? 'disabled:opacity-40 disabled:grayscale' : 'hover:opacity-100'} relative group`}
+                              title={!finalCanBid ? finalReason : `Click to bid`}
+                            >
+                              {/* Circular Logo */}
+                              <div className="w-20 h-20 rounded-full overflow-hidden bg-slate-800/40 border-2 border-slate-600 flex items-center justify-center shadow-md shrink-0">
+                                <img src={team.logoUrl} alt={`${team.name} logo`} className="w-20 h-20 object-cover" />
                               </div>
-                            )}
-                          </button>
-                        )})}
+
+                              {/* Team Name + Squad Info */}
+                              <span className="text-[9px] block truncate w-full leading-tight text-slate-300 tracking-widest text-center font-semibold">{team.name}</span>
+                              <span className="text-[10px] block font-black leading-none text-violet-400">{formatCurrency(team.remainingBudget)}</span>
+                              <span className="text-[8px] block font-medium leading-none text-slate-500">{currentSquadSize}/{limits.maxPlayers}</span>
+
+                              {/* Squad completion warning */}
+                              {currentSquadSize >= limits.maxPlayers && (
+                                <span className="text-[7px] block font-black leading-none text-violet-400 animate-pulse">LIMIT OVERRIDE</span>
+                              )}
+                              {currentSquadSize < limits.minPlayers && (
+                                <span className="text-[7px] block font-black leading-none text-amber-400">NEED {limits.minPlayers - currentSquadSize}</span>
+                              )}
+
+                              {/* Restriction tooltip */}
+                              {!finalCanBid && finalReason && (
+                                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-red-600 text-white text-[8px] rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+                                  {finalReason}
+                                </div>
+                              )}
+                            </button>
+                          )
+                        })}
                       </div>
                     </div>
                   ) : (
@@ -2531,7 +2533,7 @@ function LiveAuctionContent() {
 
                 {/* Final Report Table - responsive scrollable wrapper */}
                 <div className="flex-1 overflow-x-auto overflow-y-auto custom-scrollbar">
-                  <table className="w-full text-left border-collapse min-w-[700px] md:min-w-0">
+                  <table className="w-full text-left border-collapse min-w-175 md:min-w-0">
                     <thead className="sticky top-0 z-10">
                       <tr className="bg-slate-900/95 backdrop-blur-sm border-b border-slate-700">
                         <th className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest w-8">#</th>
@@ -2572,14 +2574,14 @@ function LiveAuctionContent() {
                                 {team ? (
                                   <div className="flex items-center gap-2">
                                     <div className="w-7 h-7 rounded overflow-hidden border border-slate-700 shrink-0">
-                                      <img 
-                                        src={team.logoUrl} 
-                                        className="w-full h-full object-cover" 
-                                        alt="" 
+                                      <img
+                                        src={team.logoUrl}
+                                        className="w-full h-full object-cover"
+                                        alt=""
                                         onError={(e) => { e.target.style.display = 'none'; }}
                                       />
                                     </div>
-                                    <span className="text-[11px] font-black text-white uppercase truncate max-w-[120px]">{team.name}</span>
+                                    <span className="text-[11px] font-black text-white uppercase truncate max-w-30">{team.name}</span>
                                   </div>
                                 ) : <span className="text-slate-600 italic text-xs">—</span>}
                               </td>
@@ -2596,13 +2598,14 @@ function LiveAuctionContent() {
                       {/* UNSOLD SEPARATOR */}
                       {players.some(p => !p.type && p.status === 'unsold') && (
                         <tr>
-                          <td colSpan={6} className="px-4 py-3 bg-red-900/20 border-t-2 border-red-800/50 border-b border-red-900/30">
+                          <td colSpan={6} className="px-4 py-3 bg-red-900/20 border-t-2 border-b border-red-900/30">
                             <p className="text-[10px] font-black text-red-400 uppercase tracking-widest text-center">
                               ✕ Unsold Players ({players.filter(p => !p.type && p.status === 'unsold').length})
                             </p>
                           </td>
                         </tr>
                       )}
+
 
                       {/* UNSOLD PLAYERS */}
                       {players.filter(p => !p.type && p.status === 'unsold').map((p, i) => (
@@ -2691,7 +2694,7 @@ function LiveAuctionWithSplash({ tournamentId, role }) {
   return (
     <>
       {showSplash && (
-        <div className={`fixed inset-0 z-[9999] transition-all duration-700 ${fadeOut ? 'opacity-0 scale-110 blur-md' : 'opacity-100 scale-100'}`}>
+        <div className={`fixed inset-0 z-9999 transition-all duration-700 ${fadeOut ? 'opacity-0 scale-110 blur-md' : 'opacity-100 scale-100'}`}>
           <SplashScreen
             src={getMediaUrl(tournament?.assets?.splashUrl)}
             title={tournament?.name}
