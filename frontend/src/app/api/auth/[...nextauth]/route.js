@@ -53,9 +53,8 @@ const authOptions = {
   callbacks: {
     async jwt({ token, user, account }) {
       if (user) {
-        const adminEmails = (process.env.ADMIN_EMAILS || "").toLowerCase().split(",");
-        const userEmail = (user.email || "").toLowerCase();
-        token.role = user.role || (adminEmails.includes(userEmail) ? "admin" : "user");
+        // Use the role returned from our authorize function (from the backend)
+        token.role = user.role || "user";
         token.picture = user.picture || account?.picture;
       }
       if (account?.access_token) {
