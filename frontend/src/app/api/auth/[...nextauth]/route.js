@@ -22,13 +22,15 @@ const authOptions = {
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
-        const adminEmails = (process.env.ADMIN_EMAILS || "").toLowerCase().split(",");
-        const email = credentials.email.toLowerCase();
+        const adminEmails = (process.env.ADMIN_EMAILS || "").toLowerCase().split(",").map(e => e.trim());
+        const email = (credentials.email || "").toLowerCase().trim();
+        const password = (credentials.password || "").trim();
+        const adminPassword = (process.env.ADMIN_PASSWORD || "").trim();
         
         // Check for admin credentials
         if (
           adminEmails.includes(email) &&
-          credentials.password === process.env.ADMIN_PASSWORD
+          password === adminPassword
         ) {
           return {
             id: email,
@@ -37,6 +39,9 @@ const authOptions = {
             role: "admin"
           };
         }
+        
+        console.error("Auth failed. Email:", email, "isAdminEmail:", adminEmails.includes(email), "Password matches:", password === adminPassword);
+
         
         // For demo purposes, create a regular user
         if (email && credentials.password) {

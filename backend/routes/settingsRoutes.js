@@ -100,7 +100,3 @@ router.post('/upload-logo',
 );
 
 module.exports = router;
-res.status(500).json({ success: false, message });
-}
-
-module.exports = router;

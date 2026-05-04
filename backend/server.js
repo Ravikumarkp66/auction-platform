@@ -50,7 +50,9 @@ app.use(helmet({
 app.use(compression());
 
 // Request logging
-app.use(morgan('combined'));
+app.use(morgan('combined', {
+  skip: (req, res) => req.originalUrl === '/api/players' && req.method === 'GET'
+}));
 
 // Body parser with size limits
 app.use(express.json({ limit: '10mb' }));
@@ -79,7 +81,7 @@ app.use(cors({
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "Cache-Control"],
+  allowedHeaders: ["Content-Type", "Authorization", "Cache-Control", "Pragma", "Expires"],
   maxAge: 86400  // 24 hours
 }));
 
@@ -159,17 +161,12 @@ let currentAuctionState = null;
 // MongoDB connection with retry logic
 const connectDB = async () => {
   try {
-    // ===== STATIC FILES =====
-    // Serve uploads with cache headers
-    app.use("/uploads", express.static("uploads", {
-      maxAge: '1d',  // Cache for 1 day
-      etag: false
-    }
+    const conn = await mongoose.connect(process.env.MONGO_URI, {
       maxPoolSize: 10,
       retryWrites: true,
       w: 'majority'
     });
-  console.log(`MongoDB Connected: ${conn.connection.host}`);
+    console.log(`MongoDB Connected: ${conn.connection.host}`);
 } catch (error) {
   console.error('MongoDB connection error:', error);
   console.log('Retrying connection in 5 seconds...');
@@ -300,7 +297,11 @@ app.use("/api/rules", rulesRoutes); // Rule Engine API
 app.use("/api/squads", squadRoutes); // Squad generation API
 app.use("/api/location", require("./routes/locationRoutes"));
 app.use("/api/services", require("./routes/serviceRoutes"));
-app ===== ERROR HANDLING MIDDLEWARE =====
+app.use("/api/matches", matchRoutes);
+app.use("/api/settings", require("./routes/settingsRoutes"));
+app.use("/api/visitors", require("./routes/visitorRoutes"));
+
+// ===== ERROR HANDLING MIDDLEWARE =====
   // Global error handler - must be last
   app.use((err, req, res, next) => {
     console.error('Error:', {
@@ -340,11 +341,7 @@ app ===== ERROR HANDLING MIDDLEWARE =====
       errorResponse.stack = err.stack;
     }
 
-    res.status(status).json(errorResponsees.status(500).json({
-      success: false,
-      message: 'Something went wrong!',
-      error: process.env.NODE_ENV === 'production' ? {} : err.message
-    });
+    res.status(status).json(errorResponse);
   });
 
 // 404 handler
