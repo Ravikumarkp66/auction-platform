@@ -676,11 +676,12 @@ function LiveAuctionContent() {
     setHighestBidder(null)
     setRoundHistory([])
     if (player) {
-      // Start with base price as initial bid amount based on auction type
-      const startBid = player.basePrice || (isPointsSystem() ? getBasePrice(player.role) : 100);
+      // Start with base price as initial bid amount
+      // Always prioritize the player's basePrice set during registration as requested
+      const startBid = player.basePrice || config.startingBid || 100;
       setBidIncrement(startBid);
     }
-  }, [currentPlayerIndex])
+  }, [currentPlayerIndex, player?.id, player?.basePrice])
 
   // Keep overlay synced with latest player/state (including player navigation with no bids yet)
   useEffect(() => {
@@ -916,11 +917,9 @@ function LiveAuctionContent() {
         : team
     )
     
-    // DEBUG: Log year distribution after sale
+    // DEBUG: Log sale
     const updatedWinningTeam = updatedTeams.find(t => t.id === highestBidder);
-    const newDistribution = getYearDistribution(updatedWinningTeam);
     console.log(`🏏 PLAYER SOLD: ${player.name} (${normalizeYearCategory(player)}) to ${updatedWinningTeam.name}`);
-    console.log(`📊 New Year Distribution for ${updatedWinningTeam.name}:`, newDistribution);
     console.log(`📋 All players in ${updatedWinningTeam.name}:`, updatedWinningTeam.players.map(p => `${p.name} (${normalizeYearCategory(p)})`));
     
     const updatedPlayers = [...players]

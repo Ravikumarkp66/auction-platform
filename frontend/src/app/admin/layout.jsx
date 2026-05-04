@@ -40,6 +40,8 @@ const navigation = [
   { name: "Players",        href: "/admin/players",            icon: User,            emoji: "🧍" },
   { name: "Icon Players",   href: "/admin/icons",              icon: Star,            emoji: "⭐" },
   { name: "Live Control",   href: "/live-auction",             icon: Zap,             emoji: "⚡" },
+  { name: "Live Scoring",   href: "/scoring",                  icon: LayoutDashboard, emoji: "📱" },
+  { name: "Match Control",  href: "/admin/matches",            icon: LayoutDashboard, emoji: "🎮" },
   { name: "Branding",       href: "/admin/assets",             icon: Palette,         emoji: "🎨" },
   { name: "Landing Editor", href: "/admin/landing",            icon: Layout,          emoji: "🏗️" },
   { name: "Pricing & Services", href: "/admin/services", icon: LayoutDashboard, emoji: "💰" },
@@ -54,6 +56,7 @@ export default function AdminLayout({ children }) {
   const [collapsed, setCollapsed] = useState(false);
   const [tournaments, setTournaments] = useState([]);
   const [selectedAuction, setSelectedAuction] = useState(null);
+  const [pendingApplications, setPendingApplications] = useState(0);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -145,6 +148,31 @@ export default function AdminLayout({ children }) {
         fetchTournaments();
       }, 0);
       return () => clearTimeout(timeoutId);
+    }
+  }, [status]);
+
+  // Poll for pending applications
+  useEffect(() => {
+    if (status === "authenticated") {
+      const fetchPending = async () => {
+        try {
+          const res = await fetch(`${API_URL}/api/players`);
+          if (res.ok) {
+            const data = await res.json();
+            const pendingCount = data.filter(p => p.status === 'pending').length;
+            setPendingApplications(prev => {
+              if (pendingCount > prev && prev !== 0) {
+                // Flash alert or sound could be triggered here
+              }
+              return pendingCount;
+            });
+          }
+        } catch(e) {}
+      };
+      
+      fetchPending();
+      const intervalId = setInterval(fetchPending, 15000); // Check every 15s
+      return () => clearInterval(intervalId);
     }
   }, [status]);
 
@@ -279,6 +307,14 @@ export default function AdminLayout({ children }) {
                 >
                   <span className={`text-base grayscale group-hover:grayscale-0 transition-[filter] ${collapsed ? 'scale-110' : ''}`}>{item.emoji}</span>
                   <span className={`flex-1 transition-opacity duration-300 ${collapsed ? 'opacity-0 w-0' : 'opacity-100'}`}>{item.name}</span>
+                  {item.name === "Players" && pendingApplications > 0 && !collapsed && (
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-black text-white shrink-0 animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.5)]">
+                      {pendingApplications}
+                    </span>
+                  )}
+                  {item.name === "Players" && pendingApplications > 0 && collapsed && (
+                    <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-red-500 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]"></span>
+                  )}
                   {(isActive && !collapsed) && <ChevronRight className="w-4 h-4 opacity-70" />}
                 </Link>
               );

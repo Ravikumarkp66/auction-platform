@@ -5,6 +5,11 @@ const Team = require("../models/Team");
 const TournamentRules = require("../models/TournamentRules");
 const engine = require("../utils/ruleEngine");
 const mongoose = require("mongoose");
+const authMiddleware = require("../middleware/authMiddleware");
+const { authorize } = require("../middleware/authorizationMiddleware");
+const { handleValidationErrors, validators } = require("../middleware/validationMiddleware");
+const { sanitizeString, sanitizeObject } = require("../utils/sanitizer");
+const { body, query } = require('express-validator');
 
 const reorderApplicationIds = async (tournamentId) => {
     try {
@@ -24,87 +29,101 @@ const reorderApplicationIds = async (tournamentId) => {
 
 // Get all non-deleted players
 router.get("/", async (req, res) => {
-  try {
-    const { status, tournamentId, isIcon } = req.query;
-    const filter = { isDeleted: { $ne: true } };
-    if (status && status !== 'ALL') filter.status = status;
-    if (tournamentId) filter.tournamentId = tournamentId;
-    if (isIcon !== undefined) filter.isIcon = isIcon === 'true' ? true : { $ne: true };
-    const sort = filter.isIcon === true ? { iconId: 1 } : { applicationId: 1 };
-    const players = await Player.find(filter).populate("team").sort(sort);
-    res.json(players);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
-
-// GET Trashed Players (Admin)
-router.get("/audit/trash", async (req, res) => {
     try {
-        const { tournamentId } = req.query;
-        if (!tournamentId) return res.status(400).json({ message: "Tournament ID required" });
-        const players = await Player.find({ tournamentId, isDeleted: true }).sort({ deletedAt: -1 });
+        const { status, tournamentId, isIcon } = req.query;
+        const filter = { isDeleted: { $ne: true } };
+        if (status && status !== 'ALL') filter.status = status;
+        if (tournamentId) filter.tournamentId = tournamentId;
+        if (isIcon !== undefined) filter.isIcon = isIcon === 'true' ? true : { $ne: true };
+        const sort = filter.isIcon === true ? { iconId: 1 } : { applicationId: 1 };
+        const players = await Player.find(filter).populate("team").sort(sort);
         res.json(players);
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
 });
 
-// Restore a player (Admin)
-router.put("/audit/restore/:id", async (req, res) => {
-    try {
-        const player = await Player.findById(req.params.id);
-        if (!player) return res.status(404).json({ message: "Player not found" });
-
-        player.isDeleted = false;
-        player.deletedAt = null;
-        await player.save();
-        if (player.tournamentId) await reorderApplicationIds(player.tournamentId);
-
-        res.json({ message: "Player restored successfully", player });
-    } catch (err) {
-        res.status(500).json({ message: err.message });
-    }
-});
-
-// STANDALONE Manual Add Player
-router.post("/", async (req, res) => {
-  try {
-    const { isIcon, tournamentId, teamId } = req.body;
-    let nextId = 1;
-    let slotId = null;
-
-    if (isIcon) {
-       const lastIcon = await Player.findOne({ tournamentId, isIcon: true, isDeleted: { $ne: true } }).sort({ iconId: -1 });
-       nextId = lastIcon ? (lastIcon.iconId || 0) + 1 : 1;
-       if (teamId) {
-          const team = await Team.findById(teamId);
-          if (team) {
-             slotId = `${team.shortName}${team.playerCount + 1}`;
-             team.playerCount += 1;
-             await team.save();
-          }
-       }
-    } else {
-       const lastPlayer = await Player.findOne({ tournamentId, isIcon: { $ne: true }, isDeleted: false }).sort({ applicationId: -1 });
-       nextId = lastPlayer ? (lastPlayer.applicationId || 0) + 1 : 1;
-    }
-
-    const player = new Player({
-      ...req.body,
-      isDeleted: false,
-      iconId: isIcon ? nextId : null,
-      applicationId: !isIcon ? nextId : null,
-      teamSlotId: slotId,
-      team: teamId || null
+// GET Trashed Players (Admin Only)
+router.get("/audit/trash",
+    authMiddleware,
+    authorize(['admin']),
+    query('tournamentId').matches(/^[0-9a-fA-F]{24}$/).withMessage('Invalid tournament ID'),
+    handleValidationErrors,
+    async (req, res) => {
+        try {
+            const { tournamentId } = req.query;
+            const players = await Player.find({ tournamentId, isDeleted: true }).sort({ deletedAt: -1 });
+            res.json(players);
+        } catch (err) {
+            res.status(500).json({ message: "Failed to retrieve trash" });
+        }
     });
 
-    await player.save();
-    res.status(201).json(player);
-  } catch (err) {
-    res.status(400).json({ message: err.message });
-  }
-});
+// Restore a player (Admin Only)
+router.put("/audit/restore/:id",
+    authMiddleware,
+    authorize(['admin']),
+    async (req, res) => {
+        try {
+            const player = await Player.findById(req.params.id);
+            if (!player) return res.status(404).json({ message: "Player not found" });
+
+            player.isDeleted = false;
+            player.deletedAt = null;
+            await player.save();
+            if (player.tournamentId) await reorderApplicationIds(player.tournamentId);
+
+            res.json({ message: "Player restored successfully", player });
+        } catch (err) {
+            res.status(500).json({ message: "Failed to restore player" });
+        } (Admin Only - Auth Required)
+router.post("/",
+    authMiddleware,
+    authorize(['admin']),
+    validators.playerName(),
+    validators.playerMobile(),
+    handleValidationErrors,
+    async (req, res) => {
+        try {
+            const { isIcon, tournamentId, teamId } = req.body;
+            let nextId = 1;
+            let slotId = null;
+
+            if (isIcon) {
+                const lastIcon = await Player.findOne({ tournamentId, isIcon: true, isDeleted: { $ne: true } }).sort({ iconId: -1 });
+                nextId = lastIcon ? (lastIcon.iconId || 0) + 1 : 1;
+                if (teamId) {
+                    const team = await Team.findById(teamId);
+                    if (team) {
+                        slotId = `${team.shortName}${team.playerCount + 1}`;
+                        team.playerCount += 1;
+                        await team.save();
+                    }
+                }
+            } else {
+                const lastPlayer = await Player.findOne({ tournamentId, isIcon: { $ne: true }, isDeleted: false }).sort({ applicationId: -1 });
+                nextId = lastPlayer ? (lastPlayer.applicationId || 0) + 1 : 1;
+            }
+
+            const sanitizedData = sanitizeObject(req.body);
+
+            const player = new Player({
+                ...sanitizedData
+await player.save();
+                res.status(201).json(player);
+            } catch (err) {
+                res.status(400).json({
+                    message: "Failed to create player"
+      teamSlotId: slotId,
+                    team: teamId || null
+                });
+
+                await player.save();
+                res.status(201).json(player);
+            } catch (err) {
+                res.status(400).json({ message: err.message });
+            }
+        });
 
 // Check Registration Status (Public)
 router.get("/check", async (req, res) => {
@@ -115,7 +134,7 @@ router.get("/check", async (req, res) => {
         if (!player) return res.status(404).json({ message: "No registration found for this number." });
         res.json({
             name: player.name,
-            status: player.status, 
+            status: player.status,
             applicationId: player.applicationId,
             message: player.status === 'pending' ? "Registration received. Awaiting admin approval." : "Registration Approved!",
             // Include full player details
@@ -131,16 +150,17 @@ router.get("/audit/duplicates", async (req, res) => {
     try {
         const { tournamentId } = req.query;
         if (!tournamentId) return res.status(400).json({ message: "Tournament ID required" });
-        
+
         const mobileDuplicates = await Player.aggregate([
             { $match: { tournamentId: new mongoose.Types.ObjectId(tournamentId), isDeleted: { $ne: true } } },
             { $project: { mobileClean: { $trim: { input: { $toString: "$mobile" } } }, root: "$$ROOT" } },
             { $group: { _id: "$mobileClean", count: { $sum: 1 }, players: { $push: "$root" } } },
-            { $match: { 
-                count: { $gt: 1 }, 
-                _id: { $nin: [null, "", "-", "0", "undefined", "null"] },
-                $expr: { $gt: [{ $strLenCP: { $ifNull: ["$_id", ""] } }, 4] } 
-              } 
+            {
+                $match: {
+                    count: { $gt: 1 },
+                    _id: { $nin: [null, "", "-", "0", "undefined", "null"] },
+                    $expr: { $gt: [{ $strLenCP: { $ifNull: ["$_id", ""] } }, 4] }
+                }
             }
         ]);
 
@@ -148,11 +168,12 @@ router.get("/audit/duplicates", async (req, res) => {
             { $match: { tournamentId: new mongoose.Types.ObjectId(tournamentId), isDeleted: { $ne: true } } },
             { $project: { aadhaarClean: { $trim: { input: { $toString: "$aadhaarNumber" } } }, root: "$$ROOT" } },
             { $group: { _id: "$aadhaarClean", count: { $sum: 1 }, players: { $push: "$root" } } },
-            { $match: { 
-                count: { $gt: 1 }, 
-                _id: { $nin: [null, "", "-", "0", "undefined", "null"] },
-                $expr: { $gt: [{ $strLenCP: { $ifNull: ["$_id", ""] } }, 4] }
-              } 
+            {
+                $match: {
+                    count: { $gt: 1 },
+                    _id: { $nin: [null, "", "-", "0", "undefined", "null"] },
+                    $expr: { $gt: [{ $strLenCP: { $ifNull: ["$_id", ""] } }, 4] }
+                }
             }
         ]);
 
@@ -186,134 +207,155 @@ router.post("/register", async (req, res) => {
         const nextId = lastPlayer ? (lastPlayer.applicationId || 0) + 1 : 1;
         const player = new Player({ ...req.body, applicationId: nextId, status: 'pending', isDeleted: false });
         await player.save();
-        res.status(201).json(player);
-    } catch (err) {
-        res.status(400).json({ message: err.message });
-    }
-});
+        res.status(201).json(playe Only)
+        router.post("/:id/approve",
+            authMiddleware,
+            authorize(['admin']),
+            async (req, res) => {
+                try {
+                    const player = await Player.findById(req.params.id);
+                    if (!player) return res.status(404).json({ message: "Player not found" });
 
-// Approve a pending player (Admin)
-router.post("/:id/approve", async (req, res) => {
-    try {
-        const player = await Player.findById(req.params.id);
-        if (!player) return res.status(404).json({ message: "Player not found" });
+                    player.status = "available";
+                    await player.save();
 
+                    res.json({ message: "Player approved and moved to auction pool", player });
+                } catch (err) {
+                    res.status(500).json({
+                        message: "Failed to approve player"
         player.status = "available";
-        await player.save();
+                        await player.save();
 
-        res.json({ message: "Player approved and moved to auction pool", player });
-    } catch (err) {
-        res.status(500).json({ message: err.message });
-    }
-});
+                        res.json({ message: "Player approved and moved to auction pool", player });
+                    } catch (err) {
+                        res.status(500).json({ message: err.message });
+                    }
+                });
 
-// Public Player Poster Fetch (minimal info)
-router.get("/public/:id", async (req, res) => {
-    try {
-        const player = await Player.findOne({ _id: req.params.id, isDeleted: { $ne: true } })
-            .select("name imageUrl photo applicationId role basePrice village battingStyle tournamentId")
-            .populate("tournamentId", "name");
-        
-        if (!player) return res.status(404).json({ message: "Player record not found." });
-        
-        // Convert to plain object to inject tournamentName
-        const playerObj = player.toObject();
-        if (playerObj.tournamentId && playerObj.tournamentId.name) {
-            playerObj.tournamentName = playerObj.tournamentId.name;
-        }
-        
-        res.json(playerObj);
-    } catch (err) {
-        res.status(500).json({ message: err.message });
-    }
-});
+        // Public Player Poster Fetch (minimal info)
+        router.get("/public/:id", async (req, res) => {
+            try {
+                const player = await Player.findOne({ _id: req.params.id, isDeleted: { $ne: true } })
+                    .select("name imageUrl photo applicationId role basePrice village battingStyle tournamentId")
+                    .populate("tournamentId", "name");
+
+                if (!player) return res.status(404).json({ message: "Player record not found." });
+
+                // Convert to plain object to inject tournamentName
+                const playerObj = player.toObject();
+                if (playerObj.tournamentId && playerObj.tournamentId.name) {
+                    playerObj.tournamentNa - Auth Required
+                    router.patch("/:id",
+                        authMiddleware,
+                        authorize(['admin']),
+                        async (req, res) => {
+                            try {
+                                const sanitizedData = sanitizeObject(req.body);
+                                const player = await Player.findByIdAndUpdate(req.params.id, sanitizedData, { new: true });
+                                if (!player) return res.status(404).json({ message: "Player not found" });
+                                res.json(player);
+                            } catch (err) {
+                                res.status(400).json({
+                                    message: "Failed to update player"
 
 // Update player details (partial)
 router.patch("/:id", async (req, res) => {
-  try {
-    const player = await Player.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    if (!player) return res.status(404).json({ message: "Player not found" });
-    res.json(player);
-  } catch (err) {
-    res.status(400).json({ message: err.message });
-  }
-});
+                                        try {
+                                            const player = await Player.findByIdAndUpdate(req.params.id, req.body, { new: true });
+                                            if (!player) return res.status(404).json({ message: "Player not found" });
+                                            res.json(player);
+                                        } catch (err) {
+                                            - Auth Required
+                                            router.put("/:id",
+                                                authMiddleware,
+                                                authorize(['admin']),
+                                                async (req, res) => {
+                                                    try {
+                                                        const sanitizedData = sanitizeObject(req.body);
+                                                        const player = await Player.findByIdAndUpdate(req.params.id, sanitizedData, { new: true });
+                                                        if (!player) return res.status(404).json({ message: "Player not found" });
+                                                        res.json(player);
+                                                    } catch (err) {
+                                                        res.status(400).json({ m Only)
+                                                        router.delete("/:id",
+                                                            authMiddleware,
+                                                            authorize(['admin']),
+                                                            async (req, res) => {
+                                                                try {
+                                                                    const player = await Player.findById(req.params.id);
+                                                                    if (player) {
+                                                                        player.isDeleted = true;
+                                                                        player.deletedAt = new Date();
+                                                                        await player.save();
+                                                                        if (player.tournamentId) await reorderApplicationIds(player.tournamentId);
+                                                                    }
+                                                                    res.json({ message: "Player moved to recycle bin" });
+                                                                } catch (err) { Only)
+                                                        router.post("/import",
+                                                            authMiddleware,
+                                                            authorize(['admin']),
+                                                            body('players').isArray().withMessage('Players must be an array'),
+                                                            body('tournamentId').matches(/^[0-9a-fA-F]{24}$/).withMessage('Invalid tournament ID'),
+                                                            handleValidationErrors,
+                                                            async (req, res) => {
+                                                                try {
+                                                                    const { players, tournamentId } = req.body;
 
-// Update player details (full)
-router.put("/:id", async (req, res) => {
-  try {
-    const player = await Player.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    if (!player) return res.status(404).json({ message: "Player not found" });
-    res.json(player);
-  } catch (err) {
-    res.status(400).json({ message: err.message });
-  }
-});
+                                                                    let added = 0;
+                                                                    let skipped = 0;
 
-// Soft Delete player (Admin)
-router.delete("/:id", async (req, res) => {
-  try {
-    const player = await Player.findById(req.params.id);
-    if (player) {
-        player.isDeleted = true;
-        player.deletedAt = new Date();
-        await player.save();
-        if (player.tournamentId) await reorderApplicationIds(player.tournamentId);
-    }
-    res.json({ message: "Player moved to recycle bin" });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
+                                                                    // Get the current max application ID for this tournament
+                                                                    const lastPlayer = await Player.findOne({ tournamentId, isIcon: { $ne: true }, isDeleted: { $ne: true } }).sort({ applicationId: -1 });
+                                                                    let nextId = lastPlayer ? (lastPlayer.applicationId || 0) + 1 : 1;
 
-// Bulk Import Players (Admin)
-router.post("/import", async (req, res) => {
-    try {
-        const { players, tournamentId } = req.body;
-        if (!players || !Array.isArray(players) || !tournamentId) {
-            return res.status(400).json({ message: "Invalid import data" });
-        }
+                                                                    for (const p of players) {
+                                                                        // Check for potential duplicates (Case-insensitive name + Mobile match)
+                                                                        const existing = await Player.findOne({
+                                                                            tournamentId,
+                                                                            $or: [
+                                                                                { name: { $regex: new RegExp(`^${p.name?.trim()}$`, "i") }, mobile: String(p.mobile).trim() },
+                                                                                { mobile: String(p.mobile).trim(), mobile: { $ne: "-" } }
+                                                                            ],
+                                                                            isDeleted: { $ne: true }
+                                                                        });
 
-        let added = 0;
-        let skipped = 0;
+                                                                        if (existing) {
+                                                                            skipped++;
+                                                                            continue;
+                                                                        }
 
-        // Get the current max application ID for this tournament
-        const lastPlayer = await Player.findOne({ tournamentId, isIcon: { $ne: true }, isDeleted: { $ne: true } }).sort({ applicationId: -1 });
-        let nextId = lastPlayer ? (lastPlayer.applicationId || 0) + 1 : 1;
+                                                                        const sanitizedPlayer = sanitizeObject(p);            // Check for potential duplicates (Case-insensitive name + Mobile match)
+                                                                        const existing = await Player.findOne({
+                                                                            tournamentId,
+                                                                            $or: [
+                                                                                { name: { $regex: new RegExp(`^${p.name?.trim()}$`, "i") }, mobile: String(p.mobile).trim() },
+                                                                                { mobile: String(p.mobile).trim(), mobile: { $ne: "-" } }
+                                                                            ],
+                                                                            isDeleted: { $ne: true }
+                                                                        });
 
-        for (const p of players) {
-            // Check for potential duplicates (Case-insensitive name + Mobile match)
-            const existing = await Player.findOne({
-                tournamentId,
-                $or: [
-                    { name: { $regex: new RegExp(`^${p.name?.trim()}$`, "i") }, mobile: String(p.mobile).trim() },
-                    { mobile: String(p.mobile).trim(), mobile: { $ne: "-" } }
-                ],
-                isDeleted: { $ne: true }
-            });
+                                                                        if (existing) {
+                                                                            skipped++;
+                                                                            continue;
+                                                                        }
 
-            if (existing) {
-                skipped++;
-                continue;
-            }
+                                                                        const newPlayer = new Player({
+                                                                            ...p,
+                                                                            tournamentId,
+                                                                            applicationId: nextId++,
+                                                                            status: "pending", // Default to pending for admin vetting
+                                                                            isDeleted: false
+                                                                        });
 
-            const newPlayer = new Player({
-                ...p,
-                tournamentId,
-                applicationId: nextId++,
-                status: "pending", // Default to pending for admin vetting
-                isDeleted: false
-            });
+                                                                        await newPlayer.save();
+                                                                        added++;
+                                                                    }
 
-            await newPlayer.save();
-            added++;
-        }
+                                                                    res.json({ success: true, added, skipped });
+                                                                } catch (err) {
+                                                                    console.error("[IMPORT ERROR]:", err);
+                                                                    res.status(500).json({ message: err.message });
+                                                                }
+                                                            });
 
-        res.json({ success: true, added, skipped });
-    } catch (err) {
-        console.error("[IMPORT ERROR]:", err);
-        res.status(500).json({ message: err.message });
-    }
-});
-
-module.exports = router;
+                                                        module.exports = router;

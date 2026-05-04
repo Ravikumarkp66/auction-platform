@@ -865,17 +865,17 @@ export default function PlayerRegistrationPage() {
                       <Phone className="w-10 h-10 text-violet-400" />
                    </div>
                    <div className="text-center space-y-4">
-                     <h2 className="text-3xl md:text-4xl font-black text-white uppercase italic tracking-wide drop-shadow-xl">Enter Mobile Number</h2>
-                     <p className="text-xs text-slate-400 font-bold tracking-[0.2em] uppercase max-w-sm leading-relaxed">Enter your 10-digit number to check status or begin registration</p>
+                     <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-white uppercase italic tracking-wide drop-shadow-xl">Enter Mobile Number</h2>
+                     <p className="text-[10px] sm:text-xs text-slate-400 font-bold tracking-[0.1em] sm:tracking-[0.2em] uppercase max-w-sm leading-relaxed px-4">Enter your 10-digit number to check status or begin registration</p>
                    </div>
-                   <div className="w-full max-w-md relative group mt-4">
+                   <div className="w-full max-w-md relative group mt-4 px-4 sm:px-0">
                      <div className="absolute -inset-1 bg-gradient-to-r from-violet-600 to-cyan-500 rounded-3xl blur opacity-25 group-focus-within:opacity-50 transition duration-500"></div>
                      <input 
                        type="tel"
                        value={checkMobile}
                        onChange={e => setCheckMobile(e.target.value.replace(/\D/g, '').slice(0, 10))}
                        placeholder="10 DIGIT NUMBER"
-                       className="relative w-full bg-slate-900 border-2 border-white/10 rounded-2xl px-6 py-6 text-center text-2xl font-black text-white tracking-[0.5em] outline-none focus:border-violet-500 transition-all placeholder:text-slate-700"
+                       className="relative w-full bg-slate-900 border-2 border-white/10 rounded-2xl px-4 sm:px-6 py-5 sm:py-6 text-center text-xl sm:text-2xl font-black text-white tracking-[0.3em] sm:tracking-[0.5em] outline-none focus:border-violet-500 transition-all placeholder:text-slate-700"
                        onKeyDown={(e) => {
                           if (e.key === 'Enter' && checkMobile.length === 10 && !checking) {
                             handleCheckStatus();
@@ -883,15 +883,17 @@ export default function PlayerRegistrationPage() {
                         }}
                      />
                    </div>
-                   <button 
-                     type="button"
-                     onClick={handleCheckStatus}
-                     disabled={checking || checkMobile.length !== 10}
-                     className="w-full max-w-md px-8 py-5 mt-4 bg-gradient-to-r from-violet-600 to-cyan-500 text-white rounded-2xl font-[1000] text-sm uppercase tracking-[0.2em] shadow-xl shadow-violet-600/20 active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100 flex items-center justify-center gap-3 hover:brightness-110"
-                   >
-                     {checking ? <Loader2 className="w-5 h-5 animate-spin" /> : <ArrowRight className="w-5 h-5" />}
-                     {checking ? "Verifying..." : "Continue"}
-                   </button>
+                   <div className="w-full max-w-md mt-4 px-4 sm:px-0">
+                     <button 
+                       type="button"
+                       onClick={handleCheckStatus}
+                       disabled={checking || checkMobile.length !== 10}
+                       className="w-full px-8 py-4 sm:py-5 bg-gradient-to-r from-violet-600 to-cyan-500 text-white rounded-2xl font-[1000] text-xs sm:text-sm uppercase tracking-[0.2em] shadow-xl shadow-violet-600/20 active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100 flex items-center justify-center gap-3 hover:brightness-110"
+                     >
+                       {checking ? <Loader2 className="w-5 h-5 animate-spin" /> : <ArrowRight className="w-5 h-5" />}
+                       {checking ? "Verifying..." : "Continue"}
+                     </button>
+                   </div>
                 </div>
               )}
 

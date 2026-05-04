@@ -170,6 +170,7 @@ function PlayersRegistryContent() {
   };
 
   const fetchData = async () => {
+    if (!selectedAuction?._id) return;
     setLoading(true);
     try {
       const statusParam = activeTab === "ALL" ? "ALL" : activeTab.toLowerCase();

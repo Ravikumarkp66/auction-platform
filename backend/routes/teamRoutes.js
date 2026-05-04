@@ -15,6 +15,27 @@ router.get("/", async (req, res) => {
   }
 });
 
+// Create a new team
+router.post("/", async (req, res) => {
+  try {
+    const { name, shortName, location, tournamentId, remainingBudget } = req.body;
+    
+    const newTeam = new Team({
+      name,
+      shortName,
+      location,
+      tournamentId,
+      remainingBudget: remainingBudget || 1000000
+    });
+    
+    const savedTeam = await newTeam.save();
+    res.status(201).json(savedTeam);
+  } catch (err) {
+    console.error("Error creating team:", err);
+    res.status(400).json({ message: err.message });
+  }
+});
+
 // Get teams by tournament ID
 router.get("/tournament/:tournamentId", async (req, res) => {
   try {

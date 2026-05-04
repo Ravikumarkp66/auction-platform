@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import { Users, ClipboardList, Crosshair, X, ChevronRight, TrendingUp, Award, IndianRupee } from "lucide-react";
+import { Users, ClipboardList, Crosshair, X, ChevronRight, TrendingUp, Award, IndianRupee, User } from "lucide-react";
 import { API_URL } from "../lib/apiConfig";
 import CurrencySymbol from "./CurrencySymbol";
 
@@ -57,6 +57,10 @@ export default function AuctionOverlayNew({
   const [hasShownStatus, setHasShownStatus] = useState(false);
   const [isLoadingSquad, setIsLoadingSquad] = useState(false);
   const [showNextPill, setShowNextPill] = useState(false);
+  const [allPlayers, setAllPlayers] = useState([]);
+  const [isLoadingAllPlayers, setIsLoadingAllPlayers] = useState(false);
+  const [playerFilter, setPlayerFilter] = useState('all');
+  const [animatingPlayerCard, setAnimatingPlayerCard] = useState(null);
 
   // Auto-pop Up Next Pill when nextPlayer changes
   useEffect(() => {
@@ -72,6 +76,29 @@ export default function AuctionOverlayNew({
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Fetch all players when Players tab opens
+  useEffect(() => {
+    if (activeBottomTab === 'players' && allPlayers.length === 0) {
+      const fetchAllPlayers = async () => {
+        setIsLoadingAllPlayers(true);
+        try {
+          const response = await fetch(`${API_URL}/api/tournaments/status/active`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.players) {
+              setAllPlayers(data.players);
+            }
+          }
+        } catch (error) {
+          console.error('Failed to fetch all players:', error);
+        } finally {
+          setIsLoadingAllPlayers(false);
+        }
+      };
+      fetchAllPlayers();
+    }
+  }, [activeBottomTab, allPlayers.length]);
 
   // Fetch team players when squad modal opens
   useEffect(() => {
@@ -159,7 +186,10 @@ export default function AuctionOverlayNew({
     <div
       className="fixed inset-0 z-50 flex items-end md:items-center justify-center"
       style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(12px)' }}
-      onClick={() => setSquadModal(null)}
+      onClick={() => {
+        if (squadModal.__fromPlayers) setActiveBottomTab('players');
+        setSquadModal(null);
+      }}
     >
       <div
         className="relative w-full md:max-w-2xl rounded-t-3xl md:rounded-3xl overflow-hidden shadow-2xl"
@@ -194,7 +224,10 @@ export default function AuctionOverlayNew({
             <div className="flex items-center gap-2">
               {/* Close Button */}
               <button 
-                onClick={() => setSquadModal(null)}
+                onClick={() => {
+                  if (squadModal.__fromPlayers) setActiveBottomTab('players');
+                  setSquadModal(null);
+                }}
                 className="p-2 rounded-lg transition-all hover:bg-black/60"
                 style={{ background: 'rgba(0,0,0,0.4)', color: C.textSecondary }}
                 title="Close"
@@ -206,7 +239,33 @@ export default function AuctionOverlayNew({
         </div>
 
         {/* Content Body */}
-        <div className="overflow-y-auto p-6" style={{ maxHeight: 'calc(90vh - 140px)' }}>
+        <div id="squad-modal-body" className="overflow-y-auto p-6 scroll-smooth" style={{ maxHeight: 'calc(90vh - 140px)' }}>
+          {/* Clicked Player Bid History */}
+          {squadModal.clickedPlayer && squadModal.clickedPlayer.bidHistory && squadModal.clickedPlayer.bidHistory.length > 0 && (
+            <div className="mb-6 p-4 rounded-2xl" style={{ background: C.bgMain, border: `1px solid ${C.accentBorder}` }}>
+              <div className="flex items-center gap-3 mb-3 pb-3" style={{ borderBottom: `1px solid ${C.border}` }}>
+                 <div className="w-12 h-12 rounded-full overflow-hidden border-2 bg-slate-800" style={{ borderColor: C.accent }}>
+                    <img src={squadModal.clickedPlayer.imageUrl || squadModal.clickedPlayer.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(squadModal.clickedPlayer.name)}&background=random`} className="w-full h-full object-cover" alt="" />
+                 </div>
+                 <div>
+                   <p className="text-base font-black uppercase tracking-tight text-white">{squadModal.clickedPlayer.name}</p>
+                   <p className="text-[10px] text-amber-400 uppercase font-bold tracking-[0.2em]">Full Bid History</p>
+                 </div>
+              </div>
+              <div className="space-y-1.5 max-h-[180px] overflow-y-auto no-scrollbar pr-1">
+                {[...squadModal.clickedPlayer.bidHistory].reverse().map((bid, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-2.5 rounded-lg transition-all" style={{ background: idx === 0 ? C.accentSoft : 'rgba(255,255,255,0.03)', border: `1px solid ${idx === 0 ? C.accentBorder : 'rgba(255,255,255,0.05)'}` }}>
+                    <div className="flex items-center gap-2">
+                       <span className="text-xs font-bold" style={{ color: idx === 0 ? C.accent : C.textSecondary }}>#{squadModal.clickedPlayer.bidHistory.length - idx}</span>
+                       <span className="text-xs font-bold text-white uppercase tracking-tight">{bid.teamName || 'Unknown Team'}</span>
+                    </div>
+                    <span className="text-sm font-black" style={{ color: idx === 0 ? C.accent : C.textPrimary }}>{formatCurrency(bid.bidAmount || bid.bid || 0, currencyUnit)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Squad Image (Admin-Generated) */}
           {squadModal.squadImageUrl && (
             <div className="mb-6">
@@ -271,11 +330,21 @@ export default function AuctionOverlayNew({
                     return (
                       <div
                         key={player._id || player.id || idx}
-                        className="rounded-xl p-3 text-center relative overflow-hidden group transition-all hover:scale-[1.02]"
+                        onClick={() => {
+                          // Allow toggling bid history on and off
+                          setSquadModal(prev => ({ 
+                            ...prev, 
+                            clickedPlayer: prev.clickedPlayer?._id === (player._id || player.id) ? null : player 
+                          }));
+                          // Scroll to top to see history smoothly
+                          const modalBody = document.getElementById('squad-modal-body');
+                          if (modalBody) modalBody.scrollTo({ top: 0, behavior: 'smooth' });
+                        }}
+                        className="rounded-xl p-3 text-center relative overflow-hidden group transition-all hover:scale-[1.02] cursor-pointer"
                         style={{ 
-                          background: C.bgMain, 
-                          border: `1px solid ${C.border}`,
-                          boxShadow: '0 4px 6px rgba(0,0,0,0.3)'
+                          background: squadModal.clickedPlayer?._id === (player._id || player.id) ? C.accentSoft : C.bgMain, 
+                          border: `1px solid ${squadModal.clickedPlayer?._id === (player._id || player.id) ? C.accent : C.border}`,
+                          boxShadow: squadModal.clickedPlayer?._id === (player._id || player.id) ? `0 0 15px ${C.accentSoft}` : '0 4px 6px rgba(0,0,0,0.3)'
                         }}
                       >
                         {/* Role Badge (C/VC/R) - Priority over Year Badge */}
@@ -478,8 +547,35 @@ export default function AuctionOverlayNew({
         
               {/* Card body */}
               <div className="p-4">
-                <p className="text-xl font-semibold" style={{ color: C.textPrimary }}>{player?.name}</p>
-                <p className="text-sm mt-0.5 mb-4" style={{ color: C.textSecondary }}>{player?.role}</p>
+                <p className="text-xl font-black uppercase tracking-tight" style={{ color: C.textPrimary }}>{player?.name}</p>
+                
+                {/* Role and Base Price */}
+                <div className="flex items-center justify-between mt-2 mb-3">
+                  <span className="px-2.5 py-1 rounded bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-bold uppercase tracking-wider">
+                    {player?.role || 'Unknown Role'}
+                  </span>
+                  <span className="text-amber-400 font-black text-xs tracking-widest">
+                    BASE: {formatCurrency(player?.basePrice, currencyUnit)}
+                  </span>
+                </div>
+
+                {/* Extra Details Grid */}
+                <div className="grid grid-cols-2 gap-2 mb-4 p-3 rounded-xl bg-[#0f2a3a]/40 border border-white/5">
+                  <div className="flex flex-col">
+                    <span className="text-[9px] text-slate-500 uppercase tracking-widest font-bold">Village/Town</span>
+                    <span className="text-xs font-semibold text-slate-300 truncate">{player?.village || player?.town || 'Unknown'}</span>
+                  </div>
+                  <div className="flex flex-col items-end">
+                    <span className="text-[9px] text-slate-500 uppercase tracking-widest font-bold">Age</span>
+                    <span className="text-xs font-semibold text-slate-300">{player?.age ? `${player.age} YRS` : 'N/A'}</span>
+                  </div>
+                  <div className="col-span-2 pt-2 mt-1 border-t border-white/5 flex items-center justify-between">
+                    <span className="text-[10px] font-medium text-slate-400">🏏 {player?.battingStyle || '-'}</span>
+                    {player?.bowlingStyle && player.bowlingStyle !== '-' && (
+                      <span className="text-[10px] font-medium text-slate-400">🥎 {player.bowlingStyle}</span>
+                    )}
+                  </div>
+                </div>
         
                 {/* Bid box */}
                 <div className="rounded-xl p-4 text-center" style={{ background: C.accentSoft, border: `1px solid ${C.accentBorder}` }}>
@@ -534,8 +630,35 @@ export default function AuctionOverlayNew({
         
               {/* Card body */}
               <div className="p-4">
-                <p className="text-2xl font-semibold" style={{ color: C.textPrimary }}>{player?.name}</p>
-                <p className="text-sm mt-0.5 mb-4" style={{ color: C.textSecondary }}>{player?.role}</p>
+                <p className="text-2xl font-black uppercase tracking-tight" style={{ color: C.textPrimary }}>{player?.name}</p>
+                
+                {/* Role and Base Price */}
+                <div className="flex items-center justify-between mt-2 mb-3">
+                  <span className="px-3 py-1 rounded-md bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-bold uppercase tracking-wider">
+                    {player?.role || 'Unknown Role'}
+                  </span>
+                  <span className="text-amber-400 font-black text-sm tracking-widest">
+                    BASE: {formatCurrency(player?.basePrice, currencyUnit)}
+                  </span>
+                </div>
+
+                {/* Extra Details Grid */}
+                <div className="grid grid-cols-2 gap-2 mb-4 p-3.5 rounded-xl bg-[#0f2a3a]/40 border border-white/5">
+                  <div className="flex flex-col">
+                    <span className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Village/Town</span>
+                    <span className="text-sm font-semibold text-slate-300 truncate">{player?.village || player?.town || 'Unknown'}</span>
+                  </div>
+                  <div className="flex flex-col items-end">
+                    <span className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Age</span>
+                    <span className="text-sm font-semibold text-slate-300">{player?.age ? `${player.age} YRS` : 'N/A'}</span>
+                  </div>
+                  <div className="col-span-2 pt-2 mt-1 border-t border-white/5 flex items-center justify-between">
+                    <span className="text-xs font-medium text-slate-400">🏏 {player?.battingStyle || '-'}</span>
+                    {player?.bowlingStyle && player.bowlingStyle !== '-' && (
+                      <span className="text-xs font-medium text-slate-400">🥎 {player.bowlingStyle}</span>
+                    )}
+                  </div>
+                </div>
         
                 {/* Bid box */}
                 <div className="rounded-xl p-4 text-center" style={{ background: C.accentSoft, border: `1px solid ${C.accentBorder}` }}>
@@ -611,12 +734,135 @@ export default function AuctionOverlayNew({
             </>
           )}
 
+          {/* ── Players Bottom Sheet ──────────────────────────────────── */}
+          {!focusMode && activeBottomTab === 'players' && (
+            <>
+              <BottomSheetBackdrop />
+              <div
+                className="fixed left-0 right-0 z-40 flex flex-col"
+                style={{ bottom: '60px', height: '80vh', background: C.bgCard, borderRadius: '20px 20px 0 0', borderTop: `1px solid ${C.accentBorder}` }}
+              >
+                <div className="flex justify-center pt-3"><div className="w-8 h-1 rounded-full" style={{ background: C.border }}></div></div>
+                <div className="px-4 py-3 flex items-center justify-between">
+                  <p className="text-sm font-semibold" style={{ color: C.textPrimary }}>Players Database</p>
+                </div>
+                
+                {/* 🏷️ Filter Tabs */}
+                <div className="px-4 pb-3 flex flex-wrap gap-2" style={{ borderBottom: `1px solid ${C.border}` }}>
+                  {['all', 'available', 'sold', 'unsold'].map(filter => {
+                    const count = filter === 'all' 
+                      ? allPlayers.length 
+                      : allPlayers.filter(p => p.status === filter).length;
+                      
+                    return (
+                      <button
+                        key={filter}
+                        onClick={() => setPlayerFilter(filter)}
+                        className="px-2.5 py-1.5 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-1.5"
+                        style={{
+                          background: playerFilter === filter ? C.accent : 'rgba(255,255,255,0.05)',
+                          color: playerFilter === filter ? '#000' : C.textSecondary,
+                          border: `1px solid ${playerFilter === filter ? C.accent : C.border}`
+                        }}
+                      >
+                        {filter}
+                        <span className="px-1.5 py-0.5 rounded-full text-[9px]" 
+                          style={{ 
+                            background: playerFilter === filter ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.1)',
+                            color: playerFilter === filter ? '#000' : C.textPrimary 
+                          }}
+                        >
+                          {count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-3 space-y-2 pb-6">
+                  {isLoadingAllPlayers ? (
+                    <div className="py-12 text-center">
+                      <div className="inline-block w-8 h-8 border-4 border-t-transparent rounded-full animate-spin" style={{ borderColor: C.accent, borderTopColor: 'transparent' }}></div>
+                      <p className="text-sm mt-4" style={{ color: C.textSecondary }}>Loading players...</p>
+                    </div>
+                  ) : (!allPlayers || allPlayers.length === 0) ? (
+                    <p className="text-center py-10 text-sm" style={{ color: C.textSecondary }}>No players found</p>
+                  ) : (
+                    allPlayers
+                      .filter(p => playerFilter === 'all' || p.status === playerFilter)
+                      .map((p, i) => {
+                      const isSold = p.status === 'sold';
+                      const teamObj = isSold ? teams?.find(t => t._id === p.team || t.id === p.team) : null;
+                      const teamName = teamObj?.name || 'Unknown Team';
+                      
+                      return (
+                        <div key={p._id || i} 
+                          className={`flex items-center gap-3 p-3 rounded-xl transition-all ${isSold ? 'cursor-pointer hover:scale-[1.02] active:scale-95' : ''}`}
+                          style={{ 
+                            background: C.bgMain, 
+                            border: `1px solid ${isSold ? C.accentBorder : C.border}`,
+                            boxShadow: isSold ? '0 4px 12px rgba(0,0,0,0.2)' : 'none'
+                          }}
+                          onClick={() => {
+                            if (isSold && teamObj) {
+                              setAnimatingPlayerCard({ player: p, teamObj });
+                              setActiveBottomTab(null);
+                              setTimeout(() => {
+                                setAnimatingPlayerCard(null);
+                                setSquadModal({ ...teamObj, __fromPlayers: true, clickedPlayer: p });
+                              }, 3500);
+                            }
+                          }}
+                        >
+                          <div className="w-10 h-10 rounded-full overflow-hidden border flex-shrink-0 bg-slate-800" style={{ borderColor: isSold ? C.accent : 'rgba(255,255,255,0.1)' }}>
+                            <img src={p.imageUrl || p.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.name)}&background=random`} className="w-full h-full object-cover" alt="" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold truncate" style={{ color: C.textPrimary }}>{p.name}</p>
+                            {isSold ? (
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                {teamObj?.logoUrl && <img src={teamObj.logoUrl} className="w-3.5 h-3.5 rounded-full" alt="" />}
+                                <p className="text-[10px] font-bold text-amber-400 truncate">{teamName}</p>
+                              </div>
+                            ) : (
+                              <p className="text-[10px] uppercase font-bold mt-0.5" style={{ color: p.status === 'unsold' ? '#ef4444' : C.accent }}>
+                                {p.status}
+                              </p>
+                            )}
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-0.5">{p.role}</p>
+                            <span className="text-xs font-bold" style={{ color: C.textPrimary }}>
+                              {formatCurrency(p.soldPrice || p.basePrice || 0, currencyUnit)}
+                            </span>
+                          </div>
+                          
+                          {/* Chevron for sold players to indicate clickability */}
+                          {isSold && (
+                            <div className="flex-shrink-0 ml-1">
+                              <ChevronRight size={16} color={C.accent} opacity={0.7} />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                  {/* Empty state if filter returns no results */}
+                  {allPlayers.filter(p => playerFilter === 'all' || p.status === playerFilter).length === 0 && !isLoadingAllPlayers && (
+                    <p className="text-center py-10 text-sm" style={{ color: C.textSecondary }}>No {playerFilter} players found.</p>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+
           {/* ── Bottom Navigation ─────────────────────────────────────── */}
           <div
             className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around px-2"
             style={{ height: '60px', background: C.bgNav, borderTop: `1px solid ${C.border}` }}
           >
             {[
+              { id: 'players', label: 'Players', icon: <User size={18} /> },
               { id: 'squads', label: 'Squads', icon: <Users size={18} /> },
               { id: 'history', label: 'History', icon: <ClipboardList size={18} /> },
               { id: 'focus', label: focusMode ? 'Exit' : 'Focus', icon: <Crosshair size={18} /> },
@@ -924,31 +1170,34 @@ export default function AuctionOverlayNew({
                     <TrendingUp size={13} color={C.textSecondary} />
                     <p className="text-xs font-medium" style={{ color: C.textSecondary }}>{isSold ? 'Sold to' : 'Leading'}</p>
                   </div>
-                  <div className="flex items-center gap-3">
-                    {highestBidderLogo && <img src={highestBidderLogo} className="w-9 h-9 rounded-full object-cover" alt="" />}
-                    <p className="text-base font-semibold" style={{ color: C.textPrimary }}>{highestBidderName}</p>
+                  <div className="flex items-center gap-3 mt-3">
+                    {highestBidderLogo && <img src={highestBidderLogo} className="w-10 h-10 rounded-full object-cover" alt="" />}
+                    <p className="font-semibold text-lg" style={{ color: C.textPrimary }}>{highestBidderName}</p>
                   </div>
                 </div>
               )}
 
-              {/* Bid history */}
-              <div className="flex-1 flex flex-col overflow-hidden rounded-2xl" style={{ background: C.bgCard, border: `1px solid ${C.border}` }}>
+              {/* History */}
+              <div className="flex-1 rounded-2xl flex flex-col overflow-hidden" style={{ background: C.bgCard, border: `1px solid ${C.border}` }}>
                 <div className="flex items-center gap-2 px-4 py-3" style={{ borderBottom: `1px solid ${C.border}` }}>
-                  <ClipboardList size={13} color={C.textSecondary} />
-                  <p className="text-xs font-medium" style={{ color: C.textSecondary }}>Bid History</p>
+                  <ClipboardList size={14} color={C.textSecondary} />
+                  <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: C.textSecondary }}>Bid History</p>
                 </div>
                 <div className="flex-1 overflow-y-auto p-3 space-y-2">
-                  {roundHistory?.slice(0, 10).map((h, i) => (
-                    <div key={i} className="flex items-center justify-between p-3 rounded-xl"
-                      style={{ background: i === 0 ? C.accentSoft : C.bgMain, border: `1px solid ${i === 0 ? C.accentBorder : C.border}` }}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs" style={{ color: C.textSecondary }}>#{roundHistory.length - i}</span>
-                        <span className="text-sm font-medium" style={{ color: C.textPrimary }}>{h.team}</span>
+                  {(!roundHistory || roundHistory.length === 0)
+                    ? <p className="text-center py-10 text-sm" style={{ color: C.textSecondary }}>No bids yet</p>
+                    : roundHistory.slice(0, 8).map((h, i) => (
+                      <div key={i} className="flex items-center justify-between p-3 rounded-xl"
+                        style={{ background: i === 0 ? C.accentSoft : C.bgMain, border: `1px solid ${i === 0 ? C.accentBorder : C.border}` }}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs" style={{ color: C.textSecondary }}>#{roundHistory.length - i}</span>
+                          <span className="text-sm font-medium" style={{ color: C.textPrimary }}>{h.team}</span>
+                        </div>
+                        <span className="text-sm font-bold" style={{ color: C.accent }}>{formatCurrency(h.bid, currencyUnit)}</span>
                       </div>
-                      <span className="text-sm font-bold" style={{ color: C.accent }}>{h.bid.toLocaleString()} PTS</span>
-                    </div>
-                  ))}
+                    ))
+                  }
                 </div>
               </div>
             </aside>
@@ -956,8 +1205,42 @@ export default function AuctionOverlayNew({
         </div>
       )}
 
-      {/* Squad detail modal */}
+      {/* Modals */}
       <SquadModal />
+      
+      {/* ── Cinematic Player-to-Squad Transition ──────────────────────────────── */}
+      {animatingPlayerCard && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center pointer-events-none" style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)' }}>
+          <div 
+            className="flex flex-col items-center justify-center p-8 rounded-3xl"
+            style={{ 
+              background: 'radial-gradient(circle at center, #132f3e, #0c2432)',
+              border: `2px solid ${C.accent}`,
+              boxShadow: `0 0 50px ${C.accentSoft}`,
+              animation: 'cinematicPopAndFade 3.5s forwards cubic-bezier(0.16, 1, 0.3, 1)'
+            }}
+          >
+            <div className="w-36 h-36 rounded-full overflow-hidden border-4 mb-4 bg-slate-800 shadow-[0_0_30px_rgba(0,212,163,0.4)]" style={{ borderColor: C.accent }}>
+              <img src={animatingPlayerCard.player.imageUrl || animatingPlayerCard.player.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(animatingPlayerCard.player.name)}&background=random`} className="w-full h-full object-cover" alt="" />
+            </div>
+            <h2 className="text-3xl font-black text-white uppercase italic tracking-tight mb-2">{animatingPlayerCard.player.name}</h2>
+            <p className="text-sm font-bold tracking-[0.3em] uppercase text-slate-400 mb-6">{animatingPlayerCard.player.role}</p>
+            <div className="flex items-center gap-3 px-5 py-3 rounded-full" style={{ background: 'rgba(0,0,0,0.5)', border: `1px solid ${C.accentBorder}` }}>
+              {animatingPlayerCard.teamObj.logoUrl && <img src={animatingPlayerCard.teamObj.logoUrl} className="w-8 h-8 rounded-full" alt="" />}
+              <span className="text-xl font-bold text-amber-400">Sold to {animatingPlayerCard.teamObj.name}</span>
+            </div>
+          </div>
+          <style jsx>{`
+            @keyframes cinematicPopAndFade {
+              0% { transform: scale(0.6) translateY(50px); opacity: 0; filter: blur(10px); }
+              15% { transform: scale(1.05) translateY(-10px); opacity: 1; filter: blur(0px); }
+              25% { transform: scale(1) translateY(0); opacity: 1; filter: blur(0px); }
+              85% { transform: scale(1) translateY(0); opacity: 1; filter: blur(0px); }
+              100% { transform: scale(1.3) translateY(-40px); opacity: 0; filter: blur(15px); }
+            }
+          `}</style>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,7 +1,0 @@
-[
-  {
-    "_id": "69bf5869a029eb687b29dc67",
-    "name": "Parmeshwar Cup",
-    "updatedAt": "2026-04-07T14:27:27.137Z"
-  }
-]
