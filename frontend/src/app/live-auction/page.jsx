@@ -1448,7 +1448,7 @@ function LiveAuctionContent() {
           onError={(e) => { e.target.style.display = 'none'; }}
         />
         {/* Subtle gradient overlay - NOT heavy dark */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/40 to-black/30" />
+        <div className="absolute inset-0 bg-linear-to-b from-black/30 via-black/40 to-black/30" />
       </div>
 
 
@@ -1476,7 +1476,7 @@ function LiveAuctionContent() {
 
       {showRoundTransition && (
         <div
-          className="fixed inset-0 z-[999] flex flex-col items-center justify-center"
+          className="fixed inset-0 z-999 flex flex-col items-center justify-center"
           style={{
             background: 'radial-gradient(ellipse at center, #1a0533 0%, #0a0015 60%, #000 100%)',
             animation: 'fadeInOut 3.5s ease forwards'
@@ -1533,11 +1533,11 @@ function LiveAuctionContent() {
               {showRoundTransition.label}
             </h1>
             <div className="flex items-center gap-3 justify-center">
-              <div className="h-[1px] w-16 bg-gradient-to-r from-transparent to-purple-500"></div>
+              <div className="h-px w-16 bg-linear-to-r from-transparent to-purple-500"></div>
               <p className="text-xl font-black uppercase tracking-[0.4em] text-purple-300">
                 {showRoundTransition.subtitle}
               </p>
-              <div className="h-[1px] w-16 bg-gradient-to-l from-transparent to-purple-500"></div>
+              <div className="h-px w-16 bg-linear-to-l from-transparent to-purple-500"></div>
             </div>
             <p className="text-[10px] text-purple-500/60 font-black uppercase tracking-widest mt-6 animate-pulse">Starting shortly...</p>
           </div>
@@ -1549,7 +1549,7 @@ function LiveAuctionContent() {
         {/* HEADER - Responsive Layout */}
         <div className="mb-4 pb-4 border-b border-slate-800">
           <div className="flex items-center justify-between mb-3">
-            <Link href="/admin/dashboard" className="bg-violet-600 hover:bg-violet-500 px-3 py-2 md:px-4 md:py-2 rounded-xl text-xs md:text-sm font-bold transition-all border border-violet-500 whitespace-nowrap backdrop-blur-md min-h-[40px] flex items-center shadow-lg">
+            <Link href="/admin/dashboard" className="bg-violet-600 hover:bg-violet-500 px-3 py-2 md:px-4 md:py-2 rounded-xl text-xs md:text-sm font-bold transition-all border border-violet-500 whitespace-nowrap backdrop-blur-md min-h-10 flex items-center shadow-lg">
               <span className="hidden md:inline">← Back to Dashboard</span>
               <span className="md:hidden">← Dashboard</span>
             </Link>
@@ -1565,11 +1565,11 @@ function LiveAuctionContent() {
                 <button
                   onClick={prevPlayer}
                   disabled={currentPlayerIndex <= 0}
-                  className="px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 disabled:opacity-20 transition-all min-h-[40px]"
+                  className="px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 disabled:opacity-20 transition-all min-h-10"
                 >
                   ←
                 </button>
-                <div className="w-[1px] bg-slate-700/50 mx-1"></div>
+                <div className="w-px bg-slate-700/50 mx-1"></div>
                 <button
                   onClick={nextPlayer}
                   disabled={currentPlayerIndex >= players.length - 1 || currentPlayerIndex === -1}
@@ -1651,12 +1651,12 @@ function LiveAuctionContent() {
                 <span className="text-2xl drop-shadow-md">👥</span>
                 <span className="text-[10px] font-black uppercase text-slate-300 tracking-tighter">Teams</span>
               </button>
-              <div className="w-[1px] h-8 bg-white/5"></div>
+              <div className="w-px h-8 bg-white/5"></div>
               <button onClick={() => setActiveSidebar('stats')} className="flex flex-col items-center gap-1 flex-1 py-2">
                 <span className="text-2xl drop-shadow-md">📊</span>
                 <span className="text-[10px] font-black uppercase text-slate-300 tracking-tighter">Stats</span>
               </button>
-              <div className="w-[1px] h-8 bg-white/5"></div>
+              <div className="w-px h-8 bg-white/5"></div>
               <button onClick={() => setActiveSidebar('pools')} className="flex flex-col items-center gap-1 flex-1 py-2">
                 <span className="text-2xl drop-shadow-md">🗳️</span>
                 <span className="text-[10px] font-black uppercase text-slate-300 tracking-tighter">Pools</span>
@@ -1666,7 +1666,7 @@ function LiveAuctionContent() {
 
           {/* POP-UP MODAL (CENTERED) */}
           {activeSidebar && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+            <div className="fixed inset-0 z-100 flex items-center justify-center p-4 sm:p-6">
               <div className="absolute inset-0 bg-black/80 backdrop-blur-md transition-opacity" onClick={() => setActiveSidebar(null)}></div>
               <div className="relative w-full max-w-2xl max-h-[80vh] bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-3xl shadow-[0_0_100px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden animate-in zoom-in-95 fade-in duration-300">
                 {/* Modal Header */}
@@ -1908,7 +1908,7 @@ function LiveAuctionContent() {
                           <span className="w-2 h-2 bg-violet-500 rounded-full animate-pulse"></span>
                           Transaction History
                         </h3>
-                        <div className="space-y-2 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
+                        <div className="space-y-2 max-h-75 overflow-y-auto custom-scrollbar pr-2">
                           {roundHistory.length === 0 ? (
                             <div className="py-12 text-center opacity-20 italic font-black uppercase tracking-widest text-xs">Waiting for opening bid</div>
                           ) : (
@@ -1959,7 +1959,7 @@ function LiveAuctionContent() {
                 {/* HEADER ROW - Glassmorphism Card */}
                 <div className="flex flex-col md:flex-row gap-8 items-stretch p-4 md:p-10 bg-black/45 backdrop-blur-md rounded-2xl border border-cyan-500/20 shadow-[0_8px_32px_rgba(0,0,0,0.6),0_0_10px_rgba(0,255,200,0.2)] transition-all duration-300 ease hover:-translate-y-1 hover:scale-[1.01]">
                   {/* 1. PHOTO - Glass Panel */}
-                  <div className="relative group/photo w-[120px] h-[150px] sm:w-[160px] sm:h-[200px] md:w-[240px] md:h-[300px] mx-auto md:mx-0 rounded-xl overflow-hidden border-2 border-cyan-500/30 shadow-[0_8px_32px_rgba(0,0,0,0.6),0_0_15px_rgba(0,255,200,0.3)] bg-black/50 backdrop-blur-sm ring-4 ring-black/40 transition-all duration-300 ease hover:shadow-[0_12px_40px_rgba(0,255,200,0.4)] shrink-0">
+                  <div className="relative group/photo w-30 h-37.5 sm:w-40 sm:h-50 md:w-60 md:h-75 mx-auto md:mx-0 rounded-xl overflow-hidden border-2 border-cyan-500/30 shadow-[0_8px_32px_rgba(0,0,0,0.6),0_0_15px_rgba(0,255,200,0.3)] bg-black/50 backdrop-blur-sm ring-4 ring-black/40 transition-all duration-300 ease hover:shadow-[0_12px_40px_rgba(0,255,200,0.4)] shrink-0">
                       <Image
                         src={player.photo?.s3 || player.photo?.drive || player.imageUrl || player.image}
                         alt={player.name} fill className={`object-cover ${player.status !== 'available' ? 'grayscale opacity-50' : ''}`} unoptimized={true}
@@ -2245,7 +2245,7 @@ function LiveAuctionContent() {
                                   onError={(e) => { e.target.style.display = 'none'; }}
                                 />
                               </div>
-                              <span className="text-[11px] font-black text-white uppercase tracking-tight truncate max-w-[100px]">{teams.find(t => t.id === highestBidder)?.name}</span>
+                              <span className="text-[11px] font-black text-white uppercase tracking-tight truncate max-w-25">{teams.find(t => t.id === highestBidder)?.name}</span>
                             </div>
                             <button onClick={undoLastBid} className="text-[10px] text-gray-600 hover:text-white mt-3 uppercase underline font-black transition-colors">Undo Last Bid</button>
                           </div>
@@ -2365,7 +2365,7 @@ function LiveAuctionContent() {
                             title={!finalCanBid ? finalReason : `Click to bid`}
                           >
                             {/* Circular Logo */}
-                            <div className="w-20 h-20 rounded-full overflow-hidden bg-slate-800/40 border-2 border-slate-600 flex items-center justify-center shadow-md flex-shrink-0">
+                            <div className="w-20 h-20 rounded-full overflow-hidden bg-slate-800/40 border-2 border-slate-600 flex items-center justify-center shadow-md shrink-0">
                               <img src={team.logoUrl} alt={`${team.name} logo`} className="w-20 h-20 object-cover" />
                             </div>
 
