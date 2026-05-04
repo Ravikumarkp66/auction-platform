@@ -16,6 +16,9 @@ router.post('/login', async (req, res) => {
     const normalizedEmail = email.toLowerCase().trim();
     const normalizedPassword = password.trim();
 
+    console.log(`[AUTH] Attempt for: ${normalizedEmail}`);
+    console.log(`[AUTH] Admin Emails: ${JSON.stringify(adminEmails)}`);
+    
     if (adminEmails.includes(normalizedEmail) && normalizedPassword === adminPassword) {
       return res.json({
         success: true,
