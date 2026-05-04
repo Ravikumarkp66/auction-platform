@@ -22,18 +22,19 @@ const nextConfig = {
     unoptimized: true,
   },
   async rewrites() {
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5050';
     return [
       {
         source: '/api/:path((?!auth).*)',
-        destination: 'http://127.0.0.1:5050/api/:path*',
+        destination: `${backendUrl}/api/:path*`,
       },
       {
         source: '/uploads/:path*',
-        destination: 'http://127.0.0.1:5050/uploads/:path*',
+        destination: `${backendUrl}/uploads/:path*`,
       },
       {
         source: '/socket.io/:path*',
-        destination: 'http://127.0.0.1:5050/socket.io/:path*',
+        destination: `${backendUrl}/socket.io/:path*`,
       },
     ];
   },
