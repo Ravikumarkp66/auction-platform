@@ -284,6 +284,7 @@ const squadRoutes = require("./routes/squadRoutes"); // Squad generation API
 const matchRoutes = require("./routes/matchRoutes"); // Advanced scoring match API
 // Test route to verify API mounting
 app.get("/api/test", (req, res) => res.json({ success: true, message: "API test working" }));
+app.use("/api/auth", require("./routes/authRoutes"));
 
 app.use("/api/players", playerRoutes);
 app.use("/api/tournaments", tournamentRoutes);

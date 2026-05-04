@@ -22,42 +22,27 @@ const authOptions = {
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
-        const adminEmails = (process.env.ADMIN_EMAILS || "").toLowerCase().split(",").map(e => e.trim());
-        const email = (credentials.email || "").toLowerCase().trim();
-        const password = (credentials.password || "").trim();
-        const adminPassword = (process.env.ADMIN_PASSWORD || "").trim();
-        
-        // Check for admin credentials
-        if (
-          adminEmails.includes(email) &&
-          password === adminPassword
-        ) {
-          return {
-            id: email,
-            email: email,
-            name: "Admin",
-            role: "admin"
-          };
-        }
-        
-        console.error("Auth failed. Email:", email, "isAdminEmail:", adminEmails.includes(email), "Password matches:", password === adminPassword);
+        try {
+          const email = (credentials.email || "").toLowerCase().trim();
+          const password = (credentials.password || "").trim();
 
-        
-        // For demo purposes, create a regular user
-        if (email && credentials.password) {
-          // If they used an admin email but wrong password, reject them
-          if (adminEmails.includes(email)) {
-            return null;
+          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5050'}/api/auth/login`, {
+            method: 'POST',
+            body: JSON.stringify({ email, password }),
+            headers: { "Content-Type": "application/json" }
+          });
+
+          const data = await res.json();
+
+          if (res.ok && data.success && data.user) {
+            return data.user;
           }
-          return {
-            id: email,
-            email: email,
-            name: email.split('@')[0],
-            role: "user"
-          };
+          
+          return null;
+        } catch (err) {
+          console.error("Auth fetch error:", err);
+          return null;
         }
-        
-        return null;
       }
     })
   ],
