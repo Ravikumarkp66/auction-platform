@@ -51,9 +51,16 @@ app.use(helmet({
 app.use(compression());
 
 // Request logging
-app.use(morgan('combined', {
-  skip: (req, res) => req.originalUrl === '/api/players' && req.method === 'GET'
-}));
+// Clean Logging System
+if (process.env.LOG_DISABLED !== 'true') {
+  const morganFormat = process.env.NODE_ENV === 'production' ? 'tiny' : 'dev';
+  app.use(morgan(morganFormat, {
+    skip: (req, res) => {
+      // Skip noisy background routes
+      return req.originalUrl === '/api/visitors/log' || req.originalUrl === '/api/health';
+    }
+  }));
+}
 
 // Body parser with size limits
 app.use(express.json({ limit: '10mb' }));
