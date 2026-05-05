@@ -487,7 +487,7 @@ export default function AuctionOverlayNew({
         </div>
 
         <h1 className="text-sm md:text-lg font-semibold truncate px-3" style={{ color: C.textPrimary }}>
-          {tournamentName || 'Parmeshwar Cup 2026'}
+          {tournamentName || 'CRICKET AUCTION'}
         </h1>
 
         {/* Hide focus button on mobile — it's in bottom nav */}

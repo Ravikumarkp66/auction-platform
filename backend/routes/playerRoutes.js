@@ -339,4 +339,60 @@ router.post("/import",
         }
     });
 
+// Jumble players (Admin Only)
+router.post("/jumble",
+    authMiddleware,
+    authorize(['admin']),
+    async (req, res) => {
+        try {
+            const { tournamentId } = req.body;
+            if (!tournamentId) return res.status(400).json({ message: "Tournament ID required" });
+
+            const players = await Player.find({ tournamentId, isIcon: { $ne: true }, isDeleted: { $ne: true } });
+            
+            // Fisher-Yates Shuffle
+            for (let i = players.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [players[i], players[j]] = [players[j], players[i]];
+            }
+
+            const bulkOps = players.map((p, index) => ({
+                updateOne: {
+                    filter: { _id: p._id },
+                    update: { $set: { applicationId: index + 1 } }
+                }
+            }));
+
+            await Player.bulkWrite(bulkOps);
+            res.json({ message: "Sequence jumbled successfully" });
+        } catch (err) {
+            res.status(500).json({ message: err.message });
+        }
+    });
+
+// Revert to original order (Admin Only)
+router.post("/revert-order",
+    authMiddleware,
+    authorize(['admin']),
+    async (req, res) => {
+        try {
+            const { tournamentId } = req.body;
+            // Restore logic based on createdAt or original sequence if tracked
+            // For now, re-sort by original created order
+            const players = await Player.find({ tournamentId, isIcon: { $ne: true }, isDeleted: { $ne: true } }).sort({ createdAt: 1 });
+            
+            const bulkOps = players.map((p, index) => ({
+                updateOne: {
+                    filter: { _id: p._id },
+                    update: { $set: { applicationId: index + 1 } }
+                }
+            }));
+
+            await Player.bulkWrite(bulkOps);
+            res.json({ message: "Original sequence restored" });
+        } catch (err) {
+            res.status(500).json({ message: err.message });
+        }
+    });
+
 module.exports = router;

@@ -31,7 +31,7 @@ export const getApiUrl = () => {
 export const API_URL = getApiUrl();
 
 export const DEFAULT_ASSETS = {
-  BANNER_LOGO: "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/public/ChatGPT+Image+Mar+18%2C+2026%2C+12_45_23+PM.png",
+  BANNER_LOGO: "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/static/cricket-banner.png",
   SQUAD_BG: "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/backgrounds/sit-stadium-tumkur-stadiums-gxk3uth1uu.avif",
   DEFAULT_PLAYER: "https://ui-avatars.com/api/?background=random",
   DEFAULT_TEAM: "https://ui-avatars.com/api/?background=random"

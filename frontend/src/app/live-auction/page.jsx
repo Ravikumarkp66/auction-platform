@@ -169,7 +169,7 @@ function LiveAuctionContent() {
   };
 
   const getCurrencyUnit = () => {
-    return selectedAuction?.currencyUnit || config.currencyUnit || (isPointsSystem() ? "CR" : "₹");
+    return selectedAuction?.currencyUnit || config.currencyUnit || "₹";
   };
 
   // For text-only context (alerts, confirms, console)
@@ -456,7 +456,7 @@ function LiveAuctionContent() {
             ...prev,
             splashUrl: tournament.assets.splashUrl || "",
             backgroundUrl: tournament.assets.backgroundUrl || "/backgrounds/auction-bg.jpg",
-            badges: tournament.assets.badges || { leftBadge: "", rightBadge: DEFAULT_ASSETS.BANNER_LOGO }
+            badges: tournament.assets.badges || { leftBadge: "", rightBadge: "" }
           }));
           if (tournament.assets.backgroundUrl) setAuctionBg(tournament.assets.backgroundUrl);
         }

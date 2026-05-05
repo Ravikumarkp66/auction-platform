@@ -13,6 +13,14 @@ export default function ActiveTournaments() {
       try {
         const res = await fetch(`${API_URL}/api/tournaments`);
         const data = await res.json();
+        
+        // Safety check: Ensure data is an array
+        if (!Array.isArray(data)) {
+          console.error("Invalid data format for tournaments:", data);
+          setTournaments([]);
+          return;
+        }
+
         // Filter for active or upcoming tournaments
         const active = data.filter(t => t.status === 'active' || t.status === 'upcoming' || t.status === 'live');
         // Sort by newest first

@@ -159,7 +159,7 @@ export default function AdminLayout({ children }) {
           const res = await fetch(`${API_URL}/api/players`);
           if (res.ok) {
             const data = await res.json();
-            const pendingCount = data.filter(p => p.status === 'pending').length;
+            const pendingCount = data.filter(p => p.status === 'pending' && (!selectedAuction || p.tournamentId === selectedAuction._id)).length;
             setPendingApplications(prev => {
               if (pendingCount > prev && prev !== 0) {
                 // Flash alert or sound could be triggered here

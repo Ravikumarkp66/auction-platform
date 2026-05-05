@@ -6,6 +6,7 @@ import Link from "next/link";
 import { User, Search, Plus, Filter, AlertTriangle, ShieldCheck, Check, X, AlertCircle, Hash, Trophy, MousePointer2, Edit3, FileSpreadsheet, RefreshCw, Download, Shuffle, Zap, ShieldAlert, Eye } from "lucide-react";
 import * as XLSX from "xlsx";
 import { useAuction } from "../layout";
+import { useSession } from "next-auth/react";
 import { io } from "socket.io-client";
 import ImageEditModal from "../../../components/ImageEditModal";
 import jsPDF from "jspdf";
@@ -25,7 +26,15 @@ export default function PlayersRegistry() {
 }
 
 function PlayersRegistryContent() {
+  const { data: session, status } = useSession();
   const { selectedAuction } = useAuction();
+
+  useEffect(() => {
+    if (session) {
+      console.log("[AUTH DEBUG] Full Session Object:", JSON.stringify(session, null, 2));
+      console.log("[AUTH DEBUG] Token Status:", !!session.accessToken ? "Valid" : "Missing");
+    }
+  }, [session]);
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab");
   
@@ -173,9 +182,8 @@ function PlayersRegistryContent() {
     if (!selectedAuction?._id) return;
     setLoading(true);
     try {
-      const statusParam = activeTab === "ALL" ? "ALL" : activeTab.toLowerCase();
       const [pRes, tRes] = await Promise.all([
-        fetch(`${API_URL}/api/players?tournamentId=${selectedAuction._id}&status=${statusParam}&isIcon=false`),
+        fetch(`${API_URL}/api/players?tournamentId=${selectedAuction._id}&isIcon=false`),
         fetch(`${API_URL}/api/teams?tournamentId=${selectedAuction._id}`)
       ]);
       const pData = await pRes.json();
@@ -201,7 +209,8 @@ function PlayersRegistryContent() {
     setLoading(true);
     try {
       const res = await fetch(`${API_URL}/api/players/${p._id}/approve`, {
-        method: "POST"
+        method: "POST",
+        headers: { "Authorization": `Bearer ${session?.accessToken}` }
       });
       if (res.ok) {
         alert("Player approved and added to auction pool!");
@@ -253,7 +262,10 @@ function PlayersRegistryContent() {
        // 2. Save Player with CORRECT data structure
        const res = await fetch(`${API_URL}/api/players`, {
          method: "POST",
-         headers: { "Content-Type": "application/json" },
+         headers: { 
+           "Content-Type": "application/json",
+           "Authorization": `Bearer ${session?.accessToken}`
+         },
          body: JSON.stringify({ 
            ...newPlayer, 
            tournamentId: selectedAuction._id,
@@ -335,7 +347,10 @@ function PlayersRegistryContent() {
 
             const res = await fetch(`${API_URL}/api/players/import`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { 
+                  "Content-Type": "application/json",
+                  "Authorization": `Bearer ${session?.accessToken}`
+                },
                 body: JSON.stringify({ players, tournamentId: selectedAuction._id })
             });
 
@@ -363,7 +378,10 @@ function PlayersRegistryContent() {
     try {
       const res = await fetch(`${API_URL}/api/players/${editingPlayer._id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session?.accessToken}`
+        },
         body: JSON.stringify(formData)
       });
       if (res.ok) {
@@ -377,17 +395,35 @@ function PlayersRegistryContent() {
 
   const handleDeletePlayer = async (id) => {
     if (!confirm("Are you sure you want to delete this player? The list will be re-indexed automatically.")) return;
+    
+    // ✅ Session Guard
+    if (!session?.accessToken) {
+       alert("Error: Authentication token not found. Please log out and log back in.");
+       console.error("[AUTH ERROR] Cannot delete: session.accessToken is undefined");
+       return;
+    }
+
     setLoading(true);
     try {
       const res = await fetch(`${API_URL}/api/players/${id}`, {
-        method: "DELETE"
+        method: "DELETE",
+        headers: { 
+          "Authorization": `Bearer ${session.accessToken}`,
+          "Content-Type": "application/json"
+        }
       });
+      
+      if (res.status === 401) {
+         alert("Session expired or unauthorized. Please re-login.");
+         return;
+      }
+
       if (res.ok) {
         alert("Player deleted and list re-indexed!");
         fetchData();
       }
     } catch (err) {
-      alert("Delete failed");
+      alert("Delete failed: " + err.message);
     } finally {
       setLoading(false);
     }
@@ -398,7 +434,10 @@ function PlayersRegistryContent() {
     try {
       const res = await fetch(`${API_URL}/api/players/jumble`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session?.accessToken}`
+        },
         body: JSON.stringify({ tournamentId: selectedAuction._id })
       });
       if (res.ok) {
@@ -413,7 +452,10 @@ function PlayersRegistryContent() {
     try {
       const res = await fetch(`${API_URL}/api/players/revert-order`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session?.accessToken}`
+        },
         body: JSON.stringify({ tournamentId: selectedAuction._id })
       });
       if (res.ok) {
@@ -681,7 +723,11 @@ function PlayersRegistryContent() {
     }
   };
 
-  const filtered = players.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
+  const filtered = players.filter(p => {
+    const matchesSearch = (p.name || "").toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesTab = activeTab === "ALL" || (p.status || "").toUpperCase() === activeTab;
+    return matchesSearch && matchesTab;
+  });
 
   if (!selectedAuction) return <div className="p-20 text-center text-slate-500">Select context...</div>;
 
@@ -1175,7 +1221,10 @@ function PlayersRegistryContent() {
                 // 3. Update DB
                 const res = await fetch(`${API_URL}/api/players/${editImageTarget.id}`, {
                   method: "PATCH",
-                  headers: { "Content-Type": "application/json" },
+                  headers: { 
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${session?.accessToken}`
+                  },
                   body: JSON.stringify({ imageUrl: fileUrl })
                 });
 

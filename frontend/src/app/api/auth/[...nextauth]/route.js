@@ -9,7 +9,7 @@ const authOptions = {
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
       authorization: {
         params: {
-          scope: "openid email profile https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file",
+          scope: "openid email profile",
           access_type: "offline",
           response_type: "code"
         }
@@ -53,12 +53,43 @@ const authOptions = {
   callbacks: {
     async jwt({ token, user, account }) {
       if (user) {
-        // Use the role returned from our authorize function (from the backend)
-        token.role = user.role || "user";
+        // 1. Role Assignment
+        const adminEmails = (process.env.ADMIN_EMAILS || "").toLowerCase().split(",").map(e => e.trim());
+        const userEmail = (user.email || "").toLowerCase().trim();
+
+        if (adminEmails.includes(userEmail)) {
+          token.role = "admin";
+        } else {
+          token.role = user.role || "user";
+        }
+
+        // 2. Token Sync (Backend JWT)
+        if (user.token) {
+          // Credentials login provides the token directly
+          token.accessToken = user.token;
+        } else if (account?.provider === "google") {
+          // Google login needs to sync with backend to get a valid JWT
+          try {
+            console.log("[AUTH SYNC] Synchronizing Google User with Backend:", userEmail);
+            const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:5050";
+            const res = await fetch(`${apiBase}/api/auth/google-sync`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ email: userEmail })
+            });
+            const data = await res.json();
+            if (data.success && data.token) {
+              token.accessToken = data.token;
+              console.log("[AUTH SYNC] Backend JWT acquired successfully");
+            } else {
+              console.warn("[AUTH SYNC] Backend returned success but no token (likely not an admin)");
+            }
+          } catch (err) {
+            console.error("[AUTH SYNC] Backend sync failed:", err);
+          }
+        }
+        
         token.picture = user.picture || account?.picture;
-      }
-      if (account?.access_token) {
-        token.accessToken = account.access_token;
       }
       return token;
     },

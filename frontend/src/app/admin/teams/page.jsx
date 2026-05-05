@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Users, Search, Save, X, AlertTriangle, ShieldCheck, Trophy, AlertCircle, Edit3, ArrowUpRight } from "lucide-react";
 import { useAuction } from "../layout";
+import { useSession } from "next-auth/react";
 import { io } from "socket.io-client";
 import ImageEditModal from "../../../components/ImageEditModal";
 import { API_URL } from "../../../lib/apiConfig";
@@ -11,6 +12,7 @@ import { API_URL } from "../../../lib/apiConfig";
 let socket;
 
 export default function TeamsRegistry() {
+  const { data: session } = useSession();
   const { selectedAuction } = useAuction();
   const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -69,7 +71,10 @@ export default function TeamsRegistry() {
     try {
       const res = await fetch(`${API_URL}/api/teams/${editingTeam._id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session?.accessToken}`
+        },
         body: JSON.stringify(formData),
       });
 
@@ -305,7 +310,10 @@ export default function TeamsRegistry() {
                 
                 const res = await fetch(`${API_URL}/api/teams/${editImageTarget.id}`, {
                   method: "PATCH",
-                  headers: { "Content-Type": "application/json" },
+                  headers: { 
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${session?.accessToken}`
+                  },
                   body: JSON.stringify({ logoUrl: fileUrl })
                 });
 

@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const jwt = require('jsonwebtoken');
 
 // Admin login verification endpoint
 router.post('/login', async (req, res) => {
@@ -16,17 +17,22 @@ router.post('/login', async (req, res) => {
     const normalizedEmail = email.toLowerCase().trim();
     const normalizedPassword = password.trim();
 
-    console.log(`[AUTH] Attempt for: ${normalizedEmail}`);
-    console.log(`[AUTH] Admin Emails: ${JSON.stringify(adminEmails)}`);
-    
     if (adminEmails.includes(normalizedEmail) && normalizedPassword === adminPassword) {
+      const token = jwt.sign(
+        { userId: normalizedEmail, email: normalizedEmail, role: "admin" },
+        process.env.JWT_SECRET,
+        { expiresIn: '7d' }
+      );
+
       return res.json({
         success: true,
+        token,
         user: {
           id: normalizedEmail,
           email: normalizedEmail,
           name: "Admin",
-          role: "admin"
+          role: "admin",
+          token // Also attach to user object for NextAuth
         }
       });
     }
@@ -35,6 +41,31 @@ router.post('/login', async (req, res) => {
   } catch (err) {
     console.error("Backend auth error:", err);
     res.status(500).json({ success: false, message: "Server error during authentication" });
+  }
+});
+
+// Sync Google Login with Backend JWT
+router.post('/google-sync', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ message: "Email required" });
+
+    const adminEmails = (process.env.ADMIN_EMAILS || "").toLowerCase().split(",").map(e => e.trim());
+    const normalizedEmail = email.toLowerCase().trim();
+
+    if (adminEmails.includes(normalizedEmail)) {
+      const token = jwt.sign(
+        { userId: normalizedEmail, email: normalizedEmail, role: "admin" },
+        process.env.JWT_SECRET,
+        { expiresIn: '7d' }
+      );
+      return res.json({ success: true, token, role: "admin" });
+    }
+
+    return res.json({ success: true, role: "user" }); // No token for non-admins
+  } catch (err) {
+    console.error("Google sync error:", err);
+    res.status(500).json({ message: "Sync failed" });
   }
 });
 

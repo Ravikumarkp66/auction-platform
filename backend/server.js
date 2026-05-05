@@ -31,6 +31,7 @@ app.use(helmet({
       upgradeInsecureRequests: [],
     },
   },
+  crossOriginResourcePolicy: { policy: "cross-origin" },
   hsts: {
     maxAge: 31536000,  // 1 year
     includeSubDomains: true,
@@ -89,7 +90,7 @@ app.use(cors({
 // ===== RATE LIMITING =====
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,  // 15 minutes
-  max: 100,  // 100 requests per window
+  max: process.env.NODE_ENV === 'development' ? 5000 : 500, // Higher limit for dev
   message: {
     success: false,
     message: "Too many requests, please try again later"
@@ -97,7 +98,8 @@ const apiLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req) => {
-    // Skip rate limiting for health checks
+    // Skip rate limiting for health checks or in development if needed
+    if (process.env.NODE_ENV === 'development') return true;
     return req.path === '/api/health';
   }
 });

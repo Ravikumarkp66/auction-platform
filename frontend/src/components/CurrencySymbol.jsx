@@ -17,10 +17,10 @@ export default function CurrencySymbol({ unit, className = "", iconClassName = "
       label: "RS"
     },
     CR: {
-      bg: "bg-cyan-500/10",
-      border: "border-cyan-500/30",
-      text: "text-cyan-400",
-      label: "CR"
+      bg: "bg-emerald-500/10",
+      border: "border-emerald-500/30",
+      text: "text-emerald-400",
+      label: "₹"
     },
     PTS: {
       bg: "bg-amber-500/10",

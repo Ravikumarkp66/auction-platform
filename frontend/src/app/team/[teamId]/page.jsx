@@ -254,7 +254,7 @@ function TeamSquadContent() {
       const doc = new jsPDF();
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();
-      const tournamentTitle = "Parmeshwar Cup 2026";
+      const tournamentTitle = "CRICKET AUCTION";
       const teamName = team.name?.toUpperCase() || "SQUAD LIST";
       const budget = (team.purse || team.remainingBudget || 0).toLocaleString();
       // FORCE RESET character spacing (IMPORTANT: Fixes stretched text "B u d g e t")

@@ -16,8 +16,8 @@ try {
 }
 
 // ✅ Allowed file types for security
-const ALLOWED_FILE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-const ALLOWED_FOLDERS = ['players', 'teams', 'backgrounds', 'squads'];
+const ALLOWED_FILE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+const ALLOWED_FOLDERS = ['players', 'teams', 'backgrounds', 'squads', 'documents', 'banners'];
 
 // ✅ Whitelist of image sources to prevent SSRF
 const ALLOWED_IMAGE_SOURCES = [
@@ -163,7 +163,6 @@ router.post("/proxy-batch",
 );
 
 router.get("/get-upload-url",
-  authMiddleware,
   async (req, res) => {
     if (!s3 || !process.env.S3_BUCKET) {
       return res.status(503).json({ error: "S3 is not configured" });
