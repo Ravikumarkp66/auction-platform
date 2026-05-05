@@ -9,16 +9,16 @@ const ResultOverlay = ({ type, playerName, price, teamName, teamLogo, teamColor,
   const [displayPrice, setDisplayPrice] = useState(0);
   const [pricePulse, setPricePulse] = useState(false);
   const [priceProgress, setPriceProgress] = useState(0);
-  
+
   // Device detection
   const [isMobile, setIsMobile] = useState(false);
-  
+
   useEffect(() => {
     // Check if mobile on mount and resize
     const checkMobile = () => {
       setIsMobile(typeof window !== 'undefined' && window.innerWidth < 768);
     };
-    
+
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
@@ -27,13 +27,13 @@ const ResultOverlay = ({ type, playerName, price, teamName, teamLogo, teamColor,
   // Add keyboard skip + universal tap/click support
   useEffect(() => {
     if (!onSkip) return;
-    
+
     const handleKeyDown = (e) => {
       if (e.key === 'Enter') {
         onSkip();
       }
     };
-    
+
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onSkip]);
@@ -50,6 +50,14 @@ const ResultOverlay = ({ type, playerName, price, teamName, teamLogo, teamColor,
   useEffect(() => {
     console.log("ResultOverlay mounted with type:", type);
     if (isSold) {
+      setShowHammer(false);
+      setIsImpact(false);
+      setShowLogo(false);
+      setShowTeamName(false);
+      setDisplayPrice(0);
+      setPricePulse(false);
+      setPriceProgress(0);
+
       console.log("Sold event detected, starting hammer animation sequence...");
       const s1 = setTimeout(() => {
         console.log("Triggering hammer appearance");
@@ -70,15 +78,15 @@ const ResultOverlay = ({ type, playerName, price, teamName, teamLogo, teamColor,
         setShowHammer(false);
       }, 2500);
 
-      return () => { 
-        clearTimeout(s1); 
-        clearTimeout(s2); 
-        clearTimeout(s3); 
-        clearTimeout(s4); 
-        clearTimeout(s5); 
+      return () => {
+        clearTimeout(s1);
+        clearTimeout(s2);
+        clearTimeout(s3);
+        clearTimeout(s4);
+        clearTimeout(s5);
       };
     }
-  }, [isSold]);
+  }, [isSold, type, playerName, price, teamName, teamLogo, teamShortName, playerImage]);
 
   // Price count-up animation
   useEffect(() => {
@@ -95,10 +103,10 @@ const ResultOverlay = ({ type, playerName, price, teamName, teamLogo, teamColor,
     const animate = (currentTime) => {
       if (!startTime) startTime = currentTime;
       const progress = Math.min((currentTime - startTime) / duration, 1);
-      
+
       const easeOut = 1 - Math.pow(1 - progress, 3); // cubic ease out
       const currentValue = Math.floor(easeOut * price);
-      
+
       setDisplayPrice(currentValue);
       setPriceProgress(easeOut);
 
@@ -117,17 +125,17 @@ const ResultOverlay = ({ type, playerName, price, teamName, teamLogo, teamColor,
     return () => {
       if (animationFrame) cancelAnimationFrame(animationFrame);
     };
-  }, [price, type]);
+  }, [price, type, playerName, teamName, teamLogo, teamShortName, playerImage]);
 
   return (
-    <div 
-      className={`fixed inset-0 z-[1000] flex items-center justify-center bg-black/80 backdrop-blur-md transition-opacity duration-300 overflow-hidden ${isImpact ? 'animate-shake' : ''}`}
+    <div
+      className={`fixed inset-0 z-1000 flex items-center justify-center bg-black/80 backdrop-blur-md transition-opacity duration-300 overflow-hidden ${isImpact ? 'animate-shake' : ''}`}
       onClick={handleSkip}
     >
-      
+
       {/* Screen flash on impact */}
-      <div 
-        className="absolute inset-0 bg-white/80 z-[1002] pointer-events-none mix-blend-overlay"
+      <div
+        className="absolute inset-0 bg-white/80 z-1002 pointer-events-none mix-blend-overlay"
         style={{
           opacity: isImpact ? 0.3 : 0,
           transition: isImpact ? 'none' : 'opacity 0.8s ease-out',
@@ -136,8 +144,8 @@ const ResultOverlay = ({ type, playerName, price, teamName, teamLogo, teamColor,
 
       {/* Background Player Image (Dimmed) */}
       {playerImage && (
-        <div 
-          className={`absolute inset-0 opacity-20 scale-110 transition-transform duration-[3000ms] ease-out ${!isSold ? 'grayscale' : ''}`}
+        <div
+          className={`absolute inset-0 opacity-20 scale-110 transition-transform duration-3000 ease-out ${!isSold ? 'grayscale' : ''}`}
           style={{
             backgroundImage: `url(${playerImage})`,
             backgroundSize: 'cover',
@@ -149,7 +157,7 @@ const ResultOverlay = ({ type, playerName, price, teamName, teamLogo, teamColor,
       )}
 
       {/* Content Container */}
-      <div 
+      <div
         className="relative z-10 flex flex-col items-center justify-center text-center px-4"
         style={{ animation: 'scaleUp 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards' }}
         onClick={(e) => e.stopPropagation()} // Prevent closing when clicking content
@@ -157,26 +165,26 @@ const ResultOverlay = ({ type, playerName, price, teamName, teamLogo, teamColor,
         <p className="text-xl md:text-3xl font-black uppercase tracking-[0.5em] text-white/70 mb-4 drop-shadow-lg">
           {playerName}
         </p>
-        
+
         {isSold ? (
           <>
             <div className="relative group">
               <h1 className={`text-7xl md:text-9xl font-black italic uppercase text-white tracking-tighter mb-2 transition-transform duration-150 ${isImpact ? 'scale-110' : 'scale-100'}`}
-                  style={{
-                    textShadow: '0 0 20px #10b981, 0 0 40px #059669, 0 0 80px #047857',
-                    WebkitTextStroke: '2px #34d399'
-                  }}>
+                style={{
+                  textShadow: '0 0 20px #10b981, 0 0 40px #059669, 0 0 80px #047857',
+                  WebkitTextStroke: '2px #34d399'
+                }}>
                 SOLD
               </h1>
               {/* Light sweep effect */}
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-0 mix-blend-overlay w-[200%] -translate-x-[100%]"
-                   style={{
-                     animation: 'sweep 1.5s ease-in-out infinite'
-                   }} />
+              <div className="absolute inset-0 bg-linear-to-r from-transparent via-white to-transparent opacity-0 mix-blend-overlay w-[200%] -translate-x-full"
+                style={{
+                  animation: 'sweep 1.5s ease-in-out infinite'
+                }} />
             </div>
-            
+
             <div className={`mt-6 transition-transform duration-200 ${pricePulse ? 'scale-110' : 'scale-100'}`}>
-              <p 
+              <p
                 className="text-5xl md:text-7xl font-black text-[#34d399] tracking-tighter"
                 style={{
                   filter: `drop-shadow(0 0 ${15 * priceProgress}px rgba(16,185,129,${0.8 * priceProgress}))`
@@ -189,14 +197,14 @@ const ResultOverlay = ({ type, playerName, price, teamName, teamLogo, teamColor,
                 </span>
               </p>
             </div>
-            
-            <div className="relative flex flex-col items-center justify-start mt-6 min-h-[160px] w-full z-10">
+
+            <div className="relative flex flex-col items-center justify-start mt-6 min-h-40 w-full z-10">
               {/* Exact Landing Zone Mapping */}
               <div className="relative w-24 h-24 md:w-28 md:h-28 flex items-center justify-center">
 
                 {/* Impact Circle Flash precisely inside the landing zone */}
                 {isImpact && (
-                  <div 
+                  <div
                     className="absolute pointer-events-none rounded-full bg-white/90 z-0 blur-lg"
                     style={{
                       width: '150px',
@@ -211,12 +219,12 @@ const ResultOverlay = ({ type, playerName, price, teamName, teamLogo, teamColor,
 
                 {/* Cinematic SVG Hammer directly targeting parent wrapper */}
                 {showHammer && (
-                  <div 
-                    className="absolute z-[9999] pointer-events-none"
+                  <div
+                    className="absolute z-9999 pointer-events-none"
                     style={{
-                      top: '50%', 
+                      top: '50%',
                       left: '50%',
-                      transform: isImpact 
+                      transform: isImpact
                         ? 'translate(-50%, -50%) rotate(-20deg) scale(1.4)'  // Perfectly centered on logo
                         : 'translate(150%, -200%) rotate(45deg) scale(1.4)',  // Arrives from top right
                       transition: 'transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)', // Added overshoot for "thump" feel
@@ -228,12 +236,12 @@ const ResultOverlay = ({ type, playerName, price, teamName, teamLogo, teamColor,
                       {/* Handle */}
                       <rect x="44" y="25" width="12" height="65" rx="4" fill="url(#woodGrad)" />
                       <rect x="42" y="80" width="16" height="10" rx="3" fill="#3e2723" />
-                      
+
                       {/* Head */}
                       <path d="M20 20 L80 20 A6 6 0 0 1 86 26 L86 34 A6 6 0 0 1 80 40 L20 40 A6 6 0 0 1 14 34 L14 26 A6 6 0 0 1 20 20 Z" fill="url(#metalGrad)" />
                       {/* Ridges */}
-                      <rect x="16" y="20" width="8" height="20" fill="#cbd5e1" opacity="0.4"/>
-                      <rect x="76" y="20" width="8" height="20" fill="#64748b" opacity="0.4"/>
+                      <rect x="16" y="20" width="8" height="20" fill="#cbd5e1" opacity="0.4" />
+                      <rect x="76" y="20" width="8" height="20" fill="#64748b" opacity="0.4" />
 
                       <defs>
                         <linearGradient id="metalGrad" x1="0%" y1="0%" x2="0%" y2="100%">
@@ -253,7 +261,7 @@ const ResultOverlay = ({ type, playerName, price, teamName, teamLogo, teamColor,
 
                 {/* The Logo Appears Exactly Here */}
                 {teamLogo && (
-                  <div 
+                  <div
                     style={{
                       opacity: showLogo ? 1 : 0,
                       transform: showLogo ? 'scale(1)' : 'scale(0.5)',
@@ -266,8 +274,8 @@ const ResultOverlay = ({ type, playerName, price, teamName, teamLogo, teamColor,
                   </div>
                 )}
               </div>
-              
-              <div 
+
+              <div
                 style={{
                   opacity: showTeamName ? 1 : 0,
                   transform: showTeamName ? 'translateY(0)' : 'translateY(10px)',
@@ -282,7 +290,7 @@ const ResultOverlay = ({ type, playerName, price, teamName, teamLogo, teamColor,
 
               {/* TEAM SHORT NAME BADGE */}
               {teamShortName && (
-                <div 
+                <div
                   className="absolute -top-2 -right-2 bg-[#ff6b35] text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg z-20"
                   style={{ backgroundColor: teamColor || '#ff6b35' }}
                 >
@@ -290,19 +298,19 @@ const ResultOverlay = ({ type, playerName, price, teamName, teamLogo, teamColor,
                 </div>
               )}
             </div>
-            
+
             {/* Confetti / Particle placeholders */}
             <div className="absolute inset-0 pointer-events-none flex justify-center items-center">
-               {/* Extremely simple CSS particles just using glow positioning could go here, but omitted to stay lightweight */}
+              {/* Extremely simple CSS particles just using glow positioning could go here, but omitted to stay lightweight */}
             </div>
           </>
         ) : (
           <>
             <h1 className="text-7xl md:text-9xl font-black italic uppercase text-white tracking-widest mb-4"
-                style={{
-                  textShadow: '0 0 30px #dc2626, 0 0 60px #991b1b, 0 0 90px #7f1d1d',
-                  animation: 'pulseGlowRed 2s infinite alternate'
-                }}>
+              style={{
+                textShadow: '0 0 30px #dc2626, 0 0 60px #991b1b, 0 0 90px #7f1d1d',
+                animation: 'pulseGlowRed 2s infinite alternate'
+              }}>
               UNSOLD
             </h1>
             <p className="text-2xl md:text-4xl font-black text-red-500 mt-2 uppercase tracking-[0.3em] drop-shadow-[0_0_10px_rgba(239,68,68,0.8)]">
@@ -314,7 +322,7 @@ const ResultOverlay = ({ type, playerName, price, teamName, teamLogo, teamColor,
 
       {/* Skip instruction */}
       {onSkip && (
-        <div 
+        <div
           className="absolute bottom-8 left-1/2 -translate-x-1/2 text-white/40 text-xs md:text-sm font-bold tracking-widest uppercase animate-pulse cursor-pointer hover:text-white/70 transition-colors"
           onClick={(e) => {
             e.stopPropagation();

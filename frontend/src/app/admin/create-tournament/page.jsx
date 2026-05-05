@@ -237,7 +237,7 @@ function ProgressBar({ step, onStepClick }) {
                 w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs
                 transition-all duration-300
                 ${done   ? "bg-emerald-500 shadow-[0_0_14px_rgba(16,185,129,0.6)]" :
-                  active ? "bg-gradient-to-br from-violet-500 to-cyan-400 shadow-[0_0_20px_rgba(124,58,237,0.7)] scale-110" :
+                  active ? "bg-linear-to-br from-violet-500 to-cyan-400 shadow-[0_0_20px_rgba(124,58,237,0.7)] scale-110" :
                            "bg-white/5 border border-white/10 text-slate-500 group-hover:bg-white/10 group-hover:border-white/20"}
               `}>
                 {done ? <CheckCircle className="w-5 h-5 text-white" /> : (
@@ -329,7 +329,7 @@ function NavButtons({ step, onPrev, onNext, onLaunch, launching }) {
       {step < TOTAL_STEPS ? (
         <button onClick={onNext}
           className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm text-white
-            bg-gradient-to-r from-violet-600 to-cyan-500
+            bg-linear-to-r from-violet-600 to-cyan-500
             shadow-[0_0_18px_rgba(124,58,237,0.4)]
             hover:shadow-[0_0_26px_rgba(124,58,237,0.7)]
             hover:scale-105 transition-all`}>
@@ -338,7 +338,7 @@ function NavButtons({ step, onPrev, onNext, onLaunch, launching }) {
       ) : (
         <button onClick={onLaunch} disabled={launching}
           className={`flex items-center gap-2 px-8 py-2.5 rounded-xl font-black text-sm text-black
-            bg-gradient-to-r from-yellow-400 to-yellow-500
+            bg-linear-to-r from-yellow-400 to-yellow-500
             shadow-[0_0_20px_rgba(255,215,0,0.5)]
             hover:shadow-[0_0_32px_rgba(255,215,0,0.8)]
             hover:scale-105 disabled:opacity-60 disabled:cursor-not-allowed transition-all`}>
@@ -1243,7 +1243,7 @@ export default function CreateTournamentWizard() {
             {/* ── TOURNAMENT LOGO UPLOAD ── */}
             <div className="md:col-span-2">
                  <Field label="Tournament / Organizer Logo" hint="Shown on posters, overlays and dashboards (Ideal: Transparent PNG)">
-                    <div className="flex items-center gap-6 p-6 rounded-[2rem] bg-slate-900/50 border border-white/5 relative overflow-hidden group">
+                    <div className="flex items-center gap-6 p-6 rounded-4xl bg-slate-900/50 border border-white/5 relative overflow-hidden group">
                         <div className="absolute top-0 right-0 w-32 h-32 bg-violet-600/5 blur-[50px] pointer-events-none" />
                         
                         <div className="relative w-24 h-24 shrink-0 bg-[#0B0F2A] rounded-2xl border-2 border-dashed border-white/10 flex items-center justify-center overflow-hidden transition-all hover:border-violet-500/30">
@@ -1588,9 +1588,9 @@ export default function CreateTournamentWizard() {
             )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[380px] overflow-y-auto pr-1 custom-scrollbar">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-95 overflow-y-auto pr-1 custom-scrollbar">
             {teams.map((team, i) => (
-              <div key={i} className={`bg-white/[0.03] border ${errors.teams?.[i]?.name || errors.teams?.[i]?.shortName ? "border-red-500/40" : "border-white/10"} rounded-2xl p-5 flex items-center gap-4`}>
+              <div key={i} className={`bg-white/3 border ${errors.teams?.[i]?.name || errors.teams?.[i]?.shortName ? "border-red-500/40" : "border-white/10"} rounded-2xl p-5 flex items-center gap-4`}>
                 {/* Logo */}
                 <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-white/10 bg-white/5 flex items-center justify-center cursor-pointer hover:border-violet-500/50 transition-all shrink-0 group">
                   {team.logoUrl
@@ -1696,7 +1696,7 @@ export default function CreateTournamentWizard() {
             )}
           </div>
 
-          <div className="space-y-6 max-h-[380px] overflow-y-auto pr-1 custom-scrollbar">
+          <div className="space-y-6 max-h-95 overflow-y-auto pr-1 custom-scrollbar">
             {teams.map((team, ti) => {
               const teamIcons = icons.filter(ic => ic.teamIdx === ti);
               if (teamIcons.length === 0) return null;
@@ -1721,7 +1721,7 @@ export default function CreateTournamentWizard() {
                       const globalIdx = icons.findIndex((ic, gi) => ic.teamIdx === ti && (icons.filter((x, xi) => x.teamIdx === ti && xi < gi).length === ii));
                       const err = errors.icons?.[globalIdx]?.name;
                       return (
-                        <div key={ii} className={`bg-white/[0.03] border ${err ? "border-red-500/40" : "border-white/8"} rounded-xl p-4 flex flex-col md:flex-row gap-4`}>
+                        <div key={ii} className={`bg-white/3 border ${err ? "border-red-500/40" : "border-white/8"} rounded-xl p-4 flex flex-col md:flex-row gap-4`}>
                           {/* Icon Photo edit */}
                           <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-white/10 bg-white/5 flex items-center justify-center cursor-pointer hover:border-violet-500/50 transition-all shrink-0 group">
                             {icon.imageUrl
@@ -1907,8 +1907,8 @@ export default function CreateTournamentWizard() {
 
                   {showReuploadMenu && (
                     <>
-                      <div className="fixed inset-0 z-[190]" onClick={() => setShowReuploadMenu(false)} />
-                      <div className="absolute right-0 top-full mt-2 w-48 bg-[#0B0F2A]/95 backdrop-blur-xl border border-white/10 rounded-2xl p-2 shadow-2xl z-[200] animate-in fade-in slide-in-from-top-2 duration-200">
+                      <div className="fixed inset-0 z-190" onClick={() => setShowReuploadMenu(false)} />
+                      <div className="absolute right-0 top-full mt-2 w-48 bg-[#0B0F2A]/95 backdrop-blur-xl border border-white/10 rounded-2xl p-2 shadow-2xl z-200 animate-in fade-in slide-in-from-top-2 duration-200">
                         <button 
                           onClick={() => {
                             setShowReuploadMenu(false);
@@ -1940,7 +1940,7 @@ export default function CreateTournamentWizard() {
 
               {/* Preview table */}
               <div className="rounded-2xl border border-white/10 overflow-hidden">
-                <div className={`grid px-5 py-3 bg-white/[0.03] text-[10px] font-black uppercase tracking-widest text-slate-500 border-b border-white/10 gap-3 grid-cols-[60px_1fr_1fr_1fr_1fr_120px_50px]`}>
+                <div className={`grid px-5 py-3 bg-white/3 text-[10px] font-black uppercase tracking-widest text-slate-500 border-b border-white/10 gap-3 grid-cols-[60px_1fr_1fr_1fr_1fr_120px_50px]`}>
                   <span>Photo</span>
                   <span>Name</span>
                   <span>Village</span>
@@ -1949,7 +1949,7 @@ export default function CreateTournamentWizard() {
                   <span className="text-right">Price</span>
                   <span></span>
                 </div>
-                <div className="max-h-[380px] overflow-y-auto divide-y divide-white/5 custom-scrollbar">
+                <div className="max-h-95 overflow-y-auto divide-y divide-white/5 custom-scrollbar">
                   {players.map((p, i) => {
                     const nameError = hasNonEng(p.name);
                     const villageError = hasNonEng(p.village);
@@ -1957,12 +1957,12 @@ export default function CreateTournamentWizard() {
 
                     return (
                       <div key={i} className={`grid px-5 py-2.5 items-center transition-colors gap-3 grid-cols-[60px_1fr_1fr_1fr_1fr_120px_50px]
-                        ${rowError ? "bg-red-500/[0.15] border-l-2 border-l-red-500" : "hover:bg-white/[0.02]"}`}>
+                        ${rowError ? "bg-red-500/15 border-l-2 border-l-red-500" : "hover:bg-white/2"}`}>
                         {/* Photo Column */}
                         <div className="relative w-10 h-10 rounded-lg overflow-hidden border border-white/10 bg-white/5 flex items-center justify-center cursor-pointer hover:border-violet-500/50 transition-all shrink-0 group">
                         {p.imageLoading ? (
                           // Shimmer placeholder while S3 is processing
-                          <div className={`w-full h-full bg-gradient-to-r from-white/5 via-white/10 to-white/5 
+                          <div className={`w-full h-full bg-linear-to-r from-white/5 via-white/10 to-white/5 
                             animate-pulse rounded`} />
                         ) : p.imageUrl ? (
                           <img src={p.imageUrl} alt="" className="w-full h-full object-cover" />
@@ -2050,9 +2050,9 @@ export default function CreateTournamentWizard() {
         <StepCard step={5}>
           <div className="space-y-5">
             {/* Tournament header */}
-            <div className="rounded-2xl bg-gradient-to-br from-violet-600/20 to-cyan-500/10 border border-violet-500/20 p-6">
+            <div className="rounded-2xl bg-linear-to-br from-violet-600/20 to-cyan-500/10 border border-violet-500/20 p-6">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-600 to-cyan-500 flex items-center justify-center text-2xl shadow-lg shadow-violet-500/30">🏆</div>
+                <div className="w-12 h-12 rounded-2xl bg-linear-to-br from-violet-600 to-cyan-500 flex items-center justify-center text-2xl shadow-lg shadow-violet-500/30">🏆</div>
                 <div>
                   <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Tournament</p>
                   <h3 className="text-xl font-black text-white">{config.name}</h3>
@@ -2075,7 +2075,7 @@ export default function CreateTournamentWizard() {
                       : `₹${Number(config.baseBudget).toLocaleString()}`,
                     icon: config.auctionMode === 'points' ? "⚡" : "💰" },
                 ].map(({ label, val, icon }) => (
-                  <div key={label} className="bg-white/[0.04] rounded-xl p-4 text-center border border-white/8">
+                  <div key={label} className="bg-white/4 rounded-xl p-4 text-center border border-white/8">
                     <p className="text-2xl mb-1">{icon}</p>
                     <p className="text-lg font-black text-white">{val}</p>
                     <p className="text-[10px] text-slate-500 uppercase tracking-widest mt-0.5">{label}</p>
@@ -2094,7 +2094,7 @@ export default function CreateTournamentWizard() {
                   const deducted = config.auctionMode === 'points' ? (retainedCount * rulesConfig.retention.costPerPlayer) : 0;
                   const pointsLabel = config.auctionMode === 'points' ? "Pts" : "₹";
                   return (
-                    <div key={i} className="flex items-center justify-between bg-white/[0.04] border border-white/10 rounded-xl px-4 py-3">
+                    <div key={i} className="flex items-center justify-between bg-white/4 border border-white/10 rounded-xl px-4 py-3">
                       <div className="flex items-center gap-2">
                         {t.logoUrl
                           ? <img src={t.logoUrl} className="w-8 h-8 rounded object-cover" alt="" />

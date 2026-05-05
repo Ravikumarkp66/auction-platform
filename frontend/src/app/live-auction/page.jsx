@@ -124,6 +124,8 @@ function LiveAuctionContent() {
   };
 
   // Year distribution logic removed as per user request to restore old system
+  const canBidForPlayerYear = () => true;
+  const getYearRestrictionReason = () => null;
 
   // Get bid restriction reason
   const getBidRestrictionReason = (team) => {
@@ -209,6 +211,22 @@ function LiveAuctionContent() {
   const normalizeYearCategory = (player) => {
     if (!player) return "N/A";
     return player.year || player.category || "N/A";
+  };
+
+  const getYearDistribution = (team) => {
+    if (!team) return {};
+
+    if (team.yearDistribution && typeof team.yearDistribution === "object") {
+      return team.yearDistribution;
+    }
+
+    const distribution = {};
+    (team.players || []).forEach((teamPlayer) => {
+      const year = normalizeYearCategory(teamPlayer);
+      distribution[year] = (distribution[year] || 0) + 1;
+    });
+
+    return distribution;
   };
 
   // Get base price based on auction type
@@ -886,9 +904,11 @@ function LiveAuctionContent() {
     // DEBUG: Log year distribution after sale
     const updatedWinningTeam = updatedTeams.find(t => t.id === highestBidder);
     const newDistribution = getYearDistribution(updatedWinningTeam);
-    console.log(`🏏 PLAYER SOLD: ${player.name} (${normalizeYearCategory(player)}) to ${updatedWinningTeam.name}`);
-    console.log(`📊 New Year Distribution for ${updatedWinningTeam.name}:`, newDistribution);
-    console.log(`📋 All players in ${updatedWinningTeam.name}:`, updatedWinningTeam.players.map(p => `${p.name} (${normalizeYearCategory(p)})`));
+    const winningTeamName = updatedWinningTeam?.name || "Unknown Team";
+    const winningTeamPlayers = updatedWinningTeam?.players || [];
+    console.log(`🏏 PLAYER SOLD: ${player.name} (${normalizeYearCategory(player)}) to ${winningTeamName}`);
+    console.log(`📊 New Year Distribution for ${winningTeamName}:`, newDistribution);
+    console.log(`📋 All players in ${winningTeamName}:`, winningTeamPlayers.map(p => `${p.name} (${normalizeYearCategory(p)})`));
 
     const updatedPlayers = [...players]
     updatedPlayers[currentPlayerIndex] = {
@@ -928,7 +948,10 @@ function LiveAuctionContent() {
         // Update player with team assignment and BID HISTORY
         fetch(`${API_URL}/api/players/${player.id}`, {
           method: "PATCH",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            ...(session?.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : {})
+          },
           body: JSON.stringify({
             status: "sold",
             soldPrice: currentBid,
@@ -944,7 +967,10 @@ function LiveAuctionContent() {
         // Update team remaining budget
         fetch(`${API_URL}/api/teams/${highestBidder}`, {
           method: "PATCH",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            ...(session?.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : {})
+          },
           body: JSON.stringify({
             remainingBudget: newBudget
           })
@@ -1039,9 +1065,14 @@ function LiveAuctionContent() {
 
     // Persist unsold status on backend
     try {
+      const headers = {
+        "Content-Type": "application/json",
+        ...(session?.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : {})
+      };
+
       const res = await fetch(`${API_URL}/api/players/${player.id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({
           status: "unsold",
           soldPrice: 0,
@@ -1067,33 +1098,67 @@ function LiveAuctionContent() {
 
   // Revert a sold/unsold player - put back to auction and adjust budgets
   const revertSale = async () => {
-    if (!player) return;
-    if (player.isIcon) return;
-    if (player.status !== "sold" && player.status !== "unsold") return;
+    if (!player) {
+      console.error("❌ No player selected");
+      return;
+    }
+    if (player.isIcon) {
+      console.error("❌ Cannot revert Icon player");
+      return;
+    }
+    if (player.status === "pending") {
+      console.warn("⚠️ Pending players cannot be reverted from the auction screen");
+      return;
+    }
+    if (player.status !== "sold" && player.status !== "unsold") {
+      console.error(`❌ Invalid player status: ${player.status}`);
+      return;
+    }
 
     if (player.status === "unsold") {
       if (!confirm(`Revert UNSOLD status for ${player.name}?\n\nThis will put the player back into the active auction.\n\nContinue?`)) return;
+
+      const playerId = player.id || player._id;
+      console.log(`🔄 Reverting UNSOLD player:`, { name: player.name, id: playerId, status: player.status });
 
       const updatedPlayers = [...players];
       updatedPlayers[currentPlayerIndex] = {
         ...player,
         status: "available"
       };
+
+      // Update local state immediately
       setPlayers(updatedPlayers);
       setResult(null); // Clear the UNSOLD overlay
+      setCurrentBid(0);
+      setHighestBidder(null);
 
       try {
-        const res = await fetch(`${API_URL}/api/players/${player.id}`, {
+        console.log(`📡 Sending API request to revert player ${playerId}...`);
+
+        // Get the session token if available
+        let headers = { "Content-Type": "application/json" };
+        if (session?.accessToken) {
+          headers.Authorization = `Bearer ${session.accessToken}`;
+          console.log(`🔐 Using session token for auth`);
+        } else {
+          console.warn(`⚠️ No accessToken found in session`);
+        }
+
+        const res = await fetch(`${API_URL}/api/players/${playerId}`, {
           method: "PATCH",
-          headers: { "Content-Type": "application/json" },
+          headers,
+          credentials: 'include',
           body: JSON.stringify({
             status: "available"
           })
         });
+
+        const resText = await res.text();
+        console.log(`📥 API Response Status: ${res.status}, Body: ${resText}`);
+
         if (res.ok) {
           console.log(`✅ REVERTED: ${player.name} back to auction from UNSOLD`);
-          setCurrentBid(0);
-          setHighestBidder(null);
           if (socket) {
             socket.emit('auctionUpdate', {
               player: updatedPlayers[currentPlayerIndex],
@@ -1106,9 +1171,27 @@ function LiveAuctionContent() {
               timestamp: Date.now()
             });
           }
+        } else {
+          // Revert state if API call failed
+          console.error(`❌ API Error: ${res.status} - ${resText}`);
+          const revertedPlayers = [...updatedPlayers];
+          revertedPlayers[currentPlayerIndex] = player;
+          setPlayers(revertedPlayers);
+          setResult({ status: "unsold", player });
+          setCurrentBid(0);
+          setHighestBidder(null);
+          alert(`Failed to revert: ${res.status} ${resText}`);
         }
       } catch (err) {
-        console.error("Error reverting unsold:", err);
+        console.error("❌ Error reverting unsold:", err);
+        // Revert state on error
+        const revertedPlayers = [...updatedPlayers];
+        revertedPlayers[currentPlayerIndex] = player;
+        setPlayers(revertedPlayers);
+        setResult({ status: "unsold", player });
+        setCurrentBid(0);
+        setHighestBidder(null);
+        alert(`Error: ${err.message}`);
       }
       return;
     }
@@ -2278,6 +2361,14 @@ function LiveAuctionContent() {
                             </button>
                           </>
                         )}
+                      </div>
+                    ) : player.status === "pending" ? (
+                      <div className="text-center animate-in fade-in duration-500">
+                        <div className="w-12 h-12 bg-slate-900 rounded-full flex items-center justify-center mb-3 mx-auto border border-slate-700/60">
+                          <span className="text-2xl">⏳</span>
+                        </div>
+                        <h1 className="text-3xl font-black text-slate-300 leading-none uppercase italic">Pending</h1>
+                        <p className="text-[10px] text-slate-500 uppercase font-black mt-3 tracking-widest">Registration not in auction yet</p>
                       </div>
                     ) : (
                       <div className="text-center animate-in fade-in duration-500">
