@@ -131,8 +131,9 @@ router.get("/check", async (req, res) => {
         const { mobile, tournamentId } = req.query;
         if (!mobile || !tournamentId) return res.status(400).json({ message: "Mobile and Tournament ID required" });
         const player = await Player.findOne({ tournamentId, mobile: mobile.trim(), isDeleted: { $ne: true } });
-        if (!player) return res.status(404).json({ message: "No registration found for this number." });
+        if (!player) return res.status(200).json({ found: false, message: "No registration found for this number." });
         res.json({
+            found: true,
             name: player.name,
             status: player.status,
             applicationId: player.applicationId,

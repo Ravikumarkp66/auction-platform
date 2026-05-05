@@ -324,7 +324,7 @@ export default function PlayerRegistrationPage() {
          const res = await fetch(`${API_URL}/api/players/check?mobile=${checkMobile}&tournamentId=${tournamentId}`);
         const data = await res.json();
         
-        if (res.ok && data.name) {
+        if (res.ok && data.found) {
             setCheckResult(data);
             setShowStatusCheck(true);
         } else {
