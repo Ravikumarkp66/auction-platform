@@ -953,7 +953,7 @@ export default function PlayerRegistrationPage() {
                dob: formData.dob ? formData.dob.split(/[/-]/).reverse().join('-') : formData.dob,
                state: "Karnataka",
                district: "Custom",
-               photo: { s3: photoUrl },
+               photo: { s3: photoUrl, status: "done" },
                imageUrl: photoUrl,
                aadhaarUrl: aadhaarUrl,
                tournamentId,
@@ -1035,92 +1035,144 @@ export default function PlayerRegistrationPage() {
    const flowStep = submitting ? 6 : step;
 
    return (
-      <div className="min-h-screen bg-[#020617] text-white selection:bg-violet-500/30 pb-20">
+      <div className={`min-h-screen bg-[#020617] text-white selection:bg-violet-500/30 pb-40 ${immersiveMode ? 'lg:pl-64' : ''}`}>
+
+         {immersiveMode && (
+            <aside className="fixed left-0 top-0 bottom-0 w-64 bg-[#0B1225]/90 backdrop-blur-3xl border-r border-white/5 z-200 hidden lg:flex flex-col p-6">
+               {/* Dominant Branding Section */}
+               <div className="flex flex-col items-center text-center mb-12">
+                  <div className="relative group mb-6">
+                     {/* Decorative Glow */}
+                     <div className="absolute -inset-4 bg-violet-600/10 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
+                     
+                     <div className="relative w-28 h-28 rounded-[2rem] bg-[#1a2036]/50 backdrop-blur-xl border border-white/10 flex items-center justify-center shadow-2xl overflow-hidden group-hover:scale-105 transition-transform duration-500">
+                        <div className="absolute inset-0 bg-linear-to-br from-white/5 to-transparent"></div>
+                        {tournament?.organizerLogo ? (
+                           <img 
+                              src={getMediaUrl(tournament.organizerLogo)} 
+                              alt="Tournament Logo" 
+                              className="w-full h-full object-contain p-3 relative z-10" 
+                           />
+                        ) : (
+                           <Trophy className="w-12 h-12 text-violet-500 relative z-10" />
+                        )}
+                     </div>
+                  </div>
+                  
+                  <div className="space-y-1">
+                     <p className="text-[10px] font-[1000] text-violet-400 uppercase tracking-[0.4em] leading-none mb-1 opacity-80">{t("SECURE APPLY")}</p>
+                     <h2 className="text-[13px] font-black text-white uppercase tracking-tighter leading-tight max-w-[180px] mx-auto">
+                        {tournament?.name}
+                     </h2>
+                  </div>
+               </div>
+
+               {/* Connected Progress Flow */}
+               <div className="flex-1 px-2">
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-8 opacity-50">{t("Application Steps")}</p>
+                  
+                  <div className="relative space-y-0">
+                     {/* Vertical Line */}
+                     <div className="absolute left-4 top-2 bottom-2 w-px bg-white/5"></div>
+
+                     {REGISTRATION_STEPS.map((item, idx) => {
+                        const completed = item.id < flowStep;
+                        const active = item.id === flowStep;
+                        const pending = item.id > flowStep;
+                        
+                        return (
+                           <div key={item.id} className="relative flex items-start gap-4 pb-10 last:pb-0">
+                              {/* Step Dot/Icon */}
+                              <div className={`relative z-10 w-8 h-8 rounded-full border flex items-center justify-center transition-all duration-500 shrink-0
+                                 ${completed ? 'bg-emerald-500 border-emerald-400 text-white shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 
+                                   active ? 'bg-violet-600 border-violet-400 text-white shadow-[0_0_20px_rgba(139,92,246,0.4)] scale-110' : 
+                                   'bg-slate-900 border-white/10 text-slate-600'}
+                              `}>
+                                 {completed ? <CheckCircle size={14} /> : <span className="text-[10px] font-black">{item.id}</span>}
+                              </div>
+
+                              {/* Progress Line Segment (Colored) */}
+                              {idx < REGISTRATION_STEPS.length - 1 && completed && (
+                                 <div className="absolute left-4 top-8 w-px h-10 bg-emerald-500/50 z-0"></div>
+                              )}
+
+                              <div className="flex flex-col pt-1.5">
+                                 <span className={`text-[10px] font-black uppercase tracking-widest transition-colors duration-300
+                                    ${completed ? 'text-emerald-400' : active ? 'text-white' : 'text-slate-600'}
+                                 `}>
+                                    {item.label}
+                                 </span>
+                                 {active && (
+                                    <div className="mt-1 flex items-center gap-1.5">
+                                       <span className="w-1 h-1 rounded-full bg-violet-400 animate-pulse"></span>
+                                       <span className="text-[8px] font-bold text-violet-400 uppercase tracking-tighter">Current Phase</span>
+                                    </div>
+                                 )}
+                              </div>
+                           </div>
+                        );
+                     })}
+                  </div>
+               </div>
+
+               <div className="mt-auto pt-6 border-t border-white/5">
+                  <div className="flex items-center justify-between mb-4">
+                     <div className="flex items-center gap-2">
+                        <div className={`w-1.5 h-1.5 rounded-full ${autoSaveStatus === 'saved' ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`}></div>
+                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{autoSaveStatus === 'saved' ? t('Synced') : t('Saving')}</span>
+                     </div>
+                     <span className="text-[8px] font-bold text-slate-700 uppercase tracking-widest">v4.2.0-SECURE</span>
+                  </div>
+               </div>
+            </aside>
+         )}
 
          <div className="fixed inset-0 pointer-events-none">
             <div className="absolute top-0 left-1/4 w-[50%] h-[40%] bg-violet-600/10 blur-[150px] rounded-full rotate-45"></div>
          </div>
 
          <header className={`sticky top-0 z-100 bg-[#020617]/80 backdrop-blur-2xl border-b border-white/5 ${immersiveMode ? 'hidden' : ''}`}>
-            <div className="max-w-4xl mx-auto px-4 sm:px-6 h-28 flex items-center justify-between">
-               <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-linear-to-br from-violet-600 to-cyan-500 flex items-center justify-center shadow-xl shadow-violet-600/20 rotate-3 shrink-0">
-                     <Trophy className="w-6 h-6 text-white" />
+            <div className="max-w-4xl mx-auto px-4 sm:px-6 h-[75px] flex items-center justify-between">
+               <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-linear-to-br from-violet-600 to-cyan-500 flex items-center justify-center shadow-xl shadow-violet-600/20 rotate-3 shrink-0">
+                     <Trophy className="w-4 h-4 text-white" />
                   </div>
-                  <div className="flex flex-col">
-                     <h2 className="text-xl font-black text-white italic tracking-tighter leading-none">{lang === "KN" ? "ಆಟಗಾರರ " : "PLAYER "}<span className="text-transparent bg-clip-text bg-linear-to-r from-white to-slate-500">{lang === "KN" ? "ಪೋರ್ಟಲ್" : "PORTAL"}</span></h2>
-                     {tournament?.name && (
-                        <p className="text-[9px] font-black text-violet-400 uppercase tracking-[0.3em] mt-1.5">{tournament.name}</p>
-                     )}
-                  </div>
+                  <h2 className="text-[13px] font-black text-white italic tracking-tighter uppercase leading-none truncate max-w-[150px] sm:max-w-none">
+                     {tournament?.name || t("Player Portal")}
+                  </h2>
                </div>
 
-               <div className="flex items-center gap-2 md:gap-4">
-                  {step > 0 && (
-                     <div className={`hidden md:flex items-center gap-2 px-3 py-2 rounded-xl border text-[9px] font-black uppercase tracking-widest ${autoSaveStatus === 'saved' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400 shadow-[0_0_16px_rgba(16,185,129,0.18)]' : autoSaveStatus === 'saving' ? 'bg-cyan-500/10 border-cyan-500/20 text-cyan-400' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'}`}>
-                        <span className={`inline-block w-2 h-2 rounded-full ${autoSaveStatus === 'saving' ? 'bg-cyan-400 animate-pulse' : autoSaveStatus === 'saved' ? 'bg-emerald-400' : 'bg-amber-400 animate-pulse'}`}></span>
-                        {autoSaveStatus === 'saving' ? t('Saving...') : autoSaveStatus === 'saved' ? t('Auto Saved') : t('Connection unstable')}
-                        {autoSaveStatus === 'saved' && lastSavedAt && <span className="text-slate-500">{lastSavedAt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>}
-                     </div>
-                  )}
-                  {session && (
-                     <button
-                        onClick={() => isEditing ? handleSaveSettings() : setIsEditing(true)}
-                        disabled={savingSettings}
-                        className={`hidden md:flex items-center gap-2 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${isEditing ? 'bg-emerald-500 hover:bg-emerald-400 text-white shadow-[0_0_15px_rgba(16,185,129,0.4)]' : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 border border-white/10'}`}
-                     >
-                        {savingSettings ? <Loader2 size={14} className="animate-spin" /> : isEditing ? <Save size={14} /> : <Edit2 size={14} />}
-                        {isEditing ? t("Save Edits") : t("Edit Page")}
-                     </button>
-                  )}
+               <div className="flex items-center gap-2">
                   <button
                      onClick={() => setLang(lang === "EN" ? "KN" : "EN")}
-                     className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-[10px] font-black uppercase text-violet-400 hover:text-white hover:bg-white/10 transition-all mr-2"
+                     className="px-2 py-1 bg-white/5 border border-white/10 rounded-lg text-[9px] font-black uppercase text-violet-400 hover:text-white transition-all"
                   >
                      {lang === "EN" ? "ಕನ್ನಡ" : "EN"}
                   </button>
-                  <button
-                     onClick={() => setShowStatusCheck(!showStatusCheck)}
-                     className="hidden md:flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-white hover:bg-white/10 transition-all"
-                  >
-                     <SearchCode size={14} className="text-violet-500" />
-                     {t("Registration Status")}
-                  </button>
-                  <button onClick={() => router.push('/')} className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors">
-                     <X size={18} className="text-slate-500" />
+                  <button onClick={() => router.push('/')} className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors">
+                     <X size={14} className="text-slate-500" />
                   </button>
                </div>
             </div>
          </header>
 
-         <main className={`max-w-4xl mx-auto px-4 sm:px-6 pt-8 sm:pt-12 relative z-10 ${immersiveMode ? 'pt-20 sm:pt-24' : ''}`}>
+         <main className={`max-w-4xl mx-auto px-4 sm:px-6 pt-6 sm:pt-12 relative z-10 ${immersiveMode ? 'pt-6 sm:pt-24' : ''}`}>
 
             {immersiveMode && (
-               <div className="mb-5 rounded-3xl border border-white/10 bg-[#0B1225]/85 backdrop-blur-2xl px-4 py-3 sm:px-5 sm:py-4 shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
+               <div className="mb-4 rounded-2xl border border-white/10 bg-[#0B1225]/90 backdrop-blur-3xl px-4 py-3 shadow-[0_15px_40px_rgba(0,0,0,0.3)]">
                   <div className="flex items-center justify-between gap-3">
                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-10 h-10 rounded-2xl bg-linear-to-br from-violet-600 to-cyan-500 flex items-center justify-center shadow-xl shadow-violet-600/20 shrink-0">
+                        <div className="w-9 h-9 rounded-xl bg-linear-to-br from-violet-600 to-cyan-500 flex items-center justify-center shadow-lg shrink-0">
                            <Trophy className="w-5 h-5 text-white" />
                         </div>
                         <div className="min-w-0">
-                           <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.3em] text-violet-300 truncate">{t("KPL Secure Apply")}</p>
-                           <p className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.25em] text-slate-500 truncate">{tournament?.name || t("Player Registration")}</p>
+                           <p className="text-[10px] font-black uppercase tracking-widest text-white truncate">{t("KPL Secure Apply")}</p>
+                           <p className="text-[8px] font-black uppercase tracking-widest text-slate-500 truncate">{tournament?.name}</p>
                         </div>
                      </div>
-                     <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-                        <div className={`hidden sm:flex items-center gap-2 px-3 py-2 rounded-xl border text-[9px] font-black uppercase tracking-widest ${autoSaveStatus === 'saved' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400 shadow-[0_0_16px_rgba(16,185,129,0.18)]' : autoSaveStatus === 'saving' ? 'bg-cyan-500/10 border-cyan-500/20 text-cyan-400' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'}`}>
-                           <span className={`inline-block w-2 h-2 rounded-full ${autoSaveStatus === 'saving' ? 'bg-cyan-400 animate-pulse' : autoSaveStatus === 'saved' ? 'bg-emerald-400' : 'bg-amber-400 animate-pulse'}`}></span>
-                           {autoSaveStatus === 'saving' ? t('Saving...') : autoSaveStatus === 'saved' ? t('Saved ✓') : t('Connection unstable')}
-                        </div>
-                        <button
-                           type="button"
-                           onClick={() => setLang(lang === "EN" ? "KN" : "EN")}
-                           className="px-3 sm:px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-violet-400 text-[9px] font-black uppercase tracking-widest hover:bg-white/10 hover:text-white transition-all flex items-center gap-2"
-                        >
-                           {lang === "EN" ? "ಕನ್ನಡ" : "ENGLISH"}
-                        </button>
-                        <button type="button" onClick={() => setShowExitConfirm(true)} className="px-3 sm:px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-[9px] font-black uppercase tracking-widest hover:bg-white/10 transition-all flex items-center gap-2">
-                           <X size={14} /> {t("Exit")}
+                     <div className="flex items-center gap-2 shrink-0">
+                        <button type="button" onClick={() => setShowExitConfirm(true)} className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-all text-slate-400">
+                           <X size={16} />
                         </button>
                      </div>
                   </div>
@@ -1128,28 +1180,14 @@ export default function PlayerRegistrationPage() {
             )}
 
             {step > 0 && (
-               <div className="mb-6 rounded-3xl border border-white/10 bg-[#0B1225]/70 backdrop-blur-xl p-4 md:p-5">
-                  <div className="hidden md:flex items-center justify-between gap-3">
-                     {REGISTRATION_STEPS.map((item, index) => {
-                        const completed = item.id < flowStep;
-                        const active = item.id === flowStep;
-                        const pending = item.id > flowStep;
-                        return (
-                           <div key={item.id} className="flex items-center gap-3 min-w-0">
-                              <div className={`w-8 h-8 rounded-full border flex items-center justify-center text-[10px] font-black ${completed ? 'bg-emerald-500/20 border-emerald-400 text-emerald-300' : active ? 'bg-cyan-500/20 border-cyan-400 text-cyan-300 shadow-[0_0_16px_rgba(34,211,238,0.35)]' : 'bg-white/5 border-white/10 text-slate-500'}`}>
-                                 {completed ? <CheckCircle size={14} /> : item.id}
-                              </div>
-                              <span className={`text-[10px] font-black uppercase tracking-widest truncate ${completed ? 'text-emerald-300' : active ? 'text-cyan-300' : 'text-slate-500'}`}>{item.label}</span>
-                              {index < REGISTRATION_STEPS.length - 1 && <div className={`w-6 h-px ${pending ? 'bg-white/10' : 'bg-cyan-400/40'}`}></div>}
-                           </div>
-                        );
-                     })}
-                  </div>
-                  <div className="md:hidden flex items-center justify-between gap-3">
-                     <p className="text-xs font-black uppercase tracking-widest text-cyan-300">{t("Step")} {flowStep}/6</p>
-                     <p className="text-xs font-black uppercase tracking-widest text-white truncate">{REGISTRATION_STEPS[flowStep - 1]?.label || 'Identity'}</p>
-                     <div className={`flex items-center gap-1 text-[10px] font-black ${autoSaveStatus === 'saved' ? 'text-emerald-300' : autoSaveStatus === 'saving' ? 'text-cyan-300' : 'text-amber-300'}`}>
-                        <span className={`inline-block w-2 h-2 rounded-full ${autoSaveStatus === 'saving' ? 'bg-cyan-400 animate-pulse' : autoSaveStatus === 'saved' ? 'bg-emerald-400' : 'bg-amber-400 animate-pulse'}`}></span>
+               <div className="mb-6 rounded-2xl border border-white/10 bg-[#0B1225]/70 backdrop-blur-xl p-4 lg:hidden relative overflow-hidden">
+                  <div className="flex items-center justify-between relative z-10">
+                     <div className="flex flex-col gap-0.5">
+                        <p className="text-[11px] font-black uppercase tracking-wider text-white">{REGISTRATION_STEPS[flowStep - 1]?.label || 'Identity'}</p>
+                        <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">{t("Step")} {flowStep} of 6</p>
+                     </div>
+                     <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all duration-700 ${autoSaveStatus === 'saved' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full shadow-[0_0_8px_currentColor] ${autoSaveStatus === 'saving' ? 'bg-cyan-400 animate-pulse' : autoSaveStatus === 'saved' ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400 animate-pulse'}`}></span>
                         {autoSaveStatus === 'saving' ? t('Saving') : autoSaveStatus === 'saved' ? t('Saved') : t('Offline')}
                      </div>
                   </div>
@@ -1289,12 +1327,9 @@ export default function PlayerRegistrationPage() {
                </div>
             )}
 
-            {/* Cinematic Registration Status Modal Overlay */}
             {showStatusCheck && (
                <div className="fixed inset-0 z-100 flex items-center justify-center p-4 sm:p-6 backdrop-blur-2xl bg-black/60 animate-in fade-in duration-500">
                   <div className="relative w-full max-w-2xl bg-[#0B0F2A]/90 border border-white/10 rounded-4xl p-8 md:p-12 shadow-[0_0_100px_rgba(0,0,0,0.8)] overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-10 duration-700 ease-out">
-
-                     {/* Moving Glow Background Decor */}
                      <div className="absolute top-[-20%] left-[-20%] w-[140%] h-[140%] bg-linear-to-br from-violet-600/10 via-transparent to-cyan-400/10 animate-pulse pointer-events-none" />
 
                      <div className="relative z-10">
@@ -1338,7 +1373,6 @@ export default function PlayerRegistrationPage() {
                            <div className={`mt-10 p-8 rounded-4xl border ${checkResult.name ? 'bg-emerald-500/5 border-emerald-500/20 shadow-[0_0_40px_rgba(16,185,129,0.05)]' : 'bg-red-500/5 border-red-500/20 shadow-[0_0_40px_rgba(239,68,68,0.05)]'} animate-in zoom-in-95 slide-in-from-bottom-4 duration-500`}>
                               {checkResult.name ? (
                                  <div className="flex flex-col md:flex-row items-center gap-8">
-                                    {/* Player Photo */}
                                     <div className="w-32 h-32 shrink-0 rounded-3xl bg-slate-900 border-2 border-white/10 overflow-hidden shadow-2xl relative group">
                                        <img
                                           src={checkResult.player?.photo?.drive || checkResult.player?.imageUrl || "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=200&auto=format&fit=crop"}
@@ -1400,8 +1434,6 @@ export default function PlayerRegistrationPage() {
                            </div>
                         )}
                      </div>
-
-                     {/* Footer Decoration */}
                      <div className="absolute bottom-0 left-0 w-full h-1 bg-linear-to-r from-transparent via-violet-500/50 to-transparent"></div>
                   </div>
                </div>
@@ -1530,7 +1562,6 @@ export default function PlayerRegistrationPage() {
                   </div>
                ) : (
                   <div className="relative group overflow-hidden rounded-[3rem] border border-white/5 bg-[#0B0F2A]/40 backdrop-blur-sm">
-                     {/* Cinematic Banner Background */}
                      <div className="absolute inset-0 z-0">
                         <img
                            src={getMediaUrl(tournament?.assets?.splashUrl, "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=1200&auto=format&fit=crop")}
@@ -1580,7 +1611,6 @@ export default function PlayerRegistrationPage() {
                            </div>
                         )}
 
-                        {/* Custom Guidelines Block */}
                         {tournament?.registrationDetails && (
                            <div className="mt-8 max-w-2xl mx-auto p-6 bg-white/5 border border-white/10 rounded-3xl text-left animate-in fade-in slide-in-from-bottom-4 shadow-2xl backdrop-blur-md group-hover:border-violet-500/20 transition-all">
                               {session && (
@@ -1623,7 +1653,6 @@ export default function PlayerRegistrationPage() {
                         </div>
                      </div>
 
-                     {/* Decorative Elements */}
                      <div className="absolute bottom-0 left-0 w-full h-1 bg-linear-to-r from-transparent via-violet-500/50 to-transparent"></div>
                   </div>
                )}
@@ -1648,24 +1677,20 @@ export default function PlayerRegistrationPage() {
                </div>
             )}
 
-            <div className="bg-[#0f172a]/40 border border-white/10 rounded-4xl sm:rounded-[3rem] p-5 sm:p-8 md:p-12 shadow-2xl relative overflow-hidden backdrop-blur-3xl">
-               {isClosed ? (
-                  <div className="py-20 flex flex-col items-center justify-center text-center animate-in zoom-in-95 duration-700">
-                     <div className="w-24 h-24 rounded-[2.5rem] bg-red-600/10 border border-red-500/20 flex items-center justify-center mb-8 shadow-[0_0_50px_rgba(239,68,68,0.15)] relative">
-                        <X className="w-12 h-12 text-red-500" />
-                        <div className="absolute inset-0 rounded-[2.5rem] border-2 border-red-500 animate-ping opacity-20" />
+            <div className="bg-[#0f172a]/40 border border-white/10 rounded-3xl sm:rounded-[3rem] p-4 sm:p-8 md:p-12 shadow-2xl relative backdrop-blur-3xl">
+               {isClosed ?
+                  <div className="py-12 md:py-20 flex flex-col items-center justify-center text-center animate-in zoom-in-95 duration-700">
+                     <div className="w-20 h-20 md:w-24 md:h-24 rounded-[2rem] bg-red-600/10 border border-red-500/20 flex items-center justify-center mb-6 md:mb-8 shadow-[0_0_50px_rgba(239,68,68,0.15)] relative">
+                        <X className="w-10 h-10 md:w-12 md:h-12 text-red-500" />
+                        <div className="absolute inset-0 rounded-[2rem] border-2 border-red-500 animate-ping opacity-20" />
                      </div>
-                     <h2 className="text-4xl md:text-5xl font-black text-white uppercase italic tracking-normal mb-4 drop-shadow-xl">{t("Registration")} <span className="text-red-500">{t("Closed")}</span></h2>
-                     <p className="text-slate-400 text-sm max-w-md mx-auto leading-loose font-bold italic tracking-wide">
+                     <h2 className="text-3xl md:text-5xl font-black text-white uppercase italic tracking-normal mb-4 drop-shadow-xl">{t("Registration")} <span className="text-red-500">{t("Closed")}</span></h2>
+                     <p className="text-slate-400 text-xs md:text-sm max-w-md mx-auto leading-loose font-bold italic tracking-wide">
                         {tournament?.closedMessage || t("Registration is currently closed. Please contact the tournament organizer for more details.")}
                      </p>
-                     <div className="mt-12 pt-8 border-t border-white/5 w-full max-w-xs mx-auto">
-                        <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.3em]">{t("For further inquiries")}</p>
-                        <p className="text-xs font-black text-white uppercase tracking-widest mt-2">{tournament?.organizerName || t("Tournament Official")}</p>
-                     </div>
                   </div>
-               ) : (
-                  <form onSubmit={(e) => e.preventDefault()} className="space-y-12 relative z-10">
+                : 
+                  <form onSubmit={(e) => e.preventDefault()} className="space-y-6 md:space-y-12 relative z-10 pb-24">
 
                      {step === 0 && !showStatusCheck && (
                         <div className="space-y-8 animate-in fade-in zoom-in-95 flex flex-col items-center justify-center py-10">
@@ -1706,20 +1731,26 @@ export default function PlayerRegistrationPage() {
                      )}
 
                      {step === 1 && (
-                        <div className="space-y-10 animate-in fade-in slide-in-from-right-8 relative">
-                           <div className="flex justify-end -mb-8 relative z-20">
-                              <button type="button" onClick={() => setStep(0)} className="px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-2 transition-all border border-white/5">
-                                 <ArrowLeft size={12} /> {t("Change Number")}
-                              </button>
+                        <div className="space-y-6 md:space-y-10 animate-in fade-in slide-in-from-right-8 relative">
+                           <div className="flex justify-between items-center pb-6 border-b border-white/5">
+                             <div>
+                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{t("Phase")} 01</p>
+                                <h3 className="text-xl font-black italic uppercase tracking-tighter text-white">{t("Personal Identity")}</h3>
+                             </div>
+                             <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)] animate-pulse" />
                            </div>
-                           <SectionHeader num="01" title={t("Personal Identity")} sub={t("Individual record verification")} icon={UserPlus} color="violet" t={t} />
-                           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                               {!isFieldHidden("name") && <Field icon={User} label={t("Player Name")} name="name" value={formData.name} onChange={handleInputChange} placeholder={t("FULL LEGAL NAME")} required={isFieldRequired("name")} error={fieldErrors.name} />}
                               {!isFieldHidden("fatherName") && <Field icon={Users} label={t("Father Name")} name="fatherName" value={formData.fatherName} onChange={handleInputChange} placeholder={t("PARENT IDENTITY")} required={isFieldRequired("fatherName")} error={fieldErrors.fatherName} />}
                               {!isFieldHidden("dob") && <Field icon={Calendar} label={t("Date of Birth")} name="dob" type="text" value={formData.dob} onChange={handleInputChange} placeholder={t("DD-MM-YYYY")} required={isFieldRequired("dob")} error={fieldErrors.dob} />}
                               {!isFieldHidden("mobile") && <Field icon={Phone} label={t("Mobile Number")} name="mobile" type="tel" value={formData.mobile} onChange={handleInputChange} placeholder={t("10 DIGIT PRIMARY CONTACT")} required={isFieldRequired("mobile")} error={fieldErrors.mobile} />}
                            </div>
                            {!isFieldHidden("aadhaarNumber") && <Field icon={CreditCard} label={t("Aadhaar ID")} name="aadhaarNumber" value={formData.aadhaarNumber} onChange={handleInputChange} placeholder={t("12 DIGIT IDENTITY NUMBER")} required={isFieldRequired("aadhaarNumber")} error={fieldErrors.aadhaarNumber} />}
+                           <div className="flex justify-end">
+                              <button type="button" onClick={() => setStep(0)} className="text-[10px] font-black text-slate-500 hover:text-white uppercase tracking-widest flex items-center gap-2 transition-all">
+                                 <ArrowLeft size={12} /> {t("Change Number")}
+                              </button>
+                           </div>
                         </div>
                      )}
 
@@ -1875,21 +1906,25 @@ export default function PlayerRegistrationPage() {
                      )}
 
                      {step > 0 && (
-                        <div className="md:hidden fixed bottom-0 left-0 right-0 z-120 bg-[#020617]/95 backdrop-blur-2xl border-t border-white/10 p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]">
+                        <div className="md:hidden fixed bottom-0 left-0 right-0 z-120 bg-[#020617]/90 backdrop-blur-2xl border-t border-white/10 p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] shadow-[0_-20px_40px_rgba(0,0,0,0.4)]">
                            <div className="max-w-4xl mx-auto flex items-center gap-3">
-                              <button type="button" onClick={prevStep} disabled={step === 0} className="px-4 py-4 rounded-2xl bg-white/10 text-white disabled:opacity-30">
+                              <button type="button" onClick={prevStep} disabled={step === 0} className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 text-white flex items-center justify-center disabled:opacity-30">
                                  <ArrowLeft size={18} />
                               </button>
                               {step < 5 ? (
-                                 <button type="button" onClick={nextStep} className="flex-1 px-6 py-4 bg-linear-to-r from-violet-600 to-cyan-500 text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] flex items-center justify-center gap-2 shadow-xl shadow-violet-600/30">{t("Continue")} <ArrowRight size={16} /></button>
+                                 <button type="button" onClick={nextStep} className="flex-1 h-14 bg-linear-to-r from-violet-600 to-cyan-500 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-2 shadow-xl shadow-violet-600/30">
+                                    {t("Continue")} <ArrowRight size={16} />
+                                 </button>
                               ) : (
-                                 <button type="button" onClick={handleSubmit} disabled={submitting} className="flex-1 px-6 py-4 bg-emerald-600 text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] flex items-center justify-center gap-2 disabled:opacity-50">{submitting ? <Loader2 size={16} className="animate-spin" /> : <Rocket size={16} />} {t("Enter Auction Pool")}</button>
+                                 <button type="button" onClick={handleSubmit} disabled={submitting} className="flex-1 h-14 bg-emerald-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-2 disabled:opacity-50 shadow-xl shadow-emerald-600/20">
+                                    {submitting ? <Loader2 size={16} className="animate-spin" /> : <Rocket size={16} />} {t("Submit Application")}
+                                 </button>
                               )}
                            </div>
                         </div>
                      )}
                   </form>
-               )}
+               }
             </div>
          </main>
       </div>
@@ -1904,12 +1939,12 @@ function SectionHeader({ num, title, sub, icon: Icon, color, t }) {
       slate: "bg-white/10 text-white border-white/10"
    };
    return (
-      <div className="flex items-center gap-5 pb-6 border-b border-white/5">
-         <div className={`p-4 rounded-3xl border ${colors[color]}`}><Icon size={24} /></div>
-         <div>
-            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest opacity-60">{t ? t("Phase") : "Phase"} {num}</p>
-            <h3 className="text-xl font-black italic uppercase tracking-tighter text-white">{title}</h3>
-            <p className="text-[9px] font-black text-slate-600 uppercase tracking-[0.2em] mt-1">{sub}</p>
+      <div className="flex items-center gap-4 md:gap-5 pb-5 md:pb-6 border-b border-white/5">
+         <div className={`p-3 md:p-4 rounded-2xl md:rounded-3xl border shrink-0 ${colors[color]}`}><Icon size={20} className="md:w-6 md:h-6" /></div>
+         <div className="min-w-0">
+            <p className="text-[9px] md:text-[10px] font-black text-slate-500 uppercase tracking-widest opacity-60">{t ? t("Phase") : "Phase"} {num}</p>
+            <h3 className="text-lg md:text-xl font-black italic uppercase tracking-tighter text-white truncate">{title}</h3>
+            <p className="text-[8px] md:text-[9px] font-black text-slate-600 uppercase tracking-widest mt-0.5 md:mt-1 truncate">{sub}</p>
          </div>
       </div>
    );
@@ -1961,24 +1996,25 @@ function FieldModeControl({ label, mode, onChange, t }) {
    );
 }
 
-function Field({ icon: Icon, label, name, value, onChange, placeholder, type = "text", required = false, error = null }) {
+function Field({ icon: Icon, label, name, value, onChange, placeholder, type = "text", required = false, error = null, readOnly = false }) {
    return (
-      <div className="space-y-4">
-         <label className="flex items-center justify-between px-2">
-            <span className="text-[10px] font-black text-slate-600 uppercase tracking-[0.3em]">{label}{required && <span className="text-emerald-400 ml-1">*</span>}</span>
-            {error && <span className="text-[9px] font-black text-red-500 uppercase tracking-widest">● {error}</span>}
+      <div className="space-y-3 md:space-y-4">
+         <label className="flex items-center justify-between px-1 md:px-2">
+            <span className="text-[9px] md:text-[10px] font-black text-slate-600 uppercase tracking-wider">{label}{required && <span className="text-emerald-400 ml-1">*</span>}</span>
+            {error && <span className="text-[8px] md:text-[9px] font-black text-red-500 uppercase tracking-widest">● {error}</span>}
          </label>
          <div className="relative group">
-            <div className={`absolute left-6 top-1/2 -translate-y-1/2 p-2 bg-white/5 rounded-xl group-focus-within:bg-violet-600/20 transition-all ${error ? 'bg-red-600/20 group-focus-within:bg-red-600/20' : ''}`}>
-               <Icon className={`transition-colors ${error ? 'text-red-400' : 'text-slate-600 group-focus-within:text-violet-400'}`} size={16} />
+            <div className={`absolute left-4 md:left-6 top-1/2 -translate-y-1/2 p-1.5 md:p-2 bg-white/5 rounded-lg md:rounded-xl group-focus-within:bg-violet-600/20 transition-all ${error ? 'bg-red-600/20 group-focus-within:bg-red-600/20' : ''}`}>
+               <Icon className={`transition-colors md:w-4 md:h-4 ${error ? 'text-red-400' : 'text-slate-600 group-focus-within:text-violet-400'}`} size={14} />
             </div>
             <input
                name={name}
                type={type}
                value={value}
                onChange={onChange}
+               readOnly={readOnly}
                placeholder={placeholder}
-               className={`w-full bg-slate-900/60 border-2 rounded-4xl py-5 pl-16 pr-8 outline-none transition-all font-bold uppercase text-xs placeholder:text-slate-800 ${error ? 'border-red-500/60 focus:border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.1)]' : 'border-white/5 focus:border-violet-500/40'}`}
+               className={`w-full bg-[#05081a]/50 border-2 rounded-2xl md:rounded-4xl py-4 md:py-5 pl-14 md:pl-20 pr-6 md:pr-8 outline-none transition-all font-bold uppercase text-[11px] md:text-xs placeholder:text-slate-800 ${readOnly ? 'cursor-not-allowed opacity-60 border-white/5' : error ? 'border-red-500/60 focus:border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.1)]' : 'border-white/5 focus:border-violet-500/40 shadow-inner'}`}
             />
          </div>
       </div>

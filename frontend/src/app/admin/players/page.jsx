@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { User, Search, Plus, Filter, AlertTriangle, ShieldCheck, Check, X, AlertCircle, Hash, Trophy, MousePointer2, Edit3, FileSpreadsheet, RefreshCw, Download, Shuffle, Zap, ShieldAlert, Eye } from "lucide-react";
+import { User, Search, Plus, Filter, AlertTriangle, ShieldCheck, Check, X, AlertCircle, Hash, Trophy, MousePointer2, Edit3, FileSpreadsheet, RefreshCw, Download, Shuffle, Zap, ShieldAlert, Eye, Trash2, Undo2 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { useAuction } from "../layout";
 import { useSession } from "next-auth/react";
@@ -13,9 +13,21 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { uploadToS3 } from "../../../lib/uploadToS3";
 import html2canvas from "html2canvas";
-import { API_URL } from "../../../lib/apiConfig";
+import { API_URL, getProxiedImageUrl } from "../../../lib/apiConfig";
 
 let socket;
+
+const findValue = (row, keys) => {
+  const rk = Object.keys(row);
+  for (const k of keys) {
+    const f = rk.find(key => 
+      key.toLowerCase().trim() === k.toLowerCase().trim() || 
+      key.toLowerCase().includes(k.toLowerCase())
+    );
+    if (f) return row[f];
+  }
+  return null;
+};
 
 export default function PlayersRegistry() {
   return (
@@ -87,6 +99,8 @@ function PlayersRegistryContent() {
   const [confirmText, setConfirmText] = useState("");
   const [editImageTarget, setEditImageTarget] = useState(null); // { id, url, type }
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+  const [isDeleteRangeModalOpen, setIsDeleteRangeModalOpen] = useState(false);
+  const [deleteRange, setDeleteRange] = useState({ from: "", to: "" });
 
   useEffect(() => {
     if (selectedAuction?._id) {
@@ -129,7 +143,7 @@ function PlayersRegistryContent() {
 
     // If it's an external URL (S3, Drive, etc.), wrap it in our backend proxy to bypass CORS
     if (url.startsWith("http")) {
-      return `${API_URL}/api/upload/proxy-image?url=${encodeURIComponent(url)}`;
+      return getProxiedImageUrl(url);
     }
 
     return url || fallback;
@@ -324,15 +338,6 @@ function PlayersRegistryContent() {
         const ws = wb.Sheets[wb.SheetNames[0]];
         const data = XLSX.utils.sheet_to_json(ws);
 
-        const findValue = (row, keys) => {
-          const rk = Object.keys(row);
-          for (const k of keys) {
-            const f = rk.find(key => key.toLowerCase().trim() === k.toLowerCase().trim());
-            if (f) return row[f];
-          }
-          return null;
-        };
-
         const players = data.map(row => ({
           name: findValue(row, ["player name", "playerName", "name", "player", "ಆಟಗಾರನ ಹೆಸರು"]) || "PLAYER NAME",
           role: findValue(row, ["playing role", "role", "skill", "player role", "category", "type", "position", "ಪಾತ್ರ", "ಸ್ಥಾನ"]) || "All-Rounder",
@@ -366,7 +371,7 @@ function PlayersRegistryContent() {
         alert("Error parsing file");
       } finally {
         setIsImporting(false);
-        e.target.value = null;
+        if (e.target) e.target.value = null;
       }
     };
     reader.readAsBinaryString(file);
@@ -424,6 +429,47 @@ function PlayersRegistryContent() {
       }
     } catch (err) {
       alert("Delete failed: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteRange = async () => {
+    if (!deleteRange.from || !deleteRange.to) {
+      alert("Please enter both 'From' and 'To' IDs");
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to delete players from ID #${deleteRange.from} to #${deleteRange.to}? This cannot be undone.`)) return;
+
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/players/bulk-delete-range`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session?.accessToken}`
+        },
+        body: JSON.stringify({
+          tournamentId: selectedAuction._id,
+          from: deleteRange.from,
+          to: deleteRange.to
+        })
+      });
+
+      if (res.ok) {
+        const result = await res.json();
+        alert(result.message);
+        setIsDeleteRangeModalOpen(false);
+        setDeleteRange({ from: "", to: "" });
+        fetchData();
+        socket.emit("auctionUpdate", { type: "system_refresh", auctionId: selectedAuction._id });
+      } else {
+        const err = await res.json();
+        alert(`Delete failed: ${err.message}`);
+      }
+    } catch (err) {
+      alert("Delete range failed");
     } finally {
       setLoading(false);
     }
@@ -794,10 +840,71 @@ function PlayersRegistryContent() {
               >
                 <RefreshCw className="w-4 h-4" />
               </button>
+              <button
+                onClick={() => setIsDeleteRangeModalOpen(true)}
+                className="p-3 bg-red-500/10 text-red-500 border border-red-500/20 rounded-2xl hover:bg-red-500/20 transition-all active:scale-95 shadow-xl"
+                title="Delete ID Range"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
             </div>
           </div>
         </div>
       </div>
+
+      {/* ── DELETE RANGE MODAL ── */}
+      {isDeleteRangeModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={() => setIsDeleteRangeModalOpen(false)} />
+          <div className="relative w-full max-w-md bg-slate-900 border border-white/10 rounded-3xl p-8 shadow-2xl">
+            <h3 className="text-xl font-black text-white mb-6 uppercase tracking-wider flex items-center gap-3">
+              <AlertTriangle className="w-6 h-6 text-red-500" />
+              Delete <span className="text-red-500">Player Range</span>
+            </h3>
+
+            <div className="space-y-4 mb-8">
+              <div>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">From Application ID</label>
+                <input
+                  type="number"
+                  placeholder="e.g. 10"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white font-bold outline-none focus:border-red-500 transition-all"
+                  value={deleteRange.from}
+                  onChange={e => setDeleteRange({...deleteRange, from: e.target.value})}
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">To Application ID</label>
+                <input
+                  type="number"
+                  placeholder="e.g. 50"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white font-bold outline-none focus:border-red-500 transition-all"
+                  value={deleteRange.to}
+                  onChange={e => setDeleteRange({...deleteRange, to: e.target.value})}
+                />
+              </div>
+              <p className="text-[10px] text-slate-500 italic leading-relaxed">
+                Note: This will delete all players within this ID range and automatically re-index the remaining players to maintain a clean sequence.
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setIsDeleteRangeModalOpen(false)}
+                className="flex-1 py-4 bg-white/5 hover:bg-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-400 transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteRange}
+                className="flex-1 py-4 bg-red-600 hover:bg-red-700 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white shadow-xl shadow-red-500/20 transition-all"
+              >
+                Delete Range
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── FILTER TABS ── */}
       <div className="flex p-1 bg-white/5 rounded-2xl border border-white/10 w-full overflow-x-auto no-scrollbar">
@@ -849,7 +956,14 @@ function PlayersRegistryContent() {
                         <img
                           src={getImgUrl(p)}
                           onError={(e) => {
-                            e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(p.name)}&background=random&color=fff`;
+                            const parent = e.target.parentElement;
+                            e.target.style.display = 'none';
+                            if (parent && !parent.querySelector('.fallback-initial')) {
+                              const span = document.createElement('span');
+                              span.className = 'fallback-initial text-[10px] font-black text-white uppercase';
+                              span.innerText = p.name?.[0] || 'P';
+                              parent.appendChild(span);
+                            }
                           }}
                           className="w-full h-full object-cover"
                         />
@@ -1316,6 +1430,21 @@ function PlayersRegistryContent() {
                           <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">
                             {new Date(bid.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                           </p>
+                          <img 
+                            src={getProxiedImageUrl(historyPlayer)} 
+                            alt="" 
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              const parent = e.target.parentElement;
+                              e.target.style.display = 'none';
+                              if (parent && !parent.querySelector('.fallback-initial')) {
+                                const span = document.createElement('span');
+                                span.className = 'fallback-initial text-[10px] font-black text-white uppercase';
+                                span.innerText = historyPlayer.name?.[0] || 'P';
+                                parent.appendChild(span);
+                              }
+                            }}
+                          />
                         </div>
                       </div>
                       <div className="text-right">

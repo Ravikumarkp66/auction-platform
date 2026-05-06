@@ -18,13 +18,14 @@ router.get("/", async (req, res) => {
 // Create a new team
 router.post("/", async (req, res) => {
   try {
-    const { name, shortName, location, tournamentId, remainingBudget } = req.body;
+    const { name, shortName, location, tournamentId, remainingBudget, logoUrl } = req.body;
     
     const newTeam = new Team({
       name,
       shortName,
       location,
       tournamentId,
+      logoUrl,
       remainingBudget: remainingBudget || 1000000
     });
     
@@ -32,6 +33,22 @@ router.post("/", async (req, res) => {
     res.status(201).json(savedTeam);
   } catch (err) {
     console.error("Error creating team:", err);
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// Bulk create teams
+router.post("/bulk", async (req, res) => {
+  try {
+    const { teams } = req.body;
+    if (!Array.isArray(teams)) {
+      return res.status(400).json({ message: "Teams must be an array" });
+    }
+
+    const savedTeams = await Team.insertMany(teams);
+    res.status(201).json(savedTeams);
+  } catch (err) {
+    console.error("Error bulk creating teams:", err);
     res.status(400).json({ message: err.message });
   }
 });
@@ -89,6 +106,7 @@ router.patch("/:id/logo", async (req, res) => {
   }
 });
 
+
 // Update team (general update endpoint)
 router.patch("/:id", async (req, res) => {
   try {
@@ -105,6 +123,36 @@ router.patch("/:id", async (req, res) => {
   } catch (err) {
     console.error(`Error updating team ${req.params.id}:`, err);
     res.status(400).json({ message: err.message });
+  }
+});
+
+// Delete a team
+router.delete("/:id", async (req, res) => {
+  try {
+    const team = await Team.findByIdAndDelete(req.params.id);
+    if (!team) {
+      return res.status(404).json({ message: "Team not found" });
+    }
+    // Also clear team reference from players
+    await Player.updateMany({ team: req.params.id }, { $set: { team: null, status: 'available' } });
+    res.json({ message: "Team deleted successfully" });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Bulk delete teams (by ID list)
+router.post("/bulk-delete", async (req, res) => {
+  try {
+    const { teamIds } = req.body;
+    if (!Array.isArray(teamIds)) {
+      return res.status(400).json({ message: "teamIds must be an array" });
+    }
+    await Team.deleteMany({ _id: { $in: teamIds } });
+    await Player.updateMany({ team: { $in: teamIds } }, { $set: { team: null, status: 'available' } });
+    res.json({ message: `${teamIds.length} teams deleted successfully` });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 });
 

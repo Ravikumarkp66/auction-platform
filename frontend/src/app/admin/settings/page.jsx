@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { 
   Settings, Image, Layout, Shield, Bell, 
   PlusCircle, Trash2, CheckCircle, RefreshCw,
-  Eye, Info, Palette, Camera, Upload, AlertCircle
+  Eye, Info, Palette, Camera, Upload, AlertCircle, Zap
 } from "lucide-react";
 import { uploadToS3 } from "../../../lib/uploadToS3";
 import { useAuction } from "../layout";

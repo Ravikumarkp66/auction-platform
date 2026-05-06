@@ -305,11 +305,14 @@ router.post("/import",
             let nextId = lastPlayer ? (lastPlayer.applicationId || 0) + 1 : 1;
 
             for (const p of players) {
+                const mobile = String(p.mobile || "").trim();
+                const name = String(p.name || "").trim();
+
                 const existing = await Player.findOne({
                     tournamentId,
                     $or: [
-                        { name: { $regex: new RegExp(`^${p.name?.trim()}$`, "i") }, mobile: String(p.mobile).trim() },
-                        { mobile: String(p.mobile).trim(), mobile: { $ne: "-" } }
+                        { name: { $regex: new RegExp(`^${name}$`, "i") }, mobile: mobile },
+                        ...(mobile && mobile !== "-" ? [{ mobile: mobile }] : [])
                     ],
                     isDeleted: { $ne: true }
                 });
@@ -321,12 +324,18 @@ router.post("/import",
 
                 const sanitizedPlayer = sanitizeObject(p);
 
+                // Set photo object if image URL exists
+                const photoData = sanitizedPlayer.imageUrl 
+                    ? { s3: sanitizedPlayer.imageUrl, status: "done" } 
+                    : undefined;
+
                 const newPlayer = new Player({
                     ...sanitizedPlayer,
                     tournamentId,
                     applicationId: nextId++,
                     status: "pending",
-                    isDeleted: false
+                    isDeleted: false,
+                    photo: photoData
                 });
 
                 await newPlayer.save();
@@ -391,6 +400,70 @@ router.post("/revert-order",
 
             await Player.bulkWrite(bulkOps);
             res.json({ message: "Original sequence restored" });
+        } catch (err) {
+            res.status(500).json({ message: err.message });
+        }
+    });
+
+// Bulk Delete Range (Admin Only)
+router.post("/bulk-delete-range",
+    authMiddleware,
+    authorize(['admin']),
+    async (req, res) => {
+        try {
+            const { tournamentId, from, to } = req.body;
+            if (!tournamentId || from === undefined || to === undefined) {
+                return res.status(400).json({ message: "tournamentId, from, and to are required" });
+            }
+
+            const start = parseInt(from);
+            const end = parseInt(to);
+
+            // Find players in range
+            const players = await Player.find({
+                tournamentId,
+                applicationId: { $gte: start, $lte: end },
+                isIcon: { $ne: true },
+                isDeleted: { $ne: true }
+            });
+
+            if (players.length === 0) {
+                return res.status(404).json({ message: "No players found in this range" });
+            }
+
+            // Move to trash
+            const playerIds = players.map(p => p._id);
+            await Player.updateMany(
+                { _id: { $in: playerIds } },
+                { $set: { isDeleted: true, deletedAt: new Date() } }
+            );
+
+            // Reorder remaining
+            await reorderApplicationIds(tournamentId);
+
+            res.json({ message: `Successfully deleted ${players.length} players and re-indexed the list.` });
+        } catch (err) {
+            res.status(500).json({ message: err.message });
+        }
+    });
+
+// Bulk Delete Players (By ID list)
+router.post("/bulk-delete",
+    authMiddleware,
+    authorize(['admin']),
+    async (req, res) => {
+        try {
+            const { playerIds } = req.body;
+            if (!Array.isArray(playerIds)) {
+                return res.status(400).json({ message: "playerIds must be an array" });
+            }
+
+            await Player.updateMany(
+                { _id: { $in: playerIds } },
+                { $set: { isDeleted: true, deletedAt: new Date() } }
+            );
+
+            res.json({ message: `${playerIds.length} players deleted successfully` });
         } catch (err) {
             res.status(500).json({ message: err.message });
         }

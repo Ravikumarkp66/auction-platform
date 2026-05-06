@@ -90,36 +90,8 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(false);
   const [regUrl, setRegUrl] = useState("");
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [visitorStats, setVisitorStats] = useState({ totalVisits: 0, recentUnique: 0, totalUnique: 0, dailyStats: [], totalUsers: 0 });
-  const [userLogs, setUserLogs] = useState([]);
-
-  async function fetchVisitorStats() {
-    try {
-      const res = await fetch(`${API_URL}/api/visitors/stats`);
-      if (res.ok) {
-        const data = await res.json();
-        setVisitorStats(data);
-      }
-    } catch (err) {
-      console.error("Failed to fetch visitor stats:", err);
-    }
-  }
-
-  async function fetchUserLogs() {
-    try {
-      const res = await fetch(`${API_URL}/api/visitors/user-logs`);
-      if (res.ok) {
-        const data = await res.json();
-        setUserLogs(data.logs || []);
-      }
-    } catch (err) {
-      console.error("Failed to fetch user logs:", err);
-    }
-  }
 
   useEffect(() => {
-    fetchVisitorStats();
-    fetchUserLogs();
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
@@ -282,14 +254,7 @@ export default function AdminDashboard() {
             />
             <StatCard title="Icon Roster" value={localStats.icons} icon={Award} gradient="linear-gradient(135deg,#f59e0b,#ef4444)" glow="#f59e0b" sub="Pre-retained" href="/admin/icons" />
             <StatCard title="Budget Health" value="100%" icon={TrendingUp} gradient="linear-gradient(135deg,#10b981,#06b6d4)" glow="#10b981" sub="System Nominal" />
-            <StatCard
-              title="Registered Users"
-              value={visitorStats.totalUsers || 0}
-              icon={Users}
-              gradient="linear-gradient(135deg,#a855f7,#ec4899)"
-              glow="#d946ef"
-              sub="Gmail ID Collected"
-            />
+
           </div>
 
           {/* ── Integrated Actions ── */}
@@ -299,119 +264,48 @@ export default function AdminDashboard() {
             <ActionCard title="Registry Auditor" description="Detect identity collisions" emoji="🛡️" href="/admin/audit" gradient="linear-gradient(135deg,#ef4444,#991b1b)" />
           </div>
 
-          {/* ── Site Analytics Section ── */}
-          <div className="pt-10">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-500">
-                <TrendingUp className="w-5 h-5" />
-              </div>
-              <div>
-                <h2 className="text-xl font-black text-white">Site Reach Analytics</h2>
-                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Real-time visitor monitoring</p>
-              </div>
+          {/* ── System Inventory ── */}
+          <div className="relative pt-10">
+            <div className="absolute top-0 left-0 w-20 h-1 bg-violet-500 rounded-full opacity-50" />
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-600">Past & Upcoming Systems</h2>
+              <Link href="/admin/tournaments" className="text-[10px] font-black text-violet-400 hover:text-white uppercase tracking-widest flex items-center gap-2 transition-all">
+                Full Inventory <ChevronRight className="w-3 h-3" />
+              </Link>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Traffic Stats */}
-              <div className="lg:col-span-1 space-y-4">
-                <div className="p-6 bg-white/[0.03] border border-white/10 rounded-3xl">
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Total Page Hits</p>
-                  <p className="text-3xl font-black text-white">{visitorStats.totalVisits.toLocaleString()}</p>
-                  <p className="text-[10px] font-bold text-emerald-500 mt-1 uppercase tracking-widest">All Time Reach</p>
-                </div>
-                <div className="p-6 bg-white/[0.03] border border-white/10 rounded-3xl">
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Unique Visitors (24h)</p>
-                  <p className="text-3xl font-black text-white">{visitorStats.recentUnique.toLocaleString()}</p>
-                  <p className="text-[10px] font-bold text-violet-400 mt-1 uppercase tracking-widest">Active Engagement</p>
-                </div>
-              </div>
-
-              {/* Growth Chart (Simple CSS implementation) */}
-              <div className="lg:col-span-2 p-8 bg-white/[0.03] border border-white/10 rounded-[2.5rem] relative overflow-hidden">
-                <div className="flex items-center justify-between mb-8">
-                  <div>
-                    <p className="text-sm font-black text-white">7-Day Trend</p>
-                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-1">Traffic volume distribution</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {allTournaments.filter(t => t.status !== "active").slice(0, 3).map(t => (
+                <div key={t._id} className="relative group overflow-hidden rounded-[2.5rem] border border-white/5 bg-[#0B0F2A]/60 backdrop-blur-xl hover:border-violet-500/30 transition-all duration-500 hover:shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+                  <div className="absolute inset-0 z-0">
+                    <img src={getMediaUrl(t.assets?.splashUrl, "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=400&auto=format&fit=crop")} className="w-full h-full object-cover opacity-10 group-hover:scale-110 group-hover:opacity-20 transition-all duration-1000" alt="" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#0B0F2A] via-transparent to-transparent"></div>
                   </div>
-                  <div className="px-3 py-1 bg-white/5 border border-white/10 rounded-lg text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                    Updates Live
-                  </div>
-                </div>
 
-                <div className="flex items-end justify-between h-32 gap-2">
-                  {visitorStats.dailyStats.length === 0 ? (
-                    <div className="w-full flex items-center justify-center text-slate-700 font-black text-[10px] uppercase italic tracking-widest">
-                      Gathering Data...
+                  <div className="relative z-10 p-6">
+                    <div className="flex items-start justify-between mb-6">
+                      <div className={`p-2.5 rounded-2xl border ${t.status === 'completed' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-white/5 border-white/10 text-slate-500'}`}>
+                        {t.status === 'completed' ? <CheckCircle className="w-4 h-4" /> : <LayoutDashboard className="w-4 h-4" />}
+                      </div>
+                      <span className="text-[8px] font-black uppercase tracking-widest text-slate-600 italic px-2 py-1 bg-white/5 rounded-lg border border-white/5">{t.status}</span>
                     </div>
-                  ) : (
-                    visitorStats.dailyStats.map((day, idx) => {
-                      const max = Math.max(...visitorStats.dailyStats.map(d => d.count)) || 1;
-                      const height = (day.count / max) * 100;
-                      return (
-                        <div key={day._id} className="flex-1 flex flex-col items-center gap-2 group">
-                          <div className="relative w-full flex flex-col items-center">
-                            <div className="absolute -top-6 opacity-0 group-hover:opacity-100 transition-opacity bg-violet-600 text-white text-[8px] font-black px-1.5 py-0.5 rounded leading-none">
-                              {day.count}
-                            </div>
-                            <div
-                              className="w-full bg-gradient-to-t from-violet-600 to-cyan-400 rounded-t-lg transition-all duration-1000 group-hover:brightness-125"
-                              style={{ height: `${Math.max(height, 5)}%` }}
-                            />
-                          </div>
-                          <p className="text-[8px] font-black text-slate-500 uppercase tracking-tighter">
-                            {new Date(day._id).toLocaleDateString('en-IN', { weekday: 'short' })}
-                          </p>
-                        </div>
-                      );
-                    })
-                  )}
+                    <h3 className="text-xl font-black text-white group-hover:text-violet-400 transition-colors truncate tracking-tighter italic">{t.name}</h3>
+                    <div className="flex items-center justify-between mt-6 pt-6 border-t border-white/5">
+                      <div className="flex flex-col">
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Scale</p>
+                        <p className="text-sm font-black text-white italic tracking-tighter">{t.numTeams} Teams</p>
+                      </div>
+                      <button onClick={() => { localStorage.setItem("selectedAuction", JSON.stringify(t)); window.location.reload(); }} className="w-10 h-10 bg-white/5 hover:bg-violet-600 text-white rounded-2xl flex items-center justify-center transition-all shadow-lg hover:shadow-violet-600/30 hover:scale-110 active:scale-95">
+                        <MousePointer2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              ))}
             </div>
           </div>
         </>
       )}
-
-      {/* ── System Inventory ── */}
-      <div className="relative pt-10">
-        <div className="absolute top-0 left-0 w-20 h-1 bg-violet-500 rounded-full opacity-50" />
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-600">Past & Upcoming Systems</h2>
-          <Link href="/admin/tournaments" className="text-[10px] font-black text-violet-400 hover:text-white uppercase tracking-widest flex items-center gap-2 transition-all">
-            Full Inventory <ChevronRight className="w-3 h-3" />
-          </Link>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {allTournaments.filter(t => t.status !== "active").slice(0, 3).map(t => (
-            <div key={t._id} className="relative group overflow-hidden rounded-[2.5rem] border border-white/5 bg-[#0B0F2A]/60 backdrop-blur-xl hover:border-violet-500/30 transition-all duration-500 hover:shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
-              <div className="absolute inset-0 z-0">
-                <img src={getMediaUrl(t.assets?.splashUrl, "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=400&auto=format&fit=crop")} className="w-full h-full object-cover opacity-10 group-hover:scale-110 group-hover:opacity-20 transition-all duration-1000" alt="" />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0B0F2A] via-transparent to-transparent"></div>
-              </div>
-
-              <div className="relative z-10 p-6">
-                <div className="flex items-start justify-between mb-6">
-                  <div className={`p-2.5 rounded-2xl border ${t.status === 'completed' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-white/5 border-white/10 text-slate-500'}`}>
-                    {t.status === 'completed' ? <CheckCircle className="w-4 h-4" /> : <LayoutDashboard className="w-4 h-4" />}
-                  </div>
-                  <span className="text-[8px] font-black uppercase tracking-widest text-slate-600 italic px-2 py-1 bg-white/5 rounded-lg border border-white/5">{t.status}</span>
-                </div>
-                <h3 className="text-xl font-black text-white group-hover:text-violet-400 transition-colors truncate tracking-tighter italic">{t.name}</h3>
-                <div className="flex items-center justify-between mt-6 pt-6 border-t border-white/5">
-                  <div className="flex flex-col">
-                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Scale</p>
-                    <p className="text-sm font-black text-white italic tracking-tighter">{t.numTeams} Teams</p>
-                  </div>
-                  <button onClick={() => { localStorage.setItem("selectedAuction", JSON.stringify(t)); window.location.reload(); }} className="w-10 h-10 bg-white/5 hover:bg-violet-600 text-white rounded-2xl flex items-center justify-center transition-all shadow-lg hover:shadow-violet-600/30 hover:scale-110 active:scale-95">
-                    <MousePointer2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
 
     </div>
   );

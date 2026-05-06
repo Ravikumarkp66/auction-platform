@@ -43,6 +43,8 @@ const extractDriveId = (url) => {
     /\/file\/d\/([a-zA-Z0-9_-]{10,})/,
     /id=([a-zA-Z0-9_-]{10,})/,
     /\/d\/([a-zA-Z0-9_-]{10,})/,
+    /uc\?export=download&id=([a-zA-Z0-9_-]{10,})/,
+    /open\?id=([a-zA-Z0-9_-]{10,})/,
   ];
   for (const p of patterns) {
     const m = url.match(p);

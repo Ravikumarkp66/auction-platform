@@ -1,28 +1,19 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Star, Trophy, Users, ShieldCheck, User, Search, Hash, AlertCircle, Edit3, FileSpreadsheet, Upload, RefreshCw, X, Camera } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { Star, Trophy, Users, ShieldCheck, User, Search, Hash, AlertCircle, Edit3, FileSpreadsheet, Upload, RefreshCw, X, Camera, Trash2, AlertTriangle } from "lucide-react";
 import * as XLSX from "xlsx";
 import { useAuction } from "../layout";
 import { io } from "socket.io-client";
-import { API_URL } from "../../../lib/apiConfig";
-
-// Global helper to proxy images (especially for Google Drive and CORS-restricted S3)
-const getProxiedUrl = (url) => {
-  if (!url) return "";
-  if (typeof url !== 'string') return url;
-  if (url.startsWith('data:')) return url;
-  if (url.includes('drive.google.com') || (url.includes('amazonaws.com') && !url.includes(API_URL))) {
-    return `${API_URL}/api/proxy-image?url=${encodeURIComponent(url)}`;
-  }
-  return url;
-};
+import { API_URL, getProxiedImageUrl } from "../../../lib/apiConfig";
 import ImageEditModal from "../../../components/ImageEditModal";
 
 let socket;
 
 export default function IconPlayersPanel() {
   const { selectedAuction } = useAuction();
+  const { data: session } = useSession();
   const [icons, setIcons] = useState([]);
   const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -31,6 +22,8 @@ export default function IconPlayersPanel() {
   const [isImporting, setIsImporting] = useState(false);
   const [importedData, setImportedData] = useState([]); // Store parsed CSV data for display
   const [editingPlayer, setEditingPlayer] = useState(null); // New state for editing name & details
+  const [isDeleteRangeModalOpen, setIsDeleteRangeModalOpen] = useState(false);
+  const [deleteRange, setDeleteRange] = useState({ from: "", to: "" });
 
   // Year logic removed as per user request to restore old system
 
@@ -78,72 +71,61 @@ export default function IconPlayersPanel() {
 
         const findValue = (row, keys) => {
           const rk = Object.keys(row);
+          // First try exact matches
           for (const k of keys) {
             const f = rk.find(key => key.toLowerCase().trim() === k.toLowerCase().trim());
+            if (f) return row[f];
+          }
+          // Then try includes
+          for (const k of keys) {
+            const f = rk.find(key => key.toLowerCase().includes(k.toLowerCase()));
             if (f) return row[f];
           }
           return null;
         };
 
-        // Year calculation removed as per user request
-
-        // Proxy function for Drive links
         const proxyUrl = (url) => {
-          return getProxiedUrl(url);
+          return getProxiedImageUrl(url);
         };
 
         const importedIcons = [];
-        const tableData = []; // For displaying parsed data
+        const tableData = []; 
 
-        // Process each row - Extract ONLY: Team, Captain, VC, Retained, Year
         data.forEach((row, rowIndex) => {
-          console.log(`\n=== ROW ${rowIndex} ===`);
-          console.log('Full row data:', JSON.stringify(row, null, 2));
-          console.log('Available keys:', Object.keys(row));
+          const teamName = row["TEAM NAME"] || findValue(row, ["team name", "team", "ತಂಡ", "ತಂಡದ ಹೆಸರು"]);
           
-          const teamName = row["TEAM NAME"] || findValue(row, ["team name", "name", "team", "ತಂಡ"]);
-          
-          console.log('Extracted team name:', teamName);
-          
-          if (!teamName) {
-            console.warn(`⚠️ Row ${rowIndex}: Could not find team name!`);
-            console.log('Trying to find any key with "team" or "name":');
-            Object.keys(row).forEach(key => {
-              if (key.toLowerCase().includes('team') || key.toLowerCase().includes('name')) {
-                console.log(`   Found: "${key}" = "${row[key]}"`);
-              }
-            });
-            return;
-             // Extract Generic Icons from row
-          const possibleIconNames = ["Captain Name", "Vice Captain Name", "Retain Player Name", "icon name", "name", "player name"];
+          if (!teamName) return;
+
+          const possibleIconNames = ["Captain Name", "Vice Captain Name", "Retain Player Name", "icon name", "name", "player name", "ಆಟಗಾರನ ಹೆಸರು", "ಹೆಸರು"];
+          const rowImageUrl = findValue(row, ["photo", "image", "imageUrl", "link", "url", "ಭಾವಚಿತ್ರ"]);
+          const rowMobile = findValue(row, ["mobile", "phone", "contact", "ಮೊಬೈಲ್", "ದೂರವಾಣಿ"]) || "-";
+          const rowVillage = findValue(row, ["village", "town", "city", "ಗ್ರಾಮ", "ಸ್ಥಳ"]) || "-";
           
           possibleIconNames.forEach(key => {
             const val = findValue(row, [key]);
             if (val && val.toLowerCase() !== "yes" && val.toLowerCase() !== "no") {
               const icon = {
                 name: val,
-                mobile: "-",
-                imageUrl: "",
+                mobile: rowMobile,
+                imageUrl: rowImageUrl || "",
                 role: "All-Rounder",
-                village: "-",
+                village: rowVillage,
                 age: 0,
                 teamName: teamName.trim(),
-                iconRole: null, // No special roles as per user request
+                iconRole: null,
                 isIcon: true
               };
               importedIcons.push(icon);
               tableData.push({ ...icon, type: 'Icon' });
             }
-          });         }
+          });
         });
 
-        // Store parsed data for display
         if (tableData.length > 0) {
           setImportedData(tableData);
         }
 
         if (importedIcons.length > 0) {
-          // First, get all teams to map team names to IDs
           const teamsRes = await fetch(`${API_URL}/api/teams?tournamentId=${selectedAuction._id}`);
           const teamsData = await teamsRes.json();
           const teamMap = {};
@@ -151,16 +133,17 @@ export default function IconPlayersPanel() {
             teamMap[t.name.toLowerCase().trim()] = t._id;
           });
 
-          // Map team names to team IDs for proper assignment
           const playersWithTeamIds = importedIcons.map(icon => ({
             ...icon,
-            team: teamMap[icon.teamName] || null // Add team ID for proper association
+            team: teamMap[icon.teamName.toLowerCase()] || null
           }));
 
-          // Bulk import icons
           const res = await fetch(`${API_URL}/api/players/import`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { 
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${session?.accessToken}`
+            },
             body: JSON.stringify({ 
               players: playersWithTeamIds, 
               tournamentId: selectedAuction._id 
@@ -171,14 +154,11 @@ export default function IconPlayersPanel() {
             const result = await res.json();
             alert(`Successfully added ${result.added} icon players! (Skipped ${result.skipped} duplicates)`);
             fetchIcons();
-            // Emit socket event only if socket is connected
             if (socket && socket.connected) {
               socket.emit("auctionUpdate", { type: "system_refresh", auctionId: selectedAuction._id });
             }
           } else {
-            const errorText = await res.text();
-            console.error("Import failed:", errorText);
-            alert(`Failed to import icon players: ${res.status} ${res.statusText}`);
+            alert("Failed to import icon players");
           }
         } else {
           alert("No icon players found in CSV");
@@ -188,7 +168,7 @@ export default function IconPlayersPanel() {
         alert("Error parsing file");
       } finally {
         setIsImporting(false);
-        e.target.value = null;
+        if (e.target) e.target.value = null;
       }
     };
     reader.readAsBinaryString(file);
@@ -222,6 +202,47 @@ export default function IconPlayersPanel() {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteRange = async () => {
+    if (!deleteRange.from || !deleteRange.to) {
+      alert("Please enter both 'From' and 'To' indices");
+      return;
+    }
+
+    const start = parseInt(deleteRange.from) - 1; // 0-indexed
+    const end = parseInt(deleteRange.to) - 1;
+
+    const iconsToDelete = filteredIcons.slice(start, end + 1);
+    if (iconsToDelete.length === 0) {
+      alert("No icons found in this range");
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to delete ${iconsToDelete.length} icons (from Row ${deleteRange.from} to Row ${deleteRange.to})? This cannot be undone.`)) return;
+
+    try {
+      const res = await fetch(`${API_URL}/api/players/bulk-delete`, {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session?.accessToken}`
+        },
+        body: JSON.stringify({ playerIds: iconsToDelete.map(p => p._id) }),
+      });
+
+      if (res.ok) {
+        alert("Icons deleted successfully");
+        setIsDeleteRangeModalOpen(false);
+        setDeleteRange({ from: "", to: "" });
+        fetchIcons();
+        if (socket && socket.connected) {
+          socket.emit("auctionUpdate", { type: "system_refresh", auctionId: selectedAuction._id });
+        }
+      }
+    } catch (err) {
+      alert("Error deleting range");
     }
   };
 
@@ -269,13 +290,23 @@ export default function IconPlayersPanel() {
            />
         </div>
 
-        <label 
-          className="px-6 py-3.5 bg-gradient-to-r from-yellow-600 to-amber-500 border border-yellow-500/20 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white shadow-xl shadow-yellow-500/20 hover:scale-105 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
-        >
-          {isImporting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-          {isImporting ? "Processing..." : "Upload CSV"}
-          <input type="file" className="hidden" accept=".xlsx,.xls,.csv" onChange={handleImportIcons} disabled={isImporting} />
-        </label>
+        <div className="flex flex-wrap items-center gap-3">
+          <button 
+            onClick={() => setIsDeleteRangeModalOpen(true)}
+            className="p-3.5 bg-red-500/10 text-red-500 border border-red-500/20 rounded-2xl hover:bg-red-500/20 transition-all active:scale-95 shadow-xl"
+            title="Delete Range"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+
+          <label 
+            className="px-6 py-3.5 bg-gradient-to-r from-yellow-600 to-amber-500 border border-yellow-500/20 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white shadow-xl shadow-yellow-500/20 hover:scale-105 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+          >
+            {isImporting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+            {isImporting ? "Processing..." : "Upload CSV"}
+            <input type="file" className="hidden" accept=".xlsx,.xls,.csv" onChange={handleImportIcons} disabled={isImporting} />
+          </label>
+        </div>
       </div>
 
       {/* ── PARSED DATA TABLE ── */}
@@ -319,9 +350,11 @@ export default function IconPlayersPanel() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         {row.imageUrl ? (
-                          <img src={row.imageUrl} alt={row.name} className="w-8 h-8 rounded-lg object-cover border border-white/10" />
+                          <img src={getProxiedImageUrl(row.imageUrl)} alt={row.name} className="w-8 h-8 rounded-lg object-cover border border-white/10" />
                         ) : (
-                          <User className="w-8 h-8 rounded-lg bg-slate-800 p-1.5 text-slate-600" />
+                          <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center text-[10px] font-black text-slate-600 uppercase">
+                            {row.name?.[0] || 'P'}
+                          </div>
                         )}
                         <span className="text-sm font-bold text-white">{row.name}</span>
                       </div>
@@ -376,9 +409,23 @@ export default function IconPlayersPanel() {
                         onClick={() => setEditImageTarget({ id: p._id, url: p.imageUrl, name: p.name })}
                         className="w-20 h-20 rounded-[2rem] overflow-hidden border-2 border-yellow-500/20 shadow-xl group-hover:scale-110 transition-transform duration-700 cursor-pointer relative group/img"
                      >
-                        {p.imageUrl ? (
-                           <img src={getProxiedUrl(p.imageUrl)} alt={p.name} className="w-full h-full object-cover" />
-                        ) : (
+                         {p.imageUrl ? (
+                            <img 
+                              src={getProxiedImageUrl(p.imageUrl)} 
+                              alt={p.name} 
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                const parent = e.target.parentElement;
+                                e.target.style.display = 'none';
+                                if (parent && !parent.querySelector('.fallback-initial')) {
+                                  const span = document.createElement('span');
+                                  span.className = 'fallback-initial text-3xl font-black text-slate-600 uppercase';
+                                  span.innerText = p.name?.[0] || 'P';
+                                  parent.appendChild(span);
+                                }
+                              }}
+                            />
+                         ) : (
                            <div className="w-full h-full bg-slate-800 flex items-center justify-center font-black text-3xl text-slate-600">
                               {p.name?.[0]}
                            </div>
@@ -441,11 +488,65 @@ export default function IconPlayersPanel() {
         )}
       </div>
 
+      {/* ── DELETE RANGE MODAL ── */}
+      {isDeleteRangeModalOpen && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={() => setIsDeleteRangeModalOpen(false)} />
+          <div className="relative w-full max-w-md bg-slate-900 border border-white/10 rounded-3xl p-8 shadow-2xl">
+            <h3 className="text-xl font-black text-white mb-6 uppercase tracking-wider flex items-center gap-3">
+              <AlertTriangle className="w-6 h-6 text-red-500" />
+              Delete <span className="text-red-500">Icon Range</span>
+            </h3>
+
+            <div className="space-y-4 mb-8">
+              <div>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">From Row Number</label>
+                <input
+                  type="number"
+                  placeholder="e.g. 1"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white font-bold outline-none focus:border-red-500 transition-all"
+                  value={deleteRange.from}
+                  onChange={e => setDeleteRange({...deleteRange, from: e.target.value})}
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">To Row Number</label>
+                <input
+                  type="number"
+                  placeholder="e.g. 5"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white font-bold outline-none focus:border-red-500 transition-all"
+                  value={deleteRange.to}
+                  onChange={e => setDeleteRange({...deleteRange, to: e.target.value})}
+                />
+              </div>
+              <p className="text-[10px] text-slate-500 italic leading-relaxed">
+                Note: This will delete icon players based on their current order in the list (from row X to row Y).
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setIsDeleteRangeModalOpen(false)}
+                className="flex-1 py-4 bg-white/5 hover:bg-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-400 transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteRange}
+                className="flex-1 py-4 bg-red-600 hover:bg-red-700 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white shadow-xl shadow-red-500/20 transition-all"
+              >
+                Delete Range
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── IMAGE EDIT MODAL ── */}
       {editImageTarget && (
         <ImageEditModal
           title={`Edit Photo: ${editImageTarget.name}`}
-          initialImage={getProxiedUrl(editImageTarget.url)}
+          initialImage={getProxiedImageUrl(editImageTarget.url)}
           onClose={() => setEditImageTarget(null)}
           onSave={async (file) => {
              try {

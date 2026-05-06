@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Users, Search, Save, X, AlertTriangle, ShieldCheck, Trophy, AlertCircle, Edit3, ArrowUpRight } from "lucide-react";
+import { Users, Search, Save, X, AlertTriangle, ShieldCheck, Trophy, AlertCircle, Edit3, ArrowUpRight, UploadCloud, FileSpreadsheet, Trash2, Undo2 } from "lucide-react";
+import * as XLSX from 'xlsx';
 import { useAuction } from "../layout";
 import { useSession } from "next-auth/react";
 import { io } from "socket.io-client";
 import ImageEditModal from "../../../components/ImageEditModal";
-import { API_URL } from "../../../lib/apiConfig";
+import { API_URL, getMediaUrl, getProxiedImageUrl } from "../../../lib/apiConfig";
 
 // Socket instance for real-time broadcast
 let socket;
@@ -25,6 +26,10 @@ export default function TeamsRegistry() {
   const [formData, setFormData] = useState({});
   const [confirmText, setConfirmText] = useState("");
   const [editImageTarget, setEditImageTarget] = useState(null); // { id, url, name }
+  const [uploading, setUploading] = useState(false);
+  const [lastImportedIds, setLastImportedIds] = useState([]);
+  const [isDeleteRangeModalOpen, setIsDeleteRangeModalOpen] = useState(false);
+  const [deleteRange, setDeleteRange] = useState({ from: "", to: "" });
 
   useEffect(() => {
     if (selectedAuction?._id) {
@@ -90,6 +95,168 @@ export default function TeamsRegistry() {
     }
   };
 
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setUploading(true);
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const bstr = evt.target.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const data = XLSX.utils.sheet_to_json(ws);
+
+        if (data.length === 0) {
+          alert("Sheet is empty");
+          setUploading(false);
+          return;
+        }
+
+        // Map common column names
+        const teamsToUpload = data.map(row => {
+          // Look for keys that contain 'name', 'team', 'logo', 'url', 'short', 'code'
+          const keys = Object.keys(row);
+          const nameKey = keys.find(k => k.toLowerCase().includes('name') || k.toLowerCase().includes('team'));
+          const logoKey = keys.find(k => k.toLowerCase().includes('logo') || k.toLowerCase().includes('url') || k.toLowerCase().includes('image') || k.toLowerCase().includes('photo'));
+          const shortNameKey = keys.find(k => k.toLowerCase().includes('short') || k.toLowerCase().includes('code'));
+
+          const name = row[nameKey];
+          if (!name) return null;
+
+          return {
+            name: name.toString().trim(),
+            logoUrl: row[logoKey] ? row[logoKey].toString().trim() : "",
+            shortName: row[shortNameKey] ? row[shortNameKey].toString().trim().toUpperCase() : name.toString().trim().substring(0, 3).toUpperCase(),
+            tournamentId: selectedAuction._id,
+            remainingBudget: selectedAuction.startingBudget || 1000000
+          };
+        }).filter(t => t !== null);
+
+        if (teamsToUpload.length > 0) {
+          const res = await fetch(`${API_URL}/api/teams/bulk`, {
+            method: "POST",
+            headers: { 
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${session?.accessToken}`
+            },
+            body: JSON.stringify({ teams: teamsToUpload }),
+          });
+
+          if (res.ok) {
+            const result = await res.json();
+            setLastImportedIds(result.map(t => t._id));
+            alert(`Successfully imported ${teamsToUpload.length} teams!`);
+            fetchTeams();
+          } else {
+            const errData = await res.json();
+            alert("Failed to import teams: " + (errData.message || "Unknown error"));
+          }
+        } else {
+          alert("No valid team data found in sheet. Ensure columns have headers like 'Team Name' and 'Logo URL'.");
+        }
+      } catch (err) {
+        console.error("CSV Parse Error:", err);
+        alert("Error parsing file. Ensure it is a valid CSV or Excel file.");
+      } finally {
+        setUploading(false);
+        // Reset file input
+        if (e.target) e.target.value = null;
+      }
+    };
+    reader.onerror = () => {
+      alert("Error reading file");
+      setUploading(false);
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  const handleUndoLastImport = async () => {
+    if (lastImportedIds.length === 0) return;
+    if (!confirm(`Undo will delete the ${lastImportedIds.length} teams you just imported. Continue?`)) return;
+
+    try {
+      const res = await fetch(`${API_URL}/api/teams/bulk-delete`, {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session?.accessToken}`
+        },
+        body: JSON.stringify({ teamIds: lastImportedIds }),
+      });
+
+      if (res.ok) {
+        alert("Import undone successfully");
+        setLastImportedIds([]);
+        fetchTeams();
+      }
+    } catch (err) {
+      alert("Error undoing import");
+    }
+  };
+
+  const handleDeleteTeam = async (id, name) => {
+    if (!confirm(`Are you sure you want to delete ${name}? This will also unassign all players from this team.`)) return;
+
+    try {
+      const res = await fetch(`${API_URL}/api/teams/${id}`, {
+        method: "DELETE",
+        headers: { 
+          "Authorization": `Bearer ${session?.accessToken}`
+        },
+      });
+
+      if (res.ok) {
+        // Broadcast via socket
+        socket.emit("auctionUpdate", { type: "system_refresh", auctionId: selectedAuction._id });
+        fetchTeams();
+      }
+    } catch (err) {
+      alert("Error deleting team");
+    }
+  };
+
+  const handleDeleteRange = async () => {
+    if (!deleteRange.from || !deleteRange.to) {
+      alert("Please enter both 'From' and 'To' indices");
+      return;
+    }
+
+    const start = parseInt(deleteRange.from) - 1; // 0-indexed
+    const end = parseInt(deleteRange.to) - 1;
+
+    const teamsToDelete = filteredTeams.slice(start, end + 1);
+    if (teamsToDelete.length === 0) {
+      alert("No teams found in this range");
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to delete ${teamsToDelete.length} teams (from Row ${deleteRange.from} to Row ${deleteRange.to})? This cannot be undone.`)) return;
+
+    try {
+      const res = await fetch(`${API_URL}/api/teams/bulk-delete`, {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session?.accessToken}`
+        },
+        body: JSON.stringify({ teamIds: teamsToDelete.map(t => t._id) }),
+      });
+
+      if (res.ok) {
+        alert("Teams deleted successfully");
+        setIsDeleteRangeModalOpen(false);
+        setDeleteRange({ from: "", to: "" });
+        fetchTeams();
+        socket.emit("auctionUpdate", { type: "system_refresh", auctionId: selectedAuction._id });
+      }
+    } catch (err) {
+      alert("Error deleting range");
+    }
+  };
+
   const filteredTeams = teams.filter(t => 
     t.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     t.shortName?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -116,6 +283,41 @@ export default function TeamsRegistry() {
         </div>
         
         <div className="flex items-center gap-3">
+          {/* Undo Button */}
+          {lastImportedIds.length > 0 && (
+            <button 
+              onClick={handleUndoLastImport}
+              className="flex items-center gap-2 px-4 py-3 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 rounded-2xl transition-all group animate-in slide-in-from-right-4"
+            >
+              <Undo2 className="w-4 h-4 text-amber-500 group-hover:-rotate-45 transition-transform" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-amber-400">Undo Last Import</span>
+            </button>
+          )}
+
+          {/* Delete Range Button */}
+          <button 
+            onClick={() => setIsDeleteRangeModalOpen(true)}
+            className="p-3 bg-red-500/10 text-red-500 border border-red-500/20 rounded-2xl hover:bg-red-500/20 transition-all active:scale-95 shadow-xl"
+            title="Delete Range"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+
+          {/* CSV Upload Button */}
+          <label className={`flex items-center gap-2 px-4 py-3 bg-emerald-600/10 hover:bg-emerald-600/20 border border-emerald-500/30 rounded-2xl cursor-pointer transition-all group ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
+            <FileSpreadsheet className="w-4 h-4 text-emerald-500 group-hover:scale-110 transition-transform" />
+            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">
+              {uploading ? "Importing..." : "Upload Teams Sheet"}
+            </span>
+            <input 
+              type="file" 
+              accept=".csv, .xlsx, .xls" 
+              className="hidden" 
+              onChange={handleFileUpload}
+              disabled={uploading}
+            />
+          </label>
+
           <div className="relative group min-w-[300px]">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-violet-400" />
             <input 
@@ -152,7 +354,23 @@ export default function TeamsRegistry() {
                         onClick={() => setEditImageTarget({ id: t._id, url: t.logoUrl, name: t.name })}
                         className="relative w-10 h-10 rounded-2xl overflow-hidden border border-white/10 shrink-0 shadow-lg bg-slate-800 flex items-center justify-center font-black text-white cursor-pointer hover:border-violet-500/50 transition-all group/img" 
                         style={{ background: t.color + "33", color: t.color }}>
-                        {t.logoUrl ? <img src={t.logoUrl} className="w-full h-full object-cover" /> : t.name?.[0]}
+                        {t.logoUrl ? (
+                          <img 
+                            src={getProxiedImageUrl(t.logoUrl)} 
+                            className="w-full h-full object-cover" 
+                            onError={(e) => {
+                              // If proxy fails, try direct media URL as fallback
+                              if (e.target.src !== getMediaUrl(t.logoUrl)) {
+                                e.target.src = getMediaUrl(t.logoUrl);
+                              } else {
+                                e.target.style.display = 'none';
+                                if (e.target.parentElement) {
+                                  e.target.parentElement.innerHTML = t.name?.[0] || '?';
+                                }
+                              }
+                            }}
+                          />
+                        ) : t.name?.[0]}
                         <div className="absolute inset-0 bg-black/60 opacity-0 group-hover/img:opacity-100 flex items-center justify-center transition-opacity">
                            <Edit3 className="w-4 h-4 text-white" />
                         </div>
@@ -181,17 +399,81 @@ export default function TeamsRegistry() {
                      <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest opacity-60 italic leading-none">Healthy</span>
                   </td>
                   <td className="px-8 py-4 text-right">
-                    <button 
-                      onClick={() => openManageModal(t)}
-                      className="px-4 py-2 bg-[#7c3aed] hover:bg-[#8b5cf6] text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg hover:shadow-[#7c3aed]/20"
-                    >
-                      Configure
-                    </button>
+                    <div className="flex items-center justify-end gap-2">
+                      <button 
+                        onClick={() => openManageModal(t)}
+                        className="px-4 py-2 bg-[#7c3aed] hover:bg-[#8b5cf6] text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg hover:shadow-[#7c3aed]/20"
+                      >
+                        Configure
+                      </button>
+                      <button 
+                        onClick={() => handleDeleteTeam(t._id, t.name)}
+                        className="p-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-xl transition-all border border-red-500/20"
+                        title="Delete Team"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+
+          {/* ── DELETE RANGE MODAL ── */}
+          {isDeleteRangeModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={() => setIsDeleteRangeModalOpen(false)} />
+              <div className="relative w-full max-w-md bg-slate-900 border border-white/10 rounded-3xl p-8 shadow-2xl">
+                <h3 className="text-xl font-black text-white mb-6 uppercase tracking-wider flex items-center gap-3">
+                  <AlertTriangle className="w-6 h-6 text-red-500" />
+                  Delete <span className="text-red-500">Team Range</span>
+                </h3>
+
+                <div className="space-y-4 mb-8">
+                  <div>
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">From Row Number</label>
+                    <input
+                      type="number"
+                      placeholder="e.g. 1"
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white font-bold outline-none focus:border-red-500 transition-all"
+                      value={deleteRange.from}
+                      onChange={e => setDeleteRange({...deleteRange, from: e.target.value})}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">To Row Number</label>
+                    <input
+                      type="number"
+                      placeholder="e.g. 5"
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white font-bold outline-none focus:border-red-500 transition-all"
+                      value={deleteRange.to}
+                      onChange={e => setDeleteRange({...deleteRange, to: e.target.value})}
+                    />
+                  </div>
+                  <p className="text-[10px] text-slate-500 italic leading-relaxed">
+                    Note: This will delete teams based on their current order in the table (from row X to row Y).
+                  </p>
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setIsDeleteRangeModalOpen(false)}
+                    className="flex-1 py-4 bg-white/5 hover:bg-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-400 transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleDeleteRange}
+                    className="flex-1 py-4 bg-red-600 hover:bg-red-700 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white shadow-xl shadow-red-500/20 transition-all"
+                  >
+                    Delete Range
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {filteredTeams.length === 0 && (
             <div className="py-20 text-center opacity-30 italic font-black uppercase tracking-[0.5em]">Zero Data Matched</div>
           )}

@@ -54,12 +54,7 @@ app.use(compression());
 // Clean Logging System
 if (process.env.LOG_DISABLED !== 'true') {
   const morganFormat = process.env.NODE_ENV === 'production' ? 'tiny' : 'dev';
-  app.use(morgan(morganFormat, {
-    skip: (req, res) => {
-      // Skip noisy background routes
-      return req.originalUrl === '/api/visitors/log' || req.originalUrl === '/api/health';
-    }
-  }));
+  app.use(morgan(morganFormat));
 }
 
 // Body parser with size limits
@@ -310,7 +305,7 @@ app.use("/api/location", require("./routes/locationRoutes"));
 app.use("/api/services", require("./routes/serviceRoutes"));
 app.use("/api/matches", matchRoutes);
 app.use("/api/settings", require("./routes/settingsRoutes"));
-app.use("/api/visitors", require("./routes/visitorRoutes"));
+
 
 // ===== ERROR HANDLING MIDDLEWARE =====
   // Global error handler - must be last

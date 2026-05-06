@@ -63,7 +63,7 @@ function LiveAuctionContent() {
   const [editingShortId, setEditingShortId] = useState(null)
   const [tempValue, setTempValue] = useState("")
   const [tempShort, setTempShort] = useState("")
-  const [bidIncrement, setBidIncrement] = useState(2) // Start with base price logic
+  const [bidIncrement, setBidIncrement] = useState(100) // Default to 100, updated on player change
   const [socket, setSocket] = useState(null)
   const [showBreakModal, setShowBreakModal] = useState(false)
   const [showImageEditor, setShowImageEditor] = useState(false)
@@ -163,6 +163,24 @@ function LiveAuctionContent() {
       return <span className="px-2 py-0.5 bg-emerald-500 text-white text-[8px] font-black rounded-full">R</span>;
     }
     return null;
+  };
+
+  const formatDOB = (dob) => {
+    if (!dob || dob === "-" || dob === "undefined") return "-";
+    try {
+      // If it's already in DD/MM/YYYY or similar, try to return it or fix it
+      if (typeof dob === 'string' && dob.includes('/') && dob.length <= 10) return dob;
+      
+      const date = new Date(dob);
+      if (isNaN(date.getTime())) return dob;
+      
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      return `${day}/${month}/${year}`;
+    } catch {
+      return dob;
+    }
   };
 
   // Detect auction type based on tournament mode (Reliable vs baseline heuristic)
@@ -670,7 +688,7 @@ function LiveAuctionContent() {
     setRoundHistory([])
     if (player) {
       // Start with base price as initial bid amount based on auction type
-      const startBid = player.basePrice || (isPointsSystem() ? getBasePrice(player.role) : 100);
+      const startBid = Number(player.basePrice) || (isPointsSystem() ? getBasePrice(player.role) : 100);
       setBidIncrement(startBid);
     }
   }, [currentPlayerIndex])
@@ -851,7 +869,10 @@ function LiveAuctionContent() {
     if (newHistory.length === 0) {
       setCurrentBid(0)
       setHighestBidder(null)
-      if (player) setBidIncrement(getBidIncrement(player.basePrice || 2))
+      if (player) {
+        const startBid = Number(player.basePrice) || (isPointsSystem() ? getBasePrice(player.role) : 100);
+        setBidIncrement(startBid);
+      }
     } else {
       const prevBid = newHistory[0].bid
       setCurrentBid(prevBid)
@@ -1316,7 +1337,10 @@ function LiveAuctionContent() {
     } else {
       setCurrentBid(0)
       setHighestBidder(null)
-      if (player) setBidIncrement(getBidIncrement(player.basePrice || 2));
+      if (player) {
+        const startBid = Number(player.basePrice) || (isPointsSystem() ? getBasePrice(player.role) : 100);
+        setBidIncrement(startBid);
+      }
     }
   }
 
@@ -1404,10 +1428,17 @@ function LiveAuctionContent() {
       const res = await fetch(`${API_URL}/api/players/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ [field]: valueToSend })
+        body: JSON.stringify({ 
+          [field]: valueToSend,
+          ...(field === 'imageUrl' ? { "photo.status": "done", "photo.s3": valueToSend } : {})
+        })
       });
       if (res.ok) {
-        setPlayers(prev => prev.map(p => p.id === id ? { ...p, [field]: valueToSend } : p));
+        setPlayers(prev => prev.map(p => p.id === id ? { 
+          ...p, 
+          [field]: valueToSend,
+          ...(field === 'imageUrl' ? { photo: { ...p.photo, s3: valueToSend, status: "done" } } : {})
+        } : p));
         console.log(`Player ${field} updated successfully`);
       } else {
         const data = await res.json();
@@ -1427,11 +1458,11 @@ function LiveAuctionContent() {
       const res = await fetch(`${API_URL}/api/players/${player.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageUrl: newUrl })
+        body: JSON.stringify({ imageUrl: newUrl, "photo.status": "done", "photo.s3": newUrl })
       })
       if (res.ok) {
         // Update local state immediately
-        setPlayers(prev => prev.map(p => p.id === player.id ? { ...p, image: newUrl, imageUrl: newUrl, photo: { ...p.photo, s3: newUrl } } : p))
+        setPlayers(prev => prev.map(p => p.id === player.id ? { ...p, image: newUrl, imageUrl: newUrl, photo: { ...p.photo, s3: newUrl, status: "done" } } : p))
 
         // Broadcast to other devices
         if (socket) {
@@ -2050,7 +2081,7 @@ function LiveAuctionContent() {
                       onError={(e) => { e.target.src = player.placeholder; }}
                     />
 
-                    {player.photo?.status === "pending" && (
+                    {player.photo?.status === "pending" && !player.photo?.s3 && !player.imageUrl && !player.image && (
                       <div className="absolute top-2 right-2 bg-violet-600/80 backdrop-blur-md px-2 py-0.5 rounded-full text-[8px] font-black text-white uppercase tracking-widest border border-white/20 animate-pulse">
                         Processing Image…
                       </div>
@@ -2228,7 +2259,7 @@ function LiveAuctionContent() {
                             </div>
                           ) : (
                             <div className="flex items-center gap-2 group/dob">
-                              <p className="text-sm text-white font-black">{player.dob}</p>
+                              <p className="text-sm text-white font-black">{formatDOB(player.dob)}</p>
                               <button onClick={() => { setEditingPlayerField('dob'); setTempValue(player.dob); }} className="opacity-0 group-hover/dob:opacity-100 text-[10px] text-violet-500">✎</button>
                             </div>
                           )}

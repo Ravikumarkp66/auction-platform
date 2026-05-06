@@ -56,3 +56,16 @@ export const getMediaUrl = (path, fallback = DEFAULT_ASSETS.BANNER_LOGO) => {
   return `${cleanBase}${normalizedPath}`;
 };
 
+/**
+ * Wraps an external URL in the backend proxy endpoint
+ * @param {string} url - The external image URL
+ * @returns {string} - The proxied URL
+ */
+export const getProxiedImageUrl = (url) => {
+  if (!url || !url.startsWith('http')) return url;
+  if (url.includes(API_URL) && API_URL.length > 0) return url; // Already internal
+  
+  return `${API_URL}/api/proxy-image?url=${encodeURIComponent(url)}`;
+};
+
+

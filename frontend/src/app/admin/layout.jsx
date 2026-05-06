@@ -26,7 +26,7 @@ import {
   Home,
   Eye
 } from "lucide-react";
-import { API_URL } from "../../lib/apiConfig";
+import { API_URL, getMediaUrl } from "../../lib/apiConfig";
 
 // Create a Context for the selected Auction
 const AuctionContext = createContext(null);
