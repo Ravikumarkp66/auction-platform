@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const crypto = require("crypto");
 
 const tournamentSchema = new mongoose.Schema({
   name: { type: String, required: true },
@@ -18,6 +19,29 @@ const tournamentSchema = new mongoose.Schema({
   registrationEndDate: { type: Date },
   registrationEndTime: { type: String, default: "23:59" },
   closedMessage: { type: String, default: "Registration is currently closed. Please contact the tournament organizer for more details." },
+  applyToken: { type: String, unique: true, sparse: true, index: true },
+  registrationFieldConfig: {
+    type: Map,
+    of: {
+      type: String,
+      enum: ["hidden", "optional", "required"],
+    },
+    default: {
+      name: "required",
+      fatherName: "optional",
+      dob: "optional",
+      mobile: "required",
+      aadhaarNumber: "optional",
+      taluk: "optional",
+      hobli: "optional",
+      village: "optional",
+      role: "optional",
+      playingStyle: "optional",
+      wicketKeeper: "optional",
+      photo: "optional",
+      aadhaarFile: "optional"
+    }
+  },
   status: { type: String, enum: ["draft", "active", "completed"], default: "draft" },
 
   // ─── Auction Engine fields (added for multi-tournament engine) ───────────
@@ -69,7 +93,11 @@ const tournamentSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // Auto-increment shortId logic
-tournamentSchema.pre('save', async function() {
+tournamentSchema.pre('save', async function () {
+  if (this.isNew && !this.applyToken) {
+    this.applyToken = `kpl-${crypto.randomBytes(6).toString('hex')}`;
+  }
+
   if (!this.isNew || this.shortId) return;
   try {
     const lastTournament = await this.constructor.findOne({}, { shortId: 1 }).sort({ shortId: -1 });

@@ -3,12 +3,13 @@
 import Link from 'next/link';
 import { useLanguage } from '../context/LanguageContext';
 import { usePathname } from 'next/navigation';
+import { isApplicationRoute } from '../lib/applicationRoutes';
 
 export default function Footer() {
   const { t } = useLanguage();
   const pathname = usePathname();
 
-  if (pathname === '/auction') {
+  if (pathname === '/auction' || isApplicationRoute(pathname)) {
     return null;
   }
 
@@ -18,12 +19,12 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
           <div>
             <div className="flex flex-col">
-               <span className="text-white font-[1000] text-3xl tracking-tighter leading-none uppercase">
-                 LAKSHMISH
-               </span>
-               <span className="text-[10px] font-black tracking-[0.4em] uppercase text-violet-500 mt-2">
-                 Cricket Events
-               </span>
+              <span className="text-white font-[1000] text-3xl tracking-tighter leading-none uppercase">
+                LAKSHMISH
+              </span>
+              <span className="text-[10px] font-black tracking-[0.4em] uppercase text-violet-500 mt-2">
+                Cricket Events
+              </span>
             </div>
             <p className="mt-6 text-gray-500 text-xs font-bold uppercase tracking-widest leading-loose max-w-xs">
               {t.footer.desc || "The ultimate platform for local cricket auctions. Real-time bidding, professional management, and cinematic experiences."}
@@ -50,7 +51,7 @@ export default function Footer() {
               <li className="flex flex-col gap-1">
                 <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest">Connect</span>
                 <a href="https://www.instagram.com/lakshmish_virat/" target="_blank" rel="noopener noreferrer" className="text-white hover:text-violet-400 text-xs font-black transition-colors flex items-center gap-2">
-                   @lakshmish_virat
+                  @lakshmish_virat
                 </a>
               </li>
               <li className="pt-2"><Link href="/booking" className="px-6 py-2.5 bg-violet-600 hover:bg-violet-500 text-white font-black text-[10px] uppercase tracking-widest rounded-lg transition-all inline-block shadow-lg shadow-violet-600/20">{t.navbar.bookMe || "Book Event"}</Link></li>

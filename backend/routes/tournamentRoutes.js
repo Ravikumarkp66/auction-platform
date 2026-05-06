@@ -5,6 +5,7 @@ const Tournament = require("../models/Tournament");
 const TournamentRules = require("../models/TournamentRules");
 const Team = require("../models/Team");
 const Player = require("../models/Player");
+const RegistrationDraft = require("../models/RegistrationDraft");
 const { startImageProcessing } = require("../utils/image-processor");
 const { S3Client, DeleteObjectCommand } = require("@aws-sdk/client-s3");
 const authMiddleware = require("../middleware/authMiddleware");
@@ -169,6 +170,101 @@ router.post("/",
       res.status(400).json({ message: err.message });
     }
   });
+
+router.get("/apply/:token", async (req, res) => {
+  try {
+    const { token } = req.params;
+    let tournament;
+
+    if (mongoose.Types.ObjectId.isValid(token)) {
+      tournament = await Tournament.findById(token);
+    } else if (!isNaN(token)) {
+      tournament = await Tournament.findOne({ shortId: parseInt(token) });
+    }
+
+    if (!tournament) {
+      tournament = await Tournament.findOne({ applyToken: token });
+    }
+
+    if (!tournament) return res.status(404).json({ message: "Tournament not found" });
+
+    const rules = await TournamentRules.findOne({ tournamentId: tournament._id }).lean();
+    const teams = await Team.find({ tournamentId: tournament._id }).lean();
+    const players = await Player.find({ tournamentId: tournament._id, isDeleted: { $ne: true } }).sort({ applicationId: 1 }).lean();
+
+    res.json({ tournament, teams, players, rules: rules?.config || {}, immersive: true });
+  } catch (err) {
+    console.error("Fetch apply tournament error:", err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+router.get("/apply/:token/draft", async (req, res) => {
+  try {
+    const { token } = req.params;
+    const { mobile } = req.query;
+    if (!mobile) return res.status(400).json({ message: "Mobile is required" });
+
+    let tournament;
+    if (mongoose.Types.ObjectId.isValid(token)) {
+      tournament = await Tournament.findById(token);
+    } else if (!isNaN(token)) {
+      tournament = await Tournament.findOne({ shortId: parseInt(token) });
+    }
+    if (!tournament) {
+      tournament = await Tournament.findOne({ applyToken: token });
+    }
+    if (!tournament) return res.status(404).json({ message: "Tournament not found" });
+
+    const draft = await RegistrationDraft.findOne({ tournamentId: tournament._id, mobile }).sort({ updatedAt: -1 }).lean();
+    if (!draft) return res.status(404).json({ message: "Draft not found" });
+    res.json({ success: true, draft });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+router.put("/apply/:token/draft", async (req, res) => {
+  try {
+    const { token } = req.params;
+    const { mobile, step, formData, previews, status = "saved" } = req.body || {};
+    if (!mobile) return res.status(400).json({ message: "Mobile is required" });
+
+    let tournament;
+    if (mongoose.Types.ObjectId.isValid(token)) {
+      tournament = await Tournament.findById(token).select("_id name applyToken");
+    } else if (!isNaN(token)) {
+      tournament = await Tournament.findOne({ shortId: parseInt(token) }).select("_id name applyToken");
+    }
+
+    if (!tournament) {
+      tournament = await Tournament.findOne({ applyToken: token }).select("_id name applyToken");
+    }
+
+    if (!tournament) return res.status(404).json({ message: "Tournament not found" });
+
+    const draft = await RegistrationDraft.findOneAndUpdate(
+      { tournamentId: tournament._id, mobile },
+      {
+        $set: {
+          token: tournament.applyToken || token,
+          mobile,
+          step: step || 1,
+          formData: formData || {},
+          previews: previews || {},
+          status,
+          tournamentId: tournament._id,
+          tournamentName: tournament.name,
+        }
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+
+    res.json({ success: true, draft });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
 
 // Append players to an existing tournament (Excel upload)
 router.post("/:id/append-players", async (req, res) => {
@@ -519,7 +615,8 @@ router.put("/:id", async (req, res) => {
   try {
     const {
       registrationTitle, registrationDetails, registrationEndDate, registrationEndTime,
-      closedMessage, assets, auctionMode, currencyUnit, startingBid, bidIncrement
+      closedMessage, assets, auctionMode, currencyUnit, startingBid, bidIncrement,
+      registrationFieldConfig
     } = req.body;
 
     const updateData = {
@@ -528,6 +625,9 @@ router.put("/:id", async (req, res) => {
     };
     if (assets) {
       updateData.assets = assets;
+    }
+    if (registrationFieldConfig) {
+      updateData.registrationFieldConfig = registrationFieldConfig;
     }
 
     const tournament = await Tournament.findByIdAndUpdate(

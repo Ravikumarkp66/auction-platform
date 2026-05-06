@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useState, useEffect, useRef } from "react";
+import { useParams, useRouter, usePathname } from "next/navigation";
 import {
    Trophy, CheckCircle, AlertCircle,
    ArrowRight, ArrowLeft, Phone, User, MapPin,
@@ -9,11 +9,13 @@ import {
    Calendar, CreditCard, ClipboardCheck, Navigation2,
    Activity, Users, UserPlus, UploadCloud, X,
    Trash2, Search, ChevronDown, Zap, SearchCode,
-   Edit2, Save, Plus, Clock
+   Edit2, Save, Plus, Clock, Settings
 } from "lucide-react";
+import confetti from "canvas-confetti";
 import { useSession } from "next-auth/react";
 import { uploadToS3 } from "../../../lib/uploadToS3";
 import { API_URL, getMediaUrl } from "../../../lib/apiConfig";
+import { getCanonicalApplyRoute, isApplicationRoute } from "@/lib/applicationRoutes";
 
 const DICT = {
    "PLAYER PORTAL": "ಆಟಗಾರರ ಪೋರ್ಟಲ್",
@@ -56,6 +58,14 @@ const DICT = {
    "Asset Repository": "ದಾಖಲೆಗಳ ಸಂಗ್ರಹ",
    "Encrypted visual and identity proof": "ಗುರುತಿನ ಪುರಾವೆ",
    "Profile Identity Photo": "ಆಟಗಾರನ ಫೋಟೋ",
+   "No Active Registration Found": "ಯಾವುದೇ ಸಕ್ರಿಯ ನೋಂದಣಿ ಕಂಡುಬಂದಿಲ್ಲ",
+   "Start New Registration": "ಹೊಸ ನೋಂದಣಿ ಪ್ರಾರಂಭಿಸಿ",
+   "Change Number": "ಸಂಖ್ಯೆ ಬದಲಾಯಿಸಿ",
+   "Resume Previous Application?": "ಹಿಂದಿನ ಅರ್ಜಿಯನ್ನು ಮುಂದುವರಿಸುವುದೇ?",
+   "Continue Registration": "ನೋಂದಣಿ ಮುಂದುವರಿಸಿ",
+   "Start Fresh": "ಮೊದಲಿನಿಂದ ಪ್ರಾರಂಭಿಸಿ",
+   "Exit Safely": "ಸುರಕ್ಷಿತವಾಗಿ ನಿರ್ಗಮಿಸಿ",
+   "Back to Home": "ಮುಖಪುಟಕ್ಕೆ ಹಿಂತಿರುಗಿ",
    "Aadhaar Resource Node": "ಆಧಾರ್ ದಾಖಲೆ",
    "Back": "ಹಿಂದೆ",
    "Continue": "ಮುಂದುವರಿಸಿ",
@@ -68,10 +78,128 @@ const DICT = {
    "Find My Application": "ನನ್ನ ಅರ್ಜಿಯನ್ನು ಹುಡುಕಿ",
    "Phase": "ಹಂತ",
    "SEARCH...": "ಹುಡುಕಿ...",
-   "Global Dashboard": "ಡ್ಯಾಶ್‌ಬೋರ್ಡ್"
+   "Global Dashboard": "ಡ್ಯಾಶ್‌ಬೋರ್ಡ್",
+   "KPL Secure Apply": "ಕೆಪಿಎಲ್ ಸುರಕ್ಷಿತ ಅರ್ಜಿ",
+   "Player Registration": "ಆಟಗಾರರ ನೋಂದಣಿ",
+   "Saving...": "ಉಳಿಸಲಾಗುತ್ತಿದೆ...",
+   "Saved ✓": "ಉಳಿಸಲಾಗಿದೆ ✓",
+   "Connection unstable": "ಸಂಪರ್ಕ ಅಸ್ಥಿರವಾಗಿದೆ",
+   "Exit": "ನಿರ್ಗಮಿಸಿ",
+   "Enter Mobile Number": "ಮೊಬೈಲ್ ಸಂಖ್ಯೆಯನ್ನು ನಮೂದಿಸಿ",
+   "Enter your 10-digit number to check status or begin registration": "ಸ್ಥಿತಿಯನ್ನು ಪರಿಶೀಲಿಸಲು ಅಥವಾ ನೋಂದಣಿಯನ್ನು ಪ್ರಾರಂಭಿಸಲು ನಿಮ್ಮ 10-ಅಂಕಿಯ ಸಂಖ್ಯೆಯನ್ನು ನಮೂದಿಸಿ",
+   "10 DIGIT NUMBER": "10 ಅಂಕಿಯ ಸಂಖ್ಯೆ",
+   "Verifying...": "ಪರಿಶೀಲಿಸಲಾಗುತ್ತಿದೆ...",
+   "APPLICATION RECEIVED!": "ಅರ್ಜಿಯನ್ನು ಸ್ವೀಕರಿಸಲಾಗಿದೆ!",
+   "Identity protocol complete. your entry has been secured.": "ಗುರುತಿನ ಪ್ರೋಟೋಕಾಲ್ ಪೂರ್ಣಗೊಂಡಿದೆ. ನಿಮ್ಮ ಪ್ರವೇಶವನ್ನು ಸುರಕ್ಷಿತಗೊಳಿಸಲಾಗಿದೆ.",
+   "we are waiting for admin approval.": "ನಾವು ಅಡ್ಮಿನ್ ಅನುಮೋದನೆಗಾಗಿ ಕಾಯುತ್ತಿದ್ದೇವೆ.",
+   "Register with another number": "ಮತ್ತೊಂದು ಸಂಖ್ಯೆಯೊಂದಿಗೆ ನೋಂದಾಯಿಸಿ",
+   "Final Player Draft": "ಅಂತಿಮ ಆಟಗಾರರ ಕರಡು",
+   "Auction profile preview before launch": "ಬಿಡುಗಡೆಗೆ ಮೊದಲು ಹರಾಜು ವಿವರ ವೀಕ್ಷಣೆ",
+   "Identity": "ಗುರುತು",
+   "Location": "ಸ್ಥಳ",
+   "Cricket Details": "ಕ್ರಿಕೆಟ್ ವಿವರಗಳು",
+   "Uploaded Docs": "ಅಪ್‌ಲೋಡ್ ಮಾಡಿದ ದಾಖಲೆಗಳು",
+   "Name": "ಹೆಸರು",
+   "Mobile": "ಮೊಬೈಲ್",
+   "DOB": "ಜನ್ಮ ದಿನಾಂಕ",
+   "Aadhaar": "ಆಧಾರ್",
+   "Taluk": "ತಾಲ್ಲೂಕು",
+   "Hobli": "ಹೋಬಳಿ",
+   "Village": "ಗ್ರಾಮ",
+   "Role": "ಪಾತ್ರ",
+   "Playing Style": "ಆಡುವ ಶೈಲಿ",
+   "Wicket Keeper": "ವಿಕೆಟ್ ಕೀಪರ್",
+   "Profile Photo": "ಫೋಟೋ",
+   "Aadhaar Document": "ಆಧಾರ್ ದಾಖಲೆ",
+   "Uploaded": "ಅಪ್‌ಲೋಡ್ ಆಗಿದೆ",
+   "Enter Auction Pool": "ಹರಾಜಿಗೆ ಸೇರಿ",
+   "Record Not Found": "ದಾಖಲೆ ಕಂಡುಬಂದಿಲ್ಲ",
+   "Check the number and try again": "ಸಂಖ್ಯೆಯನ್ನು ಪರಿಶೀಲಿಸಿ ಮತ್ತು ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ",
+   "Status Lookup": "ಸ್ಥಿತಿ ಪರಿಶೀಲನೆ",
+   "Auction Intelligence Engine": "ಹರಾಜು ಬುದ್ಧಿವಂತ ಎಂಜಿನ್",
+   "ID": "ಐಡಿ",
+   "Awaiting Approval": "ಅನುಮೋದನೆಗಾಗಿ ಕಾಯಲಾಗುತ್ತಿದೆ",
+   "Registration Approved!": "ನೋಂದಣಿ ಅನುಮೋದಿಸಲಾಗಿದೆ!",
+   "General": "ಸಾಮಾನ್ಯ",
+   "Pending": "ಬಾಕಿ ಉಳಿದಿದೆ",
+   "Customize Registration Portal": "ನೋಂದಣಿ ಪೋರ್ಟಲ್ ಅನ್ನು ಕಸ್ಟಮೈಸ್ ಮಾಡಿ",
+   "Portal Heading": "ಪೋರ್ಟಲ್ ಹೆಡಿಂಗ್",
+   "Registration End Date & Time": "ನೋಂದಣಿ ಮುಕ್ತಾಯ ದಿನಾಂಕ ಮತ್ತು ಸಮಯ",
+   "Banner Image URL": "ಬ್ಯಾನರ್ ಇಮೇಜ್ ಯುಆರ್‌ಎಲ್",
+   "Custom 'Closed' Message": "ಕಸ್ಟಮ್ 'ಮುಚ್ಚಲಾಗಿದೆ' ಸಂದೇಶ",
+   "Tournament Guidelines & Rules": "ಟೂರ್ನಮೆಂಟ್ ಮಾರ್ಗಸೂಚಿಗಳು ಮತ್ತು ನಿಯಮಗಳು",
+   "Field Control Engine": "ಫೀಲ್ಡ್ ಕಂಟ್ರೋಲ್ ಎಂಜಿನ್",
+   "Save Edits": "ಬದಲಾವಣೆಗಳನ್ನು ಉಳಿಸಿ",
+   "Edit Page": "ಪುಟವನ್ನು ಸಂಪಾದಿಸಿ",
+   "Cancel": "ರದ್ದುಮಾಡಿ",
+   "Apply Changes": "ಬದಲಾವಣೆಗಳನ್ನು ಅನ್ವಯಿಸಿ",
+   "Hero": "ವೀರ",
+   "Registration Ends": "ನೋಂದಣಿ ಕೊನೆಗೊಳ್ಳುತ್ತದೆ",
+   "Time Remaining": "ಉಳಿದ ಸಮಯ",
+   "Tournament Intelligence & Rules": "ಟೂರ್ನಮೆಂಟ್ ನಿಯಮಗಳು",
+   "Configure Tournament Guidelines": "ಮಾರ್ಗಸೂಚಿಗಳನ್ನು ಕಾನ್ಫಿಗರ್ ಮಾಡಿ",
+   "Start Registration": "ನೋಂದಣಿ ಪ್ರಾರಂಭಿಸಿ",
+   "Identity verification required to proceed": "ಮುಂದುವರಿಯಲು ಗುರುತಿನ ಪರಿಶೀಲನೆ ಅಗತ್ಯವಿದೆ",
+   "Registration": "ನೋಂದಣಿ",
+   "Registration Status": "ನೋಂದಣಿ ಸ್ಥಿತಿ",
+   "Find My Application": "ನನ್ನ ಅರ್ಜಿಯನ್ನು ಹುಡುಕಿ",
+   "Closed": "ಮುಚ್ಚಲಾಗಿದೆ",
+   "Registration is currently closed. Please contact the tournament organizer for more details.": "ನೋಂದಣಿ ಸದ್ಯಕ್ಕೆ ಮುಚ್ಚಲ್ಪಟ್ಟಿದೆ. ಹೆಚ್ಚಿನ ವಿವರಗಳಿಗಾಗಿ ಟೂರ್ನಮೆಂಟ್ ಆಯೋಜಕರನ್ನು ಸಂಪರ್ಕಿಸಿ.",
+   "For further inquiries": "ಹೆಚ್ಚಿನ ವಿಚಾರಣೆಗಾಗಿ",
+   "Tournament Official": "ಟೂರ್ನಮೆಂಟ್ ಅಧಿಕಾರಿ",
+   "Step": "ಹಂತ",
+   "Offline": "ಆಫ್‌ಲೈನ್",
+   "Saving": "ಉಳಿಸಲಾಗುತ್ತಿದೆ",
+   "Saved": "ಉಳಿಸಲಾಗಿದೆ",
+   "Auto Saved": "ಸ್ವಯಂ ಉಳಿಸಲಾಗಿದೆ",
+   "Your draft was securely saved. You can continue from the last completed step or start a fresh session.": "ನಿಮ್ಮ ಡ್ರಾಫ್ಟ್ ಅನ್ನು ಸುರಕ್ಷಿತವಾಗಿ ಉಳಿಸಲಾಗಿದೆ. ನೀವು ಕೊನೆಯ ಹಂತದಿಂದ ಮುಂದುವರಿಸಬಹುದು ಅಥವಾ ಹೊಸದಾಗಿ ಪ್ರಾರಂಭಿಸಬಹುದು.",
+   "Do you want to exit player registration?": "ನೀವು ಆಟಗಾರರ ನೋಂದಣಿಯಿಂದ ನಿರ್ಗಮಿಸಲು ಬಯಸುವಿರಾ?",
+   "Your draft is safely saved.": "ನಿಮ್ಮ ಕರಡು ಸುರಕ್ಷಿತವಾಗಿ ಉಳಿಸಲ್ಪಟ್ಟಿದೆ.",
+   "Register Digital Asset": "ಡಿಜಿಟಲ್ ಆಸ್ತಿಯನ್ನು ನೋಂದಾಯಿಸಿ",
+   "Upload File": "ಫೈಲ್ ಅಪ್‌ಲೋಡ್ ಮಾಡಿ",
+   "No items found": "ಯಾವುದೇ ಅಂಶಗಳು ಕಂಡುಬಂದಿಲ್ಲ",
+   "Initializing Secure Protocol...": "ಸುರಕ್ಷಿತ ಪ್ರೋಟೋಕಾಲ್ ಪ್ರಾರಂಭಿಸಲಾಗುತ್ತಿದೆ...",
+   "Scanning Central Registry...": "ಕೇಂದ್ರ ನೋಂದಾವಣೆ ಸ್ಕ್ಯಾನ್ ಮಾಡಲಾಗುತ್ತಿದೆ...",
+   "Accessing Player Database...": "ಆಟಗಾರರ ಡೇಟಾಬೇಸ್ ಪ್ರವೇಶಿಸಲಾಗುತ್ತಿದೆ...",
+   "Verifying Identity Nodes...": "ಗುರುತಿನ ನೋಡ್‌ಗಳನ್ನು ಪರಿಶೀಲಿಸಲಾಗುತ್ತಿದೆ...",
+   "Retrieving Registration State...": "ನೋಂದಣಿ ಸ್ಥಿತಿಯನ್ನು ಹಿಂಪಡೆಯಲಾಗುತ್ತಿದೆ...",
+   "Filtering Regional Records...": "ಪ್ರಾದೇಶಿಕ ದಾಖಲೆಗಳನ್ನು ಫಿಲ್ಟರ್ ಮಾಡಲಾಗುತ್ತಿದೆ...",
+   "Compiling Status Report...": "ಸ್ಥಿತಿ ವರದಿಯನ್ನು ಸಂಕಲಿಸಲಾಗುತ್ತಿದೆ...",
+   "Searching Identity": "ಗುರುತನ್ನು ಹುಡುಕಲಾಗುತ್ತಿದೆ",
+   "Yes": "ಹೌದು",
+   "No": "ಇಲ್ಲ",
+   "Edit": "ಸಂಪಾದಿಸಿ",
+   "hidden": "ಮರೆಮಾಚಲಾಗಿದೆ",
+   "optional": "ಐಚ್ಛಿಕ",
+   "required": "ಅಗತ್ಯವಿದೆ",
 };
 
-const SearchingOverlay = ({ mobile }) => {
+const DEFAULT_FIELD_CONFIG = {
+   name: "required",
+   fatherName: "optional",
+   dob: "optional",
+   mobile: "required",
+   aadhaarNumber: "optional",
+   taluk: "optional",
+   hobli: "optional",
+   village: "optional",
+   role: "optional",
+   playingStyle: "optional",
+   wicketKeeper: "optional",
+   photo: "optional",
+   aadhaarFile: "optional"
+};
+
+const REGISTRATION_STEPS = [
+   { id: 1, label: "Identity" },
+   { id: 2, label: "Location" },
+   { id: 3, label: "Cricket Profile" },
+   { id: 4, label: "Uploads" },
+   { id: 5, label: "Review" },
+   { id: 6, label: "Submit" },
+];
+
+const SearchingOverlay = ({ mobile, t }) => {
    const [msgIndex, setMsgIndex] = useState(0);
    const messages = [
       "Initializing Secure Protocol...",
@@ -113,12 +241,12 @@ const SearchingOverlay = ({ mobile }) => {
 
          <div className="text-center space-y-6">
             <div className="space-y-2">
-               <h3 className="text-2xl font-[1000] text-white italic tracking-widest uppercase animate-pulse">Searching Identity</h3>
+               <h3 className="text-2xl font-[1000] text-white italic tracking-widest uppercase animate-pulse">{t("Searching Identity")}</h3>
                <p className="text-[10px] font-black text-violet-400 tracking-[0.4em] uppercase">{mobile}</p>
             </div>
 
             <div className="h-4 flex items-center justify-center">
-               <p className="text-[9px] font-black text-slate-500 tracking-[0.2em] uppercase italic transition-all duration-500">{messages[msgIndex]}</p>
+               <p className="text-[9px] font-black text-slate-500 tracking-[0.2em] uppercase italic transition-all duration-500">{t(messages[msgIndex])}</p>
             </div>
 
             <div className="w-48 h-1 bg-white/5 rounded-full mx-auto overflow-hidden relative">
@@ -130,7 +258,10 @@ const SearchingOverlay = ({ mobile }) => {
 };
 
 export default function PlayerRegistrationPage() {
-   const { id: tournamentId } = useParams();
+   const params = useParams();
+   const pathname = usePathname();
+   const tournamentId = params.id || params.token;
+   const immersiveMode = isApplicationRoute(pathname);
    const router = useRouter();
    const { data: session } = useSession();
 
@@ -149,6 +280,9 @@ export default function PlayerRegistrationPage() {
    });
    const [savingSettings, setSavingSettings] = useState(false);
    const [uploadingBanner, setUploadingBanner] = useState(false);
+   const [showExitConfirm, setShowExitConfirm] = useState(false);
+   const [showStartFreshConfirm, setShowStartFreshConfirm] = useState(false);
+   const [fieldConfig, setFieldConfig] = useState(DEFAULT_FIELD_CONFIG);
 
    const [step, setStep] = useState(0);
    const [tournament, setTournament] = useState(null);
@@ -192,6 +326,44 @@ export default function PlayerRegistrationPage() {
    const [timeLeft, setTimeLeft] = useState("");
    const [isClosed, setIsClosed] = useState(false);
    const [fieldErrors, setFieldErrors] = useState({});
+   const [autoSaveStatus, setAutoSaveStatus] = useState("saved");
+   const [lastSavedAt, setLastSavedAt] = useState(null);
+   const autoSaveTimerRef = useRef(null);
+   const [showResumePrompt, setShowResumePrompt] = useState(false);
+   const [pendingRestore, setPendingRestore] = useState(null);
+   const [mobileResolved, setMobileResolved] = useState("");
+
+   const getFieldMode = (key) => fieldConfig?.[key] || "optional";
+   const isFieldHidden = (key) => getFieldMode(key) === "hidden";
+   const isFieldRequired = (key) => getFieldMode(key) === "required";
+   const getDraftStorageKey = () => `kpl_registration_draft_${tournamentId || "unknown"}`;
+   const getSessionDraftKey = (mobile) => `${getDraftStorageKey()}_${mobile || "unknown"}`;
+   const draftApiBase = `/api/tournaments/apply/${tournamentId}`;
+
+   useEffect(() => {
+      if (success) {
+         const duration = 5 * 1000;
+         const animationEnd = Date.now() + duration;
+         const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
+
+         const randomInRange = (min, max) => Math.random() * (max - min) + min;
+
+         const interval = setInterval(function () {
+            const timeLeft = animationEnd - Date.now();
+
+            if (timeLeft <= 0) {
+               return clearInterval(interval);
+            }
+
+            const particleCount = 50 * (timeLeft / duration);
+            // since particles fall down, start a bit higher than random
+            confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } });
+            confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } });
+         }, 250);
+
+         return () => clearInterval(interval);
+      }
+   }, [success]);
 
    useEffect(() => {
       const updateGreeting = () => {
@@ -260,14 +432,99 @@ export default function PlayerRegistrationPage() {
       fetchTaluks();
    }, [tournamentId]);
 
+   useEffect(() => {
+      if (!tournament?.applyToken) return;
+      if (pathname.startsWith("/register/") || pathname.startsWith("/apply/")) {
+         router.replace(getCanonicalApplyRoute(tournament.applyToken));
+      }
+   }, [pathname, router, tournament?.applyToken]);
+
+
+
+   useEffect(() => {
+      if (!immersiveMode) return;
+
+      const handlePopState = () => {
+         window.history.pushState({ immersive: true }, "", window.location.href);
+         persistLocalDraft();
+         setShowExitConfirm(true);
+      };
+
+      const handleBeforeUnload = (e) => {
+         persistLocalDraft();
+         e.preventDefault();
+         e.returnValue = "";
+      };
+
+      const handleVisibility = () => {
+         if (document.visibilityState === "hidden") {
+            persistLocalDraft();
+         }
+      };
+
+      window.history.pushState({ immersive: true }, "", window.location.href);
+      window.addEventListener("popstate", handlePopState);
+      window.addEventListener("beforeunload", handleBeforeUnload);
+      document.addEventListener("visibilitychange", handleVisibility);
+
+      return () => {
+         window.removeEventListener("popstate", handlePopState);
+         window.removeEventListener("beforeunload", handleBeforeUnload);
+         document.removeEventListener("visibilitychange", handleVisibility);
+      };
+   }, [immersiveMode, formData, previews, step, mobileResolved]);
+
+   useEffect(() => {
+      const handleOffline = () => setAutoSaveStatus("unstable");
+      const handleOnline = () => setAutoSaveStatus("saved");
+      window.addEventListener("offline", handleOffline);
+      window.addEventListener("online", handleOnline);
+      return () => {
+         window.removeEventListener("offline", handleOffline);
+         window.removeEventListener("online", handleOnline);
+      };
+   }, []);
+
+   useEffect(() => {
+      if (step < 1 || typeof window === "undefined") return;
+      if (autoSaveTimerRef.current) {
+         clearTimeout(autoSaveTimerRef.current);
+      }
+
+      setAutoSaveStatus(navigator.onLine ? "saving" : "unstable");
+      autoSaveTimerRef.current = setTimeout(() => {
+         try {
+            const draft = serializeDraft();
+            persistLocalDraft();
+            setAutoSaveStatus(navigator.onLine ? "saved" : "unstable");
+            setLastSavedAt(new Date());
+            if (immersiveMode && mobileResolved) {
+               syncDraftToBackend(draft);
+            }
+         } catch (err) {
+            setAutoSaveStatus("unstable");
+         }
+      }, 1500);
+
+      return () => {
+         if (autoSaveTimerRef.current) {
+            clearTimeout(autoSaveTimerRef.current);
+         }
+      };
+   }, [formData, previews, step, tournamentId, immersiveMode, mobileResolved]);
+
    useEffect(() => { if (formData.taluk) fetchHoblis(formData.taluk); }, [formData.taluk]);
 
    const fetchTournamentDetails = async () => {
       try {
-         const res = await fetch(`${API_URL}/api/tournaments/${tournamentId}`);
+         const endpoint = immersiveMode
+            ? `${API_URL}/api/tournaments/apply/${tournamentId}`
+            : `${API_URL}/api/tournaments/${tournamentId}`;
+         const res = await fetch(endpoint);
          if (res.ok) {
             const data = await res.json();
             setTournament(data.tournament);
+            setFieldConfig({ ...DEFAULT_FIELD_CONFIG, ...(data.tournament?.registrationFieldConfig || {}) });
             setEditValues({
                title: data.tournament?.registrationTitle || "",
                details: data.tournament?.registrationDetails || "",
@@ -294,6 +551,83 @@ export default function PlayerRegistrationPage() {
       if (res.ok) setHoblis(await res.json());
    };
 
+   const dataUrlToFile = async (dataUrl, filename) => {
+      if (!dataUrl) return null;
+      const response = await fetch(dataUrl);
+      const blob = await response.blob();
+      return new File([blob], filename, { type: blob.type || "image/jpeg" });
+   };
+
+   const serializeDraft = () => ({
+      mobile: mobileResolved || formData.mobile || "",
+      formData: {
+         ...formData,
+         photo: null,
+         aadhaarFile: null,
+      },
+      previews,
+      step,
+      status: autoSaveStatus,
+      savedAt: new Date().toISOString(),
+   });
+
+   const persistLocalDraft = () => {
+      if (typeof window === "undefined" || !tournamentId) return;
+      try {
+         window.localStorage.setItem(getDraftStorageKey(), JSON.stringify(serializeDraft()));
+         if (mobileResolved) {
+            window.localStorage.setItem(getSessionDraftKey(mobileResolved), JSON.stringify(serializeDraft()));
+         }
+      } catch (err) {
+         setAutoSaveStatus("unstable");
+      }
+   };
+
+   const syncDraftToBackend = async (draftOverride = null) => {
+      if (!immersiveMode || !tournamentId || !mobileResolved) return;
+      try {
+         const payload = draftOverride || serializeDraft();
+         await fetch(`${draftApiBase}/draft`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+               mobile: mobileResolved,
+               step: payload.step,
+               formData: payload.formData,
+               previews: payload.previews,
+               status: autoSaveStatus,
+            }),
+         });
+      } catch (err) {
+         setAutoSaveStatus("unstable");
+      }
+   };
+
+   const hydrateDraft = async (draft) => {
+      if (!draft) return;
+      const restoredForm = { ...formData, ...(draft.formData || {}) };
+
+      if (draft.previews?.photo && !restoredForm.photo) {
+         restoredForm.photo = await dataUrlToFile(draft.previews.photo, "player-photo.jpg");
+      }
+      if (draft.previews?.aadhaar && !restoredForm.aadhaarFile) {
+         restoredForm.aadhaarFile = await dataUrlToFile(draft.previews.aadhaar, "aadhaar-doc.jpg");
+      }
+
+      setFormData(restoredForm);
+      if (draft.previews) setPreviews({ ...draft.previews });
+      if (draft.step) setStep(Math.min(Math.max(draft.step, 1), 5));
+      if (draft.mobile) setMobileResolved(draft.mobile);
+   };
+
+   const formatDobInput = (rawValue) => {
+      const digits = (rawValue || "").replace(/\D/g, "").slice(0, 8);
+      const separator = (rawValue || "").includes("-") ? "-" : "/";
+      if (digits.length <= 2) return digits;
+      if (digits.length <= 4) return `${digits.slice(0, 2)}${separator}${digits.slice(2)}`;
+      return `${digits.slice(0, 2)}${separator}${digits.slice(2, 4)}${separator}${digits.slice(4)}`;
+   };
+
    const handleInputChange = (e) => {
       const { name, value, type, checked } = e.target;
       setFormData(prev => {
@@ -307,6 +641,35 @@ export default function PlayerRegistrationPage() {
          // Restrict mobile to 10 digits only
          if (name === "mobile") {
             newValue = value.replace(/\D/g, '').slice(0, 10);
+            if (newValue.length === 10) {
+               setMobileResolved(newValue);
+            }
+         }
+
+         // Handle DOB input validation
+         if (name === "dob") {
+            const formattedDob = formatDobInput(value);
+            const newData = { ...prev, [name]: formattedDob };
+
+            if (formattedDob.length === 10) {
+               const dobValidation = validateDateOfBirth(formattedDob);
+               if (dobValidation.error) {
+                  setFieldErrors(prev => ({ ...prev, dob: dobValidation.error }));
+               } else {
+                  setFieldErrors(prev => {
+                     const updated = { ...prev };
+                     delete updated.dob;
+                     return updated;
+                  });
+               }
+            } else {
+               setFieldErrors(prev => {
+                  const updated = { ...prev };
+                  delete updated.dob;
+                  return updated;
+               });
+            }
+            return newData;
          }
 
          const newData = { ...prev, [name]: type === "checkbox" ? checked : newValue };
@@ -341,10 +704,46 @@ export default function PlayerRegistrationPage() {
             setCheckResult(data);
             setShowStatusCheck(true);
          } else {
-            // If they are not registered, route them to step 1 automatically
+            if (immersiveMode) {
+               try {
+                  // 1. Check Backend for Draft
+                  const draftRes = await fetch(`${API_URL}/api/tournaments/apply/${tournamentId}/draft?mobile=${checkMobile}`);
+                  let foundDraft = null;
+
+                  if (draftRes.ok) {
+                     const draftData = await draftRes.json();
+                     if (draftData?.draft) {
+                        foundDraft = draftData.draft;
+                     }
+                  }
+
+                  // 2. Check LocalStorage for Draft (session-specific)
+                  if (!foundDraft && typeof window !== "undefined") {
+                     const localDraftRaw = window.localStorage.getItem(getSessionDraftKey(checkMobile));
+                     if (localDraftRaw) {
+                        foundDraft = JSON.parse(localDraftRaw);
+                     }
+                  }
+
+                  if (foundDraft) {
+                     await hydrateDraft(foundDraft);
+                     setPendingRestore(foundDraft);
+                     setMobileResolved(checkMobile);
+                     setShowResumePrompt(true);
+                     setShowStatusCheck(false);
+                     setChecking(false);
+                     return;
+                  }
+               } catch (draftErr) {
+                  // fall through to new application flow
+               }
+            }
+
+            // If they are not registered and no draft found, ask to start fresh
             setFormData(prev => ({ ...prev, mobile: checkMobile }));
-            setStep(1);
-            setShowStatusCheck(false); // Hide status view if it was open
+            setMobileResolved(checkMobile);
+            setShowStartFreshConfirm(true);
+            setShowStatusCheck(false);
          }
       } catch (err) {
          setCheckResult({ message: "Network error during lookup." });
@@ -365,6 +764,7 @@ export default function PlayerRegistrationPage() {
                registrationEndDate: editValues.registrationEndDate,
                registrationEndTime: editValues.registrationEndTime,
                closedMessage: editValues.closedMessage,
+               registrationFieldConfig: fieldConfig,
                assets: {
                   ...tournament.assets,
                   splashUrl: editValues.splashUrl
@@ -379,6 +779,7 @@ export default function PlayerRegistrationPage() {
                registrationEndDate: editValues.registrationEndDate,
                registrationEndTime: editValues.registrationEndTime,
                closedMessage: editValues.closedMessage,
+               registrationFieldConfig: fieldConfig,
                assets: { ...prev.assets, splashUrl: editValues.splashUrl }
             }));
             setIsEditing(false);
@@ -397,12 +798,30 @@ export default function PlayerRegistrationPage() {
       const errors = {};
 
       if (s === 1) {
-         if (!formData.name?.trim()) errors.name = "Player name is required";
-         if (!formData.mobile?.trim()) errors.mobile = "Mobile number is required";
-         else if (formData.mobile.length !== 10) errors.mobile = "Mobile must be 10 digits";
-         if (!formData.fatherName?.trim()) errors.fatherName = "Father's name is required";
-         if (!formData.dob?.trim()) errors.dob = "Date of birth is required";
-         if (!formData.aadhaarNumber?.trim()) errors.aadhaarNumber = "Aadhaar ID is required";
+         if (!isFieldHidden("name") && isFieldRequired("name") && !formData.name?.trim()) {
+            errors.name = "Player name is required";
+         }
+         if (!isFieldHidden("mobile")) {
+            if (isFieldRequired("mobile") && !formData.mobile?.trim()) {
+               errors.mobile = "Mobile number is required";
+            } else if (formData.mobile?.trim() && formData.mobile.length !== 10) {
+               errors.mobile = "Mobile must be 10 digits";
+            }
+         }
+         if (!isFieldHidden("dob") && formData.dob?.trim()) {
+            const dobValidation = validateDateOfBirth(formData.dob);
+            if (dobValidation.error) {
+               errors.dob = dobValidation.error;
+            }
+         } else if (!isFieldHidden("dob") && isFieldRequired("dob") && !formData.dob?.trim()) {
+            errors.dob = "Date of birth is required";
+         }
+         if (!isFieldHidden("fatherName") && isFieldRequired("fatherName") && !formData.fatherName?.trim()) {
+            errors.fatherName = "Father name is required";
+         }
+         if (!isFieldHidden("aadhaarNumber") && isFieldRequired("aadhaarNumber") && !formData.aadhaarNumber?.trim()) {
+            errors.aadhaarNumber = "Aadhaar ID is required";
+         }
 
          if (Object.keys(errors).length > 0) {
             setFieldErrors(errors);
@@ -412,7 +831,7 @@ export default function PlayerRegistrationPage() {
                   fatherName: "Father Name",
                   dob: "Date of Birth",
                   mobile: "Mobile Number",
-                  aadhaarNumber: "Aadhaar ID"
+                  aadhaarNumber: "Aadhaar ID",
                };
                return labels[key];
             }).join(", ");
@@ -422,73 +841,79 @@ export default function PlayerRegistrationPage() {
          setFieldErrors({});
          return true;
       }
+
       if (s === 2) {
-         if (!formData.taluk?.trim()) errors.taluk = "Taluk is required";
-         if (!formData.hobli?.trim()) errors.hobli = "Hobli is required";
-         if (!formData.village?.trim()) errors.village = "Village/Ward name is required";
-
-         if (Object.keys(errors).length > 0) {
-            setFieldErrors(errors);
-            const missingFields = Object.keys(errors).map(key => {
-               const labels = {
-                  taluk: "Taluk",
-                  hobli: "Hobli",
-                  village: "Village/Ward Name"
-               };
-               return labels[key];
-            }).join(", ");
-            setError(`❌ Please complete: ${missingFields}`);
-            return false;
-         }
-         setFieldErrors({});
-         return true;
+         if (!isFieldHidden("taluk") && isFieldRequired("taluk") && !formData.taluk?.trim()) errors.taluk = "Taluk is required";
+         if (!isFieldHidden("hobli") && isFieldRequired("hobli") && !formData.hobli?.trim()) errors.hobli = "Hobli is required";
+         if (!isFieldHidden("village") && isFieldRequired("village") && !formData.village?.trim()) errors.village = "Village is required";
       }
+
       if (s === 3) {
-         if (!formData.role) errors.role = "Primary role is required";
-         if (!formData.playingStyle) errors.playingStyle = "Playing style is required";
-         if (formData.wicketKeeper === null) errors.wicketKeeper = "Please select if you are wicket keeper";
-
-         if (Object.keys(errors).length > 0) {
-            setFieldErrors(errors);
-            const missingFields = Object.keys(errors).map(key => {
-               const labels = {
-                  role: "Primary Role",
-                  playingStyle: "Playing Style",
-                  wicketKeeper: "Wicket Keeper Status"
-               };
-               return labels[key];
-            }).join(", ");
-            setError(`❌ Please complete: ${missingFields}`);
-            return false;
-         }
-         setFieldErrors({});
-         return true;
+         if (!isFieldHidden("role") && isFieldRequired("role") && !formData.role) errors.role = "Primary role is required";
+         if (!isFieldHidden("playingStyle") && isFieldRequired("playingStyle") && !formData.playingStyle) errors.playingStyle = "Playing style is required";
+         if (!isFieldHidden("wicketKeeper") && isFieldRequired("wicketKeeper") && formData.wicketKeeper === null) errors.wicketKeeper = "Please select wicket keeper status";
       }
+
       if (s === 4) {
-         if (!formData.photo) errors.photo = "Profile photo is required";
-         if (!formData.aadhaarFile) errors.aadhaarFile = "Aadhaar document is required";
-
-         if (Object.keys(errors).length > 0) {
-            setFieldErrors(errors);
-            const missingFields = Object.keys(errors).map(key => {
-               const labels = {
-                  photo: "Profile Photo",
-                  aadhaarFile: "Aadhaar Document"
-               };
-               return labels[key];
-            }).join(", ");
-            setError(`❌ Please upload: ${missingFields}`);
-            return false;
-         }
-         setFieldErrors({});
-         return true;
+         if (!isFieldHidden("photo") && isFieldRequired("photo") && !formData.photo && !previews.photo) errors.photo = "Profile photo is required";
+         if (!isFieldHidden("aadhaarFile") && isFieldRequired("aadhaarFile") && !formData.aadhaarFile && !previews.aadhaar) errors.aadhaarFile = "Aadhaar document is required";
       }
+
+      if (Object.keys(errors).length > 0) {
+         setFieldErrors(errors);
+         setError("❌ Please complete required fields to continue");
+         return false;
+      }
+
       setFieldErrors({});
       return true;
    };
 
+   const validateDateOfBirth = (dobString) => {
+      try {
+         const match = dobString.match(/^(\d{2})[/-](\d{2})[/-](\d{4})$/);
+         if (!match) {
+            return { error: "Invalid date format. Use DD/MM/YYYY" };
+         }
+
+         const day = Number(match[1]);
+         const month = Number(match[2]);
+         const year = Number(match[3]);
+
+         if (month < 1 || month > 12) {
+            return { error: "Invalid month in date of birth" };
+         }
+
+         const dobDate = new Date(year, month - 1, day);
+         if (
+            isNaN(dobDate) ||
+            dobDate.getFullYear() !== year ||
+            dobDate.getMonth() !== month - 1 ||
+            dobDate.getDate() !== day
+         ) {
+            return { error: "Invalid day in date of birth" };
+         }
+
+         const birthYear = dobDate.getFullYear();
+         const currentYear = new Date().getFullYear();
+
+         if (birthYear >= currentYear) {
+            return { error: "Birth year cannot be 2026 or later" };
+         }
+
+         const age = currentYear - birthYear;
+         if (age <= 0) {
+            return { error: "Age must be greater than 0" };
+         }
+
+         return { valid: true };
+      } catch (err) {
+         return { error: "Invalid date format" };
+      }
+   };
+
    const nextStep = () => {
-      if (validateStep(step)) setStep(prev => prev + 1);
+      if (validateStep(step)) setStep(prev => Math.min(prev + 1, 5));
    };
 
    const prevStep = () => setStep(prev => prev - 1);
@@ -496,8 +921,8 @@ export default function PlayerRegistrationPage() {
    const handleSubmit = async (e) => {
       if (e) e.preventDefault();
 
-      // Validate step 4 before submitting
-      if (!validateStep(4)) {
+      // Validate all form steps before final submit
+      if (!validateStep(1) || !validateStep(2) || !validateStep(3) || !validateStep(4)) {
          window.scrollTo({ top: 0, behavior: 'smooth' });
          return;
       }
@@ -525,6 +950,7 @@ export default function PlayerRegistrationPage() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                ...formData,
+               dob: formData.dob ? formData.dob.split(/[/-]/).reverse().join('-') : formData.dob,
                state: "Karnataka",
                district: "Custom",
                photo: { s3: photoUrl },
@@ -565,16 +991,48 @@ export default function PlayerRegistrationPage() {
             <div className="w-24 h-24 bg-emerald-500/20 rounded-3xl flex items-center justify-center mx-auto mb-8 border border-emerald-500/30">
                <ClipboardCheck className="w-12 h-12 text-emerald-400" />
             </div>
-            <h1 className="text-4xl font-black italic tracking-tighter mb-4 text-emerald-400">APPLICATION RECEIVED!</h1>
+            <h1 className="text-4xl font-black italic tracking-tighter mb-4 text-emerald-400">{t("APPLICATION RECEIVED!")}</h1>
             <p className="text-slate-400 font-bold mb-10 leading-relaxed uppercase tracking-widest text-xs">
-               Identity protocol complete. your entry has been secured. <span className="text-emerald-500 underline decoration-emerald-500/30 underline-offset-4">we are waiting for admin approval.</span>
+               {t("Identity protocol complete. your entry has been secured.")} <span className="text-emerald-500 underline decoration-emerald-500/30 underline-offset-4">{t("we are waiting for admin approval.")}</span>
             </p>
-            <button onClick={() => router.push(`/tournaments/${tournamentId}`)} className="w-full py-5 bg-white text-black rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3">
-               Global Dashboard <ArrowRight size={14} />
-            </button>
+            <div className="space-y-3">
+               <button
+                  onClick={() => {
+                     setSuccess(false);
+                     setStep(0);
+                     setFormData({
+                        name: "",
+                        fatherName: "",
+                        dob: "",
+                        mobile: "",
+                        aadhaarNumber: "",
+                        taluk: "",
+                        hobli: "",
+                        village: "",
+                        playingStyle: "Right Hand",
+                        role: "All-Rounder",
+                        wicketKeeper: null,
+                        basePrice: 100,
+                        photo: null,
+                        aadhaarFile: null,
+                     });
+                     setPreviews({ photo: null, aadhaar: null });
+                     setCheckMobile("");
+                     setMobileResolved("");
+                  }}
+                  className="w-full py-5 bg-white text-black rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3 hover:scale-105 active:scale-95 shadow-xl shadow-white/5"
+               >
+                  {t("Register with another number")} <ArrowRight size={14} />
+               </button>
+               <button onClick={() => router.push("/")} className="w-full py-4 bg-white/5 border border-white/10 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3 hover:bg-white/10 active:scale-95">
+                  {t("Exit")} <X size={14} />
+               </button>
+            </div>
          </div>
       </div>
    );
+
+   const flowStep = submitting ? 6 : step;
 
    return (
       <div className="min-h-screen bg-[#020617] text-white selection:bg-violet-500/30 pb-20">
@@ -583,8 +1041,8 @@ export default function PlayerRegistrationPage() {
             <div className="absolute top-0 left-1/4 w-[50%] h-[40%] bg-violet-600/10 blur-[150px] rounded-full rotate-45"></div>
          </div>
 
-         <header className="sticky top-0 z-100 bg-[#020617]/80 backdrop-blur-2xl border-b border-white/5">
-            <div className="max-w-4xl mx-auto px-6 h-28 flex items-center justify-between">
+         <header className={`sticky top-0 z-100 bg-[#020617]/80 backdrop-blur-2xl border-b border-white/5 ${immersiveMode ? 'hidden' : ''}`}>
+            <div className="max-w-4xl mx-auto px-4 sm:px-6 h-28 flex items-center justify-between">
                <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-2xl bg-linear-to-br from-violet-600 to-cyan-500 flex items-center justify-center shadow-xl shadow-violet-600/20 rotate-3 shrink-0">
                      <Trophy className="w-6 h-6 text-white" />
@@ -598,6 +1056,13 @@ export default function PlayerRegistrationPage() {
                </div>
 
                <div className="flex items-center gap-2 md:gap-4">
+                  {step > 0 && (
+                     <div className={`hidden md:flex items-center gap-2 px-3 py-2 rounded-xl border text-[9px] font-black uppercase tracking-widest ${autoSaveStatus === 'saved' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400 shadow-[0_0_16px_rgba(16,185,129,0.18)]' : autoSaveStatus === 'saving' ? 'bg-cyan-500/10 border-cyan-500/20 text-cyan-400' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'}`}>
+                        <span className={`inline-block w-2 h-2 rounded-full ${autoSaveStatus === 'saving' ? 'bg-cyan-400 animate-pulse' : autoSaveStatus === 'saved' ? 'bg-emerald-400' : 'bg-amber-400 animate-pulse'}`}></span>
+                        {autoSaveStatus === 'saving' ? t('Saving...') : autoSaveStatus === 'saved' ? t('Auto Saved') : t('Connection unstable')}
+                        {autoSaveStatus === 'saved' && lastSavedAt && <span className="text-slate-500">{lastSavedAt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>}
+                     </div>
+                  )}
                   {session && (
                      <button
                         onClick={() => isEditing ? handleSaveSettings() : setIsEditing(true)}
@@ -605,7 +1070,7 @@ export default function PlayerRegistrationPage() {
                         className={`hidden md:flex items-center gap-2 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${isEditing ? 'bg-emerald-500 hover:bg-emerald-400 text-white shadow-[0_0_15px_rgba(16,185,129,0.4)]' : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 border border-white/10'}`}
                      >
                         {savingSettings ? <Loader2 size={14} className="animate-spin" /> : isEditing ? <Save size={14} /> : <Edit2 size={14} />}
-                        {isEditing ? "Save Edits" : "Edit Page"}
+                        {isEditing ? t("Save Edits") : t("Edit Page")}
                      </button>
                   )}
                   <button
@@ -628,7 +1093,201 @@ export default function PlayerRegistrationPage() {
             </div>
          </header>
 
-         <main className="max-w-4xl mx-auto px-6 pt-12 relative z-10">
+         <main className={`max-w-4xl mx-auto px-4 sm:px-6 pt-8 sm:pt-12 relative z-10 ${immersiveMode ? 'pt-20 sm:pt-24' : ''}`}>
+
+            {immersiveMode && (
+               <div className="mb-5 rounded-3xl border border-white/10 bg-[#0B1225]/85 backdrop-blur-2xl px-4 py-3 sm:px-5 sm:py-4 shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
+                  <div className="flex items-center justify-between gap-3">
+                     <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-2xl bg-linear-to-br from-violet-600 to-cyan-500 flex items-center justify-center shadow-xl shadow-violet-600/20 shrink-0">
+                           <Trophy className="w-5 h-5 text-white" />
+                        </div>
+                        <div className="min-w-0">
+                           <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.3em] text-violet-300 truncate">{t("KPL Secure Apply")}</p>
+                           <p className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.25em] text-slate-500 truncate">{tournament?.name || t("Player Registration")}</p>
+                        </div>
+                     </div>
+                     <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+                        <div className={`hidden sm:flex items-center gap-2 px-3 py-2 rounded-xl border text-[9px] font-black uppercase tracking-widest ${autoSaveStatus === 'saved' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400 shadow-[0_0_16px_rgba(16,185,129,0.18)]' : autoSaveStatus === 'saving' ? 'bg-cyan-500/10 border-cyan-500/20 text-cyan-400' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'}`}>
+                           <span className={`inline-block w-2 h-2 rounded-full ${autoSaveStatus === 'saving' ? 'bg-cyan-400 animate-pulse' : autoSaveStatus === 'saved' ? 'bg-emerald-400' : 'bg-amber-400 animate-pulse'}`}></span>
+                           {autoSaveStatus === 'saving' ? t('Saving...') : autoSaveStatus === 'saved' ? t('Saved ✓') : t('Connection unstable')}
+                        </div>
+                        <button
+                           type="button"
+                           onClick={() => setLang(lang === "EN" ? "KN" : "EN")}
+                           className="px-3 sm:px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-violet-400 text-[9px] font-black uppercase tracking-widest hover:bg-white/10 hover:text-white transition-all flex items-center gap-2"
+                        >
+                           {lang === "EN" ? "ಕನ್ನಡ" : "ENGLISH"}
+                        </button>
+                        <button type="button" onClick={() => setShowExitConfirm(true)} className="px-3 sm:px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-[9px] font-black uppercase tracking-widest hover:bg-white/10 transition-all flex items-center gap-2">
+                           <X size={14} /> {t("Exit")}
+                        </button>
+                     </div>
+                  </div>
+               </div>
+            )}
+
+            {step > 0 && (
+               <div className="mb-6 rounded-3xl border border-white/10 bg-[#0B1225]/70 backdrop-blur-xl p-4 md:p-5">
+                  <div className="hidden md:flex items-center justify-between gap-3">
+                     {REGISTRATION_STEPS.map((item, index) => {
+                        const completed = item.id < flowStep;
+                        const active = item.id === flowStep;
+                        const pending = item.id > flowStep;
+                        return (
+                           <div key={item.id} className="flex items-center gap-3 min-w-0">
+                              <div className={`w-8 h-8 rounded-full border flex items-center justify-center text-[10px] font-black ${completed ? 'bg-emerald-500/20 border-emerald-400 text-emerald-300' : active ? 'bg-cyan-500/20 border-cyan-400 text-cyan-300 shadow-[0_0_16px_rgba(34,211,238,0.35)]' : 'bg-white/5 border-white/10 text-slate-500'}`}>
+                                 {completed ? <CheckCircle size={14} /> : item.id}
+                              </div>
+                              <span className={`text-[10px] font-black uppercase tracking-widest truncate ${completed ? 'text-emerald-300' : active ? 'text-cyan-300' : 'text-slate-500'}`}>{item.label}</span>
+                              {index < REGISTRATION_STEPS.length - 1 && <div className={`w-6 h-px ${pending ? 'bg-white/10' : 'bg-cyan-400/40'}`}></div>}
+                           </div>
+                        );
+                     })}
+                  </div>
+                  <div className="md:hidden flex items-center justify-between gap-3">
+                     <p className="text-xs font-black uppercase tracking-widest text-cyan-300">{t("Step")} {flowStep}/6</p>
+                     <p className="text-xs font-black uppercase tracking-widest text-white truncate">{REGISTRATION_STEPS[flowStep - 1]?.label || 'Identity'}</p>
+                     <div className={`flex items-center gap-1 text-[10px] font-black ${autoSaveStatus === 'saved' ? 'text-emerald-300' : autoSaveStatus === 'saving' ? 'text-cyan-300' : 'text-amber-300'}`}>
+                        <span className={`inline-block w-2 h-2 rounded-full ${autoSaveStatus === 'saving' ? 'bg-cyan-400 animate-pulse' : autoSaveStatus === 'saved' ? 'bg-emerald-400' : 'bg-amber-400 animate-pulse'}`}></span>
+                        {autoSaveStatus === 'saving' ? t('Saving') : autoSaveStatus === 'saved' ? t('Saved') : t('Offline')}
+                     </div>
+                  </div>
+               </div>
+            )}
+
+            {showResumePrompt && pendingRestore && (
+               <div className="fixed inset-0 z-220 flex items-center justify-center bg-black/70 backdrop-blur-2xl p-4">
+                  <div className="w-full max-w-md rounded-4xl border border-white/10 bg-[#0B0F2A]/95 p-6 sm:p-8 shadow-[0_30px_80px_rgba(0,0,0,0.6)]">
+                     <div className="w-16 h-16 rounded-2xl bg-emerald-500/15 border border-emerald-500/20 flex items-center justify-center mx-auto mb-5">
+                        <ClipboardCheck className="w-8 h-8 text-emerald-400" />
+                     </div>
+                     <h3 className="text-xl font-black text-white text-center uppercase tracking-wide italic">{t("Resume Previous Application?")}</h3>
+                     <p className="mt-3 text-center text-sm text-slate-400 font-medium leading-relaxed">
+                        {t("Your draft was securely saved. You can continue from the last completed step or start a fresh session.")}
+                     </p>
+                     <div className="mt-6 flex flex-col sm:flex-row gap-3">
+                        <button
+                           type="button"
+                           onClick={async () => {
+                              await hydrateDraft(pendingRestore);
+                              setMobileResolved(pendingRestore.mobile || pendingRestore.formData?.mobile || "");
+                              setShowResumePrompt(false);
+                              setStep(Math.min(Math.max(pendingRestore.step || 1, 1), 5));
+                           }}
+                           className="flex-1 px-5 py-4 rounded-2xl bg-linear-to-r from-violet-600 to-cyan-500 text-white text-xs font-black uppercase tracking-[0.2em] shadow-xl shadow-violet-600/20"
+                        >
+                           {t("Continue Registration")}
+                        </button>
+                        <button
+                           type="button"
+                           onClick={() => {
+                              setShowResumePrompt(false);
+                              setPendingRestore(null);
+                              setFormData({
+                                 name: "",
+                                 fatherName: "",
+                                 dob: "",
+                                 mobile: pendingRestore?.formData?.mobile || "",
+                                 aadhaarNumber: "",
+                                 taluk: "",
+                                 hobli: "",
+                                 village: "",
+                                 playingStyle: "Right Hand",
+                                 role: "All-Rounder",
+                                 wicketKeeper: null,
+                                 basePrice: 100,
+                                 photo: null,
+                                 aadhaarFile: null,
+                              });
+                              setPreviews({ photo: null, aadhaar: null });
+                              setStep(1);
+                              try {
+                                 if (typeof window !== "undefined") {
+                                    window.localStorage.removeItem(getDraftStorageKey());
+                                    if (pendingRestore?.mobile || pendingRestore?.formData?.mobile) {
+                                       window.localStorage.removeItem(getSessionDraftKey(pendingRestore.mobile || pendingRestore.formData.mobile));
+                                    }
+                                 }
+                              } catch { }
+                           }}
+                           className="flex-1 px-5 py-4 rounded-2xl bg-white/5 border border-white/10 text-white text-xs font-black uppercase tracking-[0.2em]"
+                        >
+                           {t("Start Fresh")}
+                        </button>
+                     </div>
+                  </div>
+               </div>
+            )}
+
+            {showStartFreshConfirm && (
+               <div className="fixed inset-0 z-220 flex items-center justify-center bg-black/70 backdrop-blur-2xl p-4">
+                  <div className="w-full max-w-md rounded-4xl border border-white/10 bg-[#0B0F2A]/95 p-6 sm:p-8 shadow-[0_30px_80px_rgba(0,0,0,0.6)]">
+                     <div className="w-16 h-16 rounded-2xl bg-violet-500/15 border border-violet-500/20 flex items-center justify-center mx-auto mb-5">
+                        <UserPlus className="w-8 h-8 text-violet-400" />
+                     </div>
+                     <h3 className="text-xl font-black text-white text-center uppercase tracking-wide italic">{t("No Active Registration Found")}</h3>
+                     <p className="mt-3 text-center text-sm text-slate-400 font-medium leading-relaxed">
+                        {t("We couldn't find any existing registration or saved progress for")} <span className="text-white font-bold tracking-widest">{checkMobile}</span>.
+                     </p>
+                     <div className="mt-8 flex flex-col sm:flex-row gap-3">
+                        <button
+                           type="button"
+                           onClick={() => {
+                              setShowStartFreshConfirm(false);
+                              setStep(1);
+                           }}
+                           className="flex-1 px-5 py-4 rounded-2xl bg-linear-to-r from-violet-600 to-cyan-500 text-white text-xs font-black uppercase tracking-[0.2em] shadow-xl shadow-violet-600/20 hover:scale-105 active:scale-95 transition-all"
+                        >
+                           {t("Start New Registration")}
+                        </button>
+                        <button
+                           type="button"
+                           onClick={() => {
+                              setShowStartFreshConfirm(false);
+                              setCheckMobile("");
+                           }}
+                           className="flex-1 px-5 py-4 rounded-2xl bg-white/5 border border-white/10 text-white text-xs font-black uppercase tracking-[0.2em] hover:bg-white/10 active:scale-95 transition-all"
+                        >
+                           {t("Change Number")}
+                        </button>
+                     </div>
+                  </div>
+               </div>
+            )}
+
+            {showExitConfirm && (
+               <div className="fixed inset-0 z-230 flex items-center justify-center bg-black/75 backdrop-blur-2xl p-4">
+                  <div className="w-full max-w-md rounded-4xl border border-white/10 bg-[#0B0F2A]/95 p-6 sm:p-8 shadow-[0_30px_80px_rgba(0,0,0,0.65)]">
+                     <div className="w-16 h-16 rounded-2xl bg-violet-500/15 border border-violet-500/20 flex items-center justify-center mx-auto mb-5">
+                        <ShieldCheck className="w-8 h-8 text-violet-300" />
+                     </div>
+                     <h3 className="text-xl font-black text-white text-center uppercase tracking-wide italic">{t("Your draft is safely saved.")}</h3>
+                     <p className="mt-3 text-center text-sm text-slate-400 font-medium leading-relaxed">
+                        {t("Do you want to exit player registration?")}
+                     </p>
+                     <div className="mt-6 flex flex-col sm:flex-row gap-3">
+                        <button
+                           type="button"
+                           onClick={() => setShowExitConfirm(false)}
+                           className="flex-1 px-5 py-4 rounded-2xl bg-linear-to-r from-violet-600 to-cyan-500 text-white text-xs font-black uppercase tracking-[0.2em] shadow-xl shadow-violet-600/20"
+                        >
+                           {t("Continue Registration")}
+                        </button>
+                        <button
+                           type="button"
+                           onClick={() => {
+                              persistLocalDraft();
+                              router.push("/");
+                           }}
+                           className="flex-1 px-5 py-4 rounded-2xl bg-white/5 border border-white/10 text-white text-xs font-black uppercase tracking-[0.2em]"
+                        >
+                           {t("Exit Safely")}
+                        </button>
+                     </div>
+                  </div>
+               </div>
+            )}
 
             {/* Cinematic Registration Status Modal Overlay */}
             {showStatusCheck && (
@@ -645,8 +1304,8 @@ export default function PlayerRegistrationPage() {
                                  <SearchCode className="text-violet-400" size={24} />
                               </div>
                               <div>
-                                 <h3 className="text-xl font-black uppercase tracking-[0.2em] text-white italic">Status Lookup</h3>
-                                 <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Auction Intelligence Engine</p>
+                                 <h3 className="text-xl font-black uppercase tracking-[0.2em] text-white italic">{t("Status Lookup")}</h3>
+                                 <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">{t("Auction Intelligence Engine")}</p>
                               </div>
                            </div>
                            <button onClick={() => { setShowStatusCheck(false); setCheckResult(null); }} className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center transition-all hover:rotate-90">
@@ -661,7 +1320,7 @@ export default function PlayerRegistrationPage() {
                                  <input
                                     value={checkMobile}
                                     onChange={e => setCheckMobile(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                                    placeholder="10 DIGIT NUMBER"
+                                    placeholder={t("10 DIGIT NUMBER")}
                                     className="flex-1 bg-slate-900/50 border-2 border-white/5 rounded-2xl px-6 py-4 text-xl font-black tracking-[0.4em] text-white outline-none focus:border-violet-500 transition-all text-center sm:text-left"
                                  />
                                  <button
@@ -687,31 +1346,42 @@ export default function PlayerRegistrationPage() {
                                           className="w-full h-full object-cover transition-all duration-700 group-hover:scale-110"
                                        />
                                        <div className="absolute inset-0 bg-linear-to-t from-black/60 to-transparent"></div>
-                                       <div className="absolute bottom-2 right-2 px-2 py-0.5 bg-violet-600 rounded-md text-[8px] font-black text-white">ID: {checkResult.player.applicationId || checkResult.player.iconId}</div>
+                                       <div className="absolute bottom-2 right-2 px-2 py-0.5 bg-violet-600 rounded-md text-[8px] font-black text-white">{t("ID")}: {checkResult.player.applicationId || checkResult.player.iconId}</div>
                                     </div>
 
                                     <div className="flex-1 text-center md:text-left space-y-4">
                                        <div>
                                           <h2 className="text-3xl font-black text-white uppercase italic tracking-normal drop-shadow-md mb-1">{checkResult.name}</h2>
-                                          <p className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.3em] mt-1 italic animate-pulse">Registration Approved!</p>
+                                          <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-lg border text-[9px] font-black uppercase tracking-widest mt-1 italic ${checkResult.status === 'pending' ? 'bg-amber-500/10 border-amber-500/20 text-amber-400 animate-pulse' :
+                                                checkResult.status === 'available' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' :
+                                                   checkResult.status === 'sold' ? 'bg-violet-500/10 border-violet-500/20 text-violet-400' :
+                                                      'bg-red-500/10 border-red-500/20 text-red-400'
+                                             }`}>
+                                             <Zap size={10} className={checkResult.status === 'pending' ? 'animate-bounce' : ''} />
+                                             {checkResult.message || (checkResult.status === 'pending' ? t("Awaiting Approval") : t("Registration Approved!"))}
+                                          </div>
                                        </div>
 
                                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 pt-4 border-t border-white/5">
                                           <div className="space-y-1">
-                                             <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest">Role</p>
-                                             <p className="text-[10px] text-white font-bold tracking-wide italic">{checkResult.player.role || "All-Rounder"}</p>
+                                             <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest">{t("Role")}</p>
+                                             <p className="text-[10px] text-white font-bold tracking-wide italic">{checkResult.player.role || t("All-Rounder")}</p>
                                           </div>
                                           <div className="space-y-1">
-                                             <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest">Village</p>
+                                             <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest">{t("Village")}</p>
                                              <p className="text-[10px] text-white font-bold tracking-wide italic truncate">{checkResult.player.village || "N/A"}</p>
                                           </div>
                                           <div className="space-y-1">
-                                             <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest">Status</p>
-                                             <p className="text-[10px] text-emerald-400 font-bold tracking-wide italic uppercase">{checkResult.player.status || "Sold"}</p>
+                                             <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest">{t("Status")}</p>
+                                             <p className={`text-[10px] font-bold tracking-wide italic uppercase ${checkResult.status === 'pending' ? 'text-amber-400' :
+                                                   checkResult.status === 'available' ? 'text-emerald-400' :
+                                                      checkResult.status === 'sold' ? 'text-violet-400' :
+                                                         'text-red-400'
+                                                }`}>{checkResult.status || t("Pending")}</p>
                                           </div>
                                           <div className="space-y-1">
-                                             <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest">Category</p>
-                                             <p className="text-[10px] text-violet-400 font-bold tracking-wide italic uppercase">{checkResult.player.category || "General"}</p>
+                                             <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest">{t("Category")}</p>
+                                             <p className="text-[10px] text-violet-400 font-bold tracking-wide italic uppercase">{checkResult.player.category || t("General")}</p>
                                           </div>
                                        </div>
                                     </div>
@@ -722,8 +1392,8 @@ export default function PlayerRegistrationPage() {
                                        <X className="text-red-500" size={32} />
                                     </div>
                                     <div>
-                                       <h3 className="text-lg font-black text-white uppercase tracking-widest">Record Not Found</h3>
-                                       <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Check the number and try again</p>
+                                       <h3 className="text-lg font-black text-white uppercase tracking-widest">{t("Record Not Found")}</h3>
+                                       <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">{t("Check the number and try again")}</p>
                                     </div>
                                  </div>
                               )}
@@ -737,17 +1407,17 @@ export default function PlayerRegistrationPage() {
                </div>
             )}
 
-            <div className="mb-16 relative group">
+            <div className={`mb-16 relative group ${immersiveMode ? 'hidden' : ''}`}>
                {isEditing ? (
                   <div className="max-w-4xl mx-auto space-y-6 animate-in zoom-in-95 duration-300 bg-[#0B0F2A]/90 p-8 rounded-[3rem] border border-violet-500/30 shadow-[0_30px_60px_rgba(0,0,0,0.5)] backdrop-blur-2xl">
                      <div className="flex items-center gap-3 mb-4">
                         <Edit2 className="text-violet-500" size={20} />
-                        <h3 className="text-sm font-black uppercase tracking-widest text-white italic">Customize Registration Portal</h3>
+                        <h3 className="text-sm font-black uppercase tracking-widest text-white italic">{t("Customize Registration Portal")}</h3>
                      </div>
 
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-4">
-                           <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Portal Heading</label>
+                           <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{t("Portal Heading")}</label>
                            <input
                               type="text"
                               value={editValues.title}
@@ -757,7 +1427,7 @@ export default function PlayerRegistrationPage() {
                            />
                         </div>
                         <div className="space-y-4">
-                           <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Registration End Date & Time</label>
+                           <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{t("Registration End Date & Time")}</label>
                            <div className="flex gap-2">
                               <input
                                  type="date"
@@ -777,7 +1447,7 @@ export default function PlayerRegistrationPage() {
 
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-4">
-                           <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Banner Image URL</label>
+                           <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{t("Banner Image URL")}</label>
                            <div className="flex gap-2">
                               <input
                                  type="text"
@@ -806,7 +1476,7 @@ export default function PlayerRegistrationPage() {
                            </div>
                         </div>
                         <div className="space-y-4">
-                           <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Custom 'Closed' Message</label>
+                           <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{t("Custom 'Closed' Message")}</label>
                            <textarea
                               rows={2}
                               value={editValues.closedMessage}
@@ -818,7 +1488,7 @@ export default function PlayerRegistrationPage() {
                      </div>
 
                      <div className="space-y-4">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Tournament Guidelines & Rules</label>
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{t("Tournament Guidelines & Rules")}</label>
                         <textarea
                            rows={4}
                            value={editValues.details}
@@ -828,11 +1498,33 @@ export default function PlayerRegistrationPage() {
                         />
                      </div>
 
+                     <div className="space-y-4">
+                        <div className="flex items-center gap-2">
+                           <Settings size={16} className="text-cyan-400" />
+                           <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{t("Field Control Engine")}</label>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                           <FieldModeControl label={t("Player Name")} mode={fieldConfig.name} onChange={(mode) => setFieldConfig(prev => ({ ...prev, name: mode }))} t={t} />
+                           <FieldModeControl label={t("Father Name")} mode={fieldConfig.fatherName} onChange={(mode) => setFieldConfig(prev => ({ ...prev, fatherName: mode }))} t={t} />
+                           <FieldModeControl label={t("Date of Birth")} mode={fieldConfig.dob} onChange={(mode) => setFieldConfig(prev => ({ ...prev, dob: mode }))} t={t} />
+                           <FieldModeControl label={t("Mobile Number")} mode={fieldConfig.mobile} onChange={(mode) => setFieldConfig(prev => ({ ...prev, mobile: mode }))} t={t} />
+                           <FieldModeControl label={t("Aadhaar ID")} mode={fieldConfig.aadhaarNumber} onChange={(mode) => setFieldConfig(prev => ({ ...prev, aadhaarNumber: mode }))} t={t} />
+                           <FieldModeControl label={t("Taluk")} mode={fieldConfig.taluk} onChange={(mode) => setFieldConfig(prev => ({ ...prev, taluk: mode }))} t={t} />
+                           <FieldModeControl label={t("Hobli")} mode={fieldConfig.hobli} onChange={(mode) => setFieldConfig(prev => ({ ...prev, hobli: mode }))} t={t} />
+                           <FieldModeControl label={t("Village")} mode={fieldConfig.village} onChange={(mode) => setFieldConfig(prev => ({ ...prev, village: mode }))} t={t} />
+                           <FieldModeControl label={t("Primary Role")} mode={fieldConfig.role} onChange={(mode) => setFieldConfig(prev => ({ ...prev, role: mode }))} t={t} />
+                           <FieldModeControl label={t("Playing Style")} mode={fieldConfig.playingStyle} onChange={(mode) => setFieldConfig(prev => ({ ...prev, playingStyle: mode }))} t={t} />
+                           <FieldModeControl label={t("Wicket Keeper")} mode={fieldConfig.wicketKeeper} onChange={(mode) => setFieldConfig(prev => ({ ...prev, wicketKeeper: mode }))} t={t} />
+                           <FieldModeControl label={t("Profile Photo")} mode={fieldConfig.photo} onChange={(mode) => setFieldConfig(prev => ({ ...prev, photo: mode }))} t={t} />
+                           <FieldModeControl label={t("Aadhaar Upload")} mode={fieldConfig.aadhaarFile} onChange={(mode) => setFieldConfig(prev => ({ ...prev, aadhaarFile: mode }))} t={t} />
+                        </div>
+                     </div>
+
                      <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/5">
-                        <button onClick={() => setIsEditing(false)} className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all">Cancel</button>
+                        <button onClick={() => setIsEditing(false)} className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all">{t("Cancel")}</button>
                         <button onClick={handleSaveSettings} disabled={savingSettings} className="px-8 py-3 bg-linear-to-r from-violet-600 to-cyan-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-violet-600/20 transition-all hover:scale-105 active:scale-95 disabled:opacity-50">
                            {savingSettings ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                           {savingSettings ? "Saving..." : "Apply Changes"}
+                           {savingSettings ? t("Saving...") : t("Apply Changes")}
                         </button>
                      </div>
                   </div>
@@ -852,7 +1544,7 @@ export default function PlayerRegistrationPage() {
                      <div className="relative z-10 py-16 px-8 text-center">
                         <div className="mb-6 animate-in slide-in-from-top-4 duration-700">
                            <span className="px-4 py-1.5 bg-white/5 backdrop-blur-md border border-white/10 rounded-full text-[10px] font-black uppercase tracking-[0.2em] text-violet-400">
-                              ✨ {greeting}, Hero
+                              ✨ {greeting}, {t("Hero")}
                            </span>
                         </div>
 
@@ -875,12 +1567,12 @@ export default function PlayerRegistrationPage() {
                                  <Clock className={`w-4 h-4 ${isUrgent ? 'text-red-500 animate-pulse' : 'text-emerald-500'}`} />
                                  <div className="flex items-center gap-4">
                                     <div className="flex flex-col items-start">
-                                       <p className={`text-[8px] font-black ${isUrgent ? 'text-red-400/70' : 'text-emerald-400/70'} uppercase tracking-widest`}>Registration Ends</p>
+                                       <p className={`text-[8px] font-black ${isUrgent ? 'text-red-400/70' : 'text-emerald-400/70'} uppercase tracking-widest`}>{t("Registration Ends")}</p>
                                        <p className="text-[10px] font-black text-white uppercase tracking-wider">{dateLabel}</p>
                                     </div>
                                     <div className="w-px h-6 bg-white/10" />
                                     <div className="flex flex-col items-start">
-                                       <p className={`text-[8px] font-black ${isUrgent ? 'text-red-400/70' : 'text-emerald-400/70'} uppercase tracking-widest`}>Time Remaining</p>
+                                       <p className={`text-[8px] font-black ${isUrgent ? 'text-red-400/70' : 'text-emerald-400/70'} uppercase tracking-widest`}>{t("Time Remaining")}</p>
                                        <p className={`text-[11px] font-[1000] ${isUrgent ? 'text-red-500' : 'text-emerald-500'} uppercase tracking-widest tabular-nums`}>{timeLeft}</p>
                                     </div>
                                  </div>
@@ -898,7 +1590,7 @@ export default function PlayerRegistrationPage() {
                               )}
                               <div className="flex items-center gap-2 mb-3">
                                  <Zap className="w-4 h-4 text-yellow-400" />
-                                 <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">Tournament Intelligence & Rules</h3>
+                                 <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">{t("Tournament Intelligence & Rules")}</h3>
                               </div>
                               <p className="text-slate-300 text-xs whitespace-pre-wrap leading-loose font-bold italic opacity-80 tracking-wide">
                                  {tournament.registrationDetails}
@@ -908,9 +1600,27 @@ export default function PlayerRegistrationPage() {
 
                         {!tournament?.registrationDetails && session && (
                            <button onClick={() => setIsEditing(true)} className="mt-6 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 border-dashed rounded-xl text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center justify-center gap-2 mx-auto transition-all">
-                              <Plus size={14} /> Configure Tournament Guidelines
+                              <Plus size={14} /> {t("Configure Tournament Guidelines")}
                            </button>
                         )}
+
+                        <div className="mt-12 flex flex-col items-center gap-4 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-300">
+                           <button
+                              onClick={() => {
+                                 const formElement = document.querySelector('form');
+                                 if (formElement) {
+                                    formElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                 }
+                              }}
+                              className="px-12 py-5 bg-linear-to-r from-violet-600 to-cyan-500 text-white rounded-[2rem] text-sm font-[1000] uppercase tracking-[0.3em] shadow-[0_20px_50px_rgba(124,58,237,0.4)] hover:scale-105 active:scale-95 transition-all flex items-center gap-4 group"
+                           >
+                              {t("Start Registration")}
+                              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                           </button>
+                           <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                              {t("Identity verification required to proceed")}
+                           </p>
+                        </div>
                      </div>
 
                      {/* Decorative Elements */}
@@ -919,7 +1629,7 @@ export default function PlayerRegistrationPage() {
                )}
             </div>
 
-            {checking && <SearchingOverlay mobile={checkMobile} />}
+            {checking && <SearchingOverlay mobile={checkMobile} t={t} />}
 
             {error && (
                <div className="mb-8 p-6 bg-red-500/10 border border-red-500/20 rounded-3xl flex flex-col md:flex-row items-center gap-6 text-red-500 relative overflow-hidden group shadow-2xl">
@@ -938,20 +1648,20 @@ export default function PlayerRegistrationPage() {
                </div>
             )}
 
-            <div className="bg-[#0f172a]/40 border border-white/10 rounded-[3rem] p-8 md:p-12 shadow-2xl relative overflow-hidden backdrop-blur-3xl">
+            <div className="bg-[#0f172a]/40 border border-white/10 rounded-4xl sm:rounded-[3rem] p-5 sm:p-8 md:p-12 shadow-2xl relative overflow-hidden backdrop-blur-3xl">
                {isClosed ? (
                   <div className="py-20 flex flex-col items-center justify-center text-center animate-in zoom-in-95 duration-700">
                      <div className="w-24 h-24 rounded-[2.5rem] bg-red-600/10 border border-red-500/20 flex items-center justify-center mb-8 shadow-[0_0_50px_rgba(239,68,68,0.15)] relative">
                         <X className="w-12 h-12 text-red-500" />
                         <div className="absolute inset-0 rounded-[2.5rem] border-2 border-red-500 animate-ping opacity-20" />
                      </div>
-                     <h2 className="text-4xl md:text-5xl font-black text-white uppercase italic tracking-normal mb-4 drop-shadow-xl">Registration <span className="text-red-500">Closed</span></h2>
+                     <h2 className="text-4xl md:text-5xl font-black text-white uppercase italic tracking-normal mb-4 drop-shadow-xl">{t("Registration")} <span className="text-red-500">{t("Closed")}</span></h2>
                      <p className="text-slate-400 text-sm max-w-md mx-auto leading-loose font-bold italic tracking-wide">
-                        {tournament?.closedMessage || "Registration is currently closed. Please contact the tournament organizer for more details."}
+                        {tournament?.closedMessage || t("Registration is currently closed. Please contact the tournament organizer for more details.")}
                      </p>
                      <div className="mt-12 pt-8 border-t border-white/5 w-full max-w-xs mx-auto">
-                        <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.3em]">For further inquiries</p>
-                        <p className="text-xs font-black text-white uppercase tracking-widest mt-2">{tournament?.organizerName || "Tournament Official"}</p>
+                        <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.3em]">{t("For further inquiries")}</p>
+                        <p className="text-xs font-black text-white uppercase tracking-widest mt-2">{tournament?.organizerName || t("Tournament Official")}</p>
                      </div>
                   </div>
                ) : (
@@ -963,8 +1673,8 @@ export default function PlayerRegistrationPage() {
                               <Phone className="w-10 h-10 text-violet-400" />
                            </div>
                            <div className="text-center space-y-4">
-                              <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-white uppercase italic tracking-wide drop-shadow-xl">Enter Mobile Number</h2>
-                              <p className="text-[10px] sm:text-xs text-slate-400 font-bold tracking-widest sm:tracking-[0.2em] uppercase max-w-sm leading-relaxed px-4">Enter your 10-digit number to check status or begin registration</p>
+                              <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-white uppercase italic tracking-wide drop-shadow-xl">{t("Enter Mobile Number")}</h2>
+                              <p className="text-[10px] sm:text-xs text-slate-400 font-bold tracking-widest sm:tracking-[0.2em] uppercase max-w-sm leading-relaxed px-4">{t("Enter your 10-digit number to check status or begin registration")}</p>
                            </div>
                            <div className="w-full max-w-md relative group mt-4 px-4 sm:px-0">
                               <div className="absolute -inset-1 bg-linear-to-r from-violet-600 to-cyan-500 rounded-3xl blur opacity-25 group-focus-within:opacity-50 transition duration-500"></div>
@@ -972,7 +1682,7 @@ export default function PlayerRegistrationPage() {
                                  type="tel"
                                  value={checkMobile}
                                  onChange={e => setCheckMobile(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                                 placeholder="10 DIGIT NUMBER"
+                                 placeholder={t("10 DIGIT NUMBER")}
                                  className="relative w-full bg-slate-900 border-2 border-white/10 rounded-2xl px-4 sm:px-6 py-5 sm:py-6 text-center text-xl sm:text-2xl font-black text-white tracking-[0.3em] sm:tracking-[0.5em] outline-none focus:border-violet-500 transition-all placeholder:text-slate-700"
                                  onKeyDown={(e) => {
                                     if (e.key === 'Enter' && checkMobile.length === 10 && !checking) {
@@ -989,7 +1699,7 @@ export default function PlayerRegistrationPage() {
                                  className="w-full px-8 py-4 sm:py-5 bg-linear-to-r from-violet-600 to-cyan-500 text-white rounded-2xl font-[1000] text-xs sm:text-sm uppercase tracking-[0.2em] shadow-xl shadow-violet-600/20 active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100 flex items-center justify-center gap-3 hover:brightness-110"
                               >
                                  {checking ? <Loader2 className="w-5 h-5 animate-spin" /> : <ArrowRight className="w-5 h-5" />}
-                                 {checking ? "Verifying..." : "Continue"}
+                                 {checking ? t("Verifying...") : t("Continue")}
                               </button>
                            </div>
                         </div>
@@ -999,30 +1709,32 @@ export default function PlayerRegistrationPage() {
                         <div className="space-y-10 animate-in fade-in slide-in-from-right-8 relative">
                            <div className="flex justify-end -mb-8 relative z-20">
                               <button type="button" onClick={() => setStep(0)} className="px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-2 transition-all border border-white/5">
-                                 <ArrowLeft size={12} /> Change Number
+                                 <ArrowLeft size={12} /> {t("Change Number")}
                               </button>
                            </div>
                            <SectionHeader num="01" title={t("Personal Identity")} sub={t("Individual record verification")} icon={UserPlus} color="violet" t={t} />
                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                              <Field icon={User} label={t("Player Name")} name="name" value={formData.name} onChange={handleInputChange} placeholder={t("FULL LEGAL NAME")} required error={fieldErrors.name} />
-                              <Field icon={Users} label={t("Father Name")} name="fatherName" value={formData.fatherName} onChange={handleInputChange} placeholder={t("PARENT IDENTITY")} error={fieldErrors.fatherName} />
-                              <Field icon={Calendar} label={t("Date of Birth")} name="dob" type="date" value={formData.dob} onChange={handleInputChange} placeholder={t("DD-MM-YYYY")} error={fieldErrors.dob} />
-                              <Field icon={Phone} label={t("Mobile Number")} name="mobile" type="tel" value={formData.mobile} onChange={handleInputChange} placeholder={t("10 DIGIT PRIMARY CONTACT")} required error={fieldErrors.mobile} />
+                              {!isFieldHidden("name") && <Field icon={User} label={t("Player Name")} name="name" value={formData.name} onChange={handleInputChange} placeholder={t("FULL LEGAL NAME")} required={isFieldRequired("name")} error={fieldErrors.name} />}
+                              {!isFieldHidden("fatherName") && <Field icon={Users} label={t("Father Name")} name="fatherName" value={formData.fatherName} onChange={handleInputChange} placeholder={t("PARENT IDENTITY")} required={isFieldRequired("fatherName")} error={fieldErrors.fatherName} />}
+                              {!isFieldHidden("dob") && <Field icon={Calendar} label={t("Date of Birth")} name="dob" type="text" value={formData.dob} onChange={handleInputChange} placeholder={t("DD-MM-YYYY")} required={isFieldRequired("dob")} error={fieldErrors.dob} />}
+                              {!isFieldHidden("mobile") && <Field icon={Phone} label={t("Mobile Number")} name="mobile" type="tel" value={formData.mobile} onChange={handleInputChange} placeholder={t("10 DIGIT PRIMARY CONTACT")} required={isFieldRequired("mobile")} error={fieldErrors.mobile} />}
                            </div>
-                           <Field icon={CreditCard} label={t("Aadhaar ID")} name="aadhaarNumber" value={formData.aadhaarNumber} onChange={handleInputChange} placeholder={t("12 DIGIT IDENTITY NUMBER")} error={fieldErrors.aadhaarNumber} />
+                           {!isFieldHidden("aadhaarNumber") && <Field icon={CreditCard} label={t("Aadhaar ID")} name="aadhaarNumber" value={formData.aadhaarNumber} onChange={handleInputChange} placeholder={t("12 DIGIT IDENTITY NUMBER")} required={isFieldRequired("aadhaarNumber")} error={fieldErrors.aadhaarNumber} />}
                         </div>
                      )}
 
                      {step === 2 && (
                         <div className="space-y-10 animate-in fade-in slide-in-from-right-8">
                            <SectionHeader num="02" title={t("Regional Localization")} sub={t("Simplified administrative verification")} icon={Navigation2} color="cyan" t={t} />
-                           <div className="grid grid-cols-1 gap-8">
-                              <SearchSelect label={t("Select Taluk")} options={taluks} value={formData.taluk} onChange={(val) => handleInputChange({ target: { name: 'taluk', value: val } })} t={t} error={fieldErrors.taluk} />
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                 <SearchSelect label={t("Select Hobli")} options={hoblis} value={formData.hobli} onChange={(val) => handleInputChange({ target: { name: 'hobli', value: val } })} disabled={!formData.taluk} t={t} error={fieldErrors.hobli} />
-                                 <Field icon={MapPin} label={t("Village / Ward Name")} name="village" value={formData.village} onChange={handleInputChange} placeholder={t("TYPE YOUR VILLAGE OR WARD NAME")} required error={fieldErrors.village} />
+                           {!isFieldHidden("taluk") || !isFieldHidden("hobli") || !isFieldHidden("village") ? (
+                              <div className="grid grid-cols-1 gap-8">
+                                 {!isFieldHidden("taluk") && <SearchSelect label={t("Select Taluk")} options={taluks} value={formData.taluk} onChange={(val) => handleInputChange({ target: { name: 'taluk', value: val } })} t={t} error={fieldErrors.taluk} />}
+                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    {!isFieldHidden("hobli") && <SearchSelect label={t("Select Hobli")} options={hoblis} value={formData.hobli} onChange={(val) => handleInputChange({ target: { name: 'hobli', value: val } })} disabled={!formData.taluk} t={t} error={fieldErrors.hobli} />}
+                                    {!isFieldHidden("village") && <Field icon={MapPin} label={t("Village / Ward Name")} name="village" value={formData.village} onChange={handleInputChange} placeholder={t("TYPE YOUR VILLAGE OR WARD NAME")} required={isFieldRequired("village")} error={fieldErrors.village} />}
+                                 </div>
                               </div>
-                           </div>
+                           ) : <p className="text-xs font-black uppercase tracking-widest text-slate-500">No fields configured in this section.</p>}
                         </div>
                      )}
 
@@ -1030,7 +1742,7 @@ export default function PlayerRegistrationPage() {
                         <div className="space-y-10 animate-in fade-in slide-in-from-right-8">
                            <SectionHeader num="03" title={t("Professional Profile")} sub={t("Match readiness and skill ledger")} icon={Activity} color="emerald" t={t} />
                            <div className="space-y-8">
-                              <div className="space-y-4">
+                              {!isFieldHidden("role") && <div className="space-y-4">
                                  <div className="flex items-center justify-between px-2">
                                     <label className="text-[10px] font-black text-slate-600 uppercase tracking-[0.3em]">{t("Primary Role")}</label>
                                     {fieldErrors.role && <span className="text-[9px] font-black text-red-500 uppercase tracking-widest">● {fieldErrors.role}</span>}
@@ -1040,9 +1752,9 @@ export default function PlayerRegistrationPage() {
                                        <CardSelect key={r} label={t(r)} active={formData.role === r} onClick={() => setFormData(p => ({ ...p, role: r }))} error={fieldErrors.role && formData.role !== r} />
                                     ))}
                                  </div>
-                              </div>
+                              </div>}
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                 <div className="space-y-4">
+                                 {!isFieldHidden("playingStyle") && <div className="space-y-4">
                                     <div className="flex items-center justify-between px-2">
                                        <label className="text-[10px] font-black text-slate-600 uppercase tracking-[0.3em]">{t("Playing Style")}</label>
                                        {fieldErrors.playingStyle && <span className="text-[9px] font-black text-red-500 uppercase tracking-widest">● {fieldErrors.playingStyle}</span>}
@@ -1052,8 +1764,8 @@ export default function PlayerRegistrationPage() {
                                           <button key={s} type="button" onClick={() => setFormData(p => ({ ...p, playingStyle: s }))} className={`flex-1 py-4 rounded-2xl border-2 transition-all font-black uppercase text-[10px] tracking-widest ${formData.playingStyle === s ? 'bg-violet-600 border-violet-500 text-white shadow-lg' : fieldErrors.playingStyle ? 'bg-red-600/5 border-red-500/60 text-slate-500' : 'bg-slate-900 border-white/5 text-slate-500 hover:border-white/10 hover:text-white'}`}>{t(s)}</button>
                                        ))}
                                     </div>
-                                 </div>
-                                 <div className="space-y-4">
+                                 </div>}
+                                 {!isFieldHidden("wicketKeeper") && <div className="space-y-4">
                                     <div className="flex items-center justify-between px-2">
                                        <label className="text-[10px] font-black text-slate-600 uppercase tracking-[0.3em]">{t("ARE YOU WICKET KEEPER..?")}</label>
                                        {fieldErrors.wicketKeeper && <span className="text-[9px] font-black text-red-500 uppercase tracking-widest">● {fieldErrors.wicketKeeper}</span>}
@@ -1080,7 +1792,7 @@ export default function PlayerRegistrationPage() {
                                           </button>
                                        )}
                                     </div>
-                                 </div>
+                                 </div>}
                               </div>
                            </div>
                         </div>
@@ -1089,30 +1801,91 @@ export default function PlayerRegistrationPage() {
                      {step === 4 && (
                         <div className="space-y-10 animate-in fade-in slide-in-from-right-8">
                            <SectionHeader num="04" title={t("Asset Repository")} sub={t("Encrypted visual and identity proof")} icon={UploadCloud} color="slate" t={t} />
-                           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                              <FileUploadField label={t("Profile Identity Photo")} icon={User} preview={previews.photo} onChange={(e) => handleFileChange(e, 'photo')} onClear={() => { setFormData(p => ({ ...p, photo: null })); setPreviews(p => ({ ...p, photo: null })); }} error={fieldErrors.photo} />
-                              <FileUploadField label={t("Aadhaar Resource Node")} icon={CreditCard} preview={previews.aadhaar} onChange={(e) => handleFileChange(e, 'aadhaarFile')} onClear={() => { setFormData(p => ({ ...p, aadhaarFile: null })); setPreviews(p => ({ ...p, aadhaar: null })); }} error={fieldErrors.aadhaarFile} />
+                           {!isFieldHidden("photo") || !isFieldHidden("aadhaarFile") ? (
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                 {!isFieldHidden("photo") && <FileUploadField label={t("Profile Identity Photo")} icon={User} preview={previews.photo} onChange={(e) => handleFileChange(e, 'photo')} onClear={() => { setFormData(p => ({ ...p, photo: null })); setPreviews(p => ({ ...p, photo: null })); }} t={t} error={fieldErrors.photo} />}
+                                 {!isFieldHidden("aadhaarFile") && <FileUploadField label={t("Aadhaar Resource Node")} icon={CreditCard} preview={previews.aadhaar} onChange={(e) => handleFileChange(e, 'aadhaarFile')} onClear={() => { setFormData(p => ({ ...p, aadhaarFile: null })); setPreviews(p => ({ ...p, aadhaar: null })); }} t={t} error={fieldErrors.aadhaarFile} />}
+                              </div>
+                           ) : <p className="text-xs font-black uppercase tracking-widest text-slate-500">No fields configured in this section.</p>}
+                        </div>
+                     )}
+
+                     {step === 5 && (
+                        <div className="space-y-10 animate-in fade-in slide-in-from-right-8">
+                           <SectionHeader num="05" title={t("Final Player Draft")} sub={t("Auction profile preview before launch")} icon={ClipboardCheck} color="emerald" t={t} />
+                           <div className="grid grid-cols-1 lg:grid-cols-[320px,1fr] gap-8">
+                              <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
+                                 <div className="w-full h-56 rounded-2xl overflow-hidden border border-white/10 bg-slate-900/60 mb-5">
+                                    <img src={previews.photo || "https://images.unsplash.com/photo-1544717305-2782549b5136?q=80&w=700&auto=format&fit=crop"} alt="Player" className="w-full h-full object-cover" />
+                                 </div>
+                                 {!isFieldHidden("name") && formData.name && <p className="text-xs font-black uppercase tracking-widest text-white">{formData.name}</p>}
+                                 {!isFieldHidden("role") && formData.role && <p className="text-[10px] font-black uppercase tracking-widest text-cyan-300 mt-2">{formData.role}</p>}
+                                 {(!isFieldHidden("village") || !isFieldHidden("hobli") || !isFieldHidden("taluk")) && [formData.village, formData.hobli, formData.taluk].filter(Boolean).length > 0 && (
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mt-2">
+                                       {[formData.village, formData.hobli, formData.taluk].filter(Boolean).join(", ")}
+                                    </p>
+                                 )}
+                                 {!isFieldHidden("playingStyle") && formData.playingStyle && <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mt-2">{formData.playingStyle}</p>}
+                              </div>
+                              <div className="space-y-4">
+                                 <ReviewBlock title={t("Identity")} onEdit={() => setStep(1)} t={t} rows={[
+                                    [t('Name'), formData.name, 'name'],
+                                    [t('Mobile'), formData.mobile, 'mobile'],
+                                    [t('DOB'), formData.dob, 'dob'],
+                                    [t('Aadhaar'), formData.aadhaarNumber, 'aadhaarNumber'],
+                                    [t('Father Name'), formData.fatherName, 'fatherName']
+                                 ].filter(([_, val, key]) => val && !isFieldHidden(key))} />
+                                 <ReviewBlock title={t("Location")} onEdit={() => setStep(2)} t={t} rows={[
+                                    [t('Taluk'), formData.taluk, 'taluk'],
+                                    [t('Hobli'), formData.hobli, 'hobli'],
+                                    [t('Village'), formData.village, 'village']
+                                 ].filter(([_, val, key]) => val && !isFieldHidden(key))} />
+                                 <ReviewBlock title={t("Cricket Details")} onEdit={() => setStep(3)} t={t} rows={[
+                                    [t('Role'), formData.role, 'role'],
+                                    [t('Playing Style'), formData.playingStyle, 'playingStyle'],
+                                    [t('Wicket Keeper'), formData.wicketKeeper === null ? '' : formData.wicketKeeper ? t('Yes') : t('No'), 'wicketKeeper']
+                                 ].filter(([_, val, key]) => val && !isFieldHidden(key))} />
+                                 <ReviewBlock title={t("Uploaded Docs")} onEdit={() => setStep(4)} t={t} rows={[
+                                    [t('Profile Photo'), previews.photo ? t('Uploaded') : '', 'photo'],
+                                    [t('Aadhaar Document'), previews.aadhaar ? t('Uploaded') : '', 'aadhaarFile']
+                                 ].filter(([_, val, key]) => val && !isFieldHidden(key))} />
+                              </div>
                            </div>
                         </div>
                      )}
 
                      {step > 0 && (
-                        <div className="flex flex-col md:flex-row items-center justify-between pt-10 border-t border-white/5 gap-6">
+                        <div className="hidden md:flex flex-col md:flex-row items-center justify-between pt-10 border-t border-white/5 gap-6">
                            {step > 0 ? (
                               <button type="button" onClick={prevStep} className="w-full md:w-auto px-8 py-4 bg-white/5 hover:bg-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3 shadow-lg"><ArrowLeft size={16} /> {t("Back")}</button>
                            ) : <div />}
 
-                           {step < 4 ? (
+                           {step < 5 ? (
                               <button type="button" onClick={nextStep} className="w-full md:w-auto px-10 py-5 bg-linear-to-r from-violet-600 to-cyan-500 rounded-4xl text-[10px] font-black uppercase tracking-[0.3em] italic text-white shadow-xl shadow-violet-600/30 hover:scale-[1.03] transition-all flex items-center justify-center gap-3">{t("Continue")} <ArrowRight size={16} /></button>
                            ) : (
                               <button onClick={handleSubmit} disabled={submitting} type="button" className="w-full md:w-auto px-12 py-6 bg-emerald-600 hover:bg-emerald-500 rounded-4xl text-[11px] font-black uppercase tracking-[0.4em] italic text-white shadow-2xl transition-all flex flex-col items-center gap-1 disabled:opacity-50">
                                  <div className="flex items-center gap-3">
                                     {submitting ? <Loader2 size={18} className="animate-spin" /> : <Rocket size={18} />}
-                                    {submitting ? t("PROCESSING TRANSACTION...") : t("LAUNCH REGISTRATION")}
+                                    {submitting ? t("PROCESSING TRANSACTION...") : t("Enter Auction Pool")}
                                  </div>
                                  {submissionPhase && <span className="text-[8px] font-bold opacity-70 tracking-widest">{submissionPhase}</span>}
                               </button>
                            )}
+                        </div>
+                     )}
+
+                     {step > 0 && (
+                        <div className="md:hidden fixed bottom-0 left-0 right-0 z-120 bg-[#020617]/95 backdrop-blur-2xl border-t border-white/10 p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]">
+                           <div className="max-w-4xl mx-auto flex items-center gap-3">
+                              <button type="button" onClick={prevStep} disabled={step === 0} className="px-4 py-4 rounded-2xl bg-white/10 text-white disabled:opacity-30">
+                                 <ArrowLeft size={18} />
+                              </button>
+                              {step < 5 ? (
+                                 <button type="button" onClick={nextStep} className="flex-1 px-6 py-4 bg-linear-to-r from-violet-600 to-cyan-500 text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] flex items-center justify-center gap-2 shadow-xl shadow-violet-600/30">{t("Continue")} <ArrowRight size={16} /></button>
+                              ) : (
+                                 <button type="button" onClick={handleSubmit} disabled={submitting} className="flex-1 px-6 py-4 bg-emerald-600 text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] flex items-center justify-center gap-2 disabled:opacity-50">{submitting ? <Loader2 size={16} className="animate-spin" /> : <Rocket size={16} />} {t("Enter Auction Pool")}</button>
+                              )}
+                           </div>
                         </div>
                      )}
                   </form>
@@ -1142,11 +1915,57 @@ function SectionHeader({ num, title, sub, icon: Icon, color, t }) {
    );
 }
 
+function ReviewBlock({ title, rows, onEdit, t }) {
+   return (
+      <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
+         <div className="flex items-center justify-between mb-3">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-300">{title}</p>
+            <button type="button" onClick={onEdit} className="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-all">{t("Edit")}</button>
+         </div>
+         <div className="space-y-2">
+            {rows.map(([key, value]) => (
+               <div key={key} className="flex items-center justify-between gap-4 border-b border-white/5 pb-2">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{key}</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-white text-right">{value}</span>
+               </div>
+            ))}
+         </div>
+      </div>
+   );
+}
+
+function FieldModeControl({ label, mode, onChange, t }) {
+   const options = ["hidden", "optional", "required"];
+   const tone = {
+      hidden: "text-slate-400 border-white/10",
+      optional: "text-cyan-300 border-cyan-500/40",
+      required: "text-emerald-300 border-emerald-500/40",
+   };
+
+   return (
+      <div className="rounded-2xl border border-white/10 p-3 bg-slate-900/60">
+         <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3">{label}</p>
+         <div className="grid grid-cols-3 gap-2">
+            {options.map((opt) => (
+               <button
+                  key={opt}
+                  type="button"
+                  onClick={() => onChange(opt)}
+                  className={`py-2 rounded-xl border text-[9px] font-black uppercase tracking-widest transition-all ${mode === opt ? `${tone[opt]} bg-white/10` : "text-slate-600 border-white/5 hover:text-slate-300"}`}
+               >
+                  {t(opt)}
+               </button>
+            ))}
+         </div>
+      </div>
+   );
+}
+
 function Field({ icon: Icon, label, name, value, onChange, placeholder, type = "text", required = false, error = null }) {
    return (
       <div className="space-y-4">
          <label className="flex items-center justify-between px-2">
-            <span className="text-[10px] font-black text-slate-600 uppercase tracking-[0.3em]">{label}</span>
+            <span className="text-[10px] font-black text-slate-600 uppercase tracking-[0.3em]">{label}{required && <span className="text-emerald-400 ml-1">*</span>}</span>
             {error && <span className="text-[9px] font-black text-red-500 uppercase tracking-widest">● {error}</span>}
          </label>
          <div className="relative group">
@@ -1208,7 +2027,7 @@ function CardSelect({ label, active, onClick, error = null }) {
    );
 }
 
-function FileUploadField({ label, icon: Icon, preview, onChange, onClear, error = null }) {
+function FileUploadField({ label, icon: Icon, preview, onChange, onClear, t, error = null }) {
    return (
       <div className="space-y-4">
          <div className="flex items-center justify-between px-2">
@@ -1222,11 +2041,16 @@ function FileUploadField({ label, icon: Icon, preview, onChange, onClear, error 
                   <div onClick={onClear} className="absolute inset-0 bg-red-600/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer"><Trash2 size={24} className="text-white" /></div>
                </div>
             ) : (
-               <label className={`flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-4xl hover:border-violet-500/30 transition-all cursor-pointer shadow-inner ${error ? 'bg-red-600/5 border-red-500/60 shadow-[0_0_15px_rgba(239,68,68,0.1)]' : 'bg-slate-900 border-white/5'}`}>
+               <div className={`flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-4xl transition-all shadow-inner ${error ? 'bg-red-600/5 border-red-500/60 shadow-[0_0_15px_rgba(239,68,68,0.1)]' : 'bg-slate-900 border-white/5 hover:border-violet-500/30'}`}>
                   <div className={`p-4 rounded-2xl mb-4 ${error ? 'bg-red-600/20' : 'bg-white/5'}`}><UploadCloud className={`w-8 h-8 transition-all ${error ? 'text-red-400' : 'text-slate-700 group-hover:text-violet-500'}`} /></div>
-                  <p className={`text-[8px] font-black uppercase tracking-[0.4em] leading-none ${error ? 'text-red-400' : 'text-slate-700'}`}>{error ? error.toUpperCase() : 'Register Digital Asset'}</p>
-                  <input type="file" className="hidden" accept="image/*" onChange={onChange} />
-               </label>
+                  <p className={`text-[8px] font-black uppercase tracking-[0.4em] leading-none ${error ? 'text-red-400' : 'text-slate-700'}`}>{error ? error.toUpperCase() : t('Register Digital Asset')}</p>
+                  <div className="mt-4 flex items-center justify-center w-full">
+                     <label className="px-3 py-2 rounded-xl border border-white/20 bg-white/5 text-white text-[9px] font-black uppercase tracking-widest cursor-pointer hover:bg-white/10 transition-all">
+                        {t('Upload File')}
+                        <input type="file" className="hidden" accept="image/*" onChange={onChange} />
+                     </label>
+                  </div>
+               </div>
             )}
          </div>
       </div>

@@ -2,14 +2,15 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { 
-  Trophy, Play, Eye, Edit, Trash2, Users, 
-  Calendar, RotateCcw, PlusCircle, Clock, 
+import {
+  Trophy, Play, Eye, Edit, Trash2, Users,
+  Calendar, RotateCcw, PlusCircle, Clock,
   CheckCircle, Zap, ExternalLink, RefreshCw, Settings, X
 } from "lucide-react";
 
 import * as XLSX from "xlsx";
 import { API_URL, getMediaUrl } from "@/lib/apiConfig";
+import { getCanonicalApplyRoute } from "@/lib/applicationRoutes";
 
 export default function TournamentsPage() {
   const [tournaments, setTournaments] = useState([]);
@@ -24,9 +25,9 @@ export default function TournamentsPage() {
   useEffect(() => {
     fetchTournaments();
     const interval = setInterval(() => {
-        // Poll if any tournament is processing images
-        const isProcessing = tournaments.some(t => t.imageProcessing?.status === 'processing');
-        if (isProcessing) fetchTournaments();
+      // Poll if any tournament is processing images
+      const isProcessing = tournaments.some(t => t.imageProcessing?.status === 'processing');
+      if (isProcessing) fetchTournaments();
     }, 5000);
     return () => clearInterval(interval);
   }, [tournaments]);
@@ -76,40 +77,40 @@ export default function TournamentsPage() {
 
   const goLive = async (tournamentId) => {
     if (!confirm("Make this tournament LIVE? This will archive any other currently live auctions.")) {
-        return;
+      return;
     }
     setActivating(tournamentId);
     try {
-        const res = await fetch(`${API_URL}/api/tournaments/${tournamentId}/go-live`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" }
-        });
-        if (res.ok) {
-            fetchTournaments();
-        } else {
-            alert("Failed to set live");
-        }
+      const res = await fetch(`${API_URL}/api/tournaments/${tournamentId}/go-live`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" }
+      });
+      if (res.ok) {
+        fetchTournaments();
+      } else {
+        alert("Failed to set live");
+      }
     } catch (err) {
-        console.error("Go live error:", err);
+      console.error("Go live error:", err);
     } finally {
-        setActivating(null);
+      setActivating(null);
     }
   };
 
   const archiveAuction = async (tournamentId) => {
     if (!confirm("Are you sure you want to mark this auction as COMPLETED? It will no longer show up as a live option.")) {
-        return;
+      return;
     }
     try {
-        const res = await fetch(`${API_URL}/api/tournaments/${tournamentId}/archive`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" }
-        });
-        if (res.ok) {
-            fetchTournaments();
-        }
+      const res = await fetch(`${API_URL}/api/tournaments/${tournamentId}/archive`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" }
+      });
+      if (res.ok) {
+        fetchTournaments();
+      }
     } catch (err) {
-        console.error("Archive error:", err);
+      console.error("Archive error:", err);
     }
   };
 
@@ -146,53 +147,53 @@ export default function TournamentsPage() {
 
     setAppending(tournamentId);
     try {
-        const reader = new FileReader();
-        reader.onload = async (ev) => {
-            const wb = XLSX.read(ev.target.result, { type: "binary", cellDates: true });
-            const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
-            
-            // Map keys helper (similar to create-tournament)
-            const findValue = (row, keys) => {
-                const rk = Object.keys(row);
-                for (const k of keys) {
-                    const f = rk.find(key => key.toLowerCase().trim() === k.toLowerCase().trim());
-                    if (f) return row[f];
-                }
-                return null;
-            };
+      const reader = new FileReader();
+      reader.onload = async (ev) => {
+        const wb = XLSX.read(ev.target.result, { type: "binary", cellDates: true });
+        const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
 
-            const players = rows.map(row => ({
-                name:         findValue(row, ["player name", "playerName", "name", "player", "ಆಟಗಾರನ ಹೆಸರು"]) || "PLAYER NAME",
-                role:         findValue(row, ["playing role", "role", "skill", "player role", "category", "type", "position", "ಪಾತ್ರ"]) || "All-Rounder",
-                mobile:       findValue(row, ["mobile", "phone", "contact", "ಮೊಬೈಲ್", "ದೂರವಾಣಿ"]) || "-",
-                battingStyle: findValue(row, ["batting", "battingStyle", "style", "ಬ್ಯಾಟಿಂಗ್"]) || "Right Hand",
-                bowlingStyle: findValue(row, ["bowling", "bowlingStyle", "ಬೌಲಿಂಗ್"]) || "-",
-                village:      findValue(row, ["village", "town", "city", "ಗ್ರಾಮ", "ಸ್ಥಳ"]) || "-",
-                basePrice:    Number(findValue(row, ["basePrice", "price", "base price", "amount", "ಮೂಲ ಬೆಲೆ"])) || 100,
-                imageUrl:     findValue(row, ["imageUrl", "photo", "image", "link", "url", "ಭಾವಚಿತ್ರ"]) || "",
-                isIcon:       findValue(row, ["icon", "isIcon", "star"]) === "yes" || findValue(row, ["isIcon"]) === true
-            }));
-
-            const res = await fetch(`${API_URL}/api/tournaments/${tournamentId}/append-players`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ players })
-            });
-
-            if (res.ok) {
-                const data = await res.json();
-                alert(`Successfully added ${data.added} new players! (Skipped ${data.skipped} duplicates)`);
-                fetchTournaments();
-            } else {
-                alert("Failed to append players");
-            }
-            setAppending(null);
+        // Map keys helper (similar to create-tournament)
+        const findValue = (row, keys) => {
+          const rk = Object.keys(row);
+          for (const k of keys) {
+            const f = rk.find(key => key.toLowerCase().trim() === k.toLowerCase().trim());
+            if (f) return row[f];
+          }
+          return null;
         };
-        reader.readAsBinaryString(file);
-    } catch (err) {
-        console.error("Append error:", err);
-        alert("File error");
+
+        const players = rows.map(row => ({
+          name: findValue(row, ["player name", "playerName", "name", "player", "ಆಟಗಾರನ ಹೆಸರು"]) || "PLAYER NAME",
+          role: findValue(row, ["playing role", "role", "skill", "player role", "category", "type", "position", "ಪಾತ್ರ"]) || "All-Rounder",
+          mobile: findValue(row, ["mobile", "phone", "contact", "ಮೊಬೈಲ್", "ದೂರವಾಣಿ"]) || "-",
+          battingStyle: findValue(row, ["batting", "battingStyle", "style", "ಬ್ಯಾಟಿಂಗ್"]) || "Right Hand",
+          bowlingStyle: findValue(row, ["bowling", "bowlingStyle", "ಬೌಲಿಂಗ್"]) || "-",
+          village: findValue(row, ["village", "town", "city", "ಗ್ರಾಮ", "ಸ್ಥಳ"]) || "-",
+          basePrice: Number(findValue(row, ["basePrice", "price", "base price", "amount", "ಮೂಲ ಬೆಲೆ"])) || 100,
+          imageUrl: findValue(row, ["imageUrl", "photo", "image", "link", "url", "ಭಾವಚಿತ್ರ"]) || "",
+          isIcon: findValue(row, ["icon", "isIcon", "star"]) === "yes" || findValue(row, ["isIcon"]) === true
+        }));
+
+        const res = await fetch(`${API_URL}/api/tournaments/${tournamentId}/append-players`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ players })
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          alert(`Successfully added ${data.added} new players! (Skipped ${data.skipped} duplicates)`);
+          fetchTournaments();
+        } else {
+          alert("Failed to append players");
+        }
         setAppending(null);
+      };
+      reader.readAsBinaryString(file);
+    } catch (err) {
+      console.error("Append error:", err);
+      alert("File error");
+      setAppending(null);
     }
   };
 
@@ -230,36 +231,36 @@ export default function TournamentsPage() {
     switch (status) {
       case "active":
       case "live":
-        return { 
-          color: "text-red-400", 
-          bg: "bg-red-500/10", 
-          border: "border-red-500/20", 
+        return {
+          color: "text-red-400",
+          bg: "bg-red-500/10",
+          border: "border-red-500/20",
           icon: <Zap className="w-3 h-3 animate-pulse" />,
-          label: "Live" 
+          label: "Live"
         };
       case "upcoming":
-        return { 
-          color: "text-blue-400", 
-          bg: "bg-blue-500/10", 
-          border: "border-blue-500/20", 
+        return {
+          color: "text-blue-400",
+          bg: "bg-blue-500/10",
+          border: "border-blue-500/20",
           icon: <Clock className="w-3 h-3" />,
-          label: "Upcoming" 
+          label: "Upcoming"
         };
       case "completed":
-        return { 
-          color: "text-emerald-400", 
-          bg: "bg-emerald-500/10", 
-          border: "border-emerald-500/20", 
+        return {
+          color: "text-emerald-400",
+          bg: "bg-emerald-500/10",
+          border: "border-emerald-500/20",
           icon: <CheckCircle className="w-3 h-3" />,
-          label: "Completed" 
+          label: "Completed"
         };
       default:
-        return { 
-          color: "text-slate-400", 
-          bg: "bg-slate-500/10", 
-          border: "border-slate-500/20", 
+        return {
+          color: "text-slate-400",
+          bg: "bg-slate-500/10",
+          border: "border-slate-500/20",
           icon: <Calendar className="w-3 h-3" />,
-          label: status 
+          label: status
         };
     }
   };
@@ -284,42 +285,42 @@ export default function TournamentsPage() {
       <div key={tournamentId} className="group relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-[#111827]/60 backdrop-blur-xl hover:border-violet-500/30 transition-all duration-500 hover:shadow-[0_20px_50px_rgba(124,58,237,0.1)]">
         {/* Banner Area */}
         <div className="relative h-32 w-full overflow-hidden">
-           <img 
-              src={getMediaUrl(t.assets?.splashUrl, "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=600&auto=format&fit=crop")} 
-              className="w-full h-full object-cover opacity-40 group-hover:scale-110 group-hover:opacity-60 transition-all duration-700"
-              alt="Banner"
-           />
-           <div className="absolute inset-0 bg-gradient-to-t from-[#111827] to-transparent"></div>
-           
-           {/* Status Badge */}
-           <div className="absolute top-4 right-4 z-10">
-             <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-[9px] font-black uppercase tracking-widest backdrop-blur-md ${meta.bg} ${meta.color} ${meta.border}`}>
-               {meta.icon}
-               {meta.label}
-             </div>
-           </div>
+          <img
+            src={getMediaUrl(t.assets?.splashUrl, "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=600&auto=format&fit=crop")}
+            className="w-full h-full object-cover opacity-40 group-hover:scale-110 group-hover:opacity-60 transition-all duration-700"
+            alt="Banner"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#111827] to-transparent"></div>
+
+          {/* Status Badge */}
+          <div className="absolute top-4 right-4 z-10">
+            <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-[9px] font-black uppercase tracking-widest backdrop-blur-md ${meta.bg} ${meta.color} ${meta.border}`}>
+              {meta.icon}
+              {meta.label}
+            </div>
+          </div>
         </div>
 
         <div className="px-6 -mt-10 relative z-10">
           <div className="flex items-end gap-4 mb-6">
-             {/* Tournament Logo */}
-             <div className="w-20 h-20 shrink-0 rounded-2xl bg-slate-950 border-2 border-white/10 flex items-center justify-center overflow-hidden shadow-2xl group-hover:border-violet-500/50 transition-colors">
-               {t.organizerLogo ? (
-                 <img src={t.organizerLogo} alt="Logo" className="w-full h-full object-contain p-2" />
-               ) : (
-                 <Trophy className="w-8 h-8 text-slate-700" />
-               )}
-             </div>
+            {/* Tournament Logo */}
+            <div className="w-20 h-20 shrink-0 rounded-2xl bg-slate-950 border-2 border-white/10 flex items-center justify-center overflow-hidden shadow-2xl group-hover:border-violet-500/50 transition-colors">
+              {t.organizerLogo ? (
+                <img src={t.organizerLogo} alt="Logo" className="w-full h-full object-contain p-2" />
+              ) : (
+                <Trophy className="w-8 h-8 text-slate-700" />
+              )}
+            </div>
 
-             <div className="flex-1 pb-1">
-                <h3 className="text-lg font-black text-white group-hover:text-violet-400 transition-colors truncate tracking-normal italic">
-                  {t.name}
-                </h3>
-                <div className="flex items-center gap-2 mt-0.5 text-slate-500 text-[10px] font-black uppercase tracking-widest">
-                  <Calendar className="w-3 h-3 text-violet-500" />
-                  {new Date(t.createdAt).toLocaleDateString("en-IN", { day: 'numeric', month: 'short', year: 'numeric' })}
-                </div>
-             </div>
+            <div className="flex-1 pb-1">
+              <h3 className="text-lg font-black text-white group-hover:text-violet-400 transition-colors truncate tracking-normal italic">
+                {t.name}
+              </h3>
+              <div className="flex items-center gap-2 mt-0.5 text-slate-500 text-[10px] font-black uppercase tracking-widest">
+                <Calendar className="w-3 h-3 text-violet-500" />
+                {new Date(t.createdAt).toLocaleDateString("en-IN", { day: 'numeric', month: 'short', year: 'numeric' })}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -354,10 +355,10 @@ export default function TournamentsPage() {
                 <span>{t.imageProcessing.completed} / {t.imageProcessing.total}</span>
               </div>
               <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden border border-white/5">
-                  <div 
-                      className="h-full bg-gradient-to-r from-violet-500 to-cyan-400 transition-all duration-500"
-                      style={{ width: `${(t.imageProcessing.completed / (t.imageProcessing.total || 1)) * 100}%` }}
-                  />
+                <div
+                  className="h-full bg-gradient-to-r from-violet-500 to-cyan-400 transition-all duration-500"
+                  style={{ width: `${(t.imageProcessing.completed / (t.imageProcessing.total || 1)) * 100}%` }}
+                />
               </div>
             </div>
           )}
@@ -368,7 +369,7 @@ export default function TournamentsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-[10px] font-black text-red-400 uppercase tracking-widest">Active Auction</p>
-                  <button 
+                  <button
                     onClick={() => archiveAuction(tournamentId)}
                     className="text-[8px] text-slate-500 font-bold hover:text-red-400 transition-colors uppercase tracking-tighter underline underline-offset-2"
                   >
@@ -380,16 +381,15 @@ export default function TournamentsPage() {
             </div>
           ) : (
             <div className="mb-4">
-              <button 
+              <button
                 onClick={() => goLive(tournamentId)}
                 disabled={activating === tournamentId}
-                className={`w-full flex items-center justify-center gap-2 py-2 rounded-xl font-bold text-[9px] uppercase tracking-wider border transition-all ${
-                  t.status === "completed" 
+                className={`w-full flex items-center justify-center gap-2 py-2 rounded-xl font-bold text-[9px] uppercase tracking-wider border transition-all ${t.status === "completed"
                   ? "bg-violet-500/10 hover:bg-violet-500/20 text-violet-400 border-violet-500/20"
                   : "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 border-emerald-500/20"
-                }`}
+                  }`}
               >
-                {activating === tournamentId ? <Clock className="w-3 h-3 animate-spin"/> : <Play className="w-3 h-3"/>}
+                {activating === tournamentId ? <Clock className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
                 {t.status === "completed" ? "Retry to Live" : "Set As Live Auction"}
               </button>
             </div>
@@ -407,7 +407,7 @@ export default function TournamentsPage() {
                 </Link>
                 <button
                   onClick={() => {
-                    const url = `${window.location.origin}/register/${tournamentId}`;
+                    const url = `${window.location.origin}${t.applyToken ? getCanonicalApplyRoute(t.applyToken) : `/register/${tournamentId}`}`;
                     navigator.clipboard.writeText(url);
                     alert("Registration Link Copied!");
                   }}
@@ -417,7 +417,7 @@ export default function TournamentsPage() {
                   <Users className="w-3.5 h-3.5" />
                 </button>
                 <Link
-                  href={`/register/${tournamentId}?edit=true`}
+                  href={`${t.applyToken ? getCanonicalApplyRoute(t.applyToken) : `/register/${tournamentId}`}?edit=true`}
                   className="w-10 h-10 flex items-center justify-center bg-slate-800 hover:bg-slate-700 text-white rounded-lg transition-all active:scale-95 border border-white/5"
                   title="Configure Portal"
                 >
@@ -434,7 +434,7 @@ export default function TournamentsPage() {
                 </Link>
                 <button
                   onClick={() => {
-                    const url = `${window.location.origin}/register/${tournamentId}`;
+                    const url = `${window.location.origin}${t.applyToken ? getCanonicalApplyRoute(t.applyToken) : `/register/${tournamentId}`}`;
                     navigator.clipboard.writeText(url);
                     alert("Registration Link Copied!");
                   }}
@@ -444,7 +444,7 @@ export default function TournamentsPage() {
                   <Users className="w-3.5 h-3.5" />
                 </button>
                 <Link
-                  href={`/register/${tournamentId}?edit=true`}
+                  href={`${t.applyToken ? getCanonicalApplyRoute(t.applyToken) : `/register/${tournamentId}`}?edit=true`}
                   className="flex-1 flex items-center justify-center gap-2 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg font-black text-[10px] uppercase tracking-wider transition-all active:scale-95 border border-white/5"
                 >
                   <Edit className="w-3.5 h-3.5" /> Portal Settings
@@ -453,7 +453,7 @@ export default function TournamentsPage() {
             )}
 
             <div className="flex shrink-0 gap-2">
-              <button 
+              <button
                 onClick={() => setEditingTournament(t)}
                 className="p-3 bg-violet-500/10 text-violet-400 border border-violet-500/20 rounded-xl hover:bg-violet-500/20 transition-all active:scale-95"
                 title="Tournament Settings"
@@ -464,7 +464,7 @@ export default function TournamentsPage() {
                 {appending === tournamentId ? <RefreshCw className={`w-4 h-4 animate-spin`} /> : <PlusCircle className="w-4 h-4" />}
                 <input type="file" className="hidden" accept=".xlsx,.xls,.csv" onChange={(e) => handleAppendPlayers(tournamentId, e)} />
               </label>
-              <button 
+              <button
                 onClick={() => resetAuction(tournamentId)}
                 disabled={resetting === tournamentId}
                 className="p-3 bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded-xl hover:bg-amber-500/20 transition-all active:scale-95 disabled:opacity-50"
@@ -472,7 +472,7 @@ export default function TournamentsPage() {
               >
                 <RotateCcw className={`w-4 h-4 ${resetting === tournamentId ? 'animate-spin' : ''}`} />
               </button>
-              <button 
+              <button
                 onClick={() => deleteAuction(tournamentId)}
                 disabled={deleting === tournamentId}
                 className="p-3 bg-red-500/10 text-red-500 border border-red-500/20 rounded-xl hover:bg-red-500/20 transition-all active:scale-95 disabled:opacity-50"
@@ -531,7 +531,7 @@ export default function TournamentsPage() {
           </h2>
           <div className="h-px flex-1 bg-gradient-to-r from-emerald-500/20 to-transparent" />
         </div>
-        
+
         {concludedTournaments.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {concludedTournaments.map(renderTournamentCard)}
@@ -578,10 +578,10 @@ export default function TournamentsPage() {
               <div className="space-y-4">
                 <div>
                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Auction Engine</label>
-                  <select 
+                  <select
                     className="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-white font-bold outline-none focus:border-violet-500 transition-all"
                     value={editingTournament.auctionMode || "money"}
-                    onChange={(e) => setEditingTournament({...editingTournament, auctionMode: e.target.value})}
+                    onChange={(e) => setEditingTournament({ ...editingTournament, auctionMode: e.target.value })}
                   >
                     <option value="money">Money-Based Auction</option>
                     <option value="points">Points-Based Auction</option>
@@ -590,10 +590,10 @@ export default function TournamentsPage() {
 
                 <div>
                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Currency Unit</label>
-                  <select 
+                  <select
                     className="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-white font-bold outline-none focus:border-violet-500 transition-all"
                     value={editingTournament.currencyUnit || (editingTournament.auctionMode === "points" ? "CR" : "₹")}
-                    onChange={(e) => setEditingTournament({...editingTournament, currencyUnit: e.target.value})}
+                    onChange={(e) => setEditingTournament({ ...editingTournament, currencyUnit: e.target.value })}
                   >
                     <option value="CR">CR (Credits)</option>
                     <option value="PTS">PTS (Points)</option>
@@ -604,14 +604,14 @@ export default function TournamentsPage() {
               </div>
 
               <div className="pt-4 flex gap-3">
-                <button 
+                <button
                   type="button"
                   onClick={() => setEditingTournament(null)}
                   className="flex-1 py-3 border border-white/10 rounded-xl text-slate-400 font-bold hover:bg-white/5 transition-all"
                 >
                   Cancel
                 </button>
-                <button 
+                <button
                   type="submit"
                   disabled={isUpdating}
                   className="flex-1 py-3 bg-gradient-to-r from-violet-600 to-cyan-500 text-white rounded-xl font-bold shadow-lg shadow-violet-600/20 hover:scale-105 transition-all disabled:opacity-50"

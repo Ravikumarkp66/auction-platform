@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "canvas-confetti": "^1.9.4",
     "embla-carousel-react": "^8.6.0",
     "face-api.js": "^0.22.2",
     "framer-motion": "^12.38.0",

@@ -21,11 +21,11 @@ import Script from "next/script";
 // ─────────────────────────────────────────────────────────────
 const TOTAL_STEPS = 5;
 const STEP_META = [
-  { label: "Info",     icon: "🏆", title: "Tournament Information",  desc: "Core setup parameters" },
-  { label: "Teams",   icon: "👥", title: "Teams Setup",              desc: "Configure your teams" },
-  { label: "Icons",   icon: "⭐", title: "Icon Players",             desc: "Assign pre-retained stars" },
-  { label: "Players", icon: "🧍", title: "Player Pool",              desc: "Upload auction players" },
-  { label: "Launch",  icon: "🚀", title: "Review & Launch",          desc: "Confirm and go live" },
+  { label: "Info", icon: "🏆", title: "Tournament Information", desc: "Core setup parameters" },
+  { label: "Teams", icon: "👥", title: "Teams Setup", desc: "Configure your teams" },
+  { label: "Icons", icon: "⭐", title: "Icon Players", desc: "Assign pre-retained stars" },
+  { label: "Players", icon: "🧍", title: "Player Pool", desc: "Upload auction players" },
+  { label: "Launch", icon: "🚀", title: "Review & Launch", desc: "Confirm and go live" },
 ];
 
 const getTodayDate = () => {
@@ -83,7 +83,7 @@ function findValue(row, keys) {
     const found = rowKeys.find(rk => {
       const lrk = rk.toLowerCase().trim();
       const lk = k.toLowerCase().trim();
-      
+
       // Strict matching for "age" to avoid vill-age, st-age, etc.
       if (lk === "age") {
         return (lrk === "age" || lrk === "ವಯಸ್ಸು" || lrk.includes("player age") || lrk === "years" || lrk === "ವಯಸ್ಸು (age)");
@@ -135,16 +135,16 @@ const calculateAge = (dob) => {
       let s = String(dob).trim()
         .replace(/[\.\-]/g, '/')
         .replace(/[೦-೯]/g, d => "೦೧೨೩೪೫೬೭೮೯".indexOf(d)); // Convert Kannada numerals if any
-      
+
       const parts = s.split('/');
       if (parts.length === 3) {
         let [p1, p2, p3] = parts.map(Number);
-        
+
         // Determine Year (p3 is usually year)
         let y = p3, m = p2, d = p1;
         if (y < 31 && p1 > 1900) { y = p1; m = p2; d = p3; } // YYYY/MM/DD
         if (y < 100) y += (y > 30 ? 1900 : 2000);
-        
+
         // Handle DD/MM or MM/DD ambiguity (prioritize birth reporting logic)
         // If m > 12, it must be DD/MM
         if (m > 12 && d <= 12) {
@@ -174,18 +174,18 @@ const ROLE_MAP = {
   // Batsman variants
   bat: "Batsman", batter: "Batsman", batting: "Batsman",
   batsman: "Batsman", batsmen: "Batsman", "ಬ್ಯಾಟ್ಸ್ಮನ್": "Batsman",
-  
+
   // Bowler variants
   bowl: "Bowler", bowler: "Bowler", bowling: "Bowler", "ಬೌಲರ್": "Bowler",
-  
+
   // All-Rounder variants
   "all-rounder": "All-Rounder", allrounder: "All-Rounder", "all rounder": "All-Rounder",
   ar: "All-Rounder", "ಅಲ್ ರೌಂಡರ್": "All-Rounder", "ಆಲ್ ರೌಂಡರ್": "All-Rounder",
-  
+
   // Wicket Keeper variants (fallback to Batsman)
   "wicket keeper": "Batsman", wicketkeeper: "Batsman",
   wk: "Batsman", keeper: "Batsman", "ವಿಕೆಟ್ ಕೀಪರ್": "Batsman",
-  
+
   // WK-Batsman variants (fallback to Batsman)
   "wk-batsman": "Batsman", "wk batsman": "Batsman", wkbatsman: "Batsman",
   "wicket keeper batsman": "Batsman", "keeper batsman": "Batsman",
@@ -201,7 +201,7 @@ const normalizeRole = (raw) => {
     if (key.includes(k)) return v;
   }
   // Passthrough if it's already a valid role
-  const valid = ["Batsman","Bowler","All-Rounder"];
+  const valid = ["Batsman", "Bowler", "All-Rounder"];
   const found = valid.find(v => v.toLowerCase() === key);
   return found || "All-Rounder";
 };
@@ -229,16 +229,16 @@ function ProgressBar({ step, onStepClick }) {
           const done = step > n;
           const active = step === n;
           return (
-            <div key={n} 
+            <div key={n}
               onClick={() => onStepClick?.(n)}
               className="relative z-10 flex flex-col items-center gap-2 cursor-pointer group"
             >
               <div className={`
                 w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs
                 transition-all duration-300
-                ${done   ? "bg-emerald-500 shadow-[0_0_14px_rgba(16,185,129,0.6)]" :
+                ${done ? "bg-emerald-500 shadow-[0_0_14px_rgba(16,185,129,0.6)]" :
                   active ? "bg-linear-to-br from-violet-500 to-cyan-400 shadow-[0_0_20px_rgba(124,58,237,0.7)] scale-110" :
-                           "bg-white/5 border border-white/10 text-slate-500 group-hover:bg-white/10 group-hover:border-white/20"}
+                    "bg-white/5 border border-white/10 text-slate-500 group-hover:bg-white/10 group-hover:border-white/20"}
               `}>
                 {done ? <CheckCircle className="w-5 h-5 text-white" /> : (
                   <span className={active ? "text-white" : "group-hover:text-slate-300 transition-colors"}>{s.icon}</span>
@@ -368,7 +368,7 @@ export default function CreateTournamentWizard() {
       const loadGapi = () => {
         if (window.gapi) {
           window.gapi.load("picker", () => {
-             console.log("Google Picker loaded");
+            console.log("Google Picker loaded");
           });
         }
       };
@@ -378,22 +378,22 @@ export default function CreateTournamentWizard() {
   }, []);
 
   // Persistent state
-  const [step,        setStep]        = useState(() => ls("wiz_step", 1));
-  const [config,      setConfig]      = useState(() => ls("wiz_config", DEFAULT_CONFIG));
-  const [teams,       setTeams]       = useState(() => ls("wiz_teams", []));
-  const [players,     setPlayers]     = useState(() => ls("wiz_players", []));
+  const [step, setStep] = useState(() => ls("wiz_step", 1));
+  const [config, setConfig] = useState(() => ls("wiz_config", DEFAULT_CONFIG));
+  const [teams, setTeams] = useState(() => ls("wiz_teams", []));
+  const [players, setPlayers] = useState(() => ls("wiz_players", []));
   const [originalPlayers, setOriginalPlayers] = useState(() => ls("wiz_orig_players", []));
   const [showReuploadMenu, setShowReuploadMenu] = useState(false);
-  const [icons,       setIcons]       = useState(() => ls("wiz_icons", []));
-  const [parsedData,  setParsedData]  = useState(null); // RAW data for multi-step use
+  const [icons, setIcons] = useState(() => ls("wiz_icons", []));
+  const [parsedData, setParsedData] = useState(null); // RAW data for multi-step use
   const [rulesConfig, setRulesConfig] = useState(() => ls("wiz_rules", DEFAULT_RULES_CONFIG));
-  const [errors,      setErrors]      = useState({});
-  const [uploading,   setUploading]   = useState(false);
-  const [converting,  setConverting]  = useState(false);
-  const [launching,   setLaunching]   = useState(false);
-  const [editTarget,  setEditTarget]  = useState(null); // { type: 'team'|'icon'|'player', index, url }
-  const [driveToken,  setDriveToken]  = useState(null);
-  
+  const [errors, setErrors] = useState({});
+  const [uploading, setUploading] = useState(false);
+  const [converting, setConverting] = useState(false);
+  const [launching, setLaunching] = useState(false);
+  const [editTarget, setEditTarget] = useState(null); // { type: 'team'|'icon'|'player', index, url }
+  const [driveToken, setDriveToken] = useState(null);
+
   // Load Drive Token from storage on mount
   useEffect(() => {
     const savedToken = localStorage.getItem("google_drive_token");
@@ -406,8 +406,8 @@ export default function CreateTournamentWizard() {
   }, [driveToken]);
 
   // Save to localStorage whenever state changes
-  useEffect(() => { sse("wiz_step",    step);    }, [step]);
-  useEffect(() => { sse("wiz_config",  config);  }, [config]);
+  useEffect(() => { sse("wiz_step", step); }, [step]);
+  useEffect(() => { sse("wiz_config", config); }, [config]);
 
   // Auto-sync Teams Array when numTeams changes
   useEffect(() => {
@@ -420,7 +420,7 @@ export default function CreateTournamentWizard() {
         name: prev[i]?.name || `Team ${i + 1}`,
         shortName: prev[i]?.shortName || `T${i + 1}`,
         logoUrl: prev[i]?.logoUrl || "",
-        color: prev[i]?.color || ["#7c3aed","#06b6d4","#f97316","#ef4444","#10b981","#f59e0b","#8b5cf6","#3b82f6","#ec4899","#14b8a6"][i % 10],
+        color: prev[i]?.color || ["#7c3aed", "#06b6d4", "#f97316", "#ef4444", "#10b981", "#f59e0b", "#8b5cf6", "#3b82f6", "#ec4899", "#14b8a6"][i % 10],
       }));
     });
   }, [config.numTeams, mounted]);
@@ -464,12 +464,12 @@ export default function CreateTournamentWizard() {
         const errJson = await response.json().catch(() => ({}));
         throw new Error(errJson.error?.message || `Drive API Error: ${response.status}`);
       }
-      
+
       const arrayBuffer = await response.arrayBuffer();
       const wb = XLSX.read(arrayBuffer, { type: "array", cellDates: true });
       const sheet = wb.Sheets[wb.SheetNames[0]];
       const rawRows = XLSX.utils.sheet_to_json(sheet);
-      
+
       extractFileHeaders(sheet);
       processPlayerRows(rawRows);
     } catch (err) {
@@ -519,7 +519,7 @@ export default function CreateTournamentWizard() {
         const rawUrl = findValue(row, ["photo", "image", "ಚಿತ್ರ", "imageUrl", "link", "photo link", "ಭಾವಚಿತ್ರ (photograph)"]);
         return {
           id: i + 1,
-          name: findValue(row, ["name", "player name", "ಹೆಸರು", "ಹೆಸರು (name)"]) || `Player ${i+1}`,
+          name: findValue(row, ["name", "player name", "ಹೆಸರು", "ಹೆಸರು (name)"]) || `Player ${i + 1}`,
           mobile: findValue(row, ["mobile", "phone", "contact", "ಫೋನ್ ಸಂಖ್ಯೆ", "ಮೊಬೈಲ್ ಸಂಖ್ಯೆ", "ದೂರವಾಣಿ ಸಂಖ್ಯೆ (mobile number)"]) || "-",
           village: findValue(row, ["village", "address", "ಊರು", "ಸ್ಥಳ", "ಊರು (village)"]) || "-",
           role: normalizeRole(findValue(row, ["role", "category", "ಪಾತ್ರ", "ವಿಧ", "ಆಟದ ಶೈಲಿ (playing style)"])),
@@ -543,22 +543,22 @@ export default function CreateTournamentWizard() {
 
   const openPickerForModal = (customCallback = null, mode = "image") => {
     console.log("openPickerForModal triggered", { mode, hasToken: !!driveToken });
-    
+
     // 1. If we have a token, launch directly
     if (driveToken) {
-       launchPicker(driveToken, customCallback, mode);
-       return;
+      launchPicker(driveToken, customCallback, mode);
+      return;
     }
 
     // 2. If Google isn't ready, alert and try to load (self-repair)
     if (!window.google || !window.google.accounts || !window.google.accounts.oauth2) {
-       console.warn("Google GIS not ready, retrying in 1s...");
-       const statusToast = document.createElement("div");
-       statusToast.className = "fixed bottom-10 right-10 z-[300] bg-amber-500 text-black px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest shadow-2xl animate-bounce";
-       statusToast.innerText = "Initializing Google Drive... Try in 1 second";
-       document.body.appendChild(statusToast);
-       setTimeout(() => statusToast.remove(), 3000);
-       return;
+      console.warn("Google GIS not ready, retrying in 1s...");
+      const statusToast = document.createElement("div");
+      statusToast.className = "fixed bottom-10 right-10 z-[300] bg-amber-500 text-black px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest shadow-2xl animate-bounce";
+      statusToast.innerText = "Initializing Google Drive... Try in 1 second";
+      document.body.appendChild(statusToast);
+      setTimeout(() => statusToast.remove(), 3000);
+      return;
     }
 
     const client = window.google.accounts.oauth2.initTokenClient({
@@ -598,13 +598,13 @@ export default function CreateTournamentWizard() {
             const doc = data[window.google.picker.Response.DOCUMENTS][0];
             const driveId = doc[window.google.picker.Document.ID];
             const driveUrl = `https://drive.google.com/uc?export=view&id=${driveId}`;
-            
+
             if (customCallback) {
-               customCallback(driveUrl);
+              customCallback(driveUrl);
             } else {
-               handleDriveLinkImport(driveUrl, "tournaments", (s3Url) => {
-                 setConfig(p => ({ ...p, organizerLogo: s3Url }));
-               });
+              handleDriveLinkImport(driveUrl, "tournaments", (s3Url) => {
+                setConfig(p => ({ ...p, organizerLogo: s3Url }));
+              });
             }
           }
         })
@@ -623,11 +623,11 @@ export default function CreateTournamentWizard() {
     window.addEventListener("open-drive-picker", handlePickerReq);
     return () => window.removeEventListener("open-drive-picker", handlePickerReq);
   }, [driveToken]);
-  useEffect(() => { sse("wiz_teams",   teams);   }, [teams]);
-  useEffect(() => { sse("wiz_icons",   icons);   }, [icons]);
+  useEffect(() => { sse("wiz_teams", teams); }, [teams]);
+  useEffect(() => { sse("wiz_icons", icons); }, [icons]);
   useEffect(() => { sse("wiz_players", players); }, [players]);
   useEffect(() => { sse("wiz_original_players", originalPlayers); }, [originalPlayers]);
-  useEffect(() => { sse("wiz_rules",   rulesConfig); }, [rulesConfig]);
+  useEffect(() => { sse("wiz_rules", rulesConfig); }, [rulesConfig]);
 
   // Repair session if originalPlayers is missing
   useEffect(() => {
@@ -643,17 +643,17 @@ export default function CreateTournamentWizard() {
     setStep(1); setConfig(DEFAULT_CONFIG); setTeams([]);
     setIcons([]); setPlayers([]); setOriginalPlayers([]); setErrors({});
     setRulesConfig(DEFAULT_RULES_CONFIG);
-    ["wiz_step","wiz_config","wiz_teams","wiz_icons","wiz_players",
-     "wiz_original_players", "wiz_rules"].forEach(k => localStorage.removeItem(k));
+    ["wiz_step", "wiz_config", "wiz_teams", "wiz_icons", "wiz_players",
+      "wiz_original_players", "wiz_rules"].forEach(k => localStorage.removeItem(k));
   };
 
   // ── Validation ─────────────────────────────────────────────
   const validateStep1 = () => {
     const e = {};
-    if (!config.name.trim())                        e.name        = "Required";
-    if (!config.numTeams || config.numTeams < 2)    e.numTeams    = "Min 2";
-    if (config.iconsPerTeam < 0)                    e.iconsPerTeam = "Required";
-    if (!config.baseBudget || config.baseBudget < 1) e.baseBudget  = "Required";
+    if (!config.name.trim()) e.name = "Required";
+    if (!config.numTeams || config.numTeams < 2) e.numTeams = "Min 2";
+    if (config.iconsPerTeam < 0) e.iconsPerTeam = "Required";
+    if (!config.baseBudget || config.baseBudget < 1) e.baseBudget = "Required";
     if (!config.defaultBasePrice || config.defaultBasePrice < 1) e.defaultBasePrice = "Required";
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -670,7 +670,7 @@ export default function CreateTournamentWizard() {
     const actualIcons = icons.filter(p => p.name && p.name !== "To be confirmed");
     const ie = actualIcons.map(p => ({ name: !p.name.trim() }));
     // No error state needed here unless an actual filled player has no name
-    return true; 
+    return true;
   };
 
   const validateStep4 = () => {
@@ -706,7 +706,7 @@ export default function CreateTournamentWizard() {
       setStep(2);
     } else if (step === 2) {
       if (!validateStep2()) return;
-      
+
       // Generate icon slots only if none exist
       if (icons.length === 0) {
         const cachedIcons = ls("wiz_temp_icons", []);
@@ -718,7 +718,7 @@ export default function CreateTournamentWizard() {
             const impT = ci.teamName?.toLowerCase().trim();
             return impT && (sysT.includes(impT) || impT.includes(sysT));
           });
-          
+
           if (matchIcons.length > 0) {
             matchIcons.forEach(match => {
               match.assigned = true;
@@ -728,16 +728,16 @@ export default function CreateTournamentWizard() {
             // Generate icon slots based on config
             const count = config.iconsPerTeam !== undefined ? config.iconsPerTeam : 2;
             for (let j = 0; j < count; j++) {
-              slots.push({ 
-                name: "To be confirmed", 
-                role: "All-Rounder", 
+              slots.push({
+                name: "To be confirmed",
+                role: "All-Rounder",
                 category: "1st year",
-                village: "TBC", 
-                age: "TBC", 
+                village: "TBC",
+                age: "TBC",
                 applicationId: "-",
                 mobile: "-",
-                imageUrl: team.logoUrl || "", 
-                team: team.name, 
+                imageUrl: team.logoUrl || "",
+                team: team.name,
                 teamIdx: ti,
                 iconRole: iconRoleForSlot(j),
               });
@@ -745,7 +745,7 @@ export default function CreateTournamentWizard() {
           }
         });
         setIcons(slots);
-        
+
         // Auto-trigger image fix for Drive links
         const driveLinks = slots.filter(s => s.imageUrl?.includes("drive.google.com")).map(s => s.imageUrl);
         if (driveLinks.length > 0) fixIconImages(slots);
@@ -753,7 +753,7 @@ export default function CreateTournamentWizard() {
         // Clean up any orphaned icons if numTeams was reduced
         setIcons(prev => prev.filter(ic => ic.teamIdx < config.numTeams));
       }
-      
+
       setStep(3);
     } else if (step === 3) {
       if (!validateStep3()) return;
@@ -799,15 +799,15 @@ export default function CreateTournamentWizard() {
 
         if (teamRows.length > 0) {
           const importedTeams = teamRows.map((row, i) => ({
-            name:      findValue(row, ["teamName","team name","name","team","ತಂಡ"]),
-            shortName: findValue(row, ["shortName","short name","code","id"]) || (findValue(row, ["teamName","team name","name","team"])?.slice(0, 3).toUpperCase() || "TBD"),
-            logoUrl:   proxyUrl(findValue(row, ["logoUrl","logo","image","link", "imageUrl", "logo link", "team logo", "team_logo"])),
-            logoOriginalUrl: findValue(row, ["logoUrl","logo","image","link", "imageUrl", "logo link", "team logo", "team_logo"]),
-            color:     ["#7c3aed","#06b6d4","#f97316","#ef4444","#10b981","#f59e0b"][i % 6],
+            name: findValue(row, ["teamName", "team name", "name", "team", "ತಂಡ"]),
+            shortName: findValue(row, ["shortName", "short name", "code", "id"]) || (findValue(row, ["teamName", "team name", "name", "team"])?.slice(0, 3).toUpperCase() || "TBD"),
+            logoUrl: proxyUrl(findValue(row, ["logoUrl", "logo", "image", "link", "imageUrl", "logo link", "team logo", "team_logo"])),
+            logoOriginalUrl: findValue(row, ["logoUrl", "logo", "image", "link", "imageUrl", "logo link", "team logo", "team_logo"]),
+            color: ["#7c3aed", "#06b6d4", "#f97316", "#ef4444", "#10b981", "#f59e0b"][i % 6],
           }));
           setTeams(importedTeams);
           setConfig(p => ({ ...p, numTeams: importedTeams.length }));
-          
+
           // Trigger Logo Fix
           const logoLinks = importedTeams.filter(t => t.logoUrl?.includes("drive.google.com")).map(t => t.logoUrl);
           if (logoLinks.length > 0) {
@@ -836,10 +836,10 @@ export default function CreateTournamentWizard() {
 
           if (iconRows.length > 0) {
             importedIcons = iconRows.map(row => ({
-              name:     findValue(row, ["player name", "playerName", "icon", "name", "athlete", "ಆಟಗಾರನ ಹೆಸರು"]),
-              role:     normalizeRole(findValue(row, ["playing role", "role", "skill", "player role", "category", "type", "position", "ಪಾತ್ರ", "ಸ್ಥಾನ"])),
-              village:  findValue(row, ["village", "town", "city", "ಗ್ರಾಮ", "ಸ್ಥಳ"]) || "-",
-              age:     Number(calculateAge(findValue(row, ["dob", "birth"]))) || Number(findValue(row, ["age", "ವಯಸ್ಸು"])) || 0,
+              name: findValue(row, ["player name", "playerName", "icon", "name", "athlete", "ಆಟಗಾರನ ಹೆಸರು"]),
+              role: normalizeRole(findValue(row, ["playing role", "role", "skill", "player role", "category", "type", "position", "ಪಾತ್ರ", "ಸ್ಥಾನ"])),
+              village: findValue(row, ["village", "town", "city", "ಗ್ರಾಮ", "ಸ್ಥಳ"]) || "-",
+              age: Number(calculateAge(findValue(row, ["dob", "birth"]))) || Number(findValue(row, ["age", "ವಯಸ್ಸು"])) || 0,
               imageUrl: proxyUrl(findValue(row, ["imageUrl", "photo", "image", "link", "url", "icon image", "ಭಾವಚಿತ್ರ"])),
               imageOriginalUrl: findValue(row, ["imageUrl", "photo", "image", "link", "url", "icon image", "ಭಾವಚಿತ್ರ"]),
               teamName: findValue(row, ["team", "teamName", "team name", "ತಂಡ"])
@@ -848,12 +848,12 @@ export default function CreateTournamentWizard() {
         }
 
         if (importedIcons.length > 0) {
-          ls("wiz_temp_icons", importedIcons); 
+          ls("wiz_temp_icons", importedIcons);
         }
 
-      } catch (err) { 
+      } catch (err) {
         console.error(err);
-        alert("Invalid file format"); 
+        alert("Invalid file format");
       }
     };
     reader.readAsBinaryString(file);
@@ -913,12 +913,12 @@ export default function CreateTournamentWizard() {
   // ── Helper: Extract Icons Column-wise ──
   const extractIconsFromRow = (row, teamName) => {
     const iconsFound = [];
-    
+
     // Track sequential indices for generic duplicate columns (e.g. "USN", "USN_1")
-    let genericUsnIdx = 1; 
+    let genericUsnIdx = 1;
     let genericPhnIdx = 1;
     const rowKeys = Object.keys(row).map(k => k.toLowerCase().trim());
-    
+
     const extractRole = (prefixes, roleType) => {
       // Find Name
       const pName = findValue(row, prefixes.flatMap(p => [`${p} name`, `${p}name`, p, `${p} player name`, `${p} player`]));
@@ -943,16 +943,16 @@ export default function CreateTournamentWizard() {
       }
 
       const pImg = findValue(row, prefixes.flatMap(p => [`${p} photo`, `${p} image`, `${p} url`, `${p} id card`, `${p} link`, `${p} pic`]));
-      
+
       return {
         name: pName,
         mobile: pPhn || "-",
         imageUrl: proxyUrl(pImg),
         imageOriginalUrl: pImg,
         role: "All-Rounder", // default backend necessity
-        village: "-", 
-        age: 0, 
-        teamName, 
+        village: "-",
+        age: 0,
+        teamName,
         iconRole: roleType,
         applicationId: "-", // Store placeholder
       };
@@ -973,9 +973,9 @@ export default function CreateTournamentWizard() {
     const API = API_URL;
     const driveLinks = list.filter(p => p.imageUrl && p.imageUrl.includes("drive.google.com")).map(p => p.imageUrl);
     const uniqueLinks = [...new Set(driveLinks)];
-    
+
     if (uniqueLinks.length === 0) return;
-    
+
     setConverting(true);
     try {
       const res = await fetch(`${API}/api/upload/proxy-batch`, {
@@ -984,7 +984,7 @@ export default function CreateTournamentWizard() {
         body: JSON.stringify({ urls: uniqueLinks, folder: "players" })
       });
       const data = await res.json();
-      
+
       if (data.results) {
         setIcons(prev => {
           let next = [...prev];
@@ -1014,7 +1014,7 @@ export default function CreateTournamentWizard() {
         let updated = [...icons];
 
         rows.forEach(row => {
-          const teamMatch = findValue(row, ["team","teamname","team name","ತಂಡ"]);
+          const teamMatch = findValue(row, ["team", "teamname", "team name", "ತಂಡ"]);
           if (!teamMatch) return;
           const tIdx = teams.findIndex(t => {
             const sysT = t.name.toLowerCase().trim();
@@ -1050,32 +1050,32 @@ export default function CreateTournamentWizard() {
               }
             });
           } else {
-             // Fallback to row-wise assignment
-             const slot = updated.findIndex(p => p.teamIdx === tIdx && (!p.name || p.name === "To be confirmed"));
-             if (slot !== -1) {
-               updated[slot] = {
-                 ...updated[slot],
-                 name:     findValue(row, ["player name", "playerName", "icon", "name"]) || "Unknown Icon",
-                 role:     normalizeRole(findValue(row, ["role", "type", "position"])),
-                 mobile:   findValue(row, ["phone", "mobile", "phn"]) || "-",
-                 imageUrl: proxyUrl(findValue(row, ["imageUrl", "photo", "image", "link", "url"])),
-                 imageOriginalUrl: findValue(row, ["imageUrl", "photo", "image", "link", "url"]),
-               };
-             } else {
-               // If no slot found, push a new icon for this team
-               updated.push({
-                 name:     findValue(row, ["player name", "playerName", "icon", "name"]) || "Unknown Icon",
-                 role:     normalizeRole(findValue(row, ["role", "type", "position"])),
-                 mobile:   findValue(row, ["phone", "mobile", "phn"]) || "-",
-                 imageUrl: proxyUrl(findValue(row, ["imageUrl", "photo", "image", "link", "url"])),
-                 imageOriginalUrl: findValue(row, ["imageUrl", "photo", "image", "link", "url"]),
-                 team:     teams[tIdx].name,
-                 teamIdx:  tIdx,
-                 iconRole: null,
-                 village:  "-",
-                 applicationId: "-"
-               });
-             }
+            // Fallback to row-wise assignment
+            const slot = updated.findIndex(p => p.teamIdx === tIdx && (!p.name || p.name === "To be confirmed"));
+            if (slot !== -1) {
+              updated[slot] = {
+                ...updated[slot],
+                name: findValue(row, ["player name", "playerName", "icon", "name"]) || "Unknown Icon",
+                role: normalizeRole(findValue(row, ["role", "type", "position"])),
+                mobile: findValue(row, ["phone", "mobile", "phn"]) || "-",
+                imageUrl: proxyUrl(findValue(row, ["imageUrl", "photo", "image", "link", "url"])),
+                imageOriginalUrl: findValue(row, ["imageUrl", "photo", "image", "link", "url"]),
+              };
+            } else {
+              // If no slot found, push a new icon for this team
+              updated.push({
+                name: findValue(row, ["player name", "playerName", "icon", "name"]) || "Unknown Icon",
+                role: normalizeRole(findValue(row, ["role", "type", "position"])),
+                mobile: findValue(row, ["phone", "mobile", "phn"]) || "-",
+                imageUrl: proxyUrl(findValue(row, ["imageUrl", "photo", "image", "link", "url"])),
+                imageOriginalUrl: findValue(row, ["imageUrl", "photo", "image", "link", "url"]),
+                team: teams[tIdx].name,
+                teamIdx: tIdx,
+                iconRole: null,
+                village: "-",
+                applicationId: "-"
+              });
+            }
           }
 
         });
@@ -1090,7 +1090,7 @@ export default function CreateTournamentWizard() {
   const fixPlayerImages = async (currentPlayers) => {
     const list = currentPlayers || players;
     const API = API_URL;
-    
+
     // Use original Drive URLs for S3 upload, not the proxy URLs
     const driveLinks = list
       .filter(p => p.imageOriginalUrl?.includes("drive.google.com"))
@@ -1150,10 +1150,10 @@ export default function CreateTournamentWizard() {
           squadMaxPlayers: config.squadMaxPlayers || config.squadSize || 15,
           teams,
           players: [
-            ...icons.filter(i => i.name && i.name !== "To be confirmed").map(p => ({ 
-              ...p, 
-              isIcon: true, 
-              status: "sold", 
+            ...icons.filter(i => i.name && i.name !== "To be confirmed").map(p => ({
+              ...p,
+              isIcon: true,
+              status: "sold",
               soldPrice: 0 // Icons always cost 0 in legacy system
             })),
             ...players,
@@ -1169,7 +1169,7 @@ export default function CreateTournamentWizard() {
           const effectiveRules = {
             ...rulesConfig,
             budget: { ...rulesConfig.budget, total: config.baseBudget, type: "points" },
-            squad:  {
+            squad: {
               minPlayers: config.squadMinPlayers || rulesConfig.squad?.minPlayers || 1,
               maxPlayers: config.squadMaxPlayers || rulesConfig.squad?.maxPlayers || 15,
             },
@@ -1242,137 +1242,137 @@ export default function CreateTournamentWizard() {
 
             {/* ── TOURNAMENT LOGO UPLOAD ── */}
             <div className="md:col-span-2">
-                 <Field label="Tournament / Organizer Logo" hint="Shown on posters, overlays and dashboards (Ideal: Transparent PNG)">
-                    <div className="flex items-center gap-6 p-6 rounded-4xl bg-slate-900/50 border border-white/5 relative overflow-hidden group">
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-violet-600/5 blur-[50px] pointer-events-none" />
-                        
-                        <div className="relative w-24 h-24 shrink-0 bg-[#0B0F2A] rounded-2xl border-2 border-dashed border-white/10 flex items-center justify-center overflow-hidden transition-all hover:border-violet-500/30">
-                            {config.organizerLogo ? (
-                                <img src={config.organizerLogo} alt="Logo" className="w-full h-full object-contain" />
-                            ) : (
-                                <Trophy className="w-8 h-8 text-slate-700" />
-                            )}
-                            {uploading && (
-                                <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                                    <RefreshCw className="w-5 h-5 text-white animate-spin" />
-                                </div>
-                            )}
-                        </div>
+              <Field label="Tournament / Organizer Logo" hint="Shown on posters, overlays and dashboards (Ideal: Transparent PNG)">
+                <div className="flex items-center gap-6 p-6 rounded-4xl bg-slate-900/50 border border-white/5 relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-violet-600/5 blur-[50px] pointer-events-none" />
 
-                        <div className="flex-1 space-y-3">
-                            {/* Google Picker Bridge */}
-                            <Script src="https://apis.google.com/js/api.js" strategy="lazyOnload" />
-                            <Script src="https://accounts.google.com/gsi/client" strategy="lazyOnload" />
+                  <div className="relative w-24 h-24 shrink-0 bg-[#0B0F2A] rounded-2xl border-2 border-dashed border-white/10 flex items-center justify-center overflow-hidden transition-all hover:border-violet-500/30">
+                    {config.organizerLogo ? (
+                      <img src={config.organizerLogo} alt="Logo" className="w-full h-full object-contain" />
+                    ) : (
+                      <Trophy className="w-8 h-8 text-slate-700" />
+                    )}
+                    {uploading && (
+                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                        <RefreshCw className="w-5 h-5 text-white animate-spin" />
+                      </div>
+                    )}
+                  </div>
 
-                            <div className="flex flex-wrap items-center gap-2">
-                                <input 
-                                  type="file" 
-                                  accept="image/*" 
-                                  id="org-logo" 
-                                  className="hidden" 
-                                  onChange={(e) => handleImageUpload(e.target.files[0], (url) => setConfig(p => ({ ...p, organizerLogo: url })), "tournaments")} 
-                                />
-                                <label 
-                                  htmlFor="org-logo"
-                                  className="inline-flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-[10px] font-black uppercase tracking-wider cursor-pointer shadow-lg shadow-violet-600/20 active:scale-95 transition-all w-fit"
-                                >
-                                    <Upload className="w-3.5 h-3.5" /> {config.organizerLogo ? "Change Logo" : "Upload Brand Logo"}
-                                </label>
+                  <div className="flex-1 space-y-3">
+                    {/* Google Picker Bridge */}
+                    <Script src="https://apis.google.com/js/api.js" strategy="lazyOnload" />
+                    <Script src="https://accounts.google.com/gsi/client" strategy="lazyOnload" />
 
-                                <button 
-                                    type="button"
-                                    onClick={openPicker}
-                                    className="inline-flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider cursor-pointer border border-white/10 active:scale-95 transition-all"
-                                >
-                                    <div className="w-4 h-4 rounded bg-white p-0.5"><img src="https://upload.wikimedia.org/wikipedia/commons/1/12/Google_Drive_icon_%282020%29.svg" alt="" /></div>
-                                    Select from Drive
-                                </button>
-                                {config.organizerLogo && (
-                                    <button 
-                                      onClick={() => setConfig(p => ({ ...p, organizerLogo: "" }))}
-                                      className="text-[10px] font-black text-red-500 hover:text-red-400 transition-colors uppercase tracking-widest bg-red-500/10 px-3 py-2 rounded-xl border border-red-500/20"
-                                    >
-                                       Remove
-                                    </button>
-                                )}
-                            </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        id="org-logo"
+                        className="hidden"
+                        onChange={(e) => handleImageUpload(e.target.files[0], (url) => setConfig(p => ({ ...p, organizerLogo: url })), "tournaments")}
+                      />
+                      <label
+                        htmlFor="org-logo"
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-[10px] font-black uppercase tracking-wider cursor-pointer shadow-lg shadow-violet-600/20 active:scale-95 transition-all w-fit"
+                      >
+                        <Upload className="w-3.5 h-3.5" /> {config.organizerLogo ? "Change Logo" : "Upload Brand Logo"}
+                      </label>
 
-                            <div className="flex items-center gap-2 max-w-sm">
-                                <div className="relative flex-1">
-                                    <ExternalLink className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-500" />
-                                    <input 
-                                        type="text"
-                                        placeholder="Or paste Google Drive link here..."
-                                        className="w-full bg-slate-950/50 border border-white/10 rounded-xl pl-9 pr-3 py-2 text-[10px] font-bold text-white outline-none focus:border-cyan-500/50 transition-all placeholder:text-slate-600"
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter') {
-                                                e.preventDefault();
-                                                handleDriveLinkImport(e.target.value, "tournaments", (url) => {
-                                                    setConfig(p => ({ ...p, organizerLogo: url }));
-                                                    e.target.value = "";
-                                                });
-                                            }
-                                        }}
-                                    />
-                                </div>
-                                <button 
-                                    type="button"
-                                    onClick={(e) => {
-                                        const input = e.currentTarget.previousSibling.querySelector('input');
-                                        handleDriveLinkImport(input.value, "tournaments", (url) => {
-                                            setConfig(p => ({ ...p, organizerLogo: url }));
-                                            input.value = "";
-                                        });
-                                    }}
-                                    className="px-4 py-2 bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-cyan-500/20 transition-all active:scale-95"
-                                >
-                                    Import
-                                </button>
-                            </div>
-                            
-                            <p className="text-[9px] text-slate-500 font-medium italic">
-                                Supports Google Drive, Photos, or any direct image URL.
-                            </p>
-                        </div>
+                      <button
+                        type="button"
+                        onClick={openPicker}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider cursor-pointer border border-white/10 active:scale-95 transition-all"
+                      >
+                        <div className="w-4 h-4 rounded bg-white p-0.5"><img src="https://upload.wikimedia.org/wikipedia/commons/1/12/Google_Drive_icon_%282020%29.svg" alt="" /></div>
+                        Select from Drive
+                      </button>
+                      {config.organizerLogo && (
+                        <button
+                          onClick={() => setConfig(p => ({ ...p, organizerLogo: "" }))}
+                          className="text-[10px] font-black text-red-500 hover:text-red-400 transition-colors uppercase tracking-widest bg-red-500/10 px-3 py-2 rounded-xl border border-red-500/20"
+                        >
+                          Remove
+                        </button>
+                      )}
                     </div>
-                 </Field>
+
+                    <div className="flex items-center gap-2 max-w-sm">
+                      <div className="relative flex-1">
+                        <ExternalLink className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-500" />
+                        <input
+                          type="text"
+                          placeholder="Or paste Google Drive link here..."
+                          className="w-full bg-slate-950/50 border border-white/10 rounded-xl pl-9 pr-3 py-2 text-[10px] font-bold text-white outline-none focus:border-cyan-500/50 transition-all placeholder:text-slate-600"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleDriveLinkImport(e.target.value, "tournaments", (url) => {
+                                setConfig(p => ({ ...p, organizerLogo: url }));
+                                e.target.value = "";
+                              });
+                            }
+                          }}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          const input = e.currentTarget.previousSibling.querySelector('input');
+                          handleDriveLinkImport(input.value, "tournaments", (url) => {
+                            setConfig(p => ({ ...p, organizerLogo: url }));
+                            input.value = "";
+                          });
+                        }}
+                        className="px-4 py-2 bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-cyan-500/20 transition-all active:scale-95"
+                      >
+                        Import
+                      </button>
+                    </div>
+
+                    <p className="text-[9px] text-slate-500 font-medium italic">
+                      Supports Google Drive, Photos, or any direct image URL.
+                    </p>
+                  </div>
+                </div>
+              </Field>
             </div>
 
             {/* ── TOURNAMENT BANNER UPLOAD ── */}
             <div className="md:col-span-2">
-                 <Field label="Tournament Cinematic Banner / Thumbnail" hint="This image will be used as the background for your registration portal and list cards. (Ideal: 1200x400 or larger)">
-                    <div className="flex flex-col gap-4 p-6 rounded-[2.5rem] bg-[#0B0F2A] border border-white/5 relative overflow-hidden group">
-                        <div className="relative w-full h-40 bg-slate-900/50 rounded-3xl border-2 border-dashed border-white/10 flex items-center justify-center overflow-hidden transition-all hover:border-violet-500/30">
-                            {config.splashUrl ? (
-                                <img src={config.splashUrl} alt="Banner" className="w-full h-full object-cover" />
-                            ) : (
-                                <div className="flex flex-col items-center gap-2">
-                                   <Upload className="w-8 h-8 text-slate-700" />
-                                   <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest">No Banner Selected</p>
-                                </div>
-                            )}
-                            {uploading && (
-                                <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                                    <RefreshCw className="w-6 h-6 text-white animate-spin" />
-                                </div>
-                            )}
-                        </div>
+              <Field label="Tournament Cinematic Banner / Thumbnail" hint="This image will be used as the background for your registration portal and list cards. (Ideal: 1200x400 or larger)">
+                <div className="flex flex-col gap-4 p-6 rounded-[2.5rem] bg-[#0B0F2A] border border-white/5 relative overflow-hidden group">
+                  <div className="relative w-full h-40 bg-slate-900/50 rounded-3xl border-2 border-dashed border-white/10 flex items-center justify-center overflow-hidden transition-all hover:border-violet-500/30">
+                    {config.splashUrl ? (
+                      <img src={config.splashUrl} alt="Banner" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="flex flex-col items-center gap-2">
+                        <Upload className="w-8 h-8 text-slate-700" />
+                        <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest">No Banner Selected</p>
+                      </div>
+                    )}
+                    {uploading && (
+                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                        <RefreshCw className="w-6 h-6 text-white animate-spin" />
+                      </div>
+                    )}
+                  </div>
 
-                        <div className="flex flex-wrap items-center gap-3">
-                            <input 
-                              type="file" id="banner-upload" className="hidden" accept="image/*"
-                              onChange={e => handleImageUpload(e.target.files[0], (url) => setConfig(p => ({ ...p, splashUrl: url })), "banners")} />
-                            <button onClick={() => document.getElementById("banner-upload").click()}
-                              className="px-6 py-2.5 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-300 hover:text-white hover:bg-white/10 transition-all">
-                              Upload Banner Image
-                            </button>
-                            <button onClick={() => openPicker((url) => handleDriveLinkImport(url, "banners", (s3) => setConfig(p => ({ ...p, splashUrl: s3 }))))}
-                              className="px-6 py-2.5 bg-violet-600/20 border border-violet-500/30 rounded-xl text-[10px] font-black uppercase tracking-widest text-violet-400 hover:text-white hover:bg-violet-600/40 transition-all flex items-center gap-2">
-                              <Upload className="w-3 h-3" /> Select from Drive
-                            </button>
-                        </div>
-                    </div>
-                 </Field>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <input
+                      type="file" id="banner-upload" className="hidden" accept="image/*"
+                      onChange={e => handleImageUpload(e.target.files[0], (url) => setConfig(p => ({ ...p, splashUrl: url })), "banners")} />
+                    <button onClick={() => document.getElementById("banner-upload").click()}
+                      className="px-6 py-2.5 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-300 hover:text-white hover:bg-white/10 transition-all">
+                      Upload Banner Image
+                    </button>
+                    <button onClick={() => openPicker((url) => handleDriveLinkImport(url, "banners", (s3) => setConfig(p => ({ ...p, splashUrl: s3 }))))}
+                      className="px-6 py-2.5 bg-violet-600/20 border border-violet-500/30 rounded-xl text-[10px] font-black uppercase tracking-widest text-violet-400 hover:text-white hover:bg-violet-600/40 transition-all flex items-center gap-2">
+                      <Upload className="w-3 h-3" /> Select from Drive
+                    </button>
+                  </div>
+                </div>
+              </Field>
             </div>
 
             {/* ── Auction Type (Live / Demo) ── */}
@@ -1383,7 +1383,7 @@ export default function CreateTournamentWizard() {
                 <option value="demo">🟡 Demo / Practice</option>
               </select>
             </Field>
-            
+
             <Field label="Auction Engine *">
               <select className={inputCls(false)} value={config.auctionMode}
                 onChange={e => setConfig(p => ({ ...p, auctionMode: e.target.value }))}>
@@ -1551,8 +1551,8 @@ export default function CreateTournamentWizard() {
           {/* Summary preview */}
           <div className="rounded-2xl bg-violet-500/5 border border-violet-500/15 p-5 grid grid-cols-3 gap-4">
             {[
-              ["Total Teams",   config.numTeams],
-              ["Total Icons",   config.numTeams * config.iconsPerTeam],
+              ["Total Teams", config.numTeams],
+              ["Total Icons", config.numTeams * config.iconsPerTeam],
               ["Budget / Team", config.currencyUnit === "₹" ? `₹${(config.baseBudget).toLocaleString()}` : `${(config.baseBudget).toLocaleString()} ${config.currencyUnit}`],
             ].map(([label, val]) => (
               <div key={label} className="text-center">
@@ -1568,7 +1568,7 @@ export default function CreateTournamentWizard() {
       {step === 2 && (
         <StepCard step={2} onReset={() => {
           setTeams(Array.from({ length: config.numTeams }, (_, i) => ({
-            name: `Team ${i+1}`, shortName: `T${i+1}`, logoUrl: "", color: "#7c3aed"
+            name: `Team ${i + 1}`, shortName: `T${i + 1}`, logoUrl: "", color: "#7c3aed"
           })));
         }} resetLabel="Reset Teams">
           {/* Bulk upload */}
@@ -1582,8 +1582,8 @@ export default function CreateTournamentWizard() {
 
             {converting && (
               <div className="px-4 py-3 bg-violet-500/10 border border-violet-500/20 rounded-xl animate-pulse flex items-center gap-2">
-                 <RefreshCw className="w-4 h-4 text-violet-400 animate-spin" />
-                 <span className="text-[10px] font-black text-violet-400 uppercase">Converting Images...</span>
+                <RefreshCw className="w-4 h-4 text-violet-400 animate-spin" />
+                <span className="text-[10px] font-black text-violet-400 uppercase">Converting Images...</span>
               </div>
             )}
           </div>
@@ -1596,9 +1596,9 @@ export default function CreateTournamentWizard() {
                   {team.logoUrl
                     ? <img src={team.logoUrl} alt="logo" className="w-full h-full object-cover" />
                     : <div className="w-full h-full flex items-center justify-center text-2xl font-black"
-                        style={{ background: team.color + "33", color: team.color }}>
-                        {team.name?.[0] || "T"}
-                      </div>
+                      style={{ background: team.color + "33", color: team.color }}>
+                      {team.name?.[0] || "T"}
+                    </div>
                   }
                   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
                     onClick={(e) => {
@@ -1639,7 +1639,7 @@ export default function CreateTournamentWizard() {
       {step === 3 && (
         <StepCard step={3} onReset={() => {
           // Generate icons based on iconsPerTeam setting
-          setIcons(teams.flatMap((t, ti) => 
+          setIcons(teams.flatMap((t, ti) =>
             Array.from({ length: config.iconsPerTeam || 2 }).map((_, i) => ({
               name: "To be confirmed",
               role: "All-Rounder",
@@ -1664,17 +1664,17 @@ export default function CreateTournamentWizard() {
           </div>
           <div className="flex items-center gap-3 mb-4">
             {parsedData && (
-               <div className="flex-1 py-3 px-6 rounded-xl border border-emerald-500/20 bg-emerald-500/5 flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                    <CheckCircle className="w-4 h-4 text-emerald-500" />
-                  </div>
-                  <div>
-                    <h4 className="text-[11px] font-black text-white uppercase tracking-wider">Using data from team upload</h4>
-                    <p className="text-[9px] text-emerald-500/70 font-bold">Icons were automatically extracted from your file</p>
-                  </div>
-               </div>
+              <div className="flex-1 py-3 px-6 rounded-xl border border-emerald-500/20 bg-emerald-500/5 flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                  <CheckCircle className="w-4 h-4 text-emerald-500" />
+                </div>
+                <div>
+                  <h4 className="text-[11px] font-black text-white uppercase tracking-wider">Using data from team upload</h4>
+                  <p className="text-[9px] text-emerald-500/70 font-bold">Icons were automatically extracted from your file</p>
+                </div>
+              </div>
             )}
-            
+
             <label className="flex-1 flex items-center justify-center gap-3 py-3 rounded-xl border-2 border-dashed border-violet-500/30 bg-violet-500/5 hover:bg-violet-500/10 cursor-pointer transition-all group">
               <Upload className="w-4 h-4 text-violet-400 group-hover:scale-110 transition-transform" />
               <span className="text-sm font-bold text-violet-400">Bulk Upload Icons (Excel / CSV)</span>
@@ -1683,11 +1683,11 @@ export default function CreateTournamentWizard() {
 
             {converting ? (
               <div className="px-4 py-3 bg-violet-500/10 border border-violet-500/20 rounded-xl animate-pulse flex items-center gap-2">
-                 <RefreshCw className="w-4 h-4 text-violet-400 animate-spin" />
-                 <span className="text-[10px] font-black text-violet-400 uppercase">Processing...</span>
+                <RefreshCw className="w-4 h-4 text-violet-400 animate-spin" />
+                <span className="text-[10px] font-black text-violet-400 uppercase">Processing...</span>
               </div>
             ) : (
-            icons.some(i => i.imageOriginalUrl?.includes("drive.google.com")) && (
+              icons.some(i => i.imageOriginalUrl?.includes("drive.google.com")) && (
                 <button onClick={() => fixIconImages()} className="px-5 py-3 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center gap-2 hover:bg-amber-500/20 transition-all">
                   <Zap className="w-4 h-4 text-amber-500" />
                   <span className="text-[10px] font-black text-amber-400 uppercase">Fix Images</span>
@@ -1710,10 +1710,10 @@ export default function CreateTournamentWizard() {
                     <span className="font-black text-sm text-white uppercase tracking-wide">{team.name}</span>
                     <span className="text-[10px] text-slate-500 bg-white/5 px-2 py-0.5 rounded-full">{teamIcons.length} icon{teamIcons.length > 1 ? "s" : ""}</span>
                     <button type="button" onClick={() => {
-                        const newIcon = { name: "To be confirmed", role: "All-Rounder", village: "-", mobile: "-", imageUrl: "", team: team.name, teamIdx: ti, iconRole: null };
-                        setIcons([...icons, newIcon]);
+                      const newIcon = { name: "To be confirmed", role: "All-Rounder", village: "-", mobile: "-", imageUrl: "", team: team.name, teamIdx: ti, iconRole: null };
+                      setIcons([...icons, newIcon]);
                     }} className="ml-auto flex items-center gap-1 text-[10px] font-black uppercase text-violet-400 border border-violet-500/20 hover:bg-violet-500/10 px-2 py-1 rounded transition-colors">
-                        <Plus className="w-3 h-3" /> Add
+                      <Plus className="w-3 h-3" /> Add
                     </button>
                   </div>
                   <div className="space-y-2 pl-3 border-l-2" style={{ borderColor: team.color + "55" }}>
@@ -1739,31 +1739,31 @@ export default function CreateTournamentWizard() {
                           </div>
 
                           <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-3">
-                              <div className="col-span-2">
-                                <input placeholder="Icon Name *" value={icon.name}
-                                  onChange={e => {
-                                    const ni = [...icons]; ni[globalIdx].name = e.target.value; setIcons(ni);
-                                  }}
-                                  className={`w-full bg-transparent border-b ${err ? "border-red-500" : "border-white/10"} py-1 font-bold text-white text-sm focus:border-violet-500 outline-none placeholder:text-slate-600 transition-colors`} />
-                              </div>
-                              <input title="Village" placeholder="Village" value={icon.village || "-"}
-                                onChange={e => { 
-                                  const ni = [...icons]; 
-                                  ni[globalIdx].village = e.target.value; 
-                                  setIcons(ni); 
+                            <div className="col-span-2">
+                              <input placeholder="Icon Name *" value={icon.name}
+                                onChange={e => {
+                                  const ni = [...icons]; ni[globalIdx].name = e.target.value; setIcons(ni);
                                 }}
-                                className="bg-transparent border border-white/10 rounded-lg px-2 py-1 text-xs font-bold text-slate-300 focus:border-violet-500 outline-none placeholder:text-slate-600 transition-colors" />
-                              <input title="Contact Number" placeholder="Phone" value={icon.mobile}
-                                onChange={e => { const ni = [...icons]; ni[globalIdx].mobile = e.target.value; setIcons(ni); }}
-                                className="bg-transparent border border-white/10 rounded-lg px-2 py-1 text-xs font-bold text-slate-300 focus:border-violet-500 outline-none placeholder:text-slate-600 transition-colors" />
-                            
+                                className={`w-full bg-transparent border-b ${err ? "border-red-500" : "border-white/10"} py-1 font-bold text-white text-sm focus:border-violet-500 outline-none placeholder:text-slate-600 transition-colors`} />
+                            </div>
+                            <input title="Village" placeholder="Village" value={icon.village || "-"}
+                              onChange={e => {
+                                const ni = [...icons];
+                                ni[globalIdx].village = e.target.value;
+                                setIcons(ni);
+                              }}
+                              className="bg-transparent border border-white/10 rounded-lg px-2 py-1 text-xs font-bold text-slate-300 focus:border-violet-500 outline-none placeholder:text-slate-600 transition-colors" />
+                            <input title="Contact Number" placeholder="Phone" value={icon.mobile}
+                              onChange={e => { const ni = [...icons]; ni[globalIdx].mobile = e.target.value; setIcons(ni); }}
+                              className="bg-transparent border border-white/10 rounded-lg px-2 py-1 text-xs font-bold text-slate-300 focus:border-violet-500 outline-none placeholder:text-slate-600 transition-colors" />
+
                             {/* ── Icon Assignment pills ── */}
                             <div className="col-span-2 md:col-span-4 flex items-center gap-2 pt-1 border-t border-white/5 mt-1">
                               <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 shrink-0">Status:</span>
                               <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider bg-emerald-500/10 px-3 py-1 rounded-lg border border-emerald-500/20">Pre-Sold Icon</span>
-                              
+
                               <button title="Delete Item" type="button" onClick={() => {
-                                 setIcons(icons.filter((_, idx) => idx !== globalIdx));
+                                setIcons(icons.filter((_, idx) => idx !== globalIdx));
                               }} className="ml-auto w-7 h-7 flex items-center justify-center rounded-lg text-slate-500 hover:text-red-400 border border-transparent hover:border-red-500/20 hover:bg-red-500/10 transition-colors shrink-0">
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
@@ -1786,10 +1786,10 @@ export default function CreateTournamentWizard() {
           {players.length === 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Option A: Manual/Excel Upload */}
-              <div 
+              <div
                 onClick={() => {
                   openPickerForModal((driveUrl) => {
-                     handleDriveExcelImport(driveUrl);
+                    handleDriveExcelImport(driveUrl);
                   }, "excel"); // Passing a flag to filter for excel/csv
                 }}
                 className={`flex flex-col items-center justify-center gap-4 w-full py-12 px-6 rounded-2xl
@@ -1804,34 +1804,34 @@ export default function CreateTournamentWizard() {
                   <p className="text-[10px] text-slate-600 mt-3 font-bold uppercase tracking-wider">Supports .xlsx · .xls · .csv</p>
                 </div>
                 <div className="flex items-center gap-3">
-                   <label 
-                     onClick={(e) => e.stopPropagation()}
-                     className="flex items-center gap-2 px-6 py-2.5 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-[10px] font-black uppercase tracking-wider cursor-pointer active:scale-95 transition-all shadow-lg shadow-violet-500/20"
-                   >
-                     <Upload className="w-3.5 h-3.5" />
-                     Local File
-                     <input type="file" className="hidden" accept=".xlsx,.xls,.csv" onChange={handlePlayersExcel} />
-                   </label>
-                   
-                   <button 
-                     onClick={(e) => {
-                        e.stopPropagation();
-                        openPickerForModal((driveUrl) => {
-                           handleDriveExcelImport(driveUrl);
-                        }, "excel");
-                     }}
-                     className="flex items-center gap-2 px-6 py-2.5 bg-slate-800 border border-white/10 text-white rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-slate-700 transition-all shadow-xl active:scale-95 group"
-                   >
-                     <div className="w-4 h-4 rounded bg-white p-0.5 group-hover:scale-110 transition-transform">
-                        <img src="https://upload.wikimedia.org/wikipedia/commons/1/12/Google_Drive_icon_%282020%29.svg" alt="Drive" />
-                     </div>
-                     Drive Integrated
-                   </button>
+                  <label
+                    onClick={(e) => e.stopPropagation()}
+                    className="flex items-center gap-2 px-6 py-2.5 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-[10px] font-black uppercase tracking-wider cursor-pointer active:scale-95 transition-all shadow-lg shadow-violet-500/20"
+                  >
+                    <Upload className="w-3.5 h-3.5" />
+                    Local File
+                    <input type="file" className="hidden" accept=".xlsx,.xls,.csv" onChange={handlePlayersExcel} />
+                  </label>
+
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openPickerForModal((driveUrl) => {
+                        handleDriveExcelImport(driveUrl);
+                      }, "excel");
+                    }}
+                    className="flex items-center gap-2 px-6 py-2.5 bg-slate-800 border border-white/10 text-white rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-slate-700 transition-all shadow-xl active:scale-95 group"
+                  >
+                    <div className="w-4 h-4 rounded bg-white p-0.5 group-hover:scale-110 transition-transform">
+                      <img src="https://upload.wikimedia.org/wikipedia/commons/1/12/Google_Drive_icon_%282020%29.svg" alt="Drive" />
+                    </div>
+                    Drive Integrated
+                  </button>
                 </div>
               </div>
 
               {/* Option B: Self-Registration Link */}
-              <div 
+              <div
                 className={`flex flex-col items-center justify-center gap-4 w-full py-12 px-6 rounded-2xl
                 border-2 border-dashed border-cyan-500/30 bg-cyan-500/5 hover:bg-cyan-500/10 transition-all group cursor-pointer`}
                 onClick={() => setStep(5)} // Skip to launch
@@ -1843,18 +1843,18 @@ export default function CreateTournamentWizard() {
                   <p className="font-black text-cyan-300 text-lg">Option B: Registration Link</p>
                   <p className="text-slate-500 text-sm mt-1">No file? Invite players via a link</p>
                   <p className="text-[10px] text-cyan-600/70 mt-3 font-black uppercase tracking-widest leading-relaxed">
-                    A link will be generated after launch.<br/>Players register themselves directly.
+                    A link will be generated after launch.<br />Players register themselves directly.
                   </p>
                 </div>
                 <div className="px-4 py-2 bg-cyan-400/10 border border-cyan-400/20 rounded-full text-[9px] font-black text-cyan-400 uppercase tracking-widest mt-2 group-hover:bg-cyan-400/20 transition-all">
-                   Use Registration Mode →
+                  Use Registration Mode →
                 </div>
               </div>
 
               {errors.players && (
                 <div className="md:col-span-2 mt-4 p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-3">
-                   <AlertCircle className="w-5 h-5 text-red-500" />
-                   <p className="text-red-400 text-sm font-bold">{errors.players}</p>
+                  <AlertCircle className="w-5 h-5 text-red-500" />
+                  <p className="text-red-400 text-sm font-bold">{errors.players}</p>
                 </div>
               )}
             </div>
@@ -1862,11 +1862,11 @@ export default function CreateTournamentWizard() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                   <div className="flex items-center gap-3 bg-emerald-500/10 border border-emerald-500/20 px-4 py-2 rounded-xl">
+                  <div className="flex items-center gap-3 bg-emerald-500/10 border border-emerald-500/20 px-4 py-2 rounded-xl">
                     <CheckCircle className="w-4 h-4 text-emerald-400" />
                     <span className="font-bold text-emerald-300 text-sm">{players.length} players imported</span>
                   </div>
-                  
+
                   {converting ? (
                     <div className="flex items-center gap-3 bg-violet-500/10 border border-violet-500/20 px-4 py-2 rounded-xl animate-pulse">
                       <RefreshCw className="w-4 h-4 text-violet-400 animate-spin" />
@@ -1880,7 +1880,7 @@ export default function CreateTournamentWizard() {
                     )
                   )}
                 </div>
-                
+
                 {players.length > 0 && (
                   <div className="flex items-center gap-2">
                     <button onClick={jumblePlayers} className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 hover:bg-cyan-500/20 transition-all shadow-lg shadow-cyan-500/5">
@@ -1896,12 +1896,12 @@ export default function CreateTournamentWizard() {
 
                 {/* Re-upload Action Menu */}
                 <div className="relative group">
-                  <button 
+                  <button
                     onClick={() => setShowReuploadMenu(!showReuploadMenu)}
                     className={`flex items-center gap-2 px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest text-violet-400
                     bg-violet-500/10 border border-violet-500/20 hover:bg-violet-500/20 transition-all shadow-lg shadow-violet-500/5 active:scale-95`}
                   >
-                    <RefreshCw className={`w-3.5 h-3.5 ${showReuploadMenu ? 'animate-spin' : ''}`} /> 
+                    <RefreshCw className={`w-3.5 h-3.5 ${showReuploadMenu ? 'animate-spin' : ''}`} />
                     Re-upload
                   </button>
 
@@ -1909,7 +1909,7 @@ export default function CreateTournamentWizard() {
                     <>
                       <div className="fixed inset-0 z-190" onClick={() => setShowReuploadMenu(false)} />
                       <div className="absolute right-0 top-full mt-2 w-48 bg-[#0B0F2A]/95 backdrop-blur-xl border border-white/10 rounded-2xl p-2 shadow-2xl z-200 animate-in fade-in slide-in-from-top-2 duration-200">
-                        <button 
+                        <button
                           onClick={() => {
                             setShowReuploadMenu(false);
                             openPickerForModal((driveUrl) => handleDriveExcelImport(driveUrl), "excel");
@@ -1917,11 +1917,11 @@ export default function CreateTournamentWizard() {
                           className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-xs font-bold text-slate-300 hover:bg-white/5 hover:text-white transition-all text-left group/item"
                         >
                           <div className="w-5 h-5 rounded bg-white p-0.5 group-hover/item:scale-110 transition-transform">
-                             <img src="https://upload.wikimedia.org/wikipedia/commons/1/12/Google_Drive_icon_%282020%29.svg" alt="D" />
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/1/12/Google_Drive_icon_%282020%29.svg" alt="D" />
                           </div>
                           Google Drive
                         </button>
-                        
+
                         <label className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-xs font-bold text-slate-300 hover:bg-white/5 hover:text-white transition-all text-left cursor-pointer group/item">
                           <div className="w-5 h-5 rounded bg-violet-600 flex items-center justify-center text-[10px] group-hover/item:scale-110 transition-transform">
                             <Upload className="w-3 h-3 text-white" />
@@ -1960,76 +1960,76 @@ export default function CreateTournamentWizard() {
                         ${rowError ? "bg-red-500/15 border-l-2 border-l-red-500" : "hover:bg-white/2"}`}>
                         {/* Photo Column */}
                         <div className="relative w-10 h-10 rounded-lg overflow-hidden border border-white/10 bg-white/5 flex items-center justify-center cursor-pointer hover:border-violet-500/50 transition-all shrink-0 group">
-                        {p.imageLoading ? (
-                          // Shimmer placeholder while S3 is processing
-                          <div className={`w-full h-full bg-linear-to-r from-white/5 via-white/10 to-white/5 
+                          {p.imageLoading ? (
+                            // Shimmer placeholder while S3 is processing
+                            <div className={`w-full h-full bg-linear-to-r from-white/5 via-white/10 to-white/5 
                             animate-pulse rounded`} />
-                        ) : p.imageUrl ? (
-                          <img src={p.imageUrl} alt="" className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="text-sm">📸</div>
-                        )}
-                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            setEditTarget({ type: "player", index: i, url: p.imageUrl });
-                          }}>
-                          <Maximize className="w-4 h-4 text-white" />
+                          ) : p.imageUrl ? (
+                            <img src={p.imageUrl} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="text-sm">📸</div>
+                          )}
+                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setEditTarget({ type: "player", index: i, url: p.imageUrl });
+                            }}>
+                            <Maximize className="w-4 h-4 text-white" />
+                          </div>
                         </div>
-                      </div>
 
-                      {/* No USN Column as per user request */}
+                        {/* No USN Column as per user request */}
 
-                      {/* Name Editable */}
-                      <input value={p.name}
-                        onChange={e => { const np = [...players]; np[i].name = e.target.value; setPlayers(np); }}
-                        className={`bg-transparent border-b border-transparent hover:border-white/10 focus:border-violet-500 text-sm font-bold outline-none w-full py-1 ${hasNonEng(p.name) ? "text-red-500" : "text-white"}`} />
+                        {/* Name Editable */}
+                        <input value={p.name}
+                          onChange={e => { const np = [...players]; np[i].name = e.target.value; setPlayers(np); }}
+                          className={`bg-transparent border-b border-transparent hover:border-white/10 focus:border-violet-500 text-sm font-bold outline-none w-full py-1 ${hasNonEng(p.name) ? "text-red-500" : "text-white"}`} />
 
-                      {/* Village Editable */}
-                      <input value={p.village}
-                        onChange={e => { const np = [...players]; np[i].village = e.target.value; setPlayers(np); }}
-                        className="bg-transparent border-b border-transparent hover:border-white/10 focus:border-violet-500 text-xs text-slate-500 outline-none w-full py-1" />
+                        {/* Village Editable */}
+                        <input value={p.village}
+                          onChange={e => { const np = [...players]; np[i].village = e.target.value; setPlayers(np); }}
+                          className="bg-transparent border-b border-transparent hover:border-white/10 focus:border-violet-500 text-xs text-slate-500 outline-none w-full py-1" />
 
-                      {/* Mobile Column */}
-                      <div className="text-[10px] font-black text-slate-400">
-                        {p.mobile}
-                      </div>
+                        {/* Mobile Column */}
+                        <div className="text-[10px] font-black text-slate-400">
+                          {p.mobile}
+                        </div>
 
-                      {/* Role Editable */}
-                      <select value={p.role}
-                        onChange={e => { 
-                          const np = [...players]; 
-                          np[i].role = e.target.value;
-                          setPlayers(np); 
-                        }}
-                        className="bg-[#0B0F2A] border border-white/10 rounded-lg px-2 py-1 text-xs font-semibold text-slate-400 focus:border-violet-500 outline-none w-full">
-                        {["Batsman","Bowler","All-Rounder"].map(v => <option key={v}>{v}</option>)}
-                      </select>
+                        {/* Role Editable */}
+                        <select value={p.role}
+                          onChange={e => {
+                            const np = [...players];
+                            np[i].role = e.target.value;
+                            setPlayers(np);
+                          }}
+                          className="bg-[#0B0F2A] border border-white/10 rounded-lg px-2 py-1 text-xs font-semibold text-slate-400 focus:border-violet-500 outline-none w-full">
+                          {["Batsman", "Bowler", "All-Rounder"].map(v => <option key={v}>{v}</option>)}
+                        </select>
 
-                      {/* Price Editable */}
-                      <div className="flex items-center gap-1 justify-end">
-                        <span className="text-violet-500 text-[10px] font-black">{config.auctionMode === 'points' ? 'PTS' : '₹'}</span>
-                        <input type="number" value={p.basePrice}
-                          onChange={e => { const np = [...players]; np[i].basePrice = Number(e.target.value); setPlayers(np); }}
-                          className="bg-transparent border-b border-transparent hover:border-white/10 focus:border-violet-500 text-xs text-violet-400 font-bold text-right outline-none w-14 py-1" />
-                      </div>
+                        {/* Price Editable */}
+                        <div className="flex items-center gap-1 justify-end">
+                          <span className="text-violet-500 text-[10px] font-black">{config.auctionMode === 'points' ? 'PTS' : '₹'}</span>
+                          <input type="number" value={p.basePrice}
+                            onChange={e => { const np = [...players]; np[i].basePrice = Number(e.target.value); setPlayers(np); }}
+                            className="bg-transparent border-b border-transparent hover:border-white/10 focus:border-violet-500 text-xs text-violet-400 font-bold text-right outline-none w-14 py-1" />
+                        </div>
 
-                      {/* Delete Action */}
-                      <button
-                        onClick={() => {
-                          if (window.confirm(`Are you sure you want to delete ${p.name}?`)) {
-                            setPlayers(prev => {
-                              const updated = prev.filter((_, idx) => idx !== i);
-                              // Re-index all serial numbers sequentially
-                              return updated.map((pl, seq) => ({ ...pl, id: seq + 1 }));
-                            });
-                          }
-                        }}
-                        className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-all flex items-center justify-center group/del"
-                        title="Delete Player"
-                      >
-                        <Trash2 className="w-4 h-4 group-hover/del:scale-110 transition-transform" />
-                      </button>
+                        {/* Delete Action */}
+                        <button
+                          onClick={() => {
+                            if (window.confirm(`Are you sure you want to delete ${p.name}?`)) {
+                              setPlayers(prev => {
+                                const updated = prev.filter((_, idx) => idx !== i);
+                                // Re-index all serial numbers sequentially
+                                return updated.map((pl, seq) => ({ ...pl, id: seq + 1 }));
+                              });
+                            }
+                          }}
+                          className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-all flex items-center justify-center group/del"
+                          title="Delete Player"
+                        >
+                          <Trash2 className="w-4 h-4 group-hover/del:scale-110 transition-transform" />
+                        </button>
                       </div>
                     );
                   })}
@@ -2066,14 +2066,16 @@ export default function CreateTournamentWizard() {
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {[
-                  { label: "Teams",          val: config.numTeams,                icon: "👥" },
-                  { label: "Icons",          val: icons.filter(i => i.name).length, icon: "⭐" },
-                  { label: "Auction Players", val: players.length,                icon: "🧍" },
-                  { label: "Budget / Team",
+                  { label: "Teams", val: config.numTeams, icon: "👥" },
+                  { label: "Icons", val: icons.filter(i => i.name).length, icon: "⭐" },
+                  { label: "Auction Players", val: players.length, icon: "🧍" },
+                  {
+                    label: "Budget / Team",
                     val: config.auctionMode === 'points'
                       ? `${Number(config.baseBudget).toLocaleString()} Pts`
                       : `₹${Number(config.baseBudget).toLocaleString()}`,
-                    icon: config.auctionMode === 'points' ? "⚡" : "💰" },
+                    icon: config.auctionMode === 'points' ? "⚡" : "💰"
+                  },
                 ].map(({ label, val, icon }) => (
                   <div key={label} className="bg-white/4 rounded-xl p-4 text-center border border-white/8">
                     <p className="text-2xl mb-1">{icon}</p>

@@ -3,7 +3,18 @@ const mongoose = require("mongoose");
 const playerSchema = new mongoose.Schema({
   name: { type: String, required: true },
   age: { type: Number },
-  dob: { type: Date },
+  dob: { 
+    type: Date,
+    set: function(v) {
+      if (typeof v === 'string' && v.includes('/')) {
+        const parts = v.split('/');
+        if (parts.length === 3) {
+          return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+        }
+      }
+      return v;
+    }
+  },
   fatherName: { type: String },
   aadhaarNumber: { type: String },
   role: { type: String },

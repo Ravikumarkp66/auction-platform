@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { API_URL, getMediaUrl } from "@/lib/apiConfig";
+import { getCanonicalApplyRoute } from "@/lib/applicationRoutes";
 import { Trophy, ArrowRight, Calendar, MapPin, Zap, Loader2 } from "lucide-react";
 
 export default function ActiveTournaments() {
@@ -141,7 +142,7 @@ export default function ActiveTournaments() {
 
                   <div className="flex flex-col gap-3 pt-2">
                     <Link
-                      href={registrationClosed ? "/auctions" : `/register/${t._id}`}
+                      href={registrationClosed ? "/auctions" : (t.applyToken ? getCanonicalApplyRoute(t.applyToken) : `/register/${t._id}`)}
                       className="w-full py-4.5 bg-linear-to-r from-violet-600 to-cyan-500 text-white rounded-2xl text-[10px] font-[1000] uppercase tracking-widest flex items-center justify-center gap-3 hover:brightness-110 hover:scale-[1.02] transition-all shadow-xl shadow-violet-600/20"
                     >
                       <Zap className="w-4 h-4" /> {registrationClosed ? "Watch Auction" : "Apply Now"}

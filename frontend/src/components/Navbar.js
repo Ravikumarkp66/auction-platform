@@ -8,6 +8,7 @@ import { useSession } from 'next-auth/react';
 import AuthButton from './AuthButton';
 import AuthModal from './AuthModal';
 import { API_URL, getMediaUrl } from '../lib/apiConfig';
+import { isApplicationRoute } from '../lib/applicationRoutes';
 
 export default function Navbar() {
   const { language, changeLanguage, t } = useLanguage();
@@ -37,8 +38,8 @@ export default function Navbar() {
     }
   };
 
-  // Hide navbar on these app-specific screens
-  if (pathname === '/auction' || pathname === '/live-auction' || pathname === '/overlay' || pathname.startsWith('/team/') || pathname.startsWith('/admin')) {
+  // Hide navbar on application and app-specific screens
+  if (pathname === '/auction' || pathname === '/live-auction' || pathname === '/overlay' || pathname.startsWith('/team/') || pathname.startsWith('/admin') || isApplicationRoute(pathname)) {
     return null;
   }
 
@@ -56,23 +57,23 @@ export default function Navbar() {
 
   // Dynamic nav links based on user role
   const isAdmin = session?.user?.role === 'admin';
-  
+
   // Common links - visible to all users
   const commonLinks = [
     { href: '/', label: 'Home' },
-    { 
-      href: '/auctions', 
-      label: '🔴 Live Auction', 
-      isLive: true 
+    {
+      href: '/auctions',
+      label: '🔴 Live Auction',
+      isLive: true
     }
   ];
-  
+
   // Admin-only links
   const adminLinks = [
     { href: '/services', label: 'Services' },
     { href: '/about', label: 'About' },
   ];
-  
+
   // Combine links based on role
   const navLinks = isAdmin ? [...adminLinks, ...commonLinks] : commonLinks;
 
@@ -86,20 +87,20 @@ export default function Navbar() {
               <div className="relative flex items-center justify-center">
                 {/* Subtle core radiance */}
                 <div className="absolute inset-0 bg-violet-600/20 blur-[10px] rounded-full scale-125 group-hover:bg-violet-500/40 transition-all duration-500" />
-                
+
                 <svg className="w-11 h-11 relative" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-                   {/* Bold Intersecting Elements (The Strike) */}
-                   {/* Auction Gavel - Neon Accent */}
-                   <path d="M40 80L75 45" stroke="#A855F7" strokeWidth="10" strokeLinecap="round" className="drop-shadow-[0_0_5px_rgba(168,85,247,0.5)]" />
-                   <rect x="68" y="28" width="24" height="14" rx="3" transform="rotate(-45 68 28)" fill="#A855F7" className="drop-shadow-[0_0_5px_rgba(168,85,247,0.5)]" />
-                   
-                   {/* Cricket Bat - Titanium Grade */}
-                   <path d="M45 45L80 80" stroke="white" strokeWidth="10" strokeLinecap="round" />
-                   <path d="M80 80L88 88" stroke="white" strokeWidth="4" strokeLinecap="round" opacity="0.6" />
-                   
-                   {/* Championship Gold Core */}
-                   <circle cx="60" cy="60" r="8" fill="#FBBF24" className="animate-pulse shadow-gold" />
-                   <circle cx="60" cy="60" r="12" stroke="#FBBF24" strokeWidth="1.5" strokeDasharray="4 4" className="animate-[spin_10s_linear_infinite]" />
+                  {/* Bold Intersecting Elements (The Strike) */}
+                  {/* Auction Gavel - Neon Accent */}
+                  <path d="M40 80L75 45" stroke="#A855F7" strokeWidth="10" strokeLinecap="round" className="drop-shadow-[0_0_5px_rgba(168,85,247,0.5)]" />
+                  <rect x="68" y="28" width="24" height="14" rx="3" transform="rotate(-45 68 28)" fill="#A855F7" className="drop-shadow-[0_0_5px_rgba(168,85,247,0.5)]" />
+
+                  {/* Cricket Bat - Titanium Grade */}
+                  <path d="M45 45L80 80" stroke="white" strokeWidth="10" strokeLinecap="round" />
+                  <path d="M80 80L88 88" stroke="white" strokeWidth="4" strokeLinecap="round" opacity="0.6" />
+
+                  {/* Championship Gold Core */}
+                  <circle cx="60" cy="60" r="8" fill="#FBBF24" className="animate-pulse shadow-gold" />
+                  <circle cx="60" cy="60" r="12" stroke="#FBBF24" strokeWidth="1.5" strokeDasharray="4 4" className="animate-[spin_10s_linear_infinite]" />
                 </svg>
               </div>
 
@@ -121,13 +122,12 @@ export default function Navbar() {
               <Link
                 key={link.href}
                 href={link.href}
-                className={`hover:text-violet-400 transition-colors text-sm font-medium px-4 py-2 ${
-                  link.isLive 
-                    ? 'text-red-400 font-bold' 
-                    : isActive(link.href) 
-                      ? 'text-violet-400' 
-                      : 'text-gray-300'
-                }`}
+                className={`hover:text-violet-400 transition-colors text-sm font-medium px-4 py-2 ${link.isLive
+                  ? 'text-red-400 font-bold'
+                  : isActive(link.href)
+                    ? 'text-violet-400'
+                    : 'text-gray-300'
+                  }`}
               >
                 {link.label}
               </Link>
@@ -146,9 +146,8 @@ export default function Navbar() {
                   <button
                     key={lang}
                     onClick={() => changeLanguage(lang)}
-                    className={`w-full text-left px-4 py-2 text-sm hover:bg-slate-700 transition-colors first:rounded-t-xl last:rounded-b-xl ${
-                      language === lang ? 'bg-violet-500/20 text-violet-400' : 'text-gray-300'
-                    }`}
+                    className={`w-full text-left px-4 py-2 text-sm hover:bg-slate-700 transition-colors first:rounded-t-xl last:rounded-b-xl ${language === lang ? 'bg-violet-500/20 text-violet-400' : 'text-gray-300'
+                      }`}
                   >
                     {lang === 'en' ? 'English' : lang === 'hi' ? 'Hindi' : 'Kannada'}
                   </button>
@@ -180,13 +179,13 @@ export default function Navbar() {
             <div className="flex-shrink-0">
               <Link href="/" className="flex items-center gap-2" onClick={() => setMenuOpen(false)}>
                 <div className="relative">
-                   <div className="absolute inset-0 bg-violet-600/30 blur-md rounded-full scale-110" />
-                   <svg className="w-7 h-7 relative" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M40 85L80 45" stroke="#A855F7" strokeWidth="10" strokeLinecap="round" />
-                      <rect x="70" y="30" width="25" height="15" rx="4" transform="rotate(-45 70 30)" fill="#A855F7" />
-                      <path d="M45 40L85 80" stroke="white" strokeWidth="10" strokeLinecap="round" />
-                      <circle cx="62.5" cy="62.5" r="8" fill="#FBBF24" />
-                   </svg>
+                  <div className="absolute inset-0 bg-violet-600/30 blur-md rounded-full scale-110" />
+                  <svg className="w-7 h-7 relative" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M40 85L80 45" stroke="#A855F7" strokeWidth="10" strokeLinecap="round" />
+                    <rect x="70" y="30" width="25" height="15" rx="4" transform="rotate(-45 70 30)" fill="#A855F7" />
+                    <path d="M45 40L85 80" stroke="white" strokeWidth="10" strokeLinecap="round" />
+                    <circle cx="62.5" cy="62.5" r="8" fill="#FBBF24" />
+                  </svg>
                 </div>
                 <span className="text-white font-[900] text-sm tracking-tighter">L<span className="text-violet-500">CE</span></span>
               </Link>
@@ -218,22 +217,20 @@ export default function Navbar() {
         </div>
 
         {/* Mobile Dropdown Menu */}
-        <div className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${
-          menuOpen ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'
-        }`}>
+        <div className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${menuOpen ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'
+          }`}>
           <div className="bg-slate-900/98 backdrop-blur-xl border-t border-slate-800/50 px-4 pt-3 pb-5 space-y-1 max-h-[500px] overflow-y-auto">
-            
+
             {/* Mobile Navigation Links */}
             {navLinks.map(link => (
               <Link
                 key={link.href}
                 href={link.href}
                 onClick={() => setMenuOpen(false)}
-                className={`flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all min-h-[48px] ${
-                  isActive(link.href)
-                    ? 'bg-violet-500/10 text-violet-400 border border-violet-500/20'
-                    : 'text-gray-300 hover:bg-slate-800 hover:text-white border border-transparent'
-                }`}
+                className={`flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all min-h-[48px] ${isActive(link.href)
+                  ? 'bg-violet-500/10 text-violet-400 border border-violet-500/20'
+                  : 'text-gray-300 hover:bg-slate-800 hover:text-white border border-transparent'
+                  }`}
               >
                 {link.label}
               </Link>
@@ -249,11 +246,10 @@ export default function Navbar() {
                     <button
                       key={lang}
                       onClick={() => changeLanguage(lang)}
-                      className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase transition-colors ${
-                        language === lang 
-                          ? 'bg-violet-500/20 text-violet-400 border border-violet-500/30' 
-                          : 'bg-slate-800 text-gray-400 hover:text-white border border-slate-700'
-                      }`}
+                      className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase transition-colors ${language === lang
+                        ? 'bg-violet-500/20 text-violet-400 border border-violet-500/30'
+                        : 'bg-slate-800 text-gray-400 hover:text-white border border-slate-700'
+                        }`}
                     >
                       {lang === 'en' ? 'EN' : lang === 'hi' ? 'HI' : 'KN'}
                     </button>
@@ -279,7 +275,7 @@ export default function Navbar() {
           </div>
         </div>
       </div>
-      
+
       {/* Auth Modal */}
       <AuthModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </nav>
