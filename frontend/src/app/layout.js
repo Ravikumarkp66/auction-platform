@@ -11,19 +11,13 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 const noto = Noto_Sans_Kannada({ subsets: ['kannada'], weight: ['400', '700', '900'], variable: '--font-noto' });
 
 export const metadata = {
-  title: 'Lakshmish Cricket Events | Professional Cricket Commentary & Auctions',
-  description: 'Book a professional cricket commentator and auctioneer for your next local tournament.',
-  themeColor: '#0b1020',
+  title: 'Lakshmish Cricket Events',
+  description: 'Live Cricket Auction Platform',
+  manifest: '/manifest.webmanifest',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'Lakshmish Cricket Events',
-  },
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'),
-  other: {
-    'mobile-web-app-capable': 'yes',
-    'apple-mobile-web-app-capable': 'yes',
-    'apple-mobile-web-app-status-bar-style': 'black-translucent',
+    title: 'LCE',
   },
 };
 
@@ -44,7 +38,7 @@ export default function RootLayout({ children }) {
           <LanguageProvider>
             <div className="app flex flex-col min-h-screen w-full">
               <Navbar />
-              <main className="flex-grow">
+              <main className="grow">
                 {children}
               </main>
             </div>

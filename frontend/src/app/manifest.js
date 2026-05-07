@@ -2,12 +2,11 @@ export default function manifest() {
     return {
         name: 'Lakshmish Cricket Events',
         short_name: 'LCE',
-        description: 'Live Cricket Auction Platform',
         start_url: '/',
+        scope: '/',
         display: 'standalone',
         background_color: '#0b1020',
         theme_color: '#0b1020',
-        orientation: 'portrait',
         icons: [
             {
                 src: '/icon-192.png',
