@@ -81,7 +81,7 @@ export default function Navbar() {
     <nav className="bg-slate-900/80 backdrop-blur-xl border-b border-slate-800/50 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          <div className="hidden md:flex flex-shrink-0">
+          <div className="hidden md:flex shrink-0">
             <Link href="/" className="flex items-center gap-2.5 group transition-all duration-300 hover:scale-[1.03]" onClick={() => setMenuOpen(false)}>
               {/* VIBRANT LEAGUE STRIKE MARK */}
               <div className="relative flex items-center justify-center">
@@ -106,7 +106,7 @@ export default function Navbar() {
 
               {/* Bold Cinematic Typography */}
               <div className="flex flex-col">
-                <span className="text-2xl font-[1000] tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-violet-400 leading-[0.85] uppercase drop-shadow-md">
+                <span className="text-2xl font-[1000] tracking-tighter bg-clip-text text-transparent bg-linear-to-r from-white via-white to-violet-400 leading-[0.85] uppercase drop-shadow-md">
                   LAKSHMISH
                 </span>
                 <span className="text-[10px] font-black tracking-[0.4em] uppercase text-violet-500 mt-1 pl-0.5 opacity-90">
@@ -160,7 +160,7 @@ export default function Navbar() {
               <Link
                 href="/admin/dashboard"
                 className="px-4 py-1.5 rounded-lg text-sm font-bold text-black
-                  bg-gradient-to-r from-yellow-400 to-yellow-500
+                  bg-linear-to-r from-yellow-400 to-yellow-500
                   shadow-[0_0_15px_rgba(255,215,0,0.5)]
                   hover:shadow-[0_0_25px_rgba(255,215,0,0.85)]
                   hover:scale-105 transition-all duration-200 flex items-center gap-1.5"
@@ -176,7 +176,7 @@ export default function Navbar() {
           {/* Mobile Header */}
           <div className="md:hidden flex items-center justify-between w-full px-1">
             {/* Logo - Extremely small */}
-            <div className="flex-shrink-0">
+            <div className="shrink-0">
               <Link href="/" className="flex items-center gap-2" onClick={() => setMenuOpen(false)}>
                 <div className="relative">
                   <div className="absolute inset-0 bg-violet-600/30 blur-md rounded-full scale-110" />
@@ -187,7 +187,7 @@ export default function Navbar() {
                     <circle cx="62.5" cy="62.5" r="8" fill="#FBBF24" />
                   </svg>
                 </div>
-                <span className="text-white font-[900] text-sm tracking-tighter">L<span className="text-violet-500">CE</span></span>
+                <span className="text-white font-black text-sm tracking-tighter">L<span className="text-violet-500">CE</span></span>
               </Link>
             </div>
 
@@ -196,7 +196,7 @@ export default function Navbar() {
               {/* Signin Button - Tiny */}
               <button
                 onClick={() => setIsModalOpen(true)}
-                className="bg-violet-600 hover:bg-violet-500 text-white w-5 h-5 rounded text-xs flex items-center justify-center transition-all flex-shrink-0"
+                className="bg-violet-600 hover:bg-violet-500 text-white w-5 h-5 rounded text-xs flex items-center justify-center transition-all shrink-0"
                 title="Sign In"
               >
                 🔐
@@ -205,7 +205,7 @@ export default function Navbar() {
               {/* Mobile menu button - Tiny */}
               <button
                 onClick={() => setMenuOpen(prev => !prev)}
-                className="w-5 h-5 flex flex-col items-center justify-center gap-[0.5px] rounded bg-slate-800 border border-slate-700 hover:bg-slate-700 transition-all flex-shrink-0"
+                className="w-5 h-5 flex flex-col items-center justify-center gap-[0.5px] rounded bg-slate-800 border border-slate-700 hover:bg-slate-700 transition-all shrink-0"
                 aria-label="Toggle menu"
               >
                 <span className={`block w-2 h-0.5 bg-white rounded-full transition-all duration-300 ${menuOpen ? 'rotate-45 translate-y-[2.5px]' : ''}`}></span>
@@ -217,9 +217,9 @@ export default function Navbar() {
         </div>
 
         {/* Mobile Dropdown Menu */}
-        <div className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${menuOpen ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'
+        <div className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${menuOpen ? 'max-h-150 opacity-100' : 'max-h-0 opacity-0'
           }`}>
-          <div className="bg-slate-900/98 backdrop-blur-xl border-t border-slate-800/50 px-4 pt-3 pb-5 space-y-1 max-h-[500px] overflow-y-auto">
+          <div className="bg-slate-900/98 backdrop-blur-xl border-t border-slate-800/50 px-4 pt-3 pb-5 space-y-1 max-h-125 overflow-y-auto">
 
             {/* Mobile Navigation Links */}
             {navLinks.map(link => (
@@ -227,7 +227,7 @@ export default function Navbar() {
                 key={link.href}
                 href={link.href}
                 onClick={() => setMenuOpen(false)}
-                className={`flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all min-h-[48px] ${isActive(link.href)
+                className={`flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all min-h-12 ${isActive(link.href)
                   ? 'bg-violet-500/10 text-violet-400 border border-violet-500/20'
                   : 'text-gray-300 hover:bg-slate-800 hover:text-white border border-transparent'
                   }`}
@@ -263,7 +263,7 @@ export default function Navbar() {
                   href="/admin/dashboard"
                   onClick={() => setMenuOpen(false)}
                   className="flex items-center justify-center gap-2 mx-4 py-3 rounded-xl text-sm font-bold text-black
-                    bg-gradient-to-r from-yellow-400 to-yellow-500
+                    bg-linear-to-r from-yellow-400 to-yellow-500
                     shadow-[0_0_15px_rgba(255,215,0,0.4)]
                     hover:shadow-[0_0_25px_rgba(255,215,0,0.7)]
                     transition-all duration-200"

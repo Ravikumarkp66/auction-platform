@@ -1,4 +1,7 @@
 /** @type {import('next').NextConfig} */
+
+import withPWA from 'next-pwa';
+
 const nextConfig = {
   images: {
     remotePatterns: [
@@ -19,19 +22,25 @@ const nextConfig = {
         hostname: 'ui-avatars.com',
       },
     ],
+
     unoptimized: true,
   },
+
   async rewrites() {
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5050';
+    const backendUrl =
+      process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5050';
+
     return [
       {
         source: '/api/:path((?!auth).*)',
         destination: `${backendUrl}/api/:path*`,
       },
+
       {
         source: '/uploads/:path*',
         destination: `${backendUrl}/uploads/:path*`,
       },
+
       {
         source: '/socket.io/:path*',
         destination: `${backendUrl}/socket.io/:path*`,
@@ -40,4 +49,10 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+export default withPWA({
+  dest: 'public',
+
+  register: true,
+
+  skipWaiting: true,
+})(nextConfig);
