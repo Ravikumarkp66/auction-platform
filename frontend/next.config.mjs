@@ -51,8 +51,7 @@ const nextConfig = {
 
 export default withPWA({
   dest: 'public',
-
   register: true,
-
   skipWaiting: true,
+  publicExcludes: ['!manifest.webmanifest'],
 })(nextConfig);

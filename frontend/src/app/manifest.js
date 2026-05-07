@@ -15,7 +15,19 @@ export default function manifest() {
                 src: '/icon-192.png',
                 sizes: '192x192',
                 type: 'image/png',
+                purpose: 'any',
+            },
+            {
+                src: '/icon-192.png',
+                sizes: '192x192',
+                type: 'image/png',
                 purpose: 'maskable',
+            },
+            {
+                src: '/icon-512.png',
+                sizes: '512x512',
+                type: 'image/png',
+                purpose: 'any',
             },
             {
                 src: '/icon-512.png',
@@ -27,14 +39,14 @@ export default function manifest() {
         screenshots: [
             {
                 src: '/screenshots/mobile-1.png',
-                sizes: '390x844',
+                sizes: '780x1687',
                 type: 'image/png',
                 form_factor: 'narrow',
                 label: 'Tournament dashboard',
             },
             {
                 src: '/screenshots/mobile-2.png',
-                sizes: '390x844',
+                sizes: '780x1687',
                 type: 'image/png',
                 form_factor: 'narrow',
                 label: 'Live auction page',
