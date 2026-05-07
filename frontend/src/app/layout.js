@@ -27,6 +27,13 @@ export const metadata = {
   },
 };
 
+export const viewport = {
+  themeColor: '#0b1020',
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+};
+
 export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning className={`dark ${inter.variable} ${noto.variable}`}>
