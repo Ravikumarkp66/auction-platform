@@ -1,10 +1,10 @@
 export default function manifest() {
     return {
-        id: '/',
+        id: '/v2',
         name: 'Lakshmish Cricket Events',
-        short_name: 'LCE',
+        short_name: 'Lakshmish',
         description: 'Live cricket auction platform',
-        start_url: '/',
+        start_url: '/v2',
         scope: '/',
         display: 'standalone',
         background_color: '#0b1020',
