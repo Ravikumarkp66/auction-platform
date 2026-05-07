@@ -42,6 +42,9 @@ export default function RootLayout({ children }) {
       <head>
         <link rel="manifest" href="/manifest.webmanifest" />
         <link rel="apple-touch-icon" href="/icon-192.png" />
+        <meta name="theme-color" content="#0b1020" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
       </head>
       <body suppressHydrationWarning className="main-container text-slate-50 min-h-screen flex flex-col font-sans antialiased">
         <DynamicBackground />
