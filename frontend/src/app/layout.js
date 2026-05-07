@@ -13,7 +13,6 @@ const noto = Noto_Sans_Kannada({ subsets: ['kannada'], weight: ['400', '700', '9
 export const metadata = {
   title: 'Lakshmish Cricket Events | Professional Cricket Commentary & Auctions',
   description: 'Book a professional cricket commentator and auctioneer for your next local tournament.',
-  manifest: '/manifest.json',
   themeColor: '#0b1020',
   appleWebApp: {
     capable: true,
