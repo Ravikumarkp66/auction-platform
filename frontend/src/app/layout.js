@@ -13,6 +13,19 @@ const noto = Noto_Sans_Kannada({ subsets: ['kannada'], weight: ['400', '700', '9
 export const metadata = {
   title: 'Lakshmish Cricket Events | Professional Cricket Commentary & Auctions',
   description: 'Book a professional cricket commentator and auctioneer for your next local tournament.',
+  manifest: '/manifest.json',
+  themeColor: '#0b1020',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'Lakshmish Cricket Events',
+  },
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'),
+  other: {
+    'mobile-web-app-capable': 'yes',
+    'apple-mobile-web-app-capable': 'yes',
+    'apple-mobile-web-app-status-bar-style': 'black-translucent',
+  },
 };
 
 export default function RootLayout({ children }) {
