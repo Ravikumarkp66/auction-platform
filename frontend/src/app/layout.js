@@ -13,7 +13,6 @@ const noto = Noto_Sans_Kannada({ subsets: ['kannada'], weight: ['400', '700', '9
 export const metadata = {
   title: 'Lakshmish Cricket Events',
   description: 'Live Cricket Auction Platform with real-time bidding and tournament management',
-  manifest: '/manifest.webmanifest',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
@@ -41,6 +40,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning className={`dark ${inter.variable} ${noto.variable}`}>
       <head>
+        <link rel="manifest" href="/manifest.webmanifest" />
         <link rel="apple-touch-icon" href="/icon-192.png" />
       </head>
       <body suppressHydrationWarning className="main-container text-slate-50 min-h-screen flex flex-col font-sans antialiased">
