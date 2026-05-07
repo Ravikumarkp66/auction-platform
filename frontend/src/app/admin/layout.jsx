@@ -34,18 +34,18 @@ const AuctionContext = createContext(null);
 export const useAuction = () => useContext(AuctionContext);
 
 const navigation = [
-  { name: "Dashboard",      href: "/admin/dashboard",          icon: LayoutDashboard, emoji: "📊" },
-  { name: "Auctions",       href: "/admin/tournaments",        icon: Trophy,          emoji: "🏏" },
-  { name: "Teams",          href: "/admin/teams",              icon: Layout,          emoji: "👥" },
-  { name: "Players",        href: "/admin/players",            icon: User,            emoji: "🧍" },
-  { name: "Icon Players",   href: "/admin/icons",              icon: Star,            emoji: "⭐" },
-  { name: "Live Control",   href: "/live-auction",             icon: Zap,             emoji: "⚡" },
-  { name: "Live Scoring",   href: "/scoring",                  icon: LayoutDashboard, emoji: "📱" },
-  { name: "Match Control",  href: "/admin/matches",            icon: LayoutDashboard, emoji: "🎮" },
-  { name: "Branding",       href: "/admin/assets",             icon: Palette,         emoji: "🎨" },
-  { name: "Landing Editor", href: "/admin/landing",            icon: Layout,          emoji: "🏗️" },
+  { name: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard, emoji: "📊" },
+  { name: "Auctions", href: "/admin/tournaments", icon: Trophy, emoji: "🏏" },
+  { name: "Teams", href: "/admin/teams", icon: Layout, emoji: "👥" },
+  { name: "Players", href: "/admin/players", icon: User, emoji: "🧍" },
+  { name: "Icon Players", href: "/admin/icons", icon: Star, emoji: "⭐" },
+  { name: "Live Control", href: "/live-auction", icon: Zap, emoji: "⚡" },
+  { name: "Live Scoring", href: "/scoring", icon: LayoutDashboard, emoji: "📱" },
+  { name: "Match Control", href: "/admin/matches", icon: LayoutDashboard, emoji: "🎮" },
+  { name: "Branding", href: "/admin/assets", icon: Palette, emoji: "🎨" },
+  { name: "Landing Editor", href: "/admin/landing", icon: Layout, emoji: "🏗️" },
   { name: "Pricing & Services", href: "/admin/services", icon: LayoutDashboard, emoji: "💰" },
-  { name: "Settings",       href: "/admin/settings",           icon: ImageIcon,       emoji: "⚙️" },
+  { name: "Settings", href: "/admin/settings", icon: ImageIcon, emoji: "⚙️" },
 ];
 
 export default function AdminLayout({ children }) {
@@ -64,7 +64,7 @@ export default function AdminLayout({ children }) {
       if (savedAuction) {
         try {
           setSelectedAuction(JSON.parse(savedAuction));
-        } catch (e) {}
+        } catch (e) { }
       }
       const savedCollapsed = localStorage.getItem("sidebarCollapsed");
       if (savedCollapsed) {
@@ -85,7 +85,7 @@ export default function AdminLayout({ children }) {
         withCredentials: true
       });
       socketRef.current = socket;
-      
+
       socket.on("connect", () => setIsConnected(true));
       socket.on("disconnect", () => setIsConnected(false));
       socket.on("connect_error", () => setIsConnected(false));
@@ -125,11 +125,11 @@ export default function AdminLayout({ children }) {
         throw new Error(`Server error: ${res.status} ${text}`);
       }
       const data = await res.json();
-      
+
       // Safety check: Ensure data is an array to prevent .map crashes
       const tournamentsArray = Array.isArray(data) ? data : [];
       setTournaments(tournamentsArray);
-      
+
       const saved = localStorage.getItem("selectedAuction");
       if (!saved && tournamentsArray.length > 0) {
         const active = tournamentsArray.find(t => t.status === "active") || tournamentsArray[0];
@@ -167,9 +167,9 @@ export default function AdminLayout({ children }) {
               return pendingCount;
             });
           }
-        } catch(e) {}
+        } catch (e) { }
       };
-      
+
       fetchPending();
       const intervalId = setInterval(fetchPending, 15000); // Check every 15s
       return () => clearInterval(intervalId);
@@ -239,7 +239,7 @@ export default function AdminLayout({ children }) {
             )}
 
             {/* Collapse Toggle (Desktop Only Ribbon) */}
-            <button 
+            <button
               onClick={() => {
                 const newState = !collapsed;
                 setCollapsed(newState);
@@ -253,7 +253,7 @@ export default function AdminLayout({ children }) {
 
           {/* New: Quick link to Public Site */}
           <div className={`px-4 pt-4 ${collapsed ? 'flex justify-center' : ''}`}>
-            <Link 
+            <Link
               href="/"
               className={`flex items-center justify-between bg-violet-600/10 hover:bg-violet-600/20 border border-violet-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest text-violet-400 hover:text-white transition-all
                 ${collapsed ? 'w-10 h-10 justify-center' : 'px-4 py-3 w-full'}
@@ -270,7 +270,7 @@ export default function AdminLayout({ children }) {
             <Link
               href="/admin/create-tournament"
               className={`flex items-center justify-center gap-2 rounded-2xl font-black text-xs text-black transition-all
-                bg-gradient-to-r from-violet-400 to-cyan-400
+                bg-linear-to-r from-violet-400 to-cyan-400
                 shadow-[0_0_15px_rgba(139,92,246,0.3)]
                 hover:shadow-[0_0_25px_rgba(139,92,246,0.6)]
                 hover:scale-105 active:scale-95
@@ -300,7 +300,7 @@ export default function AdminLayout({ children }) {
                     transition-all duration-200 relative overflow-hidden
                     ${collapsed ? 'px-0 justify-center h-12' : 'px-4 py-3'}
                     ${isActive
-                      ? "bg-gradient-to-r from-violet-600 to-cyan-500 text-white shadow-[0_0_20px_rgba(139,92,246,0.4)]"
+                      ? "bg-linear-to-r from-violet-600 to-cyan-500 text-white shadow-[0_0_20px_rgba(139,92,246,0.4)]"
                       : "text-slate-400 hover:text-white hover:bg-white/5"
                     }
                   `}
@@ -324,7 +324,7 @@ export default function AdminLayout({ children }) {
           {/* User footer */}
           <div className={`shrink-0 border-t border-white/10 p-4 space-y-3 ${collapsed ? 'flex flex-col items-center' : ''}`}>
             <div className={`flex items-center gap-3 ${collapsed ? 'px-0' : 'px-2'}`}>
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-violet-500 to-cyan-500 flex items-center justify-center font-black text-lg shadow-lg shadow-violet-500/30 shrink-0">
+              <div className="w-10 h-10 rounded-2xl bg-linear-to-br from-violet-500 to-cyan-500 flex items-center justify-center font-black text-lg shadow-lg shadow-violet-500/30 shrink-0">
                 {initials}
               </div>
               {!collapsed && (
@@ -350,9 +350,9 @@ export default function AdminLayout({ children }) {
 
         {/* ══════════ MAIN AREA ══════════ */}
         <div className={`flex-1 flex flex-col min-w-0 overflow-hidden relative transition-all duration-300`}>
-          
+
           {/* Background glow behind content */}
-          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-violet-600/5 blur-[120px] rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+          <div className="absolute top-0 right-0 w-125 h-125 bg-violet-600/5 blur-[120px] rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none" />
 
           {/* ── Topbar ── */}
           <header className="shrink-0 h-14 md:h-16 flex items-center justify-between px-3 md:px-8
@@ -365,10 +365,10 @@ export default function AdminLayout({ children }) {
               >
                 <Menu className="w-5 h-5 md:w-6 md:h-6" />
               </button>
-              
+
               {/* AUCTION SELECTOR */}
-              <div className="relative flex-1 max-w-[240px]" ref={dropdownRef}>
-                <button 
+              <div className="relative flex-1 max-w-60" ref={dropdownRef}>
+                <button
                   onClick={() => setDropdownOpen(!dropdownOpen)}
                   className="flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all w-full"
                 >
@@ -381,11 +381,11 @@ export default function AdminLayout({ children }) {
                 </button>
 
                 {dropdownOpen && (
-                  <div className="absolute top-full left-0 mt-2 w-[280px] bg-[#0f172a] border border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2">
+                  <div className="absolute top-full left-0 mt-2 w-70 bg-[#0f172a] border border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2">
                     <div className="p-3 bg-white/5 border-b border-white/10">
                       <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Available Systems</p>
                     </div>
-                    <div className="max-h-[300px] overflow-y-auto custom-scrollbar">
+                    <div className="max-h-75 overflow-y-auto custom-scrollbar">
                       {tournaments.map((t) => (
                         <button
                           key={t._id}
@@ -413,16 +413,16 @@ export default function AdminLayout({ children }) {
                   {isConnected ? "Server Online" : "Disconnected"}
                 </span>
               </div>
-              
+
               {/* Prioritize the LIVE auction for the Go Live button, regardless of what's selected in the editor */}
               {(() => {
                 const live = tournaments.find(t => t.status === "active");
                 const target = live || selectedAuction;
                 return (
-                  <Link 
+                  <Link
                     href={target ? `/live-auction?id=${target._id}` : "#"}
                     className="px-3 py-2 md:px-4 md:py-2 rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest text-black
-                      bg-gradient-to-r from-yellow-400 to-yellow-600
+                      bg-linear-to-r from-yellow-400 to-yellow-600
                       shadow-lg shadow-yellow-500/20
                       hover:scale-105 active:scale-95 transition-all"
                   >

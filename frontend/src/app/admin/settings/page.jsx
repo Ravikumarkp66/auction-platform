@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { 
-  Settings, Image, Layout, Shield, Bell, 
+import { useSession } from "next-auth/react";
+import {
+  Settings, Image, Layout, Shield, Bell,
   PlusCircle, Trash2, CheckCircle, RefreshCw,
   Eye, Info, Palette, Camera, Upload, AlertCircle, Zap
 } from "lucide-react";
@@ -12,7 +13,7 @@ import { API_URL } from "../../../lib/apiConfig";
 
 // ── Toggle Component ──────────────────────────────────────
 const Toggle = ({ active, onToggle }) => (
-  <button 
+  <button
     onClick={onToggle}
     className={`relative w-10 h-5 rounded-full transition-all duration-300 ${active ? 'bg-violet-600' : 'bg-slate-700'}`}
   >
@@ -22,7 +23,7 @@ const Toggle = ({ active, onToggle }) => (
 
 // ── Section Component ─────────────────────────────────────
 const Section = ({ title, desc, icon: Icon, children }) => (
-  <div className="bg-[#111827]/40 backdrop-blur-xl border border-white/5 rounded-[2rem] overflow-hidden">
+  <div className="bg-[#111827]/40 backdrop-blur-xl border border-white/5 rounded-4xl overflow-hidden">
     <div className="px-8 py-6 border-b border-white/5 flex items-center gap-4">
       <div className="p-3 rounded-2xl bg-violet-600/10 border border-violet-500/20 text-violet-400">
         <Icon className="w-5 h-5" />
@@ -38,6 +39,7 @@ const Section = ({ title, desc, icon: Icon, children }) => (
 
 export default function AdminSettings() {
   const { selectedAuction } = useAuction();
+  const { data: session } = useSession();
   const [backgrounds, setBackgrounds] = useState([]);
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -46,6 +48,11 @@ export default function AdminSettings() {
     startingBid: 0,
     bidIncrement: 0,
     auctionMode: 'money'
+  });
+  const [registrationConfig, setRegistrationConfig] = useState({
+    registrationEndDate: '',
+    registrationEndTime: '23:59',
+    closedMessage: 'Registration is currently closed. Please contact the tournament organizer for more details.'
   });
   const [savingConfig, setSavingConfig] = useState(false);
 
@@ -56,6 +63,11 @@ export default function AdminSettings() {
         startingBid: selectedAuction.startingBid || 0,
         bidIncrement: selectedAuction.bidIncrement || 0,
         auctionMode: selectedAuction.auctionMode || 'money'
+      });
+      setRegistrationConfig({
+        registrationEndDate: selectedAuction.registrationEndDate ? String(selectedAuction.registrationEndDate).split('T')[0] : '',
+        registrationEndTime: selectedAuction.registrationEndTime || '23:59',
+        closedMessage: selectedAuction.closedMessage || 'Registration is currently closed. Please contact the tournament organizer for more details.'
       });
     } else {
       setLoading(false);
@@ -87,9 +99,9 @@ export default function AdminSettings() {
     setUploading(true);
     try {
       const url = await uploadToS3(file, type === 'bg' ? 'backgrounds' : 'gallery');
-      
+
       const endpoint = type === 'bg' ? '/api/backgrounds' : '/api/tournament-images';
-      const body = type === 'bg' 
+      const body = type === 'bg'
         ? { name: `Custom_${Date.now()}`, imageUrl: url, tournamentId: selectedAuction._id }
         : { name: `Img_${Date.now()}`, location: "Unknown", year: "2026", teams: "All", imageUrl: url, tournamentId: selectedAuction._id };
 
@@ -111,15 +123,22 @@ export default function AdminSettings() {
     if (!selectedAuction) return;
     setSavingConfig(true);
     try {
+      const payload = {
+        ...auctionConfig,
+        ...registrationConfig,
+      };
       const res = await fetch(`${API_URL}/api/tournaments/${selectedAuction._id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(auctionConfig)
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.accessToken ? { 'Authorization': `Bearer ${session.accessToken}` } : {}),
+        },
+        body: JSON.stringify(payload)
       });
       if (res.ok) {
         alert("Auction configuration updated successfully!");
         // Update local storage so other components see the change
-        const updated = { ...selectedAuction, ...auctionConfig };
+        const updated = { ...selectedAuction, ...payload };
         localStorage.setItem("selectedAuction", JSON.stringify(updated));
       } else {
         const data = await res.json();
@@ -151,7 +170,7 @@ export default function AdminSettings() {
 
   return (
     <div className="space-y-10 max-w-5xl mx-auto pb-20">
-      
+
       <div className="flex items-center justify-between px-2">
         <div>
           <h1 className="text-3xl font-black text-white tracking-tight">
@@ -167,78 +186,113 @@ export default function AdminSettings() {
       <Section title="Auction Engine" desc="Bidding and rule configuration" icon={Zap}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="space-y-4">
-             <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Starting Bid (Global Min)</p>
-                <div className="relative">
-                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">₹</span>
-                   <input 
-                     type="number" 
-                     value={auctionConfig.startingBid}
-                     onChange={e => setAuctionConfig({...auctionConfig, startingBid: Number(e.target.value)})}
-                     className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 pl-10 font-black text-white outline-none focus:border-violet-500 transition-all"
-                   />
-                </div>
-                <p className="text-[9px] text-slate-600 mt-2 font-bold uppercase">Fallback if player base price is not set</p>
-             </div>
-             <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Fixed Bid Increment</p>
-                <div className="relative">
-                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">₹</span>
-                   <input 
-                     type="number" 
-                     value={auctionConfig.bidIncrement}
-                     onChange={e => setAuctionConfig({...auctionConfig, bidIncrement: Number(e.target.value)})}
-                     className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 pl-10 font-black text-white outline-none focus:border-violet-500 transition-all"
-                   />
-                </div>
-                <p className="text-[9px] text-slate-600 mt-2 font-bold uppercase">Applies to Money/RS mode auctions</p>
-             </div>
-             
-             <button 
-               onClick={handleSaveAuctionConfig}
-               disabled={savingConfig}
-               className="w-full py-4 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white font-black uppercase tracking-widest rounded-2xl transition-all shadow-lg shadow-violet-600/20 flex items-center justify-center gap-2"
-             >
-               {savingConfig ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Settings className="w-4 h-4" />}
-               Save Configuration
-             </button>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Starting Bid (Global Min)</p>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">₹</span>
+                <input
+                  type="number"
+                  value={auctionConfig.startingBid}
+                  onChange={e => setAuctionConfig({ ...auctionConfig, startingBid: Number(e.target.value) })}
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 pl-10 font-black text-white outline-none focus:border-violet-500 transition-all"
+                />
+              </div>
+              <p className="text-[9px] text-slate-600 mt-2 font-bold uppercase">Fallback if player base price is not set</p>
+            </div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Fixed Bid Increment</p>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">₹</span>
+                <input
+                  type="number"
+                  value={auctionConfig.bidIncrement}
+                  onChange={e => setAuctionConfig({ ...auctionConfig, bidIncrement: Number(e.target.value) })}
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 pl-10 font-black text-white outline-none focus:border-violet-500 transition-all"
+                />
+              </div>
+              <p className="text-[9px] text-slate-600 mt-2 font-bold uppercase">Applies to Money/RS mode auctions</p>
+            </div>
+
+            <button
+              onClick={handleSaveAuctionConfig}
+              disabled={savingConfig}
+              className="w-full py-4 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white font-black uppercase tracking-widest rounded-2xl transition-all shadow-lg shadow-violet-600/20 flex items-center justify-center gap-2"
+            >
+              {savingConfig ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Settings className="w-4 h-4" />}
+              Save Configuration
+            </button>
           </div>
-          
+
           <div className="bg-violet-600/10 border border-violet-500/20 rounded-3xl p-6 flex flex-col justify-center">
-             <div className="flex items-center gap-3 mb-4">
-                <Info className="w-5 h-5 text-violet-400" />
-                <h4 className="text-sm font-black text-white uppercase">Engine Behavior</h4>
-             </div>
-             <ul className="space-y-3">
-                {[
-                  "Starting bid acts as the global floor price",
-                  "Increments are added to current bid on each click",
-                  "Points mode uses custom band-based increments",
-                  "Updates take effect immediately on the live stage"
-                ].map((item, i) => (
-                  <li key={i} className="flex items-start gap-3 text-[11px] font-bold text-slate-400 uppercase tracking-tight">
-                    <span className="w-1.5 h-1.5 rounded-full bg-violet-500 mt-1 shrink-0" />
-                    {item}
-                  </li>
-                ))}
-             </ul>
+            <div className="flex items-center gap-3 mb-4">
+              <Info className="w-5 h-5 text-violet-400" />
+              <h4 className="text-sm font-black text-white uppercase">Engine Behavior</h4>
+            </div>
+            <ul className="space-y-3">
+              {[
+                "Starting bid acts as the global floor price",
+                "Increments are added to current bid on each click",
+                "Points mode uses custom band-based increments",
+                "Updates take effect immediately on the live stage"
+              ].map((item, i) => (
+                <li key={i} className="flex items-start gap-3 text-[11px] font-bold text-slate-400 uppercase tracking-tight">
+                  <span className="w-1.5 h-1.5 rounded-full bg-violet-500 mt-1 shrink-0" />
+                  {item}
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
+      </Section>
+
+      <Section title="Registration Window" desc="Application deadline visible to players" icon={Bell}>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">End Date</p>
+            <input
+              type="date"
+              value={registrationConfig.registrationEndDate}
+              onChange={e => setRegistrationConfig(prev => ({ ...prev, registrationEndDate: e.target.value }))}
+              className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 font-black text-white outline-none focus:border-violet-500 transition-all"
+            />
+          </div>
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">End Time</p>
+            <input
+              type="time"
+              value={registrationConfig.registrationEndTime}
+              onChange={e => setRegistrationConfig(prev => ({ ...prev, registrationEndTime: e.target.value }))}
+              className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 font-black text-white outline-none focus:border-violet-500 transition-all"
+            />
+          </div>
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Closed Message</p>
+            <textarea
+              rows={3}
+              value={registrationConfig.closedMessage}
+              onChange={e => setRegistrationConfig(prev => ({ ...prev, closedMessage: e.target.value }))}
+              className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 font-medium text-white outline-none focus:border-violet-500 transition-all resize-none"
+            />
+          </div>
+        </div>
+        <p className="mt-4 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+          Players will see the countdown and this message on the application page.
+        </p>
       </Section>
 
       <Section title="Auction Backgrounds" desc="Visual branding for the live stage" icon={Palette}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {backgrounds.map(bg => (
-            <div key={bg._id} className="group relative aspect-[16/9] rounded-[1.5rem] overflow-hidden border border-white/10 group shadow-lg">
+            <div key={bg._id} className="group relative aspect-video rounded-3xl overflow-hidden border border-white/10 group shadow-lg">
               <img src={bg.imageUrl} alt={bg.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
               <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-6">
                 <div className="flex items-center justify-between gap-4">
-                   <div className="min-w-0">
-                      <p className="text-sm font-black text-white truncate">{bg.name}</p>
-                   </div>
-                   <button className="p-2 bg-red-500/20 text-red-400 rounded-xl hover:bg-red-500 hover:text-white transition-all flex-shrink-0">
-                     <Trash2 className="w-4 h-4" />
-                   </button>
+                  <div className="min-w-0">
+                    <p className="text-sm font-black text-white truncate">{bg.name}</p>
+                  </div>
+                  <button className="p-2 bg-red-500/20 text-red-400 rounded-xl hover:bg-red-500 hover:text-white transition-all shrink-0">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
               {bg.isActive && (
@@ -248,10 +302,10 @@ export default function AdminSettings() {
               )}
             </div>
           ))}
-          <label className="relative aspect-[16/9] rounded-[1.5rem] border-2 border-dashed border-violet-500/20 bg-violet-500/5 hover:bg-violet-500/10 flex flex-col items-center justify-center cursor-pointer transition-all">
-             {uploading ? <RefreshCw className="w-8 h-8 text-violet-500 animate-spin" /> : <Upload className="w-8 h-8 text-violet-500/40" />}
-             <span className="text-xs font-black text-violet-400/60 uppercase tracking-widest mt-4">Add Background</span>
-             <input type="file" className="hidden" accept="image/*" onChange={e => handleUpload(e, 'bg')} />
+          <label className="relative aspect-video rounded-3xl border-2 border-dashed border-violet-500/20 bg-violet-500/5 hover:bg-violet-500/10 flex flex-col items-center justify-center cursor-pointer transition-all">
+            {uploading ? <RefreshCw className="w-8 h-8 text-violet-500 animate-spin" /> : <Upload className="w-8 h-8 text-violet-500/40" />}
+            <span className="text-xs font-black text-violet-400/60 uppercase tracking-widest mt-4">Add Background</span>
+            <input type="file" className="hidden" accept="image/*" onChange={e => handleUpload(e, 'bg')} />
           </label>
         </div>
       </Section>
@@ -268,8 +322,8 @@ export default function AdminSettings() {
             </div>
           ))}
           <label className="relative aspect-square rounded-2xl border-2 border-dashed border-white/10 hover:border-violet-500/30 bg-white/5 flex items-center justify-center cursor-pointer transition-all">
-             <PlusCircle className="w-6 h-6 text-slate-600" />
-             <input type="file" className="hidden" accept="image/*" onChange={e => handleUpload(e, 'gallery')} />
+            <PlusCircle className="w-6 h-6 text-slate-600" />
+            <input type="file" className="hidden" accept="image/*" onChange={e => handleUpload(e, 'gallery')} />
           </label>
         </div>
       </Section>

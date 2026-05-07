@@ -290,7 +290,7 @@ export default function TournamentsPage() {
             className="w-full h-full object-cover opacity-40 group-hover:scale-110 group-hover:opacity-60 transition-all duration-700"
             alt="Banner"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#111827] to-transparent"></div>
+          <div className="absolute inset-0 bg-linear-to-t from-[#111827] to-transparent"></div>
 
           {/* Status Badge */}
           <div className="absolute top-4 right-4 z-10">
@@ -356,7 +356,7 @@ export default function TournamentsPage() {
               </div>
               <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden border border-white/5">
                 <div
-                  className="h-full bg-gradient-to-r from-violet-500 to-cyan-400 transition-all duration-500"
+                  className="h-full bg-linear-to-r from-violet-500 to-cyan-400 transition-all duration-500"
                   style={{ width: `${(t.imageProcessing.completed / (t.imageProcessing.total || 1)) * 100}%` }}
                 />
               </div>
@@ -365,7 +365,7 @@ export default function TournamentsPage() {
 
           {/* Live Banner / Activation */}
           {t.status === "active" ? (
-            <div className="mb-4 p-3 rounded-xl bg-gradient-to-r from-red-500/10 to-transparent border-l-4 border-red-500">
+            <div className="mb-4 p-3 rounded-xl bg-linear-to-r from-red-500/10 to-transparent border-l-4 border-red-500">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-[10px] font-black text-red-400 uppercase tracking-widest">Active Auction</p>
@@ -499,7 +499,7 @@ export default function TournamentsPage() {
         </div>
         <Link
           href="/admin/create-tournament"
-          className="px-6 py-2.5 bg-gradient-to-r from-violet-600 to-cyan-500 text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-violet-600/20 hover:scale-105 transition-all"
+          className="px-6 py-2.5 bg-linear-to-r from-violet-600 to-cyan-500 text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-violet-600/20 hover:scale-105 transition-all"
         >
           <PlusCircle className="w-4 h-4" />
           Create New
@@ -514,7 +514,7 @@ export default function TournamentsPage() {
               <Zap className="w-5 h-5 text-red-500 animate-pulse" />
               Live Auctions
             </h2>
-            <div className="h-px flex-1 bg-gradient-to-r from-red-500/20 to-transparent" />
+            <div className="h-px flex-1 bg-linear-to-r from-red-500/20 to-transparent" />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {liveTournaments.map(renderTournamentCard)}
@@ -529,7 +529,7 @@ export default function TournamentsPage() {
             <CheckCircle className="w-5 h-5 text-emerald-500" />
             Concluded Auctions
           </h2>
-          <div className="h-px flex-1 bg-gradient-to-r from-emerald-500/20 to-transparent" />
+          <div className="h-px flex-1 bg-linear-to-r from-emerald-500/20 to-transparent" />
         </div>
 
         {concludedTournaments.length > 0 ? (
@@ -552,7 +552,7 @@ export default function TournamentsPage() {
               <Clock className="w-5 h-5 text-slate-500" />
               Draft / Upcoming
             </h2>
-            <div className="h-px flex-1 bg-gradient-to-r from-slate-500/20 to-transparent" />
+            <div className="h-px flex-1 bg-linear-to-r from-slate-500/20 to-transparent" />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {otherTournaments.map(renderTournamentCard)}
@@ -614,7 +614,7 @@ export default function TournamentsPage() {
                 <button
                   type="submit"
                   disabled={isUpdating}
-                  className="flex-1 py-3 bg-gradient-to-r from-violet-600 to-cyan-500 text-white rounded-xl font-bold shadow-lg shadow-violet-600/20 hover:scale-105 transition-all disabled:opacity-50"
+                  className="flex-1 py-3 bg-linear-to-r from-violet-600 to-cyan-500 text-white rounded-xl font-bold shadow-lg shadow-violet-600/20 hover:scale-105 transition-all disabled:opacity-50"
                 >
                   {isUpdating ? "Saving..." : "Save Changes"}
                 </button>

@@ -264,6 +264,7 @@ export default function PlayerRegistrationPage() {
    const immersiveMode = isApplicationRoute(pathname);
    const router = useRouter();
    const { data: session } = useSession();
+   const isAdmin = session?.user?.role === "admin";
 
    // State
    const [lang, setLang] = useState("EN");
@@ -757,7 +758,10 @@ export default function PlayerRegistrationPage() {
       try {
          const res = await fetch(`${API_URL}/api/tournaments/${tournamentId}`, {
             method: "PUT",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+               "Content-Type": "application/json",
+               "Authorization": `Bearer ${session?.accessToken}`
+            },
             body: JSON.stringify({
                registrationTitle: editValues.title,
                registrationDetails: editValues.details,
@@ -1044,24 +1048,24 @@ export default function PlayerRegistrationPage() {
                   <div className="relative group mb-6">
                      {/* Decorative Glow */}
                      <div className="absolute -inset-4 bg-violet-600/10 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
-                     
-                     <div className="relative w-28 h-28 rounded-[2rem] bg-[#1a2036]/50 backdrop-blur-xl border border-white/10 flex items-center justify-center shadow-2xl overflow-hidden group-hover:scale-105 transition-transform duration-500">
+
+                     <div className="relative w-28 h-28 rounded-4xl bg-[#1a2036]/50 backdrop-blur-xl border border-white/10 flex items-center justify-center shadow-2xl overflow-hidden group-hover:scale-105 transition-transform duration-500">
                         <div className="absolute inset-0 bg-linear-to-br from-white/5 to-transparent"></div>
                         {tournament?.organizerLogo ? (
-                           <img 
-                              src={getMediaUrl(tournament.organizerLogo)} 
-                              alt="Tournament Logo" 
-                              className="w-full h-full object-contain p-3 relative z-10" 
+                           <img
+                              src={getMediaUrl(tournament.organizerLogo)}
+                              alt="Tournament Logo"
+                              className="w-full h-full object-contain p-3 relative z-10"
                            />
                         ) : (
                            <Trophy className="w-12 h-12 text-violet-500 relative z-10" />
                         )}
                      </div>
                   </div>
-                  
+
                   <div className="space-y-1">
                      <p className="text-[10px] font-[1000] text-violet-400 uppercase tracking-[0.4em] leading-none mb-1 opacity-80">{t("SECURE APPLY")}</p>
-                     <h2 className="text-[13px] font-black text-white uppercase tracking-tighter leading-tight max-w-[180px] mx-auto">
+                     <h2 className="text-[13px] font-black text-white uppercase tracking-tighter leading-tight max-w-45 mx-auto">
                         {tournament?.name}
                      </h2>
                   </div>
@@ -1070,7 +1074,7 @@ export default function PlayerRegistrationPage() {
                {/* Connected Progress Flow */}
                <div className="flex-1 px-2">
                   <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-8 opacity-50">{t("Application Steps")}</p>
-                  
+
                   <div className="relative space-y-0">
                      {/* Vertical Line */}
                      <div className="absolute left-4 top-2 bottom-2 w-px bg-white/5"></div>
@@ -1079,14 +1083,14 @@ export default function PlayerRegistrationPage() {
                         const completed = item.id < flowStep;
                         const active = item.id === flowStep;
                         const pending = item.id > flowStep;
-                        
+
                         return (
                            <div key={item.id} className="relative flex items-start gap-4 pb-10 last:pb-0">
                               {/* Step Dot/Icon */}
                               <div className={`relative z-10 w-8 h-8 rounded-full border flex items-center justify-center transition-all duration-500 shrink-0
-                                 ${completed ? 'bg-emerald-500 border-emerald-400 text-white shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 
-                                   active ? 'bg-violet-600 border-violet-400 text-white shadow-[0_0_20px_rgba(139,92,246,0.4)] scale-110' : 
-                                   'bg-slate-900 border-white/10 text-slate-600'}
+                                 ${completed ? 'bg-emerald-500 border-emerald-400 text-white shadow-[0_0_15px_rgba(16,185,129,0.3)]' :
+                                    active ? 'bg-violet-600 border-violet-400 text-white shadow-[0_0_20px_rgba(139,92,246,0.4)] scale-110' :
+                                       'bg-slate-900 border-white/10 text-slate-600'}
                               `}>
                                  {completed ? <CheckCircle size={14} /> : <span className="text-[10px] font-black">{item.id}</span>}
                               </div>
@@ -1132,12 +1136,12 @@ export default function PlayerRegistrationPage() {
          </div>
 
          <header className={`sticky top-0 z-100 bg-[#020617]/80 backdrop-blur-2xl border-b border-white/5 ${immersiveMode ? 'hidden' : ''}`}>
-            <div className="max-w-4xl mx-auto px-4 sm:px-6 h-[75px] flex items-center justify-between">
+            <div className="max-w-4xl mx-auto px-4 sm:px-6 h-18.75 flex items-center justify-between">
                <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-xl bg-linear-to-br from-violet-600 to-cyan-500 flex items-center justify-center shadow-xl shadow-violet-600/20 rotate-3 shrink-0">
                      <Trophy className="w-4 h-4 text-white" />
                   </div>
-                  <h2 className="text-[13px] font-black text-white italic tracking-tighter uppercase leading-none truncate max-w-[150px] sm:max-w-none">
+                  <h2 className="text-[13px] font-black text-white italic tracking-tighter uppercase leading-none truncate max-w-37.5 sm:max-w-none">
                      {tournament?.name || t("Player Portal")}
                   </h2>
                </div>
@@ -1171,6 +1175,16 @@ export default function PlayerRegistrationPage() {
                         </div>
                      </div>
                      <div className="flex items-center gap-2 shrink-0">
+                        {isAdmin && (
+                           <button
+                              type="button"
+                              onClick={() => setIsEditing(true)}
+                              className="inline-flex items-center gap-2 rounded-xl border border-violet-500/30 bg-violet-600/15 px-3 py-2 text-[9px] font-black uppercase tracking-[0.22em] text-violet-200 transition-all hover:bg-violet-600/25 hover:text-white"
+                           >
+                              <Edit2 className="h-3.5 w-3.5" />
+                              Edit
+                           </button>
+                        )}
                         <button type="button" onClick={() => setShowExitConfirm(true)} className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-all text-slate-400">
                            <X size={16} />
                         </button>
@@ -1387,9 +1401,9 @@ export default function PlayerRegistrationPage() {
                                        <div>
                                           <h2 className="text-3xl font-black text-white uppercase italic tracking-normal drop-shadow-md mb-1">{checkResult.name}</h2>
                                           <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-lg border text-[9px] font-black uppercase tracking-widest mt-1 italic ${checkResult.status === 'pending' ? 'bg-amber-500/10 border-amber-500/20 text-amber-400 animate-pulse' :
-                                                checkResult.status === 'available' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' :
-                                                   checkResult.status === 'sold' ? 'bg-violet-500/10 border-violet-500/20 text-violet-400' :
-                                                      'bg-red-500/10 border-red-500/20 text-red-400'
+                                             checkResult.status === 'available' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' :
+                                                checkResult.status === 'sold' ? 'bg-violet-500/10 border-violet-500/20 text-violet-400' :
+                                                   'bg-red-500/10 border-red-500/20 text-red-400'
                                              }`}>
                                              <Zap size={10} className={checkResult.status === 'pending' ? 'animate-bounce' : ''} />
                                              {checkResult.message || (checkResult.status === 'pending' ? t("Awaiting Approval") : t("Registration Approved!"))}
@@ -1408,9 +1422,9 @@ export default function PlayerRegistrationPage() {
                                           <div className="space-y-1">
                                              <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest">{t("Status")}</p>
                                              <p className={`text-[10px] font-bold tracking-wide italic uppercase ${checkResult.status === 'pending' ? 'text-amber-400' :
-                                                   checkResult.status === 'available' ? 'text-emerald-400' :
-                                                      checkResult.status === 'sold' ? 'text-violet-400' :
-                                                         'text-red-400'
+                                                checkResult.status === 'available' ? 'text-emerald-400' :
+                                                   checkResult.status === 'sold' ? 'text-violet-400' :
+                                                      'text-red-400'
                                                 }`}>{checkResult.status || t("Pending")}</p>
                                           </div>
                                           <div className="space-y-1">
@@ -1439,7 +1453,7 @@ export default function PlayerRegistrationPage() {
                </div>
             )}
 
-            <div className={`mb-16 relative group ${immersiveMode ? 'hidden' : ''}`}>
+            <div className={`mb-16 relative group ${!isEditing && immersiveMode ? 'hidden' : ''}`}>
                {isEditing ? (
                   <div className="max-w-4xl mx-auto space-y-6 animate-in zoom-in-95 duration-300 bg-[#0B0F2A]/90 p-8 rounded-[3rem] border border-violet-500/30 shadow-[0_30px_60px_rgba(0,0,0,0.5)] backdrop-blur-2xl">
                      <div className="flex items-center gap-3 mb-4">
@@ -1593,7 +1607,17 @@ export default function PlayerRegistrationPage() {
                            )}
                         </h1>
                         {tournament?.registrationEndDate && (
-                           <div className="mb-8 flex flex-col items-center gap-2 animate-in fade-in duration-1000">
+                           <div className="mb-8 flex flex-col items-center gap-2 animate-in fade-in duration-1000 relative">
+                              {isAdmin && (
+                                 <button
+                                    type="button"
+                                    onClick={() => setIsEditing(true)}
+                                    className="absolute -top-3 right-0 sm:right-3 inline-flex items-center gap-2 rounded-full border border-violet-500/30 bg-violet-600/15 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.25em] text-violet-300 transition-all hover:bg-violet-600/25 hover:text-white"
+                                 >
+                                    <Edit2 className="h-3.5 w-3.5" />
+                                    Edit Deadline
+                                 </button>
+                              )}
                               <div className={`flex items-center gap-3 px-6 py-2 ${isUrgent ? 'bg-red-600/10 border-red-500/20 shadow-red-600/10' : 'bg-emerald-600/10 border-emerald-500/20 shadow-emerald-600/10'} rounded-2xl backdrop-blur-xl shadow-lg transition-colors duration-500`}>
                                  <Clock className={`w-4 h-4 ${isUrgent ? 'text-red-500 animate-pulse' : 'text-emerald-500'}`} />
                                  <div className="flex items-center gap-4">
@@ -1613,7 +1637,7 @@ export default function PlayerRegistrationPage() {
 
                         {tournament?.registrationDetails && (
                            <div className="mt-8 max-w-2xl mx-auto p-6 bg-white/5 border border-white/10 rounded-3xl text-left animate-in fade-in slide-in-from-bottom-4 shadow-2xl backdrop-blur-md group-hover:border-violet-500/20 transition-all">
-                              {session && (
+                              {isAdmin && (
                                  <button onClick={() => setIsEditing(true)} className="absolute -top-3 -right-3 w-10 h-10 bg-violet-600 rounded-2xl flex items-center justify-center opacity-0 group-hover:opacity-100 hover:scale-110 transition-all shadow-xl shadow-violet-600/30">
                                     <Edit2 size={16} className="text-white" />
                                  </button>
@@ -1628,7 +1652,7 @@ export default function PlayerRegistrationPage() {
                            </div>
                         )}
 
-                        {!tournament?.registrationDetails && session && (
+                        {!tournament?.registrationDetails && isAdmin && (
                            <button onClick={() => setIsEditing(true)} className="mt-6 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 border-dashed rounded-xl text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center justify-center gap-2 mx-auto transition-all">
                               <Plus size={14} /> {t("Configure Tournament Guidelines")}
                            </button>
@@ -1642,7 +1666,7 @@ export default function PlayerRegistrationPage() {
                                     formElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
                                  }
                               }}
-                              className="px-12 py-5 bg-linear-to-r from-violet-600 to-cyan-500 text-white rounded-[2rem] text-sm font-[1000] uppercase tracking-[0.3em] shadow-[0_20px_50px_rgba(124,58,237,0.4)] hover:scale-105 active:scale-95 transition-all flex items-center gap-4 group"
+                              className="px-12 py-5 bg-linear-to-r from-violet-600 to-cyan-500 text-white rounded-4xl text-sm font-[1000] uppercase tracking-[0.3em] shadow-[0_20px_50px_rgba(124,58,237,0.4)] hover:scale-105 active:scale-95 transition-all flex items-center gap-4 group"
                            >
                               {t("Start Registration")}
                               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
@@ -1677,19 +1701,35 @@ export default function PlayerRegistrationPage() {
                </div>
             )}
 
+            {tournament?.registrationEndDate && !isClosed && (
+               <div className={`mb-6 rounded-3xl border px-5 py-4 shadow-2xl backdrop-blur-xl ${isUrgent ? 'bg-red-500/10 border-red-500/20' : 'bg-emerald-500/10 border-emerald-500/20'}`}>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                     <div>
+                        <p className={`text-[10px] font-black uppercase tracking-[0.3em] ${isUrgent ? 'text-red-300' : 'text-emerald-300'}`}>Application Deadline</p>
+                        <p className="text-sm font-bold text-white mt-1">
+                           Closes on {dateLabel || new Date(tournament.registrationEndDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} at {tournament.registrationEndTime || '23:59'}
+                        </p>
+                     </div>
+                     <div className={`text-xs font-black uppercase tracking-[0.2em] tabular-nums ${isUrgent ? 'text-red-400' : 'text-emerald-400'}`}>
+                        {timeLeft}
+                     </div>
+                  </div>
+               </div>
+            )}
+
             <div className="bg-[#0f172a]/40 border border-white/10 rounded-3xl sm:rounded-[3rem] p-4 sm:p-8 md:p-12 shadow-2xl relative backdrop-blur-3xl">
                {isClosed ?
                   <div className="py-12 md:py-20 flex flex-col items-center justify-center text-center animate-in zoom-in-95 duration-700">
-                     <div className="w-20 h-20 md:w-24 md:h-24 rounded-[2rem] bg-red-600/10 border border-red-500/20 flex items-center justify-center mb-6 md:mb-8 shadow-[0_0_50px_rgba(239,68,68,0.15)] relative">
+                     <div className="w-20 h-20 md:w-24 md:h-24 rounded-4xl bg-red-600/10 border border-red-500/20 flex items-center justify-center mb-6 md:mb-8 shadow-[0_0_50px_rgba(239,68,68,0.15)] relative">
                         <X className="w-10 h-10 md:w-12 md:h-12 text-red-500" />
-                        <div className="absolute inset-0 rounded-[2rem] border-2 border-red-500 animate-ping opacity-20" />
+                        <div className="absolute inset-0 rounded-4xl border-2 border-red-500 animate-ping opacity-20" />
                      </div>
                      <h2 className="text-3xl md:text-5xl font-black text-white uppercase italic tracking-normal mb-4 drop-shadow-xl">{t("Registration")} <span className="text-red-500">{t("Closed")}</span></h2>
                      <p className="text-slate-400 text-xs md:text-sm max-w-md mx-auto leading-loose font-bold italic tracking-wide">
                         {tournament?.closedMessage || t("Registration is currently closed. Please contact the tournament organizer for more details.")}
                      </p>
                   </div>
-                : 
+                  :
                   <form onSubmit={(e) => e.preventDefault()} className="space-y-6 md:space-y-12 relative z-10 pb-24">
 
                      {step === 0 && !showStatusCheck && (
@@ -1733,11 +1773,11 @@ export default function PlayerRegistrationPage() {
                      {step === 1 && (
                         <div className="space-y-6 md:space-y-10 animate-in fade-in slide-in-from-right-8 relative">
                            <div className="flex justify-between items-center pb-6 border-b border-white/5">
-                             <div>
-                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{t("Phase")} 01</p>
-                                <h3 className="text-xl font-black italic uppercase tracking-tighter text-white">{t("Personal Identity")}</h3>
-                             </div>
-                             <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)] animate-pulse" />
+                              <div>
+                                 <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{t("Phase")} 01</p>
+                                 <h3 className="text-xl font-black italic uppercase tracking-tighter text-white">{t("Personal Identity")}</h3>
+                              </div>
+                              <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)] animate-pulse" />
                            </div>
                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                               {!isFieldHidden("name") && <Field icon={User} label={t("Player Name")} name="name" value={formData.name} onChange={handleInputChange} placeholder={t("FULL LEGAL NAME")} required={isFieldRequired("name")} error={fieldErrors.name} />}

@@ -611,7 +611,7 @@ router.post("/:id/go-live", async (req, res) => {
 });
 
 // Update Tournament
-router.put("/:id", async (req, res) => {
+router.put("/:id", authMiddleware, authorize(['admin']), async (req, res) => {
   try {
     const {
       registrationTitle, registrationDetails, registrationEndDate, registrationEndTime,
