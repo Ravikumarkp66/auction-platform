@@ -210,9 +210,8 @@ export default function IconPlayersPanel() {
       alert("Please enter both 'From' and 'To' indices");
       return;
     }
-    <div className="px-8 py-6 bg-white/2 border-t border-white/5 grid grid-cols-2 gap-4">
-      const start = parseInt(deleteRange.from) - 1; // 0-indexed
-      const end = parseInt(deleteRange.to) - 1;
+    const start = parseInt(deleteRange.from) - 1; // 0-indexed
+    const end = parseInt(deleteRange.to) - 1;
 
       const iconsToDelete = filteredIcons.slice(start, end + 1);
       if (iconsToDelete.length === 0) {
