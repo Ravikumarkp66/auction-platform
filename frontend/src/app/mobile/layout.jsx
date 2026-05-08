@@ -1,6 +1,7 @@
 import React from 'react';
-import '../globals.css'; // Fixed path: globals.css is one level up from mobile folder
+import '../globals.css';
 import MobileAppStyles from './MobileAppStyles';
+import MobileBottomNav from '@/components/MobileBottomNav';
 
 export const metadata = {
   title: 'LCE Mobile',
@@ -13,9 +14,11 @@ export default function MobileLayout({ children }) {
       <MobileAppStyles />
       
       {/* Fullscreen App Container */}
-      <main className="flex-1 flex flex-col relative w-full h-full">
+      <main className="flex-1 flex flex-col relative w-full h-full pb-32">
         {children}
       </main>
+
+      <MobileBottomNav />
     </div>
   );
 }
