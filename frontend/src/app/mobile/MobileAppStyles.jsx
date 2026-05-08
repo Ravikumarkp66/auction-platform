@@ -17,6 +17,15 @@ export default function MobileAppStyles() {
         padding: 0;
         overflow-x: hidden;
         overscroll-behavior: none;
+        -webkit-tap-highlight-color: transparent;
+        -webkit-touch-callout: none;
+        user-select: none;
+      }
+
+      /* Allow selection in inputs only */
+      input, textarea {
+        user-select: text;
+        -webkit-user-select: text;
       }
 
       /* Hide Scrollbars */
