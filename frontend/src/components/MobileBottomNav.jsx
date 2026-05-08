@@ -11,7 +11,7 @@ export default function MobileBottomNav() {
   const tabs = [
     { name: 'Home', icon: Home, path: '/mobile' },
     { name: 'Live', icon: Zap, path: '/auctions' },
-    { name: 'Leagues', icon: Trophy, path: '/tournaments' },
+    { name: 'Auctions', icon: Trophy, path: '/auctions' }, // Using Trophy for now as a stand-in for elite auctions
     { name: 'Profile', icon: User, path: '/login' }, // Using login for now
   ];
 

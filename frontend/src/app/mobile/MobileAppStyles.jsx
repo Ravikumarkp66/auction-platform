@@ -53,6 +53,24 @@ export default function MobileAppStyles() {
         -webkit-user-select: text;
       }
 
+      /* Hide Scrollbars Globally */
+      *::-webkit-scrollbar {
+        display: none;
+      }
+      * {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+
+      /* No-scrollbar utility */
+      .no-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
+      .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+
       /* Ensure the Next.js wrapper doesn't break the layout */
       .app-container {
         min-height: 100dvh;
