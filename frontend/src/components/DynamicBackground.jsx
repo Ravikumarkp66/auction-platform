@@ -8,7 +8,7 @@ export default function DynamicBackground() {
   const pathname = usePathname();
 
   useEffect(() => {
-    if (isApplicationRoute(pathname)) {
+    if (isApplicationRoute(pathname) || pathname.startsWith('/mobile')) {
       document.body.style.backgroundImage = "none";
       return;
     }
