@@ -26,7 +26,7 @@ const authOptions = {
           const email = (credentials.email || "").toLowerCase().trim();
           const password = (credentials.password || "").trim();
 
-          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5050'}/api/auth/login`, {
+          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://10.251.142.178:5050'}/api/auth/login`, {
             method: 'POST',
             body: JSON.stringify({ email, password }),
             headers: { "Content-Type": "application/json" }
@@ -71,7 +71,7 @@ const authOptions = {
           // Google login needs to sync with backend to get a valid JWT
           try {
             console.log("[AUTH SYNC] Synchronizing Google User with Backend:", userEmail);
-            const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:5050";
+            const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://10.251.142.178:5050";
             const res = await fetch(`${apiBase}/api/auth/google-sync`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },

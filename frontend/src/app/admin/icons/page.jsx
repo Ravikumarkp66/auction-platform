@@ -4,9 +4,11 @@ import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { Star, Trophy, Users, ShieldCheck, User, Search, Hash, AlertCircle, Edit3, FileSpreadsheet, Upload, RefreshCw, X, Camera, Trash2, AlertTriangle } from "lucide-react";
 import * as XLSX from "xlsx";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
 import { useAuction } from "../layout";
 import { io } from "socket.io-client";
-import { API_URL, getProxiedImageUrl } from "../../../lib/apiConfig";
+import { API_URL, getProxiedImageUrl, getMediaUrl } from "../../../lib/apiConfig";
 import ImageEditModal from "../../../components/ImageEditModal";
 
 let socket;
@@ -23,7 +25,11 @@ export default function IconPlayersPanel() {
   const [importedData, setImportedData] = useState([]); // Store parsed CSV data for display
   const [editingPlayer, setEditingPlayer] = useState(null); // New state for editing name & details
   const [isDeleteRangeModalOpen, setIsDeleteRangeModalOpen] = useState(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [deleteRange, setDeleteRange] = useState({ from: "", to: "" });
+  const [newIcon, setNewIcon] = useState({ name: "", mobile: "", village: "", role: "All-Rounder", team: "", imageUrl: "" });
+  const [isUploading, setIsUploading] = useState(false);
+  const [pdfProgress, setPdfProgress] = useState({ current: 0, total: 0, active: false });
 
   // Year logic removed as per user request to restore old system
 
@@ -92,31 +98,44 @@ export default function IconPlayersPanel() {
         const tableData = [];
 
         data.forEach((row, rowIndex) => {
-          const teamName = row["TEAM NAME"] || findValue(row, ["team name", "team", "ತಂಡ", "ತಂಡದ ಹೆಸರು"]);
+          // Priority headers: icon name, team name, iconNo, iconPhot
+          const teamName = findValue(row, ["team name", "team", "teamname", "ತಂಡ"]) || "Unassigned";
 
-          if (!teamName) return;
-
-          const possibleIconNames = ["Captain Name", "Vice Captain Name", "Retain Player Name", "icon name", "name", "player name", "ಆಟಗಾರನ ಹೆಸರು", "ಹೆಸರು"];
-          const rowImageUrl = findValue(row, ["photo", "image", "imageUrl", "link", "url", "ಭಾವಚಿತ್ರ"]);
-          const rowMobile = findValue(row, ["mobile", "phone", "contact", "ಮೊಬೈಲ್", "ದೂರವಾಣಿ"]) || "-";
-          const rowVillage = findValue(row, ["village", "town", "city", "ಗ್ರಾಮ", "ಸ್ಥಳ"]) || "-";
+          const possibleIconNames = [
+            "icon name", "iconname", "player name", "playername", "name", "player",
+            "Captain Name", "Vice Captain Name", "Retain Player Name", "Retained Player", 
+            "Captain", "Vice Captain"
+          ];
+          const rowImageUrl = findValue(row, ["iconPhot", "iconphot", "photo", "image", "imageUrl", "link", "url"]);
+          const rowMobile = findValue(row, ["iconNo", "iconno", "mobile", "phone", "contact"]) || "-";
+          const rowVillage = findValue(row, ["village", "town", "city", "ಸ್ಥಳ"]) || "-";
+          const rowRole = findValue(row, ["role", "category", "position", "ಸ್ಥಾನ"]) || "All-Rounder";
 
           possibleIconNames.forEach(key => {
             const val = findValue(row, [key]);
-            if (val && val.toLowerCase() !== "yes" && val.toLowerCase() !== "no") {
+            if (val) {
+              const cleanVal = val.toLowerCase().trim();
+              const cleanTeam = teamName.toLowerCase().trim();
+              
+              // Only skip if they are EXACTLY the same to avoid missing players with similar names
+              if (cleanVal === cleanTeam && cleanVal !== "" && cleanVal !== "unassigned") {
+                return;
+              }
               const icon = {
                 name: val,
                 mobile: rowMobile,
                 imageUrl: rowImageUrl || "",
-                role: "All-Rounder",
+                role: rowRole,
                 village: rowVillage,
                 age: 0,
                 teamName: teamName.trim(),
-                iconRole: null,
+                iconRole: key.toLowerCase().includes("captain") ? "captain" : 
+                          key.toLowerCase().includes("vice") ? "viceCaptain" : 
+                          key.toLowerCase().includes("retain") ? "retained" : null,
                 isIcon: true
               };
               importedIcons.push(icon);
-              tableData.push({ ...icon, type: 'Icon' });
+              tableData.push({ ...icon, type: icon.iconRole || 'Icon' });
             }
           });
         });
@@ -129,14 +148,34 @@ export default function IconPlayersPanel() {
           const teamsRes = await fetch(`${API_URL}/api/teams?tournamentId=${selectedAuction._id}`);
           const teamsData = await teamsRes.json();
           const teamMap = {};
-          teamsData.forEach(t => {
-            teamMap[t.name.toLowerCase().trim()] = t._id;
+          const teamList = teamsData || [];
+          
+          teamList.forEach(t => {
+            const name = t.name.toLowerCase().trim();
+            const shortName = (t.shortName || "").toLowerCase().trim();
+            teamMap[name] = t._id;
+            if (shortName) teamMap[shortName] = t._id;
           });
 
-          const playersWithTeamIds = importedIcons.map(icon => ({
-            ...icon,
-            team: teamMap[icon.teamName.toLowerCase()] || null
-          }));
+          const playersWithTeamIds = importedIcons.map(icon => {
+            const searchName = icon.teamName.toLowerCase().trim();
+            // 1. Exact match
+            let teamId = teamMap[searchName];
+            
+            // 2. Fuzzy match: check if CSV name is contained in DB name or vice-versa
+            if (!teamId) {
+              const found = teamList.find(t => {
+                const dbName = t.name.toLowerCase().trim();
+                const dbShort = (t.shortName || "").toLowerCase().trim();
+                return dbName.includes(searchName) || 
+                       searchName.includes(dbName) || 
+                       (dbShort && (dbShort.includes(searchName) || searchName.includes(dbShort)));
+              });
+              if (found) teamId = found._id;
+            }
+
+            return { ...icon, team: teamId || null };
+          });
 
           const res = await fetch(`${API_URL}/api/players/import`, {
             method: "POST",
@@ -152,7 +191,7 @@ export default function IconPlayersPanel() {
 
           if (res.ok) {
             const result = await res.json();
-            alert(`Successfully added ${result.added} icon players! (Skipped ${result.skipped} duplicates)`);
+            alert(`Successfully added ${result.added} icon players!`);
             fetchIcons();
             if (socket && socket.connected) {
               socket.emit("auctionUpdate", { type: "system_refresh", auctionId: selectedAuction._id });
@@ -205,52 +244,328 @@ export default function IconPlayersPanel() {
     }
   };
 
-  const handleDeleteRange = async () => {
-    if (!deleteRange.from || !deleteRange.to) {
-      alert("Please enter both 'From' and 'To' indices");
-      return;
-    }
-    const start = parseInt(deleteRange.from) - 1; // 0-indexed
-    const end = parseInt(deleteRange.to) - 1;
-
-      const iconsToDelete = filteredIcons.slice(start, end + 1);
-      if (iconsToDelete.length === 0) {
-        alert("No icons found in this range");
+  const handleAddIcon = async () => {
+    if (!newIcon.name || !newIcon.team) {
+      alert("Name and Team are required");
       return;
     }
 
-      if (!confirm(`Are you sure you want to delete ${iconsToDelete.length} icons (from Row ${deleteRange.from} to Row ${deleteRange.to})? This cannot be undone.`)) return;
-
-      try {
-      const res = await fetch(`${API_URL}/api/players/bulk-delete`, {
+    try {
+      setLoading(true);
+      const res = await fetch(`${API_URL}/api/players`, {
         method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      "Authorization": `Bearer ${session?.accessToken}`
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session?.accessToken}`
         },
-      body: JSON.stringify({playerIds: iconsToDelete.map(p => p._id) }),
+        body: JSON.stringify({
+          ...newIcon,
+          isIcon: true,
+          tournamentId: selectedAuction._id,
+          status: "sold"
+        })
       });
 
       if (res.ok) {
-        alert("Icons deleted successfully");
-      setIsDeleteRangeModalOpen(false);
-      setDeleteRange({from: "", to: "" });
-      fetchIcons();
-      if (socket && socket.connected) {
-        socket.emit("auctionUpdate", { type: "system_refresh", auctionId: selectedAuction._id });
+        alert("Icon player added successfully");
+        setIsAddModalOpen(false);
+        setNewIcon({ name: "", mobile: "", village: "", role: "All-Rounder", team: "", imageUrl: "" });
+        fetchIcons();
+        if (socket && socket.connected) {
+          socket.emit("auctionUpdate", { type: "system_refresh", auctionId: selectedAuction._id });
         }
+      } else {
+        const err = await res.json();
+        alert(`Failed: ${err.message}`);
       }
     } catch (err) {
-        alert("Error deleting range");
+      alert("Error adding icon player");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const getTeamName = (teamId) => {
-    const team = teams.find(t => t._id === (teamId?._id || teamId));
-      return team ? team.name : "Unassigned";
+  const handlePhotoUpload = async (file) => {
+    try {
+      setIsUploading(true);
+      const fileType = file.type;
+      const response = await fetch(`${API_URL}/api/upload/get-upload-url?fileType=${fileType}&folder=players`);
+      if (!response.ok) throw new Error(`Upload URL failed: ${response.status}`);
+      const { uploadUrl, fileUrl } = await response.json();
+
+      await fetch(uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": fileType } });
+      setNewIcon({ ...newIcon, imageUrl: fileUrl });
+    } catch (err) {
+      console.error("Upload failed", err);
+      alert("Upload failed");
+    } finally {
+      setIsUploading(false);
+    }
   };
 
-      const filteredIcons = icons
+  const handleDeleteRange = async () => {
+    const fromVal = parseInt(deleteRange.from);
+    const toVal = parseInt(deleteRange.to);
+
+    if (isNaN(fromVal) || isNaN(toVal)) {
+      alert("Please enter valid numeric IDs for the range");
+      return;
+    }
+
+    // Target players based on their visible ICON ID
+    const iconsToDelete = icons.filter(p => {
+      const id = parseInt(p.iconId);
+      return !isNaN(id) && id >= fromVal && id <= toVal;
+    });
+
+    if (iconsToDelete.length === 0) {
+      alert(`No icon players found with IDs between ${fromVal} and ${toVal}. Check the ICON ID shown on the player cards.`);
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to delete ${iconsToDelete.length} elite icon players?`)) return;
+
+    try {
+      setLoading(true);
+      const res = await fetch(`${API_URL}/api/players/bulk-delete`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session?.accessToken}`
+        },
+        body: JSON.stringify({ ids: iconsToDelete.map(p => p._id) }),
+      });
+
+      if (res.ok) {
+        alert(`${iconsToDelete.length} icon players deleted successfully`);
+        setIsDeleteRangeModalOpen(false);
+        setDeleteRange({ from: "", to: "" });
+        fetchIcons();
+        socket?.emit("auctionUpdate", { type: "system_refresh", auctionId: selectedAuction._id });
+      } else {
+        alert("Failed to delete the selected range");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error during bulk delete");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getTeamName = (p) => {
+    if (!p) return "Unassigned";
+    const teamId = p.team;
+    const team = teams.find(t => t._id === (teamId?._id || teamId));
+    if (team) return team.name;
+    // Fallback to raw teamName string if ID lookup fails
+    return p.teamName || "Unassigned";
+  };
+
+  const downloadPDF = async () => {
+    try {
+      setLoading(true);
+      const doc = new jsPDF();
+      
+      // Optimized Helper to get compressed image as base64
+      const getBase64Image = (url, isHighQuality = false) => {
+        return new Promise((resolve) => {
+          const img = new Image();
+          img.crossOrigin = 'Anonymous';
+          const timeout = setTimeout(() => {
+            img.src = '';
+            resolve(null);
+          }, 8000);
+
+          img.onload = () => {
+            clearTimeout(timeout);
+            try {
+              const canvas = document.createElement('canvas');
+              // If high quality requested (like for branding), keep larger dimensions
+              const maxDim = isHighQuality ? 1200 : 400;
+              let width = img.width;
+              let height = img.height;
+              
+              if (width > height) {
+                if (width > maxDim) {
+                  height *= maxDim / width;
+                  width = maxDim;
+                }
+              } else {
+                if (height > maxDim) {
+                  width *= maxDim / height;
+                  height = maxDim;
+                }
+              }
+              
+              canvas.width = width;
+              canvas.height = height;
+              const ctx = canvas.getContext('2d');
+              ctx.drawImage(img, 0, 0, width, height);
+              // Use 0.8 quality for better clarity (High Priority)
+              resolve(canvas.toDataURL('image/jpeg', isHighQuality ? 0.95 : 0.8));
+            } catch (e) {
+              console.error("Canvas compression failed", e);
+              resolve(null);
+            }
+          };
+          img.onerror = () => {
+            clearTimeout(timeout);
+            resolve(null);
+          };
+          img.src = getProxiedImageUrl(url);
+        });
+      };
+
+      // Pre-load logos with full URL construction
+      const tournamentLogo = selectedAuction?.organizerLogo ? await getBase64Image(getMediaUrl(selectedAuction.organizerLogo)) : null;
+      const manifestLogo = await getBase64Image('/icon-512.png');
+
+      // Pre-load all images with progress tracking
+      const total = filteredIcons.length;
+      setPdfProgress({ current: 0, total, active: true });
+      
+      const base64Images = [];
+      for (let i = 0; i < filteredIcons.length; i++) {
+        const p = filteredIcons[i];
+        setPdfProgress(prev => ({ ...prev, current: i + 1 }));
+        
+        let imgBase64 = null;
+        if (p.imageUrl) {
+          imgBase64 = await getBase64Image(p.imageUrl);
+        }
+        base64Images.push(imgBase64);
+      }
+
+      const tableData = filteredIcons.map((p, idx) => ({
+        id: idx + 1,
+        name: p.name.toUpperCase(),
+        team: getTeamName(p).toUpperCase(),
+        image: base64Images[idx]
+      }));
+
+      autoTable(doc, {
+        startY: 45,
+        head: [['#', 'PHOTO', 'PLAYER NAME', 'TEAM NAME']],
+        body: tableData.map(row => [row.id, '', row.name, row.team]),
+        theme: 'grid',
+        headStyles: { 
+          fillColor: [234, 179, 8], 
+          textColor: 0, 
+          halign: 'center',
+          fontStyle: 'bold',
+          fontSize: 10
+        },
+        styles: { 
+          fontSize: 9, 
+          cellPadding: 4, 
+          minCellHeight: 50, // More height for safety
+          valign: 'middle' 
+        },
+        rowPageBreak: 'avoid', // Prevent row from splitting across pages
+        columnStyles: {
+          0: { cellWidth: 15, halign: 'center' },
+          1: { cellWidth: 40, halign: 'center' },
+          2: { cellWidth: 65, fontStyle: 'bold' },
+          3: { fontStyle: 'bold', textColor: [100, 100, 100] }
+        },
+        margin: { top: 45 },
+        didDrawPage: (data) => {
+          // Draw Header Background on every page
+          doc.setFillColor(17, 24, 39);
+          doc.rect(0, 0, 210, 40, 'F');
+
+          // Draw Tournament Logo (Left)
+          if (tournamentLogo) {
+            try {
+              doc.addImage(tournamentLogo, 'PNG', 15, 5, 25, 25);
+            } catch (e) { console.error("T-Logo failed", e); }
+          }
+
+          // Draw Manifest Logo (Right)
+          if (manifestLogo) {
+            try {
+              doc.addImage(manifestLogo, 'PNG', 170, 5, 25, 25);
+            } catch (e) { console.error("M-Logo failed", e); }
+          }
+
+          // Draw Text
+          doc.setFontSize(20);
+          doc.setTextColor(255, 255, 255);
+          doc.setFont("helvetica", "bold");
+          doc.text(`${selectedAuction?.name || 'Tournament'}`, 105, 20, { align: 'center' });
+
+          doc.setFontSize(10);
+          doc.setTextColor(234, 179, 8);
+          doc.text("ELITE ICON PLAYERS REGISTRY", 105, 30, { align: 'center' });
+
+          // Page Numbering & Contact Info (FOOTER)
+          const pageCount = doc.internal.getNumberOfPages();
+          doc.setFontSize(8);
+          doc.setTextColor(150);
+          
+          // Left: Contact Info
+          doc.text("Contact: +91 81470 89330", 15, doc.internal.pageSize.getHeight() - 15);
+          doc.text("Insta: @lakshmish_virat", 15, doc.internal.pageSize.getHeight() - 10);
+          
+          // Right: Page Number
+          doc.text(`Page ${pageCount}`, 195, doc.internal.pageSize.getHeight() - 10, { align: "right" });
+          
+          // Center: Credits
+          doc.text("Designed by Ravikumar K P", 105, doc.internal.pageSize.getHeight() - 10, { align: "center" });
+        },
+        didDrawCell: (data) => {
+          if (data.section === 'body' && data.column.index === 1) {
+            const row = tableData[data.row.index];
+            if (row?.image) {
+              try {
+                // FORCE scale to 30x30 and center
+                const s = 30;
+                const x = data.cell.x + (data.cell.width - s) / 2;
+                const y = data.cell.y + (data.cell.height - s) / 2;
+                doc.addImage(row.image, 'PNG', x, y, s, s, undefined, 'FAST');
+              } catch (e) {
+                console.error("AddImage failed", e);
+              }
+            }
+          }
+        }
+      });
+
+      // ADD LAST PAGE: Creator Contact Card (HIGH QUALITY)
+      try {
+        const creatorImg = await getBase64Image('/creator-contact.png', true);
+        if (creatorImg) {
+          doc.addPage();
+          doc.setFillColor(15, 23, 42);
+          doc.rect(0, 0, 210, 297, 'F');
+          
+          const imgWidth = 180;
+          const imgHeight = 180;
+          const x = (210 - imgWidth) / 2;
+          const y = (297 - imgHeight) / 2;
+          // Use "SLOW" for better rendering quality on the final page
+          doc.addImage(creatorImg, 'JPEG', x, y, imgWidth, imgHeight, undefined, "SLOW");
+          
+          doc.setFontSize(14);
+          doc.setTextColor(255, 255, 255);
+          doc.text("LAKSHMISH CRICKET EVENTS", 105, y + imgHeight + 15, { align: 'center' });
+        }
+      } catch (e) {
+        console.error("Failed to add creator contact page", e);
+      }
+
+      doc.save(`${selectedAuction?.name?.replace(/\s+/g, '_') || 'tournament'}_icons.pdf`);
+    } catch (err) {
+      console.error("PDF Generation failed:", err);
+      alert(`Error generating PDF: ${err.message}`);
+    } finally {
+      setLoading(false);
+      setPdfProgress({ current: 0, total: 0, active: false });
+    }
+  };
+
+  const filteredIcons = icons
     .filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()))
     .sort((a, b) => (a.iconId || 0) - (b.iconId || 0));
 
@@ -291,11 +606,27 @@ export default function IconPlayersPanel() {
 
           <div className="flex flex-wrap items-center gap-3">
             <button
+              onClick={downloadPDF}
+              className="p-3.5 bg-blue-500/10 text-blue-500 border border-blue-500/20 rounded-2xl hover:bg-blue-500/20 transition-all active:scale-95 shadow-xl"
+              title="Download PDF"
+            >
+              <FileSpreadsheet className="w-4 h-4" />
+            </button>
+
+            <button
               onClick={() => setIsDeleteRangeModalOpen(true)}
               className="p-3.5 bg-red-500/10 text-red-500 border border-red-500/20 rounded-2xl hover:bg-red-500/20 transition-all active:scale-95 shadow-xl"
               title="Delete Range"
             >
               <Trash2 className="w-4 h-4" />
+            </button>
+
+            <button
+              onClick={() => setIsAddModalOpen(true)}
+              className="px-6 py-3.5 bg-white/5 border border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white hover:bg-white/10 transition-all flex items-center gap-2 shadow-xl"
+            >
+              <Users className="w-4 h-4 text-yellow-500" />
+              Add Icon
             </button>
 
             <label
@@ -307,6 +638,34 @@ export default function IconPlayersPanel() {
             </label>
           </div>
         </div>
+
+        {/* ── PDF GENERATION OVERLAY ── */}
+        {pdfProgress.active && (
+          <div className="fixed inset-0 z-200 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md" />
+            <div className="relative w-full max-w-md bg-slate-900 border border-white/10 rounded-3xl p-10 text-center shadow-2xl">
+              <div className="relative w-32 h-32 mx-auto mb-8">
+                <div className="absolute inset-0 rounded-full border-4 border-white/5" />
+                <div 
+                  className="absolute inset-0 rounded-full border-4 border-yellow-500 border-t-transparent animate-spin" 
+                  style={{ animationDuration: '2s' }}
+                />
+                <div className="absolute inset-0 flex items-center justify-center flex-col">
+                  <span className="text-2xl font-black text-white">{Math.round((pdfProgress.current / pdfProgress.total) * 100)}%</span>
+                  <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Complete</span>
+                </div>
+              </div>
+              <h3 className="text-xl font-black text-white uppercase tracking-tight mb-2">Preparing <span className="text-yellow-500">PDF Roster</span></h3>
+              <p className="text-sm text-slate-400 font-medium mb-6">Processing {pdfProgress.current} of {pdfProgress.total} players...</p>
+              <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-yellow-500 transition-all duration-300 shadow-[0_0_15px_rgba(234,179,8,0.5)]" 
+                  style={{ width: `${(pdfProgress.current / pdfProgress.total) * 100}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ── PARSED DATA TABLE ── */}
         {importedData.length > 0 && (
@@ -324,9 +683,9 @@ export default function IconPlayersPanel() {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-white/5 border-b border-white/10">
-                    <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Team</th>
-                    <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Name</th>
-                    <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Number</th>
+                    <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Team Name</th>
+                    <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Player Name</th>
+                    <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Icon No</th>
                     <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Village</th>
                     <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Photo</th>
                   </tr>
@@ -338,14 +697,6 @@ export default function IconPlayersPanel() {
                         <span className="text-sm font-black text-white">{row.teamName}</span>
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded-full border ${row.type === 'Captain' ? 'bg-yellow-500/10 border-yellow-500/20 text-yellow-400' :
-                          row.type === 'Vice Captain' ? 'bg-amber-500/10 border-amber-500/20 text-amber-400' :
-                            'bg-slate-800 border-slate-700 text-slate-400'
-                          }`}>
-                          {row.type}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           {row.imageUrl ? (
                             <img src={getProxiedImageUrl(row.imageUrl)} alt={row.name} className="w-8 h-8 rounded-lg object-cover border border-white/10" />
@@ -354,7 +705,10 @@ export default function IconPlayersPanel() {
                               {row.name?.[0] || 'P'}
                             </div>
                           )}
-                          <span className="text-sm font-bold text-white">{row.name}</span>
+                          <div>
+                            <p className="text-sm font-bold text-white leading-none">{row.name}</p>
+                            <span className="text-[8px] font-black uppercase tracking-widest text-slate-500 mt-1 block">{row.type}</span>
+                          </div>
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -472,7 +826,7 @@ export default function IconPlayersPanel() {
                   <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Assigned Team</p>
                   <div className="flex items-center justify-end gap-2">
                     <Trophy className="w-3.5 h-3.5 text-yellow-500/60" />
-                    <p className="text-sm font-black text-white">{getTeamName(p.team)}</p>
+                    <p className="text-sm font-black text-white">{getTeamName(p)}</p>
                   </div>
                 </div>
               </div>
@@ -485,6 +839,123 @@ export default function IconPlayersPanel() {
             </div>
           )}
         </div>
+
+        {/* ── ADD ICON MODAL ── */}
+        {isAddModalOpen && (
+          <div className="fixed inset-0 z-150 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={() => setIsAddModalOpen(false)} />
+            <div className="relative w-full max-w-lg bg-slate-900 border border-white/10 rounded-[3rem] p-10 shadow-2xl overflow-hidden">
+              {/* Background Glow */}
+              <div className="absolute -top-24 -right-24 w-48 h-48 bg-yellow-500/10 blur-[80px] rounded-full" />
+              
+              <div className="relative">
+                <div className="flex items-center justify-between mb-8">
+                  <div>
+                    <h3 className="text-2xl font-black text-white uppercase tracking-tight">Add New <span className="text-yellow-500">Icon</span></h3>
+                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Manual Player Registry</p>
+                  </div>
+                  <button onClick={() => setIsAddModalOpen(false)} className="p-3 hover:bg-white/5 rounded-2xl transition-all">
+                    <X className="w-6 h-6 text-slate-500" />
+                  </button>
+                </div>
+
+                <div className="space-y-6">
+                  {/* Photo Section */}
+                  <div className="flex flex-col items-center gap-4 py-4">
+                    <div className="relative group">
+                      <div className="w-32 h-32 rounded-4xl bg-white/5 border-2 border-dashed border-white/10 overflow-hidden flex items-center justify-center group-hover:border-yellow-500/50 transition-all">
+                        {newIcon.imageUrl ? (
+                          <img src={getProxiedImageUrl(newIcon.imageUrl)} alt="Preview" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="text-center">
+                            <Camera className="w-8 h-8 text-slate-600 mx-auto mb-2" />
+                            <span className="text-[8px] font-black text-slate-600 uppercase">No Photo</span>
+                          </div>
+                        )}
+                        {isUploading && (
+                          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center">
+                            <RefreshCw className="w-6 h-6 text-yellow-500 animate-spin" />
+                          </div>
+                        )}
+                      </div>
+                      <label className="absolute -bottom-2 -right-2 bg-yellow-500 text-black p-2.5 rounded-2xl shadow-xl cursor-pointer hover:scale-110 active:scale-95 transition-all">
+                        <Upload className="w-4 h-4" />
+                        <input 
+                          type="file" 
+                          className="hidden" 
+                          accept="image/*" 
+                          onChange={(e) => {
+                            if (e.target.files?.[0]) handlePhotoUpload(e.target.files[0]);
+                          }} 
+                        />
+                      </label>
+                    </div>
+                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Player Photograph</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Player Name</label>
+                      <input
+                        type="text"
+                        placeholder="Full Name"
+                        className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white font-bold outline-none focus:border-yellow-500 transition-all"
+                        value={newIcon.name}
+                        onChange={e => setNewIcon({ ...newIcon, name: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Team Retained</label>
+                      <select
+                        className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white font-bold outline-none focus:border-yellow-500 transition-all appearance-none cursor-pointer"
+                        value={newIcon.team}
+                        onChange={e => setNewIcon({ ...newIcon, team: e.target.value })}
+                      >
+                        <option value="" className="bg-slate-900">Select Team</option>
+                        {teams.map(t => (
+                          <option key={t._id} value={t._id} className="bg-slate-900">{t.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Mobile Number</label>
+                      <input
+                        type="text"
+                        placeholder="Optional"
+                        className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white font-bold outline-none focus:border-yellow-500 transition-all"
+                        value={newIcon.mobile}
+                        onChange={e => setNewIcon({ ...newIcon, mobile: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Village/Town</label>
+                      <input
+                        type="text"
+                        placeholder="Optional"
+                        className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white font-bold outline-none focus:border-yellow-500 transition-all"
+                        value={newIcon.village}
+                        onChange={e => setNewIcon({ ...newIcon, village: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="pt-6">
+                    <button
+                      onClick={handleAddIcon}
+                      disabled={loading || isUploading}
+                      className="w-full py-5 bg-linear-to-r from-yellow-600 to-amber-500 border border-yellow-500/20 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white shadow-xl shadow-yellow-500/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50"
+                    >
+                      {loading ? "Adding Player..." : "Create Icon Player"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ── DELETE RANGE MODAL ── */}
         {isDeleteRangeModalOpen && (

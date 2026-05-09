@@ -302,27 +302,14 @@ router.post("/import",
             let skipped = 0;
 
             const lastPlayer = await Player.findOne({ tournamentId, isIcon: { $ne: true }, isDeleted: { $ne: true } }).sort({ applicationId: -1 });
-            let nextId = lastPlayer ? (lastPlayer.applicationId || 0) + 1 : 1;
+            let nextAppId = lastPlayer ? (lastPlayer.applicationId || 0) + 1 : 1;
+
+            const lastIcon = await Player.findOne({ tournamentId, isIcon: true, isDeleted: { $ne: true } }).sort({ iconId: -1 });
+            let nextIconId = lastIcon ? (lastIcon.iconId || 0) + 1 : 1;
 
             for (const p of players) {
-                const mobile = String(p.mobile || "").trim();
-                const name = String(p.name || "").trim();
-
-                const existing = await Player.findOne({
-                    tournamentId,
-                    $or: [
-                        { name: { $regex: new RegExp(`^${name}$`, "i") }, mobile: mobile },
-                        ...(mobile && mobile !== "-" ? [{ mobile: mobile }] : [])
-                    ],
-                    isDeleted: { $ne: true }
-                });
-
-                if (existing) {
-                    skipped++;
-                    continue;
-                }
-
                 const sanitizedPlayer = sanitizeObject(p);
+                const isIcon = sanitizedPlayer.isIcon === true;
 
                 // Set photo object if image URL exists
                 const photoData = sanitizedPlayer.imageUrl 
@@ -332,8 +319,9 @@ router.post("/import",
                 const newPlayer = new Player({
                     ...sanitizedPlayer,
                     tournamentId,
-                    applicationId: nextId++,
-                    status: "pending",
+                    applicationId: isIcon ? undefined : nextAppId++,
+                    iconId: isIcon ? nextIconId++ : undefined,
+                    status: isIcon ? "sold" : "pending",
                     isDeleted: false,
                     photo: photoData
                 });
@@ -342,7 +330,7 @@ router.post("/import",
                 added++;
             }
 
-            res.json({ success: true, added, skipped });
+            res.json({ success: true, added, skipped: 0 });
         } catch (err) {
             console.error("[IMPORT ERROR]:", err);
             res.status(500).json({ message: err.message });

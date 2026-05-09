@@ -28,7 +28,7 @@ const nextConfig = {
 
   async rewrites() {
     const backendUrl =
-      process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5050';
+      process.env.NEXT_PUBLIC_API_URL || 'http://10.251.142.178:5050';
 
     return [
       {

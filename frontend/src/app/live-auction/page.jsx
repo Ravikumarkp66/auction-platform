@@ -13,7 +13,7 @@ import ImageCropperModal from '../../components/ImageCropperModal'
 import { uploadToS3 } from "../../lib/uploadToS3"
 import ResultOverlay from '../../components/ResultOverlay'
 import jsPDF from 'jspdf'
-import { FaUndo, FaUsers, FaHistory, FaGavel, FaImage, FaChevronLeft, FaChevronRight, FaPlay, FaTrophy, FaSignOutAlt, FaCog, FaChartBar } from "lucide-react"
+import { Search, FaUndo, FaUsers, FaHistory, FaGavel, FaImage, FaChevronLeft, FaChevronRight, FaPlay, FaTrophy, FaSignOutAlt, FaCog, FaChartBar } from "lucide-react"
 import { API_URL, DEFAULT_ASSETS, getMediaUrl } from "@/lib/apiConfig";
 import CurrencySymbol from "@/components/CurrencySymbol";
 
@@ -69,6 +69,7 @@ function LiveAuctionContent() {
   const [showImageEditor, setShowImageEditor] = useState(false)
   const [showRoundTransition, setShowRoundTransition] = useState(null) // { label, subtitle }
   const [result, setResult] = useState(null) // Result Overlay State
+  const [searchAppId, setSearchAppId] = useState("");
 
   // Smart bid increment logic based on current tournament rules
   const getBidIncrement = (currentBid) => {
@@ -1344,6 +1345,31 @@ function LiveAuctionContent() {
     }
   }
 
+  const goToPlayerByAppId = (appId) => {
+    if (!appId) return;
+    const appIdStr = appId.toString().padStart(2, '0');
+    // Find player by application ID (handling both string and number)
+    const foundIdx = players.findIndex(p => 
+      !p.type && 
+      (p.applicationId?.toString().padStart(2, '0') === appIdStr || 
+       p._rawAppId?.toString().padStart(2, '0') === appIdStr)
+    );
+
+    if (foundIdx !== -1) {
+      setCurrentPlayerIndex(foundIdx);
+      setCurrentBid(0);
+      setHighestBidder(null);
+      setRoundHistory([]);
+      // Update URL without full refresh
+      if (currentTournamentId) {
+        router.push(`/live-auction?id=${currentTournamentId}&player=${appIdStr}`, undefined, { shallow: true });
+      }
+      setSearchAppId("");
+    } else {
+      alert(`Player with Application ID #${appIdStr} not found in this tournament.`);
+    }
+  };
+
   const nextPlayer = () => {
     // Confirmation before accidental move if BID IS ACTIVE
     if (!isRoundMarker && currentPlayerIndex < players.length - 1 && currentPlayerIndex !== -1) {
@@ -1670,6 +1696,25 @@ function LiveAuctionContent() {
             </Link>
 
             <div className="flex items-center gap-2">
+              {/* Search by Application ID */}
+              <div className="flex bg-slate-900/80 rounded-xl p-1 border border-slate-700 shadow-xl backdrop-blur-md items-center group/search">
+                <input 
+                  type="text"
+                  placeholder="ID#"
+                  className="bg-transparent border-none outline-none text-[10px] font-black w-14 px-2 text-violet-400 placeholder:text-slate-600 focus:w-24 transition-all"
+                  value={searchAppId}
+                  onChange={(e) => setSearchAppId(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && goToPlayerByAppId(searchAppId)}
+                />
+                <button 
+                  onClick={() => goToPlayerByAppId(searchAppId)}
+                  className="p-2 hover:bg-slate-800 rounded-lg transition-all text-slate-500 hover:text-violet-400"
+                  title="Jump to Application ID"
+                >
+                  <Search className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
               <CompactBreakControl
                 socket={socket}
                 onViewSquads={() => router.push(`/teams?tournament=${currentTournamentId}`)}
@@ -2143,6 +2188,17 @@ function LiveAuctionContent() {
                       {/* Village and Role */}
                       <div className="flex items-center gap-2 mb-2">
                         <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{player.village || "Unknown Village"}</span>
+                        <span className="text-slate-700">•</span>
+                        <button 
+                          onClick={() => {
+                            const newId = prompt("Enter Application ID to jump to:", player.applicationId);
+                            if (newId) goToPlayerByAppId(newId);
+                          }}
+                          className="text-[10px] font-black text-violet-500 hover:text-violet-400 uppercase tracking-widest transition-colors flex items-center gap-1"
+                          title="Click to jump to another ID"
+                        >
+                          ID #{player.applicationId}
+                        </button>
                       </div>
 
                       {editingPlayerField === 'name' ? (

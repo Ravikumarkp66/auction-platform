@@ -25,7 +25,7 @@ app.use(helmet({
       scriptSrc: ["'self'"],  // ✅ NO unsafe-inline, unsafe-eval
       styleSrc: ["'self'", "https://fonts.googleapis.com"],
       imgSrc: ["'self'", "data:", "blob:", "https://*.amazonaws.com", "https://ui-avatars.com"],
-      connectSrc: ["'self'", "https://*.amazonaws.com", "wss://localhost:*"],
+      connectSrc: ["'self'", "https://*.amazonaws.com", "wss://localhost:*", "ws://10.251.142.178:*", "ws://localhost:*"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       objectSrc: ["'none'"],
       upgradeInsecureRequests: [],
@@ -66,6 +66,7 @@ app.use(express.urlencoded({ limit: '10mb', extended: true }));
 const allowedOrigins = [
   process.env.NODE_ENV === 'development' && "http://localhost:3000",
   process.env.NODE_ENV === 'development' && "http://127.0.0.1:3000",
+  process.env.NODE_ENV === 'development' && "http://10.251.142.178:3000",
   "https://auction-platform-beta.vercel.app",
   process.env.FRONTEND_URL
 ].filter(Boolean);
@@ -361,8 +362,8 @@ app.use((req, res) => {
 
 const PORT = process.env.PORT || 5050;
 
-server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+server.listen(PORT, "0.0.0.0", () => {
+  console.log(`Server running on http://10.251.142.178:${PORT}`);
 });
 
 // Graceful shutdown

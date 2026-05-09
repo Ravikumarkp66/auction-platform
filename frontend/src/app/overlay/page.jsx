@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { io } from "socket.io-client"
 import Image from "next/image"
 import { API_URL, getMediaUrl } from "../../lib/apiConfig"
+import { Instagram, Phone, Gavel, Award, Users, ClipboardList, Zap } from "lucide-react"
 import AuctionOverlayNew from '../../components/AuctionOverlayNew'
 import TeamDrawCinematic from './TeamDrawCinematic'
 import TeamDrawOverlay from '../../components/TeamDrawOverlay'
@@ -54,6 +55,22 @@ export default function OverlayPage() {
   const [showPoolView, setShowPoolView] = useState(false)
   // Store auction result separately to prevent unmounting during animation
   const [auctionResult, setAuctionResult] = useState(null)
+  const [windowSize, setWindowSize] = useState({
+    width: typeof window !== 'undefined' ? window.innerWidth : 1200,
+    height: typeof window !== 'undefined' ? window.innerHeight : 800
+  })
+
+  // Track window size for responsive background switching
+  useEffect(() => {
+    const handleResize = () => setWindowSize({
+      width: window.innerWidth,
+      height: window.innerHeight
+    })
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
+  const isMobileView = windowSize.width < windowSize.height || windowSize.width < 768
 
   // Update auction result ONLY when socket event arrives (not from player status)
   useEffect(() => {
@@ -445,98 +462,150 @@ export default function OverlayPage() {
       'custom': breakTime.customReason || t.customBreak
     }
     const breakTypeLabel = breakTypeMap[breakTime.type] || t.customBreak
+    const tourLogo = auction?.tournament?.logoUrl || auction?.tournament?.assets?.logoUrl;
     
     return (
-      <div 
-        className="min-h-screen w-full flex items-center justify-center relative overflow-hidden"
-        style={{
-          backgroundImage: `url('${splashUrl}')`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat'
-        }}
-      >
-        {/* Subtle golden glow overlay */}
+      <div className="min-h-screen w-full bg-[#050505] flex items-center justify-center overflow-hidden font-sans">
+        {/* Aspect-Ratio Poster Stage */}
         <div 
-          className="absolute inset-0 pointer-events-none"
+          className="relative flex flex-col items-center overflow-hidden"
           style={{
-            background: 'radial-gradient(circle at 50% 60%, rgba(255,200,0,0.15), transparent 60%)'
-          }}
-        />
-        
-        {/* Timer Box - Embedded into logo, positioned below badge */}
-        <div 
-          className="absolute text-center"
-          style={{
-            top: '70%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            padding: '14px 28px',
-            background: 'rgba(30, 15, 0, 0.35)',
-            backdropFilter: 'blur(12px)',
-            border: '1px solid rgba(255, 200, 0, 0.25)',
-            borderRadius: '20px',
-            boxShadow: '0 0 40px rgba(255, 180, 0, 0.5), inset 0 0 12px rgba(255, 200, 0, 0.25)',
-            animation: 'breathe 2.5s ease-in-out infinite'
+            width: isMobileView ? '100vw' : '100vw',
+            height: isMobileView ? '100vh' : '100vh',
+            maxWidth: isMobileView ? '100vw' : '177.78vh',
+            maxHeight: isMobileView ? '177.78vw' : '100vh',
+            aspectRatio: isMobileView ? '9 / 16' : '16 / 9',
+            backgroundImage: `url(${isMobileView 
+              ? 'https://auction-platform-kp.s3.ap-south-1.amazonaws.com/backgrounds/auction-timer-mobile.png' 
+              : 'https://auction-platform-kp.s3.ap-south-1.amazonaws.com/backgrounds/auction-timer.png'})`,
+            backgroundSize: '100% 100%',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
+            backgroundColor: '#000'
           }}
         >
-          {/* Outer glow halo */}
-          <div 
-            className="absolute pointer-events-none"
-            style={{
-              inset: '-20px',
-              background: 'radial-gradient(circle, rgba(255,200,0,0.25), transparent 70%)',
-              zIndex: -1,
-              filter: 'blur(20px)'
-            }}
-          />
-          {/* Break Type */}
-          <p 
-            className="text-amber-300 text-xs font-black uppercase tracking-[0.3em] mb-1"
-            style={{
-              textShadow: '0 0 10px rgba(0,0,0,0.8), 0 2px 4px rgba(0,0,0,0.9)'
-            }}
-          >
-            {breakTypeLabel}
-          </p>
-          
-          {/* Countdown Timer */}
-          <div 
-            className="font-mono font-black"
-            style={{
-              fontSize: '72px',
-              fontWeight: 900,
-              letterSpacing: '2px',
-              color: '#fff',
-              textShadow: '0 0 20px rgba(0,0,0,0.9), 0 0 40px rgba(255,200,0,1), 0 2px 4px rgba(0,0,0,0.8)'
-            }}
-          >
-            {remainingMinutes.toString().padStart(2, '0')}:{displaySeconds.toString().padStart(2, '0')}
+          {/* 1. TOP LOGO SECTION */}
+          {tourLogo && (
+            <div className="absolute top-[6%] left-1/2 -translate-x-1/2 w-[18%] max-w-[130px] flex justify-center z-30">
+              <img 
+                src={getMediaUrl(tourLogo)} 
+                alt="Logo" 
+                className="w-full h-auto object-contain drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]"
+              />
+            </div>
+          )}
+
+          {/* 2. SECONDARY SIDE ELEMENTS - Minimized on mobile to focus on timer */}
+          <div className="absolute inset-0 z-10 pointer-events-none px-[4%] py-[10%] flex justify-between items-center">
+            {/* Left Sidebar - Extremely compact on mobile */}
+            <div className={`flex flex-col gap-1.5 transition-all duration-700 ${isMobileView ? 'opacity-20 scale-[0.6] origin-left mt-[20%]' : 'opacity-100'}`}>
+              {[
+                { icon: <Gavel size={12}/>, label: 'AUCTION' },
+                { icon: <Users size={12}/>, label: 'REGISTRY' },
+                { icon: <Award size={12}/>, label: 'SQUADS' }
+              ].map((s, idx) => (
+                <div key={idx} className="flex items-center gap-2 px-3 py-1.5 bg-black/40 backdrop-blur-sm border-l-2 border-amber-500/30 rounded-r-md">
+                  <span className="text-amber-400">{s.icon}</span>
+                  <span className="text-white text-[8px] font-black tracking-widest uppercase">{s.label}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Right Sidebar - Extremely compact on mobile */}
+            <div className={`flex flex-col items-end transition-all duration-700 ${isMobileView ? 'opacity-20 scale-[0.6] origin-right mt-[20%]' : 'opacity-100'}`}>
+              <div className="bg-black/40 backdrop-blur-md p-3 border-r-2 border-amber-500/30 rounded-l-lg max-w-[110px] text-right">
+                <p className="text-white text-[9px] font-black leading-tight tracking-tighter uppercase italic">
+                  YOUR EVENT,<br/>OUR MANAGEMENT
+                </p>
+              </div>
+            </div>
           </div>
-          
-          {/* We will be back */}
-          <p 
-            className="text-white text-xs font-black uppercase tracking-[0.2em] mt-1"
+
+          {/* 3. CENTER TIMER FRAME - THE MAIN FOCUS */}
+          <div 
+            className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center justify-center text-center z-20 pointer-events-none"
             style={{
-              textShadow: '0 0 10px rgba(0,0,0,0.8), 0 2px 4px rgba(0,0,0,0.9)'
+              top: isMobileView ? '43.5%' : '44%', 
+              width: isMobileView ? '75%' : '50%',
+              height: isMobileView ? '20%' : '30%',
+              gap: isMobileView ? '12px' : '16px',
+              padding: isMobileView ? '24px 16px' : '32px'
             }}
           >
-            {t.weWillBeBack}
-          </p>
+            {/* Break Title */}
+            <p 
+              className="text-amber-400 font-extrabold uppercase italic tracking-[0.25em] leading-none"
+              style={{
+                fontSize: isMobileView ? 'clamp(0.8rem, 3.5vw, 1.2rem)' : 'clamp(1rem, 2.5vw, 2.2rem)',
+                textShadow: '0 2px 10px rgba(0,0,0,1)'
+              }}
+            >
+              {breakTypeLabel}
+            </p>
+            
+            {/* Countdown Timer - Rebalanced for template frame */}
+            <div 
+              className="font-mono font-extrabold leading-none text-white flex items-center justify-center"
+              style={{
+                fontSize: isMobileView ? 'clamp(2.8rem, 12vw, 4.8rem)' : 'clamp(5rem, 14vw, 8.5rem)',
+                letterSpacing: '-0.02em',
+                textShadow: `
+                  0 0 10px rgba(0,0,0,1), 
+                  0 0 30px rgba(255,200,0,0.25)
+                `,
+                animation: 'timerSubtleGlow 4s ease-in-out infinite'
+              }}
+            >
+              {remainingMinutes.toString().padStart(2, '0')}:{displaySeconds.toString().padStart(2, '0')}
+            </div>
+            
+            {/* Subtitle */}
+            <p 
+              className="text-white/80 font-black uppercase tracking-[0.15em] leading-none"
+              style={{
+                fontSize: isMobileView ? 'clamp(0.6rem, 2.2vw, 0.9rem)' : 'clamp(0.8rem, 1.8vw, 1.4rem)',
+                textShadow: '0 2px 6px rgba(0,0,0,1)'
+              }}
+            >
+              {t.weWillBeBack}
+            </p>
+          </div>
+
+          {/* 4. FOOTER SECTION - Simplified & Fixed */}
+          <div 
+            className="absolute left-0 right-0 px-6 flex flex-wrap items-center justify-center gap-3 sm:gap-10 z-30"
+            style={{
+              bottom: 'max(4%, env(safe-area-inset-bottom, 20px))',
+              paddingBottom: 'env(safe-area-inset-bottom)'
+            }}
+          >
+            {/* Phone */}
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-black/60 backdrop-blur-xl border border-white/5 rounded-full shadow-xl">
+              <Phone size={11} className="text-amber-400" />
+              <span className="text-white font-bold tracking-tighter" style={{ fontSize: 'clamp(9px, 1.2vw, 14px)' }}>
+                +91 81470 89330
+              </span>
+            </div>
+
+            {/* Instagram */}
+            <a 
+              href="https://www.instagram.com/lakshmish_virat/" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-black/60 backdrop-blur-xl border border-white/5 rounded-full shadow-xl"
+            >
+              <Instagram size={11} className="text-amber-400" />
+              <span className="text-white font-bold tracking-tighter" style={{ fontSize: 'clamp(9px, 1.2vw, 14px)' }}>
+                @lakshmish_virat
+              </span>
+            </a>
+          </div>
         </div>
-        
-        {/* Breathe animation */}
+
         <style jsx>{`
-          @keyframes breathe {
-            0% {
-              transform: translate(-50%, -50%) scale(1);
-            }
-            50% {
-              transform: translate(-50%, -50%) scale(1.04);
-            }
-            100% {
-              transform: translate(-50%, -50%) scale(1);
-            }
+          @keyframes timerSubtleGlow {
+            0%, 100% { opacity: 1; filter: brightness(1); }
+            50% { opacity: 0.95; filter: brightness(1.05); }
           }
         `}</style>
       </div>
@@ -601,104 +670,6 @@ export default function OverlayPage() {
         />
       )}
       
-      {/* BREAK TIME */}
-      {breakTime && (
-        <div 
-          className="min-h-screen w-full flex items-center justify-center relative overflow-hidden"
-          style={{
-            backgroundImage: `url('${getMediaUrl(splashUrl)}')`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            backgroundRepeat: 'no-repeat'
-          }}
-        >
-          {/* Subtle golden glow overlay */}
-          <div 
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              background: 'radial-gradient(circle at 50% 60%, rgba(255,200,0,0.15), transparent 60%)'
-            }}
-          />
-          
-          {/* Timer Box - Embedded into logo, positioned below badge */}
-          <div 
-            className="absolute text-center"
-            style={{
-              top: '70%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              padding: '14px 28px',
-              background: 'rgba(30, 15, 0, 0.35)',
-              backdropFilter: 'blur(12px)',
-              border: '1px solid rgba(255, 200, 0, 0.25)',
-              borderRadius: '20px',
-              boxShadow: '0 0 40px rgba(255, 180, 0, 0.5), inset 0 0 12px rgba(255, 200, 0, 0.25)',
-              animation: 'breathe 2.5s ease-in-out infinite'
-            }}
-          >
-            {/* Outer glow halo */}
-            <div 
-              className="absolute pointer-events-none"
-              style={{
-                inset: '-20px',
-                background: 'radial-gradient(circle, rgba(255,200,0,0.25), transparent 70%)',
-                zIndex: -1,
-                filter: 'blur(20px)'
-              }}
-            />
-            {/* Break Type */}
-            <p 
-              className="text-amber-300 text-xs font-black uppercase tracking-[0.3em] mb-1"
-              style={{
-                textShadow: '0 0 10px rgba(0,0,0,0.8), 0 2px 4px rgba(0,0,0,0.9)'
-              }}
-            >
-              {breakTypeLabel}
-            </p>
-            
-            {/* Countdown Timer */}
-            <div 
-              className="font-mono font-black"
-              style={{
-                fontSize: '72px',
-                fontWeight: 900,
-                letterSpacing: '2px',
-                color: '#fff',
-                textShadow: '0 0 20px rgba(0,0,0,0.9), 0 0 40px rgba(255,200,0,1), 0 2px 4px rgba(0,0,0,0.8)'
-              }}
-            >
-              {remainingMinutes.toString().padStart(2, '0')}:{displaySeconds.toString().padStart(2, '0')}
-            </div>
-            
-            {/* We will be back */}
-            <p 
-              className="text-white text-xs font-black uppercase tracking-[0.2em] mt-1"
-              style={{
-                textShadow: '0 0 10px rgba(0,0,0,0.8), 0 2px 4px rgba(0,0,0,0.9)'
-              }}
-            >
-              {t.weWillBeBack}
-            </p>
-          </div>
-          
-          {/* Breathe animation */}
-          <style jsx>{`
-            @keyframes breathe {
-              0% {
-                transform: translate(-50%, -50%) scale(1);
-              }
-              50% {
-                transform: translate(-50%, -50%) scale(1.04);
-              }
-              100% {
-                transform: translate(-50%, -50%) scale(1);
-              }
-            }
-          `}</style>
-        </div>
-      )}
-      
-
     </>
   )
 }

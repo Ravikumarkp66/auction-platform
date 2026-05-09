@@ -11,7 +11,7 @@ export const getApiUrl = () => {
     if (envUrl && envUrl !== "undefined" && envUrl.startsWith("http")) {
       return envUrl;
     }
-    return ""; // Fallback to relative path/proxy
+    return "http://10.251.142.178:5050"; // Network IP for mobile testing
   }
 
   // Use environment variable if it exists and is not just a placeholder
@@ -21,7 +21,7 @@ export const getApiUrl = () => {
 
   // Fallback for SSR
   if (process.env.NODE_ENV === "development") {
-    return "http://localhost:5050";
+    return "http://10.251.142.178:5050";
   }
   
   // Final fallback (production default if env missing)

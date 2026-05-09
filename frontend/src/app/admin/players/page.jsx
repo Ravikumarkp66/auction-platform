@@ -99,6 +99,7 @@ function PlayersRegistryContent() {
   const [confirmText, setConfirmText] = useState("");
   const [editImageTarget, setEditImageTarget] = useState(null); // { id, url, type }
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+  const [pdfProgress, setPdfProgress] = useState({ current: 0, total: 0, active: false });
   const [isDeleteRangeModalOpen, setIsDeleteRangeModalOpen] = useState(false);
   const [deleteRange, setDeleteRange] = useState({ from: "", to: "" });
 
@@ -624,71 +625,97 @@ function PlayersRegistryContent() {
 
       const doc = new jsPDF();
       const tournamentName = currentAuction?.name || "Tournament";
-      const tournamentYear = currentAuction?.year ? ` - ${currentAuction.year}` : "";
-      const pdfHeaderTitle = `${tournamentName}${tournamentYear}`;
-      const orgLogoUrl = currentAuction?.organizerLogo;
+      
+      const getBase64 = async (url, isHighQuality = false) => {
+        return new Promise((resolve) => {
+          const img = new Image();
+          img.crossOrigin = 'Anonymous';
+          const timeout = setTimeout(() => {
+            img.src = '';
+            resolve(null);
+          }, 8000);
 
-      // Top Left Organizer Logo (Try to fetch and add)
-      if (orgLogoUrl) {
-        try {
-          const b64 = await getBase64FromUrl(orgLogoUrl);
-          if (b64) {
-            doc.addImage(b64, "PNG", 14, 10, 22, 22);
-          }
-        } catch (e) {
-          console.warn("Org Logo image data failed", e);
+          img.onload = () => {
+            clearTimeout(timeout);
+            try {
+              const canvas = document.createElement('canvas');
+              const maxDim = isHighQuality ? 1200 : 400; // High res for branding
+              let width = img.width;
+              let height = img.height;
+              
+              if (width > height) {
+                if (width > maxDim) {
+                  height *= maxDim / width;
+                  width = maxDim;
+                }
+              } else {
+                if (height > maxDim) {
+                  width *= maxDim / height;
+                  height = maxDim;
+                }
+              }
+              
+              canvas.width = width;
+              canvas.height = height;
+              const ctx = canvas.getContext('2d');
+              ctx.drawImage(img, 0, 0, width, height);
+              // Use 0.8 for players, 0.95 for Branding
+              resolve(canvas.toDataURL('image/jpeg', isHighQuality ? 0.95 : 0.8));
+            } catch (e) {
+              resolve(null);
+            }
+          };
+          img.onerror = () => {
+            clearTimeout(timeout);
+            resolve(null);
+          };
+          const fullUrl = url.startsWith('http') ? 
+            `${API_URL}/api/proxy-image?url=${encodeURIComponent(url)}` : 
+            url;
+          img.src = fullUrl;
+        });
+      };
+
+      const getMediaUrlFull = (path) => {
+        if (!path) return null;
+        if (path.startsWith('http')) return path;
+        return `${API_URL}${path.startsWith('/') ? '' : '/'}${path}`;
+      };
+
+      const tournamentLogo = currentAuction?.organizerLogo ? await getBase64(getMediaUrlFull(currentAuction.organizerLogo)) : null;
+      const manifestLogo = await getBase64(`${window.location.origin}/icon-512.png`);
+
+      const total = filtered.length;
+      setPdfProgress({ current: 0, total, active: true });
+      
+      const base64Images = [];
+      const sortedPlayers = [...filtered].sort((a, b) => (a.applicationId || 0) - (b.applicationId || 0));
+      
+      for (let i = 0; i < sortedPlayers.length; i++) {
+        const p = sortedPlayers[i];
+        setPdfProgress(prev => ({ ...prev, current: i + 1 }));
+        
+        const imgUrl = p.imageUrl || p.image;
+        let imgData = null;
+        if (imgUrl) {
+          imgData = await getBase64(imgUrl);
         }
+        base64Images.push(imgData);
       }
 
-      // 1. Header & Branding (Centered)
-      const pageWidth = doc.internal.pageSize.getWidth();
+      const rawData = sortedPlayers.map((p, i) => {
+        return {
+          id: String(p.applicationId || i + 1),
+          image: base64Images[i],
+          name: (p.name || "N/A").toUpperCase(),
+          contact: String(p.mobile || p.phone || p.contactNumber || "-"),
+          role: String(p.role || "-").toUpperCase(),
+          village: String(p.village || "-").toUpperCase()
+        };
+      });
 
-      doc.setFont(undefined, "bold");
-      doc.setFontSize(22);
-      doc.setTextColor(15, 23, 42);
-      doc.text(pdfHeaderTitle, pageWidth / 2, 18, { align: "center" });
-
-      doc.setFont(undefined, "normal");
-      doc.setFontSize(12);
-      doc.setTextColor(10, 10, 10);
-      doc.text("Registered Players List!", pageWidth / 2, 26, { align: "center" });
-
-      doc.setFontSize(8);
-      doc.setTextColor(100, 116, 139);
-      doc.text(`Official Record: ${tournamentName}`, pageWidth / 2, 33, { align: "center" });
-      doc.text(`Exported: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`, pageWidth / 2, 38, { align: "center" });
-
-      // Title line
-      doc.setDrawColor(200, 200, 200);
-      doc.line(14, 42, pageWidth - 14, 42);
-
-      // STEP 1 — Prepare Compressed Data Objects
-      const rawData = await Promise.all(
-        [...filtered].sort((a, b) => (a.applicationId || 0) - (b.applicationId || 0)).map(async (p, i) => {
-          const imgUrl = p.imageUrl || p.image;
-          let imgData = null;
-
-          if (imgUrl) {
-            const base64 = await getBase64FromUrl(imgUrl);
-            if (base64) {
-              imgData = await compressImage(base64);
-            }
-          }
-
-          return {
-            id: String(p.applicationId || i + 1),
-            image: imgData,
-            name: p.name || "N/A",
-            contact: String(p.mobile || p.phone || p.contactNumber || "-"),
-            role: String(p.role || "-"),
-            village: String(p.village || "-")
-          };
-        })
-      );
-
-      // STEP 2 — Build AutoTable (Final Stability Config)
       autoTable(doc, {
-        theme: "grid", // 🔥 Extra Stability & Alignment
+        theme: "grid",
         columns: [
           { header: "Sl No", dataKey: "id" },
           { header: "Image", dataKey: "image" },
@@ -698,18 +725,18 @@ function PlayersRegistryContent() {
           { header: "Village", dataKey: "village" }
         ],
         body: rawData,
-        startY: 48,
-        margin: { top: 45, bottom: 25 }, // 🔥 Balanced for centered header & footer
-        rowPageBreak: "avoid", // 🔥 Prevents splitting a single player across two pages
+        startY: 45,
+        margin: { top: 45, bottom: 25 },
+        rowPageBreak: "avoid",
 
         styles: {
           fontSize: 8.5,
           valign: "middle",
-          minCellHeight: 28, // 🔥 High-end Padding (Matches imgSize 18 + padding)
+          minCellHeight: 35,
           cellPadding: 2,
         },
         headStyles: {
-          fillColor: [16, 160, 120],
+          fillColor: [124, 58, 237],
           textColor: 255,
           fontStyle: "bold",
           halign: "center",
@@ -717,11 +744,11 @@ function PlayersRegistryContent() {
         },
         columnStyles: {
           id: { cellWidth: 12, halign: "center" },
-          image: { cellWidth: 26 },
-          name: { cellWidth: 40, fontStyle: "bold" },
-          contact: { cellWidth: 30 },
+          image: { cellWidth: 30 },
+          name: { cellWidth: 38, fontStyle: "bold" },
+          contact: { cellWidth: 28 },
           role: { cellWidth: 32 },
-          village: { cellWidth: 40 }
+          village: { cellWidth: 35 }
         },
         didParseCell: (data) => {
           if (data.column.dataKey === "image" && data.section === "body") {
@@ -729,38 +756,66 @@ function PlayersRegistryContent() {
           }
         },
         didDrawCell: (dataCell) => {
-          // STEP 3 — MANUALLY DRAW CENTERED IMAGES (Optimized for 28 height)
           if (dataCell.column.dataKey === "image" && dataCell.row.section === "body") {
             const item = dataCell.row.raw;
             if (item?.image) {
-              const imgSize = 18;
-
-              // Perfectly center inside the now taller cells
+              const imgSize = 25;
               const x = dataCell.cell.x + (dataCell.cell.width - imgSize) / 2;
               const y = dataCell.cell.y + (dataCell.cell.height - imgSize) / 2;
-
               try {
-                // Use JPEG with high quality
-                doc.addImage(item.image, "JPEG", x, y, imgSize, imgSize, undefined, "SLOW");
-                doc.setDrawColor(226, 232, 240);
-                doc.rect(x, y, imgSize, imgSize);
-              } catch (e) {
-                console.warn("Image skipped", e);
-              }
+                doc.addImage(item.image, "JPEG", x, y, imgSize, imgSize, undefined, "FAST");
+              } catch (e) { console.warn("Image skipped", e); }
             }
           }
         },
-        alternateRowStyles: {
-          fillColor: [245, 245, 245]
-        },
+        alternateRowStyles: { fillColor: [245, 245, 245] },
         didDrawPage: (data) => {
-          const str = "Page " + doc.internal.getNumberOfPages();
+          doc.setFillColor(15, 23, 42);
+          doc.rect(0, 0, 210, 40, 'F');
+          if (tournamentLogo) {
+            try { doc.addImage(tournamentLogo, 'JPEG', 15, 5, 25, 25); } catch (e) {}
+          }
+          if (manifestLogo) {
+            try { doc.addImage(manifestLogo, 'PNG', 170, 5, 25, 25); } catch (e) {}
+          }
+          doc.setFont(undefined, "bold");
+          doc.setFontSize(20);
+          doc.setTextColor(255, 255, 255);
+          doc.text(tournamentName.toUpperCase(), 105, 20, { align: "center" });
+          doc.setFontSize(10);
+          doc.setTextColor(124, 58, 237);
+          doc.text("OFFICIAL PLAYER REGISTRY", 105, 30, { align: "center" });
+
+          const pageCount = doc.internal.getNumberOfPages();
           doc.setFontSize(8);
           doc.setTextColor(150);
-          doc.text(str, data.settings.margin.left, doc.internal.pageSize.getHeight() - 10);
-          doc.text("Designed by Ravikumar K P", doc.internal.pageSize.getWidth() / 2, doc.internal.pageSize.getHeight() - 10, { align: "center" });
+          doc.text("Contact: +91 81470 89330", 15, doc.internal.pageSize.getHeight() - 15);
+          doc.text("Insta: @lakshmish_virat", 15, doc.internal.pageSize.getHeight() - 10);
+          doc.text(`Page ${pageCount}`, 195, doc.internal.pageSize.getHeight() - 10, { align: "right" });
+          doc.text("Designed by Ravikumar K P", 105, doc.internal.pageSize.getHeight() - 10, { align: "center" });
         }
       });
+
+      try {
+        const creatorImg = await getBase64(`${window.location.origin}/creator-contact.png`);
+        if (creatorImg) {
+          doc.addPage();
+          doc.setFillColor(15, 23, 42);
+          doc.rect(0, 0, 210, 297, 'F');
+          
+          const imgWidth = 180;
+          const imgHeight = 180;
+          const x = (210 - imgWidth) / 2;
+          const y = (297 - imgHeight) / 2;
+          doc.addImage(creatorImg, 'JPEG', x, y, imgWidth, imgHeight, undefined, "FAST");
+          
+          doc.setFontSize(14);
+          doc.setTextColor(255, 255, 255);
+          doc.text("LAKSHMISH CRICKET EVENTS", 105, y + imgHeight + 15, { align: 'center' });
+        }
+      } catch (e) {
+        console.error("Failed to add creator contact page", e);
+      }
 
       const safeTournamentName = tournamentName.replace(/\s+/g, '_');
       const fileSuffix = currentAuction?.year || (currentAuction?._id ? String(currentAuction._id).slice(-6) : "export");
@@ -770,11 +825,13 @@ function PlayersRegistryContent() {
       alert(`Export failed: ${err.message}`);
     } finally {
       setIsDownloadingPdf(false);
+      setPdfProgress({ current: 0, total: 0, active: false });
     }
   };
 
   const filtered = players.filter(p => {
-    const matchesSearch = (p.name || "").toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = (p.name || "").toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          (p.applicationId || "").toString().includes(searchTerm);
     const matchesTab = activeTab === "ALL" || (p.status || "").toUpperCase() === activeTab;
     return matchesSearch && matchesTab;
   });
@@ -795,11 +852,19 @@ function PlayersRegistryContent() {
           <div className="relative group flex-1">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
             <input
-              placeholder="Search database..."
+              placeholder="Search by name or ID..."
               className="w-full bg-white/5 border border-white/10 rounded-2xl pl-11 pr-4 py-3 font-bold text-white focus:border-violet-500 outline-none transition-all"
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
             />
+            {searchTerm && !isNaN(searchTerm) && (
+              <button 
+                onClick={() => router.push(`/live-auction?id=${selectedAuction._id}&player=${searchTerm}`)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-violet-600/20 text-violet-400 rounded-lg text-[8px] font-black uppercase tracking-widest border border-violet-500/20 hover:bg-violet-600 hover:text-white transition-all"
+              >
+                Jump to Auction
+              </button>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -943,9 +1008,13 @@ function PlayersRegistryContent() {
               {filtered.sort((a, b) => (a.applicationId || 0) - (b.applicationId || 0)).map((p) => (
                 <tr key={p._id} className="group hover:bg-white/3 transition-all">
                   <td className="px-4 md:px-8 py-4">
-                    <span className="text-xs md:text-sm font-black text-violet-400 bg-violet-500/10 px-2 md:px-3 py-1 rounded-xl border border-violet-500/10">
+                    <Link 
+                      href={`/live-auction?id=${selectedAuction._id}&player=${p.applicationId}`}
+                      className="text-xs md:text-sm font-black text-violet-400 bg-violet-500/10 px-2 md:px-3 py-1 rounded-xl border border-violet-500/10 hover:bg-violet-500/20 hover:border-violet-500/30 transition-all cursor-pointer block w-fit"
+                      title="Jump to Live Auction for this player"
+                    >
                       {p.applicationId || "—"}
-                    </span>
+                    </Link>
                   </td>
                   <td className="px-4 md:px-6 py-4">
                     <div className="flex items-center gap-2 md:gap-3">
@@ -1535,6 +1604,33 @@ function PlayersRegistryContent() {
                   <button onClick={() => setSelectedVerifyPlayer(null)} className="flex-1 py-5 bg-white text-black rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl hover:scale-[1.02] transition-all">Done</button>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ── PDF GENERATION OVERLAY ── */}
+      {pdfProgress.active && (
+        <div className="fixed inset-0 z-200 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md" />
+          <div className="relative w-full max-w-md bg-slate-900 border border-white/10 rounded-3xl p-10 text-center shadow-2xl">
+            <div className="relative w-32 h-32 mx-auto mb-8">
+              <div className="absolute inset-0 rounded-full border-4 border-white/5" />
+              <div 
+                className="absolute inset-0 rounded-full border-4 border-violet-500 border-t-transparent animate-spin" 
+                style={{ animationDuration: '2s' }}
+              />
+              <div className="absolute inset-0 flex items-center justify-center flex-col">
+                <span className="text-2xl font-black text-white">{Math.round((pdfProgress.current / pdfProgress.total) * 100)}%</span>
+                <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Complete</span>
+              </div>
+            </div>
+            <h3 className="text-xl font-black text-white uppercase tracking-tight mb-2">Preparing <span className="text-violet-500">PDF Roster</span></h3>
+            <p className="text-sm text-slate-400 font-medium mb-6">Processing {pdfProgress.current} of {pdfProgress.total} players...</p>
+            <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-violet-500 transition-all duration-300 shadow-[0_0_15px_rgba(139,92,246,0.5)]" 
+                style={{ width: `${(pdfProgress.current / pdfProgress.total) * 100}%` }}
+              />
             </div>
           </div>
         </div>
