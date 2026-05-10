@@ -83,7 +83,7 @@ export default function MobileHome() {
         {loading ? (
           <div className="w-full h-52 rounded-[2rem] bg-white/5 animate-pulse" />
         ) : featured ? (
-          <Link href={`/register/${featured._id}`}>
+          <Link href={featured.status === 'live' ? "/overlay" : `/register/${featured._id}`}>
             <motion.div 
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -162,7 +162,7 @@ export default function MobileHome() {
           {loading ? (
              [1,2].map(i => <div key={i} className="h-28 rounded-3xl bg-white/5 animate-pulse" />)
           ) : tournaments.map((t, idx) => (
-            <Link key={t._id} href={`/register/${t._id}`}>
+            <Link key={t._id} href={t.status === 'live' ? "/overlay" : `/register/${t._id}`}>
               <motion.div 
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}

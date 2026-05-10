@@ -14,10 +14,23 @@ export default function DynamicBackground() {
     }
 
     const fetchBg = async () => {
+      // Don't fetch if offline or page is hidden
+      if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+      if (typeof document !== 'undefined' && document.hidden) return;
+
+      // Small delay for stability
+      await new Promise(r => setTimeout(r, 800));
+
       try {
+        if (!API_URL) return;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
+
         const res = await fetch(
-          `${API_URL}/api/backgrounds/space_bg`
+          `${API_URL}/api/backgrounds/space_bg`,
+          { signal: controller.signal }
         );
+        clearTimeout(timeoutId);
         if (res.ok) {
           const data = await res.json();
           if (data.imageUrl) {

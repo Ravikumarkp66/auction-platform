@@ -11,6 +11,22 @@ const { handleValidationErrors, validators } = require("../middleware/validation
 const { sanitizeString, sanitizeObject } = require("../utils/sanitizer");
 const { body, query } = require('express-validator');
 
+const reorderIconIds = async (tournamentId) => {
+    try {
+        const icons = await Player.find({ tournamentId, isIcon: true, isDeleted: { $ne: true } }).sort({ iconId: 1 });
+        if (!icons.length) return;
+        const bulkOps = icons.map((p, index) => ({
+            updateOne: {
+                filter: { _id: p._id },
+                update: { $set: { iconId: index + 1 } }
+            }
+        }));
+        await Player.bulkWrite(bulkOps);
+    } catch (err) {
+        console.error("[REORDER ICON] Failed:", err.message);
+    }
+};
+
 const reorderApplicationIds = async (tournamentId) => {
     try {
         const players = await Player.find({ tournamentId, isIcon: { $ne: true }, isDeleted: { $ne: true } }).sort({ applicationId: 1 });
@@ -71,7 +87,13 @@ router.put("/audit/restore/:id",
             player.isDeleted = false;
             player.deletedAt = null;
             await player.save();
-            if (player.tournamentId) await reorderApplicationIds(player.tournamentId);
+            if (player.tournamentId) {
+                if (player.isIcon) {
+                    await reorderIconIds(player.tournamentId);
+                } else {
+                    await reorderApplicationIds(player.tournamentId);
+                }
+            }
 
             res.json({ message: "Player restored successfully", player });
         } catch (err) {
@@ -93,6 +115,10 @@ router.post("/",
             let slotId = null;
 
             if (isIcon) {
+                const iconCount = await Player.countDocuments({ tournamentId, isIcon: true, isDeleted: { $ne: true } });
+                if (iconCount >= 24) {
+                    return res.status(400).json({ message: "Maximum limit of 24 icons reached for this tournament." });
+                }
                 const lastIcon = await Player.findOne({ tournamentId, isIcon: true, isDeleted: { $ne: true } }).sort({ iconId: -1 });
                 nextId = lastIcon ? (lastIcon.iconId || 0) + 1 : 1;
                 if (teamId) {
@@ -147,7 +173,10 @@ router.get("/check", async (req, res) => {
 });
 
 // Audit: Find Duplicates (Admin)
-router.get("/audit/duplicates", async (req, res) => {
+router.get("/audit/duplicates",
+    authMiddleware,
+    authorize(['admin']),
+    async (req, res) => {
     try {
         const { tournamentId } = req.query;
         if (!tournamentId) return res.status(400).json({ message: "Tournament ID required" });
@@ -178,7 +207,23 @@ router.get("/audit/duplicates", async (req, res) => {
             }
         ]);
 
-        res.json({ mobileConflicts: mobileDuplicates, aadhaarConflicts: aadhaarDuplicates });
+        const imageDuplicates = await Player.aggregate([
+            { $match: { tournamentId: new mongoose.Types.ObjectId(tournamentId), isDeleted: { $ne: true } } },
+            { $project: { image: { $ifNull: ["$imageUrl", "$photo.s3"] }, root: "$$ROOT" } },
+            { $group: { _id: "$image", count: { $sum: 1 }, players: { $push: "$root" } } },
+            {
+                $match: {
+                    count: { $gt: 1 },
+                    _id: { $nin: [null, "", "-"] }
+                }
+            }
+        ]);
+
+        res.json({ 
+            mobileConflicts: mobileDuplicates, 
+            aadhaarConflicts: aadhaarDuplicates,
+            imageConflicts: imageDuplicates
+        });
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
@@ -279,7 +324,13 @@ router.delete("/:id",
                 player.isDeleted = true;
                 player.deletedAt = new Date();
                 await player.save();
-                if (player.tournamentId) await reorderApplicationIds(player.tournamentId);
+                if (player.tournamentId) {
+                    if (player.isIcon) {
+                        await reorderIconIds(player.tournamentId);
+                    } else {
+                        await reorderApplicationIds(player.tournamentId);
+                    }
+                }
             }
             res.json({ message: "Player moved to recycle bin" });
         } catch (err) {
@@ -296,7 +347,16 @@ router.post("/import",
     handleValidationErrors,
     async (req, res) => {
         try {
-            const { players, tournamentId } = req.body;
+            const { players, tournamentId, mode } = req.body;
+
+            // If mode is REPLACE, soft-delete existing players first
+            if (mode === "replace") {
+                await Player.updateMany(
+                    { tournamentId, isDeleted: { $ne: true } },
+                    { $set: { isDeleted: true, deletedAt: new Date() } }
+                );
+                console.log(`[IMPORT] Replaced existing players for tournament ${tournamentId}`);
+            }
 
             let added = 0;
             let skipped = 0;
@@ -310,6 +370,25 @@ router.post("/import",
             for (const p of players) {
                 const sanitizedPlayer = sanitizeObject(p);
                 const isIcon = sanitizedPlayer.isIcon === true;
+                
+                // CRITICAL: Duplicate Check
+                // Skip if player with same name or mobile already exists in this tournament
+                const nameKey = sanitizedPlayer.name?.trim();
+                const mobileKey = sanitizedPlayer.mobile?.trim();
+                
+                const existing = await Player.findOne({
+                    tournamentId,
+                    isDeleted: { $ne: true },
+                    $or: [
+                        { name: { $regex: new RegExp(`^${nameKey}$`, "i") } },
+                        ...(mobileKey && mobileKey !== "-" ? [{ mobile: mobileKey }] : [])
+                    ]
+                });
+
+                if (existing) {
+                    skipped++;
+                    continue;
+                }
 
                 // Set photo object if image URL exists
                 const photoData = sanitizedPlayer.imageUrl 
@@ -330,7 +409,7 @@ router.post("/import",
                 added++;
             }
 
-            res.json({ success: true, added, skipped: 0 });
+            res.json({ success: true, added, skipped });
         } catch (err) {
             console.error("[IMPORT ERROR]:", err);
             res.status(500).json({ message: err.message });

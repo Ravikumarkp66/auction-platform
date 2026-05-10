@@ -27,14 +27,25 @@ export default function Navbar() {
   }, []);
 
   const fetchBrandSettings = async () => {
+    // Add small delay to allow backend to warm up if needed
+    await new Promise(r => setTimeout(r, 500));
     try {
-      const res = await fetch(`${API_URL}/api/settings`);
+      if (!API_URL) return;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      
+      const res = await fetch(`${API_URL}/api/settings`, { 
+        cache: 'no-store',
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      if (!res.ok) return;
       const data = await res.json();
       if (data.success && data.data.brandLogo) {
         setCustomLogo(getMediaUrl(data.data.brandLogo));
       }
     } catch (err) {
-      console.error("Brand fetch error:", err);
+      // Fail silently to avoid console noise during network suspension or warmup
     }
   };
 

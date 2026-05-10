@@ -222,7 +222,6 @@ router.get("/proxy-image", async (req, res) => {
         const response = await s3.send(command);
 
         res.setHeader("Content-Type", response.ContentType || "image/jpeg");
-        res.setHeader("Access-Control-Allow-Origin", "*");
 
         // AWS SDK v3 streams body
         if (response.Body.pipe) {
@@ -242,9 +241,6 @@ router.get("/proxy-image", async (req, res) => {
 
     const contentType = fetchResponse.headers.get("content-type");
     if (contentType) res.setHeader("Content-Type", contentType);
-
-    // Allow CORS for this proxy
-    res.setHeader("Access-Control-Allow-Origin", "*");
 
     const arrayBuffer = await fetchResponse.headers.get("content-type")?.includes("image")
       ? await fetchResponse.arrayBuffer()

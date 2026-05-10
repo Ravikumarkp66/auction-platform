@@ -795,16 +795,46 @@ export default function IconPlayersPanel() {
                     <div className="text-[10px] font-black text-yellow-500 bg-yellow-500/10 px-2.5 py-1 rounded-full border border-yellow-500/20 uppercase tracking-widest inline-flex items-center gap-1">
                       ICON ID: {p.iconId}
                     </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setEditingPlayer(p);
-                      }}
-                      className="p-2 bg-white/5 hover:bg-yellow-500/20 rounded-xl text-slate-400 hover:text-yellow-500 transition-all border border-white/5 hover:border-yellow-500/30 shadow-lg"
-                      title="Edit Player Details"
-                    >
-                      <Edit3 className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setEditingPlayer(p)}
+                        className="p-2 bg-white/5 hover:bg-yellow-500/20 rounded-xl text-slate-400 hover:text-yellow-500 transition-all border border-white/5 hover:border-yellow-500/30 shadow-lg"
+                        title="Edit Player Details"
+                      >
+                        <Edit3 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          if (window.confirm(`Are you sure you want to delete ${p.name}?`)) {
+                            try {
+                              setLoading(true);
+                              const res = await fetch(`${API_URL}/api/players/${p._id}`, {
+                                method: "DELETE",
+                                headers: {
+                                  "Authorization": `Bearer ${session?.accessToken}`
+                                }
+                              });
+                              if (res.ok) {
+                                alert("Icon player deleted successfully");
+                                fetchIcons();
+                                socket?.emit("auctionUpdate", { type: "system_refresh", auctionId: selectedAuction._id });
+                              } else {
+                                alert("Failed to delete icon player");
+                              }
+                            } catch (err) {
+                              alert("Error deleting icon player");
+                            } finally {
+                              setLoading(false);
+                            }
+                          }
+                        }}
+                        className="p-2 bg-white/5 hover:bg-red-500/20 rounded-xl text-slate-400 hover:text-red-500 transition-all border border-white/5 hover:border-red-500/30 shadow-lg"
+                        title="Delete Icon Player"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
 

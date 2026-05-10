@@ -2,6 +2,7 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
+import { getMediaUrl } from "../../lib/apiConfig";
 
 export default function TeamDrawCinematic({ event, onComplete }) {
   const [phase, setPhase] = useState("loading"); // loading, reveal, announce, move
@@ -65,7 +66,7 @@ export default function TeamDrawCinematic({ event, onComplete }) {
                     transition={{ delay: 0.5 }}
                     className="w-48 h-48 rounded-full border-4 border-white/10 overflow-hidden bg-slate-800 shadow-2xl"
                   >
-                    <img src={event.team.logoUrl} alt={event.team.name} className="w-full h-full object-cover" />
+                    <img src={getMediaUrl(event.team.logoUrl)} alt={event.team.name} className="w-full h-full object-cover" />
                   </motion.div>
                   
                   <div className="text-center">
@@ -114,7 +115,7 @@ export default function TeamDrawCinematic({ event, onComplete }) {
              className="relative"
            >
               <div className="w-80 h-80 bg-slate-800 rounded-full border-8 border-amber-500 overflow-hidden shadow-2xl">
-                 <img src={event.team.logoUrl} alt={event.team.name} className="w-full h-full object-cover" />
+                 <img src={getMediaUrl(event.team.logoUrl)} alt={event.team.name} className="w-full h-full object-cover" />
               </div>
            </motion.div>
         )}

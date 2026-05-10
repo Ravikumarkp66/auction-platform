@@ -14,7 +14,7 @@ import {
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
-import { DEFAULT_ASSETS, API_URL } from "@/lib/apiConfig";
+import { DEFAULT_ASSETS, API_URL, getMediaUrl, calculateAge } from "@/lib/apiConfig";
 
 // Design Tokens (Matching existing system)
 const C = {
@@ -78,6 +78,7 @@ export default function TournamentDetailsPage() {
         'Price Sold': p.soldPrice || 0,
         'Team': p.teamName || 'Unsold',
         'Icon Player': p.isIcon ? 'Yes' : 'No',
+        'Age': calculateAge(p.dob) || p.age || 'N/A',
         'Year': p.year || 'N/A',
         'Slot': p.teamSlotId || 'N/A'
       }));
@@ -168,7 +169,7 @@ export default function TournamentDetailsPage() {
               {/* Simple Tournament Logo */}
               <div className="w-24 h-24 shrink-0 rounded-2xl bg-[#0f172a] flex items-center justify-center overflow-hidden border border-white/10 p-1">
                   <Image 
-                    src={tournament.logoUrl || DEFAULT_ASSETS.BANNER_LOGO} 
+                    src={getMediaUrl(tournament.logoUrl, DEFAULT_ASSETS.BANNER_LOGO)} 
                     alt={tournament.name}
                     width={96}
                     height={96}
@@ -341,7 +342,7 @@ export default function TournamentDetailsPage() {
                       
                       <div className="flex items-center gap-4 mb-4">
                         <div className="w-12 h-12 rounded-xl bg-slate-800 flex items-center justify-center border border-white/10 p-1 group-hover:scale-105 transition-transform">
-                            <img src={team.logoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(team.name)}&background=random`} className="w-full h-full object-cover rounded-lg" />
+                            <img src={getMediaUrl(team.logoUrl, DEFAULT_ASSETS.DEFAULT_TEAM)} className="w-full h-full object-cover rounded-lg" />
                         </div>
                         <div className="min-w-0">
                            <h3 className="text-sm font-black text-white uppercase italic truncate tracking-tighter">{team.name}</h3>
@@ -364,30 +365,100 @@ export default function TournamentDetailsPage() {
                            <p className="text-xs font-black text-white tabular-nums">₹{remaining.toLocaleString('en-IN')}</p>
                         </div>
                       </div>
-    
-                      <button className="w-full py-2 bg-white/5 group-hover:bg-violet-600 text-[8px] font-black text-slate-500 group-hover:text-white rounded-lg uppercase tracking-widest transition-all flex items-center justify-center gap-2">
-                         View Squad <ChevronRight size={10} />
-                      </button>
                     </div>
                   );
                 })}
               </div>
             )}
 
-            {/* ─────────────────────────────────────────────────────────────
-                PLAYER POOL (Excluding Icons)
-            ───────────────────────────────────────────────────────────── */}
-            {(activeTab === 'players' || activeTab === 'icons') && (
+            {activeTab === 'icons' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                {teams.map(team => {
+                  const teamIcons = players.filter(p => p.isIcon && (p.team?._id || p.team) === team._id);
+                  const maxIcons = tournament.iconsPerTeam || 0;
+                  
+                  // Fill remaining slots
+                  const slots = [...teamIcons];
+                  while (slots.length < maxIcons) {
+                    slots.push({ isEmpty: true, id: `empty-${team._id}-${slots.length}` });
+                  }
+
+                  if (slots.length === 0) return null;
+                  
+                  return (
+                    <div key={team._id} className="bg-slate-900/40 border border-white/10 rounded-[2.5rem] p-8 hover:border-amber-500/30 transition-all shadow-2xl backdrop-blur-md flex flex-col">
+                      <div className="flex items-start justify-between mb-8">
+                        <div className="flex items-center gap-4 border-l-4 border-amber-500 pl-4">
+                          <img src={getMediaUrl(team.logoUrl, DEFAULT_ASSETS.DEFAULT_TEAM)} className="w-14 h-14 rounded-2xl object-cover shadow-lg border border-white/10" />
+                          <div>
+                            <h3 className="text-2xl font-black text-white uppercase italic tracking-tight leading-none mb-1">{team.name}</h3>
+                            <div className="flex items-center gap-2">
+                               <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">Elite Roster</span>
+                               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{teamIcons.length} / {maxIcons} Slots Filled</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-5 flex-1">
+                        {slots.map((p, idx) => p.isEmpty ? (
+                          <div key={p.id} className="group bg-slate-950/20 border border-dashed border-white/5 rounded-3xl overflow-hidden relative flex flex-col items-center justify-center min-h-[240px]">
+                            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/40 to-transparent"></div>
+                            <div className="relative z-10 text-center opacity-20 group-hover:opacity-50 transition-opacity">
+                              <div className="w-14 h-14 rounded-full border-2 border-dashed border-white/20 flex items-center justify-center mx-auto mb-4">
+                                <Users size={24} className="text-slate-500" />
+                              </div>
+                              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Icon Slot {idx + 1}</p>
+                              <p className="text-[8px] font-bold text-slate-600 uppercase tracking-tighter mt-1">Awaiting Assignment</p>
+                            </div>
+                            <img 
+                              src={getMediaUrl(team.logoUrl, DEFAULT_ASSETS.DEFAULT_TEAM)} 
+                              className="absolute w-32 h-32 object-contain opacity-[0.02] grayscale pointer-events-none" 
+                              alt=""
+                            />
+                          </div>
+                        ) : (
+                          <div key={p._id} className="group bg-slate-950/60 border border-white/5 rounded-3xl overflow-hidden hover:border-amber-500/40 transition-all relative flex flex-col">
+                            <div className="aspect-[1/1.2] relative overflow-hidden bg-slate-800">
+                               <Image 
+                                 src={getMediaUrl(p.imageUrl || p.photo?.s3 || p.photo?.drive, DEFAULT_ASSETS.DEFAULT_PLAYER)} 
+                                 alt={p.name}
+                                 fill
+                                 className="object-cover group-hover:scale-110 transition-transform duration-700"
+                                 unoptimized
+                               />
+                               <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-90"></div>
+                               <div className="absolute bottom-4 left-4 right-4 text-center">
+                                  <p className="text-[9px] font-black text-amber-500 uppercase tracking-widest mb-1 drop-shadow-md">{p.role}</p>
+                                  <h4 className="text-base font-black text-white uppercase italic tracking-tighter truncate drop-shadow-md">{p.name}</h4>
+                                </div>
+                            </div>
+                            <div className="p-5 text-center bg-slate-950/20 flex-1 flex flex-col justify-between">
+                               <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic opacity-60">Retained Asset</p>
+                               <button className="w-full py-3 bg-white/5 hover:bg-amber-600/20 text-white border border-white/10 hover:border-amber-500/50 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all">
+                                  Profile
+                               </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {activeTab === 'players' && (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
                  {players
                    .filter(p => {
                       const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
                       const isIcon = p.isIcon;
-                      const matchesTab = activeTab === 'icons' ? isIcon : (activeTab === 'players' ? !isIcon : true);
-                      if (playerFilter === 'available') return matchesSearch && matchesTab && (p.status === 'available' || p.status === 'auction' || (!p.team && p.status !== 'sold' && p.status !== 'unsold'));
-                      if (playerFilter === 'sold') return matchesSearch && matchesTab && (p.status === 'sold' || p.team);
-                      if (playerFilter === 'unsold') return matchesSearch && matchesTab && p.status === 'unsold';
-                      return matchesSearch && matchesTab;
+                      if (isIcon) return false; // Exclude icons from main pool tab
+                      if (playerFilter === 'available') return matchesSearch && (p.status === 'available' || p.status === 'auction' || (!p.team && p.status !== 'sold' && p.status !== 'unsold'));
+                      if (playerFilter === 'sold') return matchesSearch && (p.status === 'sold' || p.team);
+                      if (playerFilter === 'unsold') return matchesSearch && p.status === 'unsold';
+                      return matchesSearch;
                    })
                    .sort((a, b) => {
                       if (sortBy === 'price_desc') return (b.soldPrice || b.basePrice) - (a.soldPrice || a.basePrice);
@@ -397,12 +468,6 @@ export default function TournamentDetailsPage() {
                    })
                    .map((p) => (
                     <div key={p._id} className="group bg-slate-900/40 border border-white/5 rounded-2xl overflow-hidden hover:border-violet-500/30 transition-all relative">
-                      {p.isIcon && (
-                        <div className="absolute top-3 right-3 z-10 p-1 bg-amber-500 text-slate-900 rounded shadow-xl">
-                           <Star size={12} className="fill-current" />
-                        </div>
-                      )}
-                      
                       <div className="aspect-[1/1.2] relative overflow-hidden bg-slate-800">
                          {/* Year Badge */}
                          {p.year && (
@@ -412,7 +477,7 @@ export default function TournamentDetailsPage() {
                          )}
                          
                          <Image 
-                           src={p.imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.name}`} 
+                           src={getMediaUrl(p.imageUrl || p.photo?.s3 || p.photo?.drive, DEFAULT_ASSETS.DEFAULT_PLAYER)} 
                            alt={p.name}
                            fill
                            className="object-cover group-hover:scale-110 transition-transform duration-700"
@@ -421,7 +486,7 @@ export default function TournamentDetailsPage() {
                          <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent opacity-80"></div>
                          
                          <div className="absolute bottom-3 left-3 right-3 text-center">
-                            <p className="text-[8px] font-black text-amber-500 uppercase tracking-widest mb-0.5">{p.role}</p>
+                            <p className="text-[8px] font-black text-amber-500 uppercase tracking-widest mb-0.5">{p.role} • {calculateAge(p.dob) || p.age || 'N/A'} YRS</p>
                             <h4 className="text-sm font-black text-white uppercase italic tracking-tighter truncate">{p.name}</h4>
                          </div>
                       </div>
@@ -433,24 +498,27 @@ export default function TournamentDetailsPage() {
                          </div>
 
                           <div className="py-2 border-y border-white/10 mb-4 min-h-[50px] flex flex-col items-center justify-center">
-                            {p.teamName ? (
-                              <div className="space-y-1">
-                                 <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic">Sold To</p>
-                                 <div className="flex items-center justify-center gap-1.5">
-                                    <div className={`w-4 h-4 rounded-lg flex items-center justify-center text-[7px] font-black text-white ${p.isIcon ? 'bg-amber-500' : 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)]'}`}>
-                                       {p.teamName?.charAt(0) || 'T'}
+                            {(() => {
+                              const teamName = p.teamName || p.team?.name || (typeof p.team === 'string' ? teams.find(t => t._id === p.team)?.name : null);
+                              if (teamName) {
+                                return (
+                                  <div className="space-y-1">
+                                    <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic">{p.isIcon ? 'Retained By' : 'Sold To'}</p>
+                                    <div className="flex items-center justify-center gap-1.5">
+                                      <div className={`w-4 h-4 rounded-lg flex items-center justify-center text-[7px] font-black text-white ${p.isIcon ? 'bg-amber-500' : 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)]'}`}>
+                                        {teamName.charAt(0)}
+                                      </div>
+                                      <span className={`text-[11px] font-black uppercase italic tracking-tighter ${p.isIcon ? 'text-amber-400' : 'text-emerald-400'}`}>
+                                        {teamName}
+                                      </span>
                                     </div>
-                                    <span className={`text-[11px] font-black uppercase italic tracking-tighter ${p.isIcon ? 'text-amber-500' : 'text-emerald-400'}`}>
-                                      {p.teamName}
-                                    </span>
-                                 </div>
-                                 <p className="text-[10px] font-black text-white tabular-nums">₹{Number(p.soldPrice).toLocaleString('en-IN')}</p>
-                              </div>
-                            ) : p.status === 'unsold' ? (
-                              <span className="text-[10px] font-black text-red-500 uppercase tracking-[0.2em] italic">Unsold</span>
-                            ) : (
-                              <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] italic animate-pulse">Awaiting Bid</span>
-                            )}
+                                    <p className="text-[10px] font-black text-white tabular-nums">₹{(p.soldPrice || 0).toLocaleString('en-IN')}</p>
+                                  </div>
+                                );
+                              }
+                              if (p.status === 'unsold') return <span className="text-[10px] font-black text-red-500 uppercase tracking-[0.2em] italic">Unsold</span>;
+                              return <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] italic animate-pulse">Awaiting Bid</span>;
+                            })()}
                           </div>
                          
                          <div className="flex items-center justify-between mb-3 text-left">
@@ -500,7 +568,7 @@ export default function TournamentDetailsPage() {
                             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
                                <div className="flex items-center gap-6">
                                   <div className="w-16 h-16 rounded-2xl overflow-hidden border border-white/10 shrink-0 bg-slate-800">
-                                     <img src={p.photo?.s3 || p.imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.name}`} className="w-full h-full object-cover" />
+                                     <img src={getMediaUrl(p.photo?.s3 || p.imageUrl || p.photo?.drive, DEFAULT_ASSETS.DEFAULT_PLAYER)} className="w-full h-full object-cover" />
                                   </div>
                                   <div className="text-left">
                                      <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${p.isIcon ? 'text-amber-400' : 'text-emerald-400'}`}>
@@ -561,7 +629,7 @@ export default function TournamentDetailsPage() {
                         {/* Leaderboard Elite Cards */}
                         <div className="space-y-8 relative z-10">
                            {players
-                             .filter(p => (p.status === 'sold' || p.team))
+                             .filter(p => (p.status === 'sold' || p.team) && !p.isIcon)
                              .sort((a,b) => (b.soldPrice || 0) - (a.soldPrice || 0))
                              .slice(0, 5)
                              .map((p, i) => (
@@ -573,7 +641,7 @@ export default function TournamentDetailsPage() {
 
                                  <div className="w-40 h-40 shrink-0 rounded-[2.5rem] overflow-hidden border-2 border-white/10 bg-slate-950 shadow-2xl group-hover:scale-105 transition-transform duration-1000">
                                     <img 
-                                      src={p.photo?.s3 || p.imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.name}`} 
+                                      src={getMediaUrl(p.photo?.s3 || p.imageUrl || p.photo?.drive, DEFAULT_ASSETS.DEFAULT_PLAYER)} 
                                       alt={p.name}
                                       className="w-full h-full object-cover transition-all"
                                     />
@@ -694,7 +762,7 @@ function TeamDetailsModal({ team, players, tournament, onClose }) {
       // 2. LOAD IMAGES ASYNC (Using Proxy)
       const squadToExport = players.slice(0, 35);
       const imageDataUrls = await Promise.all(squadToExport.map(p => {
-        const url = p.photo?.s3 || p.imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(p.name)}`;
+        const url = p.photo?.s3 || p.imageUrl || p.photo?.drive || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(p.name)}`;
         return loadImage(url);
       }));
 
@@ -800,7 +868,7 @@ function TeamDetailsModal({ team, players, tournament, onClose }) {
              <div className="flex items-center gap-8 relative z-10">
                 <div className="w-24 h-24 rounded-[2rem] bg-slate-900 border border-white/10 p-1.5 shadow-2xl">
                    <div className="w-full h-full rounded-[1.7rem] overflow-hidden bg-slate-800">
-                      <img src={team.logoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(team.name)}&background=random`} className="w-full h-full object-cover" />
+                      <img src={getMediaUrl(team.logoUrl, DEFAULT_ASSETS.DEFAULT_TEAM)} className="w-full h-full object-cover" />
                    </div>
                 </div>
                 <div>
@@ -852,7 +920,7 @@ function TeamDetailsModal({ team, players, tournament, onClose }) {
                      players.map((p, i) => (
                        <div key={i} className="flex items-center gap-6 p-4 px-6 bg-slate-950/50 border border-white/5 rounded-[2rem] hover:border-violet-500/30 transition-all group">
                           <div className="w-14 h-14 rounded-2xl overflow-hidden border border-white/10 shrink-0 bg-slate-900 shadow-inner group-hover:scale-105 transition-transform">
-                             <img src={p.imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.name}`} className="w-full h-full object-cover" />
+                             <img src={getMediaUrl(p.imageUrl || p.photo?.s3 || p.photo?.drive, DEFAULT_ASSETS.DEFAULT_PLAYER)} className="w-full h-full object-cover" />
                           </div>
                           
                           <div className="flex-1 min-w-0">

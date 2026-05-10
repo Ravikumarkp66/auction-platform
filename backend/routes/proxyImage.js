@@ -24,8 +24,7 @@ const fetchUrl = async (url, res, redirectCount = 0) => {
       return res.status(403).send("Resource is a page, not an image");
     }
 
-    // Set CORS headers to allow frontend canvas manipulation
-    res.setHeader("Access-Control-Allow-Origin", "*");
+    // CORS already set at router level, but reinforcing for clarity
     res.setHeader("Content-Type", contentType || "image/jpeg");
     res.setHeader("Cache-Control", "public, max-age=86400");
 
@@ -53,29 +52,87 @@ const extractDriveId = (url) => {
   return null;
 };
 
-// GET /api/proxy-image?url=<encoded_url>
+// Standard Proxy for S3 and other external hosts
 router.get("/", async (req, res) => {
   const { url } = req.query;
   if (!url) return res.status(400).send("Missing url");
 
   const decoded = decodeURIComponent(url);
 
-  // Special Handling for Google Drive
+  // 1. Special Handling for Google Drive
   if (decoded.includes("drive.google.com")) {
     const fileId = extractDriveId(decoded);
     if (!fileId) return res.status(400).send("Invalid Drive URL");
     
-    // If it's an export or download link, fetch the ACTUAL content
     if (decoded.includes("/export") || decoded.includes("export=download")) {
       return fetchUrl(decoded, res);
     }
 
-    // Otherwise, default to high-res thumbnail for images
-    const thumbnailUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=s1200`; 
+    const thumbnailUrl = `https://lh3.googleusercontent.com/d/${fileId}=s1200`; 
     return fetchUrl(thumbnailUrl, res);
   }
 
-  // Standard Proxy for S3 and other external hosts
+  // 2. Optimized Handling for Our Own S3 Bucket
+  const bucket = process.env.S3_BUCKET;
+  const isOurS3 = bucket && (decoded.includes(`${bucket}.s3.`) || decoded.includes(`s3.${process.env.AWS_REGION || 'ap-south-1'}.amazonaws.com/${bucket}`));
+  
+  if (isOurS3) {
+    try {
+      const { s3 } = require('../config/s3');
+      const { GetObjectCommand } = require('@aws-sdk/client-s3');
+      
+      if (s3) {
+        const urlObj = new URL(decoded);
+        let key = decodeURIComponent(urlObj.pathname);
+        
+        // Handle virtual-host style (bucket.s3.region...)
+        if (decoded.includes(`${bucket}.s3.`)) {
+          key = key.startsWith('/') ? key.slice(1) : key;
+        } 
+        // Handle path style (s3.region.../bucket/...)
+        else {
+          const parts = key.split('/').filter(Boolean);
+          if (parts[0] === bucket) {
+            key = parts.slice(1).join('/');
+          } else {
+            key = key.startsWith('/') ? key.slice(1) : key;
+          }
+        }
+        
+        console.log(`[PROXY-S3] Attempting authenticated fetch for Bucket: ${bucket}, Key: ${key}`);
+        
+        const command = new GetObjectCommand({ Bucket: bucket, Key: key });
+        const response = await s3.send(command);
+
+        console.log(`[PROXY-S3] Success: ${key} (${response.ContentType})`);
+        res.setHeader("Content-Type", response.ContentType || "image/jpeg");
+        res.setHeader("Cache-Control", "public, max-age=86400");
+
+        if (response.Body.transformToUint8Array) {
+          const buffer = Buffer.from(await response.Body.transformToUint8Array());
+          return res.send(buffer);
+        } else if (response.Body.pipe) {
+          return response.Body.pipe(res);
+        } else {
+          // Fallback for other stream types
+          const chunks = [];
+          for await (const chunk of response.Body) {
+            chunks.push(chunk);
+          }
+          return res.send(Buffer.concat(chunks));
+        }
+      }
+    } catch (s3Err) {
+      console.error(`[PROXY-S3] Auth Error for ${decoded}:`, s3Err.message);
+      // If it's a 403 from S3, it means the keys are likely wrong or insufficient
+      if (s3Err.name === 'NoSuchKey') {
+         return res.status(404).send("Image not found in S3");
+      }
+    }
+  }
+
+  // 3. Standard Public Proxy (Fallback)
+  console.log(`[PROXY] Falling back to public fetch for: ${decoded}`);
   await fetchUrl(decoded, res);
 });
 

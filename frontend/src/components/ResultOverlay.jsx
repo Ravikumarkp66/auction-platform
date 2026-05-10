@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import CurrencySymbol from './CurrencySymbol';
+import { getMediaUrl } from '../lib/apiConfig';
 
 const ResultOverlay = ({ type, playerName, price, teamName, teamLogo, teamColor, teamShortName, playerImage, onSkip, currency, isPointsSystem = true }) => {
   const [showHammer, setShowHammer] = useState(false);
@@ -143,13 +144,13 @@ const ResultOverlay = ({ type, playerName, price, teamName, teamLogo, teamColor,
       />
 
       {/* Background Player Image (Dimmed) */}
-      {playerImage && (
+      {(playerImage || playerName) && (
         <div
-          className={`absolute inset-0 opacity-20 scale-110 transition-transform duration-3000 ease-out ${!isSold ? 'grayscale' : ''}`}
+          className={`absolute inset-0 opacity-20 scale-100 transition-transform duration-3000 ease-out ${!isSold ? 'grayscale' : ''}`}
           style={{
-            backgroundImage: `url(${playerImage})`,
+            backgroundImage: `url(${playerImage ? getMediaUrl(playerImage) : getMediaUrl(`https://ui-avatars.com/api/?name=${encodeURIComponent(playerName)}&background=random&color=fff`)})`,
             backgroundSize: 'cover',
-            backgroundPosition: 'center',
+            backgroundPosition: 'center 15%',
             backgroundRepeat: 'no-repeat',
             animation: 'zoomIn 3s ease-out forwards'
           }}
@@ -270,7 +271,7 @@ const ResultOverlay = ({ type, playerName, price, teamName, teamLogo, teamColor,
                     className="absolute inset-0 group"
                   >
                     <div className={`absolute inset-0 rounded-full bg-[#10b981] opacity-40 blur-xl transition-opacity duration-300 ${showLogo ? 'opacity-40' : 'opacity-0'}`}></div>
-                    <img src={teamLogo} alt={teamName} className="relative w-full h-full rounded-full object-cover border-4 border-[#34d399] shadow-[0_0_20px_rgba(16,185,129,0.8)] z-10" />
+                    <img src={getMediaUrl(teamLogo)} alt={teamName} className="relative w-full h-full rounded-full object-cover border-4 border-[#34d399] shadow-[0_0_20px_rgba(16,185,129,0.8)] z-10" />
                   </div>
                 )}
               </div>
@@ -339,8 +340,8 @@ const ResultOverlay = ({ type, playerName, price, teamName, teamLogo, teamColor,
           to { transform: scale(1); opacity: 1; }
         }
         @keyframes zoomIn {
-          from { transform: scale(1); }
-          to { transform: scale(1.05); }
+          from { transform: scale(1.05); }
+          to { transform: scale(1); }
         }
         @keyframes pulseGlowRed {
           from { text-shadow: 0 0 20px #dc2626, 0 0 40px #991b1b; transform: scale(1); }

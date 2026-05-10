@@ -214,18 +214,19 @@ export default function OverlayPage() {
     }
   }, [breakTime])
 
-  // Redirect logged-in users away from overlay
+  // Redirect standard authenticated users (if any) away from overlay, but ALLOW ADMINS
   useEffect(() => {
-    if (status === "authenticated") {
-      router.push("/auction"); // Redirect to admin auction page, not public auctions
-      return
+    // If we had non-admin roles, we might redirect them. 
+    // But if the user is an admin, we now ALLOW them to stay and watch.
+    if (status === "authenticated" && session?.user?.role !== "admin") {
+      router.push("/auction"); 
     }
-  }, [status, router])
+  }, [status, session, router])
 
-  // Connect to socket for unauthenticated users
+  // Connect to socket for all users (Public and Admins watching live)
   useEffect(() => {
-    // Only connect if user is not authenticated
-    if (status === "unauthenticated") {
+    // Now we connect regardless of authentication status so admins can also "Watch Live"
+    if (status !== "loading") {
       console.log('🔌 Attempting socket connection to:', API_URL);
       
       const s = io(API_URL, {
@@ -391,25 +392,8 @@ export default function OverlayPage() {
     )
   }
 
-  // Show message for authenticated users before redirect
-  if (status === "authenticated") {
-    return (
-      <div className="min-h-screen bg-[#0a0f18] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-6 text-center max-w-md mx-auto px-6">
-          <div className="w-16 h-16 bg-violet-500/20 rounded-full flex items-center justify-center">
-            <svg className="w-8 h-8 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-            </svg>
-          </div>
-          <div>
-            <h2 className="text-2xl font-bold text-white mb-2">Already Logged In</h2>
-            <p className="text-slate-400 mb-4">The overlay page is for public viewing only. As an admin, you&apos;re being redirected to the auction management page.</p>
-            <p className="text-violet-400 font-medium">Redirecting to auction management...</p>
-          </div>
-        </div>
-      </div>
-    )
-  }
+  // Removed 'Already Logged In' blockade to allow admins to watch live feed.
+
 
   // Pool draw takes HIGHEST PRIORITY — admin has explicitly activated it
   if (showPoolView) {
@@ -475,9 +459,9 @@ export default function OverlayPage() {
             maxWidth: isMobileView ? '100vw' : '177.78vh',
             maxHeight: isMobileView ? '177.78vw' : '100vh',
             aspectRatio: isMobileView ? '9 / 16' : '16 / 9',
-            backgroundImage: `url(${isMobileView 
+            backgroundImage: `url(${getMediaUrl(isMobileView 
               ? 'https://auction-platform-kp.s3.ap-south-1.amazonaws.com/backgrounds/auction-timer-mobile.png' 
-              : 'https://auction-platform-kp.s3.ap-south-1.amazonaws.com/backgrounds/auction-timer.png'})`,
+              : 'https://auction-platform-kp.s3.ap-south-1.amazonaws.com/backgrounds/auction-timer.png')})`,
             backgroundSize: '100% 100%',
             backgroundPosition: 'center',
             backgroundRepeat: 'no-repeat',
@@ -525,46 +509,49 @@ export default function OverlayPage() {
           <div 
             className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center justify-center text-center z-20 pointer-events-none"
             style={{
-              top: isMobileView ? '43.5%' : '44%', 
-              width: isMobileView ? '75%' : '50%',
-              height: isMobileView ? '20%' : '30%',
-              gap: isMobileView ? '12px' : '16px',
-              padding: isMobileView ? '24px 16px' : '32px'
+              top: isMobileView ? '37.5%' : '40%', 
+              width: isMobileView ? '85%' : '65%',
+              height: isMobileView ? '22%' : '30%',
+              gap: isMobileView ? '6px' : '12px',
+              padding: isMobileView ? '12px' : '32px'
             }}
           >
             {/* Break Title */}
             <p 
-              className="text-amber-400 font-extrabold uppercase italic tracking-[0.25em] leading-none"
+              className="text-amber-400 font-black uppercase italic tracking-[0.3em] leading-none"
               style={{
-                fontSize: isMobileView ? 'clamp(0.8rem, 3.5vw, 1.2rem)' : 'clamp(1rem, 2.5vw, 2.2rem)',
-                textShadow: '0 2px 10px rgba(0,0,0,1)'
+                fontSize: isMobileView ? 'clamp(0.7rem, 3vw, 1.1rem)' : 'clamp(1rem, 2.2vw, 2rem)',
+                textShadow: '0 0 20px rgba(251, 191, 36, 0.4), 0 2px 4px rgba(0,0,0,0.8)'
               }}
             >
               {breakTypeLabel}
             </p>
             
-            {/* Countdown Timer - Rebalanced for template frame */}
+            {/* Countdown Timer - Premium Typography */}
             <div 
-              className="font-mono font-extrabold leading-none text-white flex items-center justify-center"
+              className="font-black leading-none text-white flex items-center justify-center tracking-tighter"
               style={{
-                fontSize: isMobileView ? 'clamp(2.8rem, 12vw, 4.8rem)' : 'clamp(5rem, 14vw, 8.5rem)',
-                letterSpacing: '-0.02em',
+                fontSize: isMobileView ? 'clamp(3.2rem, 14vw, 5.5rem)' : 'clamp(5.5rem, 16vw, 10rem)',
+                fontFamily: "'Inter', sans-serif", // Ensure premium sans-serif
                 textShadow: `
-                  0 0 10px rgba(0,0,0,1), 
-                  0 0 30px rgba(255,200,0,0.25)
+                  0 0 40px rgba(255,255,255,0.2), 
+                  0 10px 40px rgba(0,0,0,0.5),
+                  0 0 80px rgba(251, 191, 36, 0.15)
                 `,
-                animation: 'timerSubtleGlow 4s ease-in-out infinite'
+                filter: 'drop-shadow(0 0 10px rgba(251, 191, 36, 0.1))',
+                animation: 'timerSubtleGlow 3s ease-in-out infinite'
               }}
             >
-              {remainingMinutes.toString().padStart(2, '0')}:{displaySeconds.toString().padStart(2, '0')}
+              {remainingMinutes.toString().padStart(2, '0')}<span className="opacity-40 mx-[-0.05em]">:</span>{displaySeconds.toString().padStart(2, '0')}
             </div>
             
             {/* Subtitle */}
             <p 
-              className="text-white/80 font-black uppercase tracking-[0.15em] leading-none"
+              className="text-white/60 font-black uppercase tracking-[0.2em] leading-none"
               style={{
-                fontSize: isMobileView ? 'clamp(0.6rem, 2.2vw, 0.9rem)' : 'clamp(0.8rem, 1.8vw, 1.4rem)',
-                textShadow: '0 2px 6px rgba(0,0,0,1)'
+                fontSize: isMobileView ? 'clamp(0.55rem, 2vw, 0.8rem)' : 'clamp(0.8rem, 1.5vw, 1.2rem)',
+                textShadow: '0 2px 4px rgba(0,0,0,0.5)',
+                letterSpacing: '0.25em'
               }}
             >
               {t.weWillBeBack}
@@ -613,7 +600,10 @@ export default function OverlayPage() {
   }
 
   if (!auction || !auction.player) {
-    return <SplashScreen src={getMediaUrl(splashUrl)} title={auction?.tournamentName} />
+    const splashTitle = auction?.tournamentName 
+      ? (auction.tournamentName.toUpperCase().includes('SEASON') ? auction.tournamentName : `${auction.tournamentName} - SEASON 01`)
+      : 'KOLALA PREMIERE LEAGUE - SEASON 01';
+    return <SplashScreen src={getMediaUrl(splashUrl)} title={splashTitle} />
   }
 
   const { player, currentBid, highestBidder, highestBidderLogo, tournamentName, teams, roundHistory } = auction
@@ -632,6 +622,8 @@ export default function OverlayPage() {
         roundHistory={roundHistory}
         auctionResult={auctionResult}
         currencyUnit={auction.tournament?.currencyUnit || (auction.tournament?.auctionMode === "points" ? "CR" : "₹")}
+        iconsPerTeam={auction.tournament?.iconsPerTeam || 0}
+        maxSlots={auction.tournament?.squad?.maxPlayers || auction.tournament?.squadSize || 15}
       />
       
       {/* SOLD/UNSOLD ANIMATION - Exact same logic as admin auction */}

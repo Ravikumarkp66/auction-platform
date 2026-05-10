@@ -16,11 +16,8 @@ import { getCanonicalApplyRoute } from "../../../lib/applicationRoutes";
 
 // ── Stat Card ──────────────────────────────────────────────
 function StatCard({ title, value, icon: Icon, gradient, glow, sub, href }) {
-  const router = useRouter();
-
   const content = (
     <div
-      onClick={() => href && router.push(href)}
       className={`relative group overflow-hidden rounded-2xl border border-white/10
         bg-[#111827]/60 backdrop-blur-xl p-6
         hover:scale-[1.03] hover:border-white/20
@@ -34,7 +31,7 @@ function StatCard({ title, value, icon: Icon, gradient, glow, sub, href }) {
         style={{ background: gradient }}
       />
       <div className="relative z-10 flex items-start justify-between">
-        <div>
+        <div className="flex-1">
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 mb-2">{title}</p>
           <p className="text-4xl font-black text-white">{value}</p>
           {sub && <div className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-widest flex flex-wrap items-center gap-x-2">{sub}</div>}
@@ -48,6 +45,10 @@ function StatCard({ title, value, icon: Icon, gradient, glow, sub, href }) {
       </div>
     </div>
   );
+
+  if (href) {
+    return <Link href={href}>{content}</Link>;
+  }
 
   return content;
 }
@@ -232,28 +233,44 @@ export default function AdminDashboard() {
 
           {/* ── Stat Cards ── */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard title="Auction Teams" value={localStats.teams} icon={Users} gradient="linear-gradient(135deg,#7c3aed,#06b6d4)" glow="#8b5cf6" sub="Isolation active" href="/admin/teams" />
+            <StatCard title="Teams" value={localStats.teams} icon={Users} gradient="linear-gradient(135deg,#7c3aed,#06b6d4)" glow="#8b5cf6" sub="Management active" href="/admin/teams" />
             <StatCard
-              title="Player Pool"
+              title="Players"
               value={localStats.players}
               icon={Trophy}
               gradient="linear-gradient(135deg,#3b82f6,#8b5cf6)"
               glow="#3b82f6"
               sub={(
-                <>
-                  <Link href="/admin/players?tab=AVAILABLE" className="hover:text-cyan-400 transition-colors" onClick={e => e.stopPropagation()}>{localStats.available} Available</Link>
-                  <span className="opacity-20">•</span>
-                  <Link href="/admin/players?tab=PENDING" className="hover:text-yellow-400 transition-colors" onClick={e => e.stopPropagation()}>{localStats.pending} Pending</Link>
-                  <span className="opacity-20">•</span>
-                  <Link href="/admin/players?tab=SOLD" className="hover:text-violet-400 transition-colors" onClick={e => e.stopPropagation()}>{localStats.sold} Sold</Link>
-                  <span className="opacity-20">•</span>
-                  <Link href="/admin/players?tab=UNSOLD" className="hover:text-red-400 transition-colors" onClick={e => e.stopPropagation()}>{localStats.unsold} Unsold</Link>
-                </>
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  <Link 
+                    href="/admin/players?tab=available" 
+                    className="px-2 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-[9px] font-black text-emerald-500 border border-emerald-500/20 rounded-lg transition-all"
+                  >
+                    {localStats.available} Available
+                  </Link>
+                  <Link 
+                    href="/admin/players?tab=sold" 
+                    className="px-2 py-1 bg-violet-500/10 hover:bg-violet-500/20 text-[9px] font-black text-violet-400 border border-violet-500/20 rounded-lg transition-all"
+                  >
+                    {localStats.sold} Sold
+                  </Link>
+                  <Link 
+                    href="/admin/players?tab=unsold" 
+                    className="px-2 py-1 bg-red-500/10 hover:bg-red-500/20 text-[9px] font-black text-red-500 border border-red-500/20 rounded-lg transition-all"
+                  >
+                    {localStats.unsold} Unsold
+                  </Link>
+                  <Link 
+                    href="/admin/players?tab=pending" 
+                    className="px-2 py-1 bg-yellow-500/10 hover:bg-yellow-500/20 text-[9px] font-black text-yellow-500 border border-yellow-500/20 rounded-lg transition-all"
+                  >
+                    {localStats.pending} Pending
+                  </Link>
+                </div>
               )}
-              href="/admin/players"
             />
-            <StatCard title="Icon Roster" value={localStats.icons} icon={Award} gradient="linear-gradient(135deg,#f59e0b,#ef4444)" glow="#f59e0b" sub="Pre-retained" href="/admin/icons" />
-            <StatCard title="Budget Health" value="100%" icon={TrendingUp} gradient="linear-gradient(135deg,#10b981,#06b6d4)" glow="#10b981" sub="System Nominal" />
+            <StatCard title="Icons" value={localStats.icons} icon={Award} gradient="linear-gradient(135deg,#f59e0b,#ef4444)" glow="#f59e0b" sub="Pre-retained" href="/admin/icons" />
+            <StatCard title="Budget Health" value="100%" icon={TrendingUp} gradient="linear-gradient(135deg,#10b981,#06b6d4)" glow="#10b981" sub="Financials OK" href="/admin/teams" />
 
           </div>
 

@@ -13,7 +13,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { uploadToS3 } from "../../../lib/uploadToS3";
 import html2canvas from "html2canvas";
-import { API_URL, getProxiedImageUrl } from "../../../lib/apiConfig";
+import { API_URL, getProxiedImageUrl, calculateAge } from "../../../lib/apiConfig";
 
 let socket;
 
@@ -131,23 +131,10 @@ function PlayersRegistryContent() {
 
   const getImgUrl = (p) => {
     if (!p) return `https://ui-avatars.com/api/?name=Player&background=random&color=fff`;
-
     const url = p.imageUrl || p.photo?.s3 || p.photo?.drive;
     const fallback = `https://ui-avatars.com/api/?name=${encodeURIComponent(p.name)}&background=random&color=fff`;
-
     if (!url) return fallback;
-
-    // If it's a relative path starting with /uploads, prepend the API URL
-    if (url.startsWith("/uploads")) {
-      return `${API_URL}${url}`;
-    }
-
-    // If it's an external URL (S3, Drive, etc.), wrap it in our backend proxy to bypass CORS
-    if (url.startsWith("http")) {
-      return getProxiedImageUrl(url);
-    }
-
-    return url || fallback;
+    return getMediaUrl(url, fallback);
   };
 
   const downloadPosterAsImage = async (p) => {
@@ -330,6 +317,9 @@ function PlayersRegistryContent() {
     const file = e.target.files[0];
     if (!file) return;
 
+    // Ask if they want to REPLACE or APPEND
+    const mode = confirm("IMPORT MODE:\n\nClick 'OK' to REPLACE all existing players (DANGER: Wipes current list).\nClick 'Cancel' to APPEND new players to the existing list.") ? "replace" : "append";
+
     setIsImporting(true);
     const reader = new FileReader();
     reader.onload = async (ev) => {
@@ -339,17 +329,30 @@ function PlayersRegistryContent() {
         const ws = wb.Sheets[wb.SheetNames[0]];
         const data = XLSX.utils.sheet_to_json(ws);
 
-        const players = data.map(row => ({
-          name: findValue(row, ["player name", "playerName", "name", "player", "ಆಟಗಾರನ ಹೆಸರು"]) || "PLAYER NAME",
-          role: findValue(row, ["playing role", "role", "skill", "player role", "category", "type", "position", "ಪಾತ್ರ", "ಸ್ಥಾನ"]) || "All-Rounder",
-          mobile: findValue(row, ["mobile", "phone", "contact", "ಮೊಬೈಲ್", "ದೂರವಾಣಿ"]) || "-",
-          battingStyle: findValue(row, ["batting", "battingStyle", "style", "ಬ್ಯಾಟಿಂಗ್"]) || "Right Hand",
-          bowlingStyle: findValue(row, ["bowling", "bowlingStyle", "ಬೌಲಿಂಗ್"]) || "-",
-          age: Number(findValue(row, ["age", "years", "ವಯಸ್ಸು"])) || 0,
-          village: findValue(row, ["village", "town", "city", "ಗ್ರಾಮ", "ಸ್ಥಳ"]) || "-",
-          basePrice: Number(findValue(row, ["basePrice", "price", "base price", "amount", "ಮೂಲ ಬೆಲೆ"])) || 100,
-          imageUrl: findValue(row, ["imageUrl", "photo", "image", "link", "url", "ಭಾವಚಿತ್ರ"]) || ""
-        }));
+        const rawPlayers = data.map(row => {
+          const dobVal = findValue(row, ["dob", "birth", "date of birth", "ಪುಟ್ಟಿದ ದಿನಾಂಕ"]);
+          const ageVal = findValue(row, ["age", "years", "ವಯಸ್ಸು"]);
+          const calculatedAge = calculateAge(dobVal);
+
+          return {
+            name: findValue(row, ["player name", "playerName", "name", "player", "ಆಟಗಾರನ ಹೆಸರು"]) || "PLAYER NAME",
+            role: findValue(row, ["playing role", "role", "skill", "player role", "category", "type", "position", "ಪಾತ್ರ", "ಸ್ಥಾನ"]) || "All-Rounder",
+            mobile: findValue(row, ["mobile", "phone", "contact", "ಮೊಬೈಲ್", "ದೂರವಾಣಿ"]) || "-",
+            battingStyle: findValue(row, ["batting", "battingStyle", "style", "ಬ್ಯಾಟಿಂಗ್"]) || "Right Hand",
+            bowlingStyle: findValue(row, ["bowling", "bowlingStyle", "ಬೌಲಿಂಗ್"]) || "-",
+            dob: dobVal || "-",
+            age: Number(ageVal) || calculatedAge || 20,
+            village: findValue(row, ["village", "town", "city", "ಗ್ರಾಮ", "ಸ್ಥಳ"]) || "-",
+            basePrice: Number(findValue(row, ["basePrice", "price", "base price", "amount", "ಮೂಲ ಬೆಲೆ"])) || 100,
+            imageUrl: findValue(row, ["imageUrl", "photo", "image", "link", "url", "ಭಾವಚಿತ್ರ"]) || "",
+            isIcon: findValue(row, ["isIcon", "icon", "retained", "ಐಕಾನ್"]) === "true" || findValue(row, ["isIcon", "icon", "retained", "ಐಕಾನ್"]) === true
+          };
+        });
+
+        // Deduplicate locally by name (case-insensitive)
+        const uniquePlayers = Array.from(
+          new Map(rawPlayers.map((p) => [p.name.toLowerCase().trim(), p])).values()
+        );
 
         const res = await fetch(`${API_URL}/api/players/import`, {
           method: "POST",
@@ -357,13 +360,18 @@ function PlayersRegistryContent() {
             "Content-Type": "application/json",
             "Authorization": `Bearer ${session?.accessToken}`
           },
-          body: JSON.stringify({ players, tournamentId: selectedAuction._id })
+          body: JSON.stringify({ 
+            players: uniquePlayers, 
+            tournamentId: selectedAuction._id,
+            mode: mode // Send mode to backend
+          })
         });
 
         if (res.ok) {
           const result = await res.json();
-          alert(`Successfully added ${result.added} new players! (Skipped ${result.skipped} duplicates)`);
+          alert(`Successfully ${mode === 'replace' ? 'replaced' : 'imported'} players!\n\nAdded: ${result.added}\nSkipped Duplicates: ${result.skipped}`);
           fetchData();
+          socket.emit("auctionUpdate", { type: "system_refresh", auctionId: selectedAuction._id });
         } else {
           alert("Failed to import players");
         }

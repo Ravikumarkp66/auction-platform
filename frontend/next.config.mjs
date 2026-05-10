@@ -21,6 +21,21 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'ui-avatars.com',
       },
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+        port: '5050',
+      },
+      {
+        protocol: 'http',
+        hostname: '127.0.0.1',
+        port: '5050',
+      },
+      {
+        protocol: 'http',
+        hostname: '10.251.142.178',
+        port: '5050',
+      },
     ],
 
     unoptimized: true,
@@ -53,5 +68,6 @@ export default withPWA({
   dest: 'public',
   register: true,
   skipWaiting: true,
+  disable: process.env.NODE_ENV === 'development',
   publicExcludes: ['!manifest.webmanifest'],
 })(nextConfig);

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { Trophy, ShieldCheck, MapPin, Activity, User, Download, Share2 } from "lucide-react";
 import html2canvas from "html2canvas";
-import { API_URL } from "../../../lib/apiConfig";
+import { API_URL, getMediaUrl } from "../../../lib/apiConfig";
 
 export default function PublicPlayerCard() {
     const { id } = useParams();
@@ -15,17 +15,7 @@ export default function PublicPlayerCard() {
     const getImgUrl = (p) => {
         if (!p) return "/placeholder-player.png";
         const url = p.imageUrl || p.photo?.s3 || p.photo?.drive;
-        if (!url) return "/placeholder-player.png";
-        
-        if (url.startsWith("/uploads")) {
-           return `${API_URL}${url}`;
-        }
-        
-        if (url.startsWith("http")) {
-           return `${API_URL}/api/upload/proxy-image?url=${encodeURIComponent(url)}`;
-        }
-        
-        return url;
+        return getMediaUrl(url, "/placeholder-player.png");
     };
 
     const downloadAsImage = async () => {

@@ -616,7 +616,7 @@ router.put("/:id", authMiddleware, authorize(['admin']), async (req, res) => {
     const {
       registrationTitle, registrationDetails, registrationEndDate, registrationEndTime,
       closedMessage, assets, auctionMode, currencyUnit, startingBid, bidIncrement,
-      registrationFieldConfig
+      registrationFieldConfig, squadSize, squad
     } = req.body;
 
     const updateData = {
@@ -629,6 +629,8 @@ router.put("/:id", authMiddleware, authorize(['admin']), async (req, res) => {
     if (registrationFieldConfig) {
       updateData.registrationFieldConfig = registrationFieldConfig;
     }
+    if (squadSize !== undefined) updateData.squadSize = squadSize;
+    if (squad) updateData.squad = squad;
 
     const tournament = await Tournament.findByIdAndUpdate(
       req.params.id,

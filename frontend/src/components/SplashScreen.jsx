@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { getMediaUrl } from "../lib/apiConfig";
 
 export default function SplashScreen({ src, title }) {
   const displaySrc = src || "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/static/space-bg.jpg";
@@ -10,7 +11,7 @@ export default function SplashScreen({ src, title }) {
       {/* Background Image */}
       <div className="absolute inset-0">
         <img 
-          src={displaySrc} 
+          src={getMediaUrl(displaySrc)} 
           className="w-full h-full object-cover opacity-60 scale-110 animate-zoomIn" 
           alt="Splash Background" 
           onError={(e) => { e.target.style.display = 'none'; }}

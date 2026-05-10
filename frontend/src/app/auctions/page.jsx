@@ -207,7 +207,7 @@ export default function AuctionsPage() {
           {liveTournaments.length > 0 && (
             <div className="flex justify-center mb-12">
               <Link
-                href={status === "authenticated" ? `/live-auction?id=${liveTournaments[0].shortId || liveTournaments[0]._id}&role=admin` : `/overlay`}
+                href="/overlay"
                 className="group relative px-6 py-4 md:px-10 md:py-5 bg-gradient-to-r from-violet-500 to-teal-500 text-white font-black uppercase tracking-wider text-base md:text-lg rounded-2xl overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-[0_0_40px_rgba(16,185,129,0.5)]"
               >
                 <span className="relative z-10 flex items-center gap-3">
@@ -448,7 +448,7 @@ function SquadList({ team, players }) {
     <div className="space-y-4">
       <div className="flex items-center gap-2">
          <Users className="w-4 h-4 text-violet-400" />
-         <h4 className="text-sm font-black text-white uppercase tracking-widest">{team.name} Squad</h4>
+         <h4 className="text-xs md:text-sm font-black text-white uppercase tracking-widest">{team.name} Squad</h4>
       </div>
       <div className="grid grid-cols-1 gap-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
         {players.length === 0 ? (
@@ -457,7 +457,7 @@ function SquadList({ team, players }) {
           players.map((p, idx) => (
             <div key={p._id || idx} className="flex items-center gap-3 p-3 bg-white/5 rounded-xl border border-white/5 group/p hover:border-violet-500/30 transition-all">
                <div className="w-10 h-10 rounded-lg overflow-hidden border border-white/10 shrink-0">
-                  <img src={p.photo?.s3 || p.imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.name}`} className="w-full h-full object-cover" />
+                  <img src={getMediaUrl(p.photo?.s3 || p.imageUrl || p.image, `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.name}`)} className="w-full h-full object-cover" />
                </div>
                <div className="flex-1 min-w-0">
                   <p className="text-sm font-black text-white truncate">{p.name}</p>
@@ -507,44 +507,44 @@ function SquadViewModal({ tournament, onClose }) {
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#020617]/90 backdrop-blur-md animate-in fade-in">
-       <div className="bg-[#0f172a] border border-white/10 rounded-[2.5rem] w-full max-w-5xl h-[85vh] overflow-hidden shadow-2xl flex flex-col relative">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 md:p-4 bg-[#020617]/90 backdrop-blur-md animate-in fade-in">
+       <div className="bg-[#0f172a] border border-white/10 rounded-3xl md:rounded-[2.5rem] w-full max-w-5xl h-[92vh] md:h-[85vh] overflow-hidden shadow-2xl flex flex-col relative">
           
           <button 
             onClick={onClose}
-            className="absolute top-6 right-8 z-20 p-2 bg-white/5 hover:bg-white/10 rounded-full text-slate-400 hover:text-white transition-all shadow-inner border border-white/5"
+            className="absolute top-4 right-4 md:top-6 md:right-8 z-20 p-2 bg-white/5 hover:bg-white/10 rounded-full text-slate-400 hover:text-white transition-all shadow-inner border border-white/5"
           >
-            <XCircle className="w-6 h-6" />
+            <XCircle className="w-5 h-5 md:w-6 md:h-6" />
           </button>
 
-          <div className="p-8 border-b border-white/5 bg-white/[0.02]">
+          <div className="p-5 md:p-8 border-b border-white/5 bg-white/[0.02]">
             <p className="text-[10px] font-black text-violet-500 uppercase tracking-[0.4em] mb-1">Squad Database</p>
-            <h2 className="text-3xl font-black text-white tracking-tight text-left transform-none">{tournament.name}</h2>
+            <h2 className="text-xl md:text-3xl font-black text-white tracking-tight text-left transform-none truncate pr-10">{tournament.name}</h2>
           </div>
 
-          <div className="flex-1 flex overflow-hidden">
-            <div className="w-full md:w-80 border-r border-white/5 overflow-y-auto p-4 space-y-2 bg-black/20">
-              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-4 mb-3">Teams</p>
+          <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+            <div className="w-full md:w-80 border-b md:border-b-0 md:border-r border-white/5 overflow-y-auto p-3 md:p-4 space-y-2 bg-black/20 max-h-[35vh] md:max-h-full">
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-4 mb-2 md:mb-3">Teams</p>
               {loading ? (
                 Array(6).fill(0).map((_, i) => (
-                  <div key={i} className="h-16 w-full animate-pulse bg-white/5 rounded-2xl border border-white/5" />
+                  <div key={i} className="h-14 md:h-16 w-full animate-pulse bg-white/5 rounded-xl md:rounded-2xl border border-white/5" />
                 ))
               ) : (
                 data.teams.map((t) => (
                   <button
                     key={t._id}
                     onClick={() => setSelectedTeam(t)}
-                    className={`w-full flex items-center gap-4 p-4 rounded-2xl border transition-all duration-300 group
+                    className={`w-full flex items-center gap-3 md:gap-4 p-3 md:p-4 rounded-xl md:rounded-2xl border transition-all duration-300 group
                       ${selectedTeam?._id === t._id 
                         ? 'bg-violet-600/20 border-violet-500 shadow-lg shadow-violet-500/10' 
                         : 'bg-white/5 border-white/10 hover:border-white/20 hover:bg-white/[0.07]'}`}
                   >
-                    <div className="w-10 h-10 rounded-xl overflow-hidden border border-white/10 shrink-0 bg-slate-800 shadow-inner group-hover:scale-110 transition-transform">
-                       <img src={t.logoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(t.name)}&background=random`} className="w-full h-full object-cover" />
+                    <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl overflow-hidden border border-white/10 shrink-0 bg-slate-800 shadow-inner group-hover:scale-110 transition-transform">
+                       <img src={getMediaUrl(t.logoUrl, `https://ui-avatars.com/api/?name=${encodeURIComponent(t.name)}&background=random`)} className="w-full h-full object-cover" />
                     </div>
                     <div className="text-left flex-1 min-w-0">
-                       <p className={`text-sm font-black truncate ${selectedTeam?._id === t._id ? 'text-white' : 'text-slate-300'}`}>{t.name}</p>
-                       <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">
+                       <p className={`text-xs md:text-sm font-black truncate ${selectedTeam?._id === t._id ? 'text-white' : 'text-slate-300'}`}>{t.name}</p>
+                       <p className="text-[9px] md:text-[10px] font-bold text-slate-500 uppercase tracking-tighter">
                           {data.players?.filter(p => p.team === t._id).length} Players
                        </p>
                     </div>
@@ -553,7 +553,7 @@ function SquadViewModal({ tournament, onClose }) {
               )}
             </div>
 
-            <div className="flex-1 overflow-y-auto p-8">
+            <div className="flex-1 overflow-y-auto p-4 md:p-8">
                {loading ? (
                  <div className="space-y-4">
                     <div className="h-8 w-48 animate-pulse bg-white/5 rounded-lg" />

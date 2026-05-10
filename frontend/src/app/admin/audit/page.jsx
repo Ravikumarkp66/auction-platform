@@ -9,18 +9,20 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useAuction } from "../layout";
-import { API_URL } from "../../../lib/apiConfig";
+import { useSession } from "next-auth/react";
+import { API_URL, getMediaUrl } from "../../../lib/apiConfig";
 
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 
 export default function RegistryAuditPage() {
   const { selectedAuction } = useAuction();
-  const [data, setData] = useState({ mobileConflicts: [], aadhaarConflicts: [] });
+  const { data: session } = useSession();
+  const [data, setData] = useState({ mobileConflicts: [], aadhaarConflicts: [], imageConflicts: [] });
   const [trash, setTrash] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isCapturing, setIsCapturing] = useState(false);
-  const [view, setView] = useState("MOBILE"); // MOBILE | AADHAAR | TRASH
+  const [view, setView] = useState("MOBILE"); // MOBILE | AADHAAR | PHOTO | TRASH
   const [selectedPlayer, setSelectedPlayer] = useState(null);
 
   const downloadPosterAsImage = async (p) => {
@@ -66,32 +68,33 @@ export default function RegistryAuditPage() {
   };
 
   useEffect(() => {
-    if (selectedAuction) fetchAudit();
-  }, [selectedAuction, view]);
+    if (selectedAuction && session?.accessToken) fetchAudit();
+  }, [selectedAuction, view, session]);
 
   const getImgUrl = (p) => {
     if (!p) return "/placeholder-player.png";
     const url = p.imageUrl || p.photo?.s3 || p.photo?.drive;
-    if (!url) return "/placeholder-player.png";
-    
-    if (url.startsWith("/uploads")) {
-       return `${API_URL}${url}`;
-    }
-    
-    return `${API_URL}/api/upload/proxy-image?url=${encodeURIComponent(url)}`;
+    return getMediaUrl(url, "/placeholder-player.png");
   };
 
   const fetchAudit = async () => {
+    if (!session?.accessToken) return;
     setLoading(true);
     try {
+      const headers = {
+        "Authorization": `Bearer ${session.accessToken}`
+      };
+      
       if (view === "TRASH") {
-        const res = await fetch(`${API_URL}/api/players/audit/trash?tournamentId=${selectedAuction._id}`);
+        const res = await fetch(`${API_URL}/api/players/audit/trash?tournamentId=${selectedAuction._id}`, { headers });
         if (res.ok) setTrash(await res.json());
       } else {
-        const res = await fetch(`${API_URL}/api/players/audit/duplicates?tournamentId=${selectedAuction._id}`);
+        const res = await fetch(`${API_URL}/api/players/audit/duplicates?tournamentId=${selectedAuction._id}`, { headers });
         if (res.ok) setData(await res.json());
       }
-    } catch {}
+    } catch (err) {
+      console.error("Audit fetch failed:", err);
+    }
     setLoading(false);
   };
 
@@ -160,14 +163,20 @@ export default function RegistryAuditPage() {
   const handleSoftDelete = async (id) => {
     if (!confirm("Move this player to Recycle Bin?")) return;
     try {
-      const res = await fetch(`${API_URL}/api/players/${id}`, { method: "DELETE" });
+      const res = await fetch(`${API_URL}/api/players/${id}`, { 
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${session?.accessToken}` }
+      });
       if (res.ok) fetchAudit();
     } catch {}
   };
 
   const handleRestore = async (id) => {
     try {
-      const res = await fetch(`${API_URL}/api/players/audit/restore/${id}`, { method: "PUT" });
+      const res = await fetch(`${API_URL}/api/players/audit/restore/${id}`, { 
+        method: "PUT",
+        headers: { "Authorization": `Bearer ${session?.accessToken}` }
+      });
       if (res.ok) fetchAudit();
     } catch {}
   };
@@ -242,6 +251,17 @@ export default function RegistryAuditPage() {
                      <span className="text-xs font-black">{data.aadhaarConflicts?.length || 0}</span>
                   </button>
 
+                  <button 
+                    onClick={() => setView("PHOTO")}
+                    className={`w-full flex items-center justify-between p-5 rounded-2xl transition-all ${view === "PHOTO" ? 'bg-red-600/10 border border-red-500/20 text-white' : 'text-slate-500 hover:bg-white/5 hover:text-slate-300'}`}
+                  >
+                     <div className="flex items-center gap-3">
+                        <Users size={16} />
+                        <span className="text-[10px] font-black tracking-widest uppercase">Photo Conflicts</span>
+                     </div>
+                     <span className="text-xs font-black">{data.imageConflicts?.length || 0}</span>
+                  </button>
+
                   <div className="pt-4 border-t border-white/5">
                     <button 
                         onClick={() => setView("TRASH")}
@@ -270,7 +290,7 @@ export default function RegistryAuditPage() {
                             <div key={p._id} className="p-6 bg-[#111827]/80 border border-white/10 rounded-3xl group hover:border-yellow-500/30 transition-all flex items-center justify-between shadow-xl">
                                 <div className="flex items-center gap-5">
                                     <div className="w-14 h-14 bg-white/5 rounded-2xl overflow-hidden border border-white/10 shrink-0 grayscale opacity-40">
-                                        <img src={p.imageUrl || p.photo?.s3 || p.photo?.drive || '/placeholder-player.png'} className="w-full h-full object-cover" />
+                                        <img src={getMediaUrl(p.imageUrl || p.photo?.s3 || p.photo?.drive, '/placeholder-player.png')} className="w-full h-full object-cover" />
                                     </div>
                                     <div>
                                         <p className="text-xs font-black text-white uppercase italic tracking-tighter opacity-60 line-through">{p.name}</p>
@@ -288,18 +308,18 @@ export default function RegistryAuditPage() {
                         ))}
                     </div>
                  )
-              ) : (view === "MOBILE" ? data.mobileConflicts : data.aadhaarConflicts).length === 0 ? (
+              ) : (view === "MOBILE" ? data.mobileConflicts : view === "AADHAAR" ? data.aadhaarConflicts : data.imageConflicts).length === 0 ? (
                  <div className="h-96 flex flex-col items-center justify-center gap-6 bg-white/5 border border-white/5 border-dashed rounded-[3rem]">
                     <div className="w-20 h-20 bg-slate-900 rounded-full flex items-center justify-center text-emerald-500/30 border border-emerald-500/10"><ShieldCheck size={40} /></div>
                     <p className="text-[9px] font-black text-slate-700 uppercase tracking-[0.3em] italic">Clean state: no conflicts detected</p>
                  </div>
               ) : (
                 <div className="space-y-12">
-                   {(view === "MOBILE" ? data.mobileConflicts : data.aadhaarConflicts).map((group, gIdx) => (
+                   {(view === "MOBILE" ? data.mobileConflicts : view === "AADHAAR" ? data.aadhaarConflicts : data.imageConflicts).map((group, gIdx) => (
                       <div key={gIdx} className="space-y-4">
                          <div className="flex items-center gap-4 px-4">
                             <div className="h-0.5 flex-1 bg-white/5"></div>
-                            <span className="text-[10px] font-black text-red-500 uppercase tracking-[0.4em] italic leading-none">{view === "MOBILE" ? "COLLISION NODE" : "ID NODE"}: {group._id}</span>
+                            <span className="text-[10px] font-black text-red-500 uppercase tracking-[0.4em] italic leading-none">{view === "MOBILE" ? "COLLISION NODE" : view === "AADHAAR" ? "ID NODE" : "IMAGE NODE"}: {view === "PHOTO" ? "MATCH FOUND" : group._id}</span>
                             <div className="h-0.5 flex-1 bg-white/5"></div>
                          </div>
                          
@@ -308,7 +328,7 @@ export default function RegistryAuditPage() {
                                <div key={p._id} className="p-6 bg-[#111827]/80 border border-white/10 rounded-3xl group hover:border-violet-500/30 transition-all flex items-center justify-between shadow-xl">
                                   <div className="flex items-center gap-5">
                                      <div className="w-14 h-14 bg-white/5 rounded-2xl overflow-hidden border border-white/10 shrink-0">
-                                        <img src={p.imageUrl || p.photo?.s3 || p.photo?.drive || '/placeholder-player.png'} className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
+                                        <img src={getMediaUrl(p.imageUrl || p.photo?.s3 || p.photo?.drive, '/placeholder-player.png')} className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
                                      </div>
                                      <div>
                                         <p className="text-xs font-black text-white uppercase italic tracking-tighter">{p.name}</p>
@@ -347,7 +367,7 @@ export default function RegistryAuditPage() {
                             <h1 className="text-sm font-black text-white italic tracking-tighter uppercase">Official Poster</h1>
                          </div>
                          <img 
-                           src={selectedPlayer.imageUrl || selectedPlayer.photo?.s3 || selectedPlayer.photo?.drive || '/placeholder-player.png'} 
+                           src={getMediaUrl(selectedPlayer.imageUrl || selectedPlayer.photo?.s3 || selectedPlayer.photo?.drive, '/placeholder-player.png')} 
                            crossOrigin="anonymous" 
                            className="w-56 h-56 object-cover rounded-[2.5rem] border-4 border-white/10 shadow-xl" 
                          />

@@ -1,6 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
+import { getMediaUrl } from "../lib/apiConfig";
 
 export default function TeamDrawOverlay({ poolA, poolB, drawEvent }) {
   const slots = [0, 1, 2, 3, 4];
@@ -10,7 +11,7 @@ export default function TeamDrawOverlay({ poolA, poolB, drawEvent }) {
       {/* Background Ambience / Persistent Background Image */}
       <div className="absolute inset-0 z-0">
         <img 
-          src={'https://auction-platform-kp.s3.ap-south-1.amazonaws.com/static/space-bg.jpg'} 
+          src={getMediaUrl('https://auction-platform-kp.s3.ap-south-1.amazonaws.com/static/space-bg.jpg')} 
           className="w-full h-full object-cover opacity-10" 
           alt="" 
         />
@@ -52,7 +53,7 @@ export default function TeamDrawOverlay({ poolA, poolB, drawEvent }) {
                      {team ? (
                         <>
                           <div className="w-10 h-10 md:w-14 md:h-14 rounded-full border-2 border-white/10 overflow-hidden shadow-lg flex-shrink-0">
-                             <img src={team.logoUrl} alt="" className="w-full h-full object-cover" />
+                             <img src={getMediaUrl(team.logoUrl)} alt="" className="w-full h-full object-cover" />
                           </div>
                           <span className="text-lg md:text-2xl font-black text-white uppercase italic tracking-tight truncate">{team.name}</span>
                         </>
@@ -89,7 +90,7 @@ export default function TeamDrawOverlay({ poolA, poolB, drawEvent }) {
                      {team ? (
                         <>
                           <div className="w-10 h-10 md:w-14 md:h-14 rounded-full border-2 border-white/10 overflow-hidden shadow-lg flex-shrink-0">
-                             <img src={team.logoUrl} alt="" className="w-full h-full object-cover" />
+                             <img src={getMediaUrl(team.logoUrl)} alt="" className="w-full h-full object-cover" />
                           </div>
                           <span className="text-lg md:text-2xl font-black text-white uppercase italic tracking-tight truncate">{team.name}</span>
                         </>
