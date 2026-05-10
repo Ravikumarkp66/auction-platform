@@ -6,9 +6,24 @@ const ICE_SERVERS = {
     { urls: "stun:stun.l.google.com:19302" },
     { urls: "stun:stun1.l.google.com:19302" },
     { urls: "stun:stun2.l.google.com:19302" },
-    { urls: "stun:stun3.l.google.com:19302" },
-    { urls: "stun:stun4.l.google.com:19302" },
+    // Free TURN Relay (Essential for different locations/firewalls)
+    {
+      urls: "turn:openrelay.metered.ca:80",
+      username: "openrelayproject",
+      credential: "openrelayproject",
+    },
+    {
+      urls: "turn:openrelay.metered.ca:443",
+      username: "openrelayproject",
+      credential: "openrelayproject",
+    },
+    {
+      urls: "turn:openrelay.metered.ca:443?transport=tcp",
+      username: "openrelayproject",
+      credential: "openrelayproject",
+    },
   ],
+  iceTransportPolicy: "all",
 };
 
 /**
@@ -148,77 +163,91 @@ export function useVoiceChat(socket, roomId, isAdmin) {
     setViewerCount(Object.keys(peersRef.current).length);
   }, [createPeer, socket]);
 
-  // ─── Socket event listeners ───────────────────────────────────────────────
-  useEffect(() => {
-    if (!socket) return;
+    // ─── Socket event listeners ───────────────────────────────────────────────
+    useEffect(() => {
+      if (!socket) return;
+  
+      // ── ADMIN listeners ──────────────────────────────────────────────────────
+      if (isAdmin) {
+        // Server sends current viewer list when admin joins room
+        const onRoomViewers = ({ viewers }) => {
+          viewers.forEach((viewerId) => offerViewer(viewerId));
+        };
+  
+        // A new viewer connected while admin is live
+        const onViewerJoined = ({ viewerId }) => {
+          if (localStreamRef.current) {
+            console.log("[VoiceChat] New viewer joined, offering:", viewerId);
+            offerViewer(viewerId);
+          }
+        };
+  
+        // A viewer explicitly asked for an offer (fallback)
+        const onOfferRequest = ({ from }) => {
+          if (localStreamRef.current) {
+            console.log("[VoiceChat] Received offer request from:", from);
+            offerViewer(from);
+          }
+        };
 
-    // ── ADMIN listeners ──────────────────────────────────────────────────────
-    if (isAdmin) {
-      // Server sends current viewer list when admin joins room
-      const onRoomViewers = ({ viewers }) => {
-        viewers.forEach((viewerId) => offerViewer(viewerId));
+        // Viewer sent back an answer
+        const onAnswer = async ({ answer, from }) => {
+          const peer = peersRef.current[from];
+          if (peer) {
+            await peer.setRemoteDescription(new RTCSessionDescription(answer));
+          }
+        };
+
+        // ICE from viewer
+        const onIce = async ({ candidate, from }) => {
+          const peer = peersRef.current[from];
+          if (peer) {
+            try { await peer.addIceCandidate(new RTCIceCandidate(candidate)); } catch (_) {}
+          }
+        };
+  
+        socket.on("voice-room-viewers", onRoomViewers);
+        socket.on("voice-viewer-joined", onViewerJoined);
+        socket.on("voice-request-offer", onOfferRequest);
+        socket.on("voice-answer", onAnswer);
+        socket.on("voice-ice-candidate", onIce);
+  
+        return () => {
+          socket.off("voice-room-viewers", onRoomViewers);
+          socket.off("voice-viewer-joined", onViewerJoined);
+          socket.off("voice-request-offer", onOfferRequest);
+          socket.off("voice-answer", onAnswer);
+          socket.off("voice-ice-candidate", onIce);
+        };
+      }
+  
+      // ── VIEWER listeners ─────────────────────────────────────────────────────
+      const onOffer = async ({ offer, from }) => {
+        console.log("[VoiceChat] Received offer from admin:", from);
+        const peer = createPeer(from);
+        peersRef.current[from] = peer;
+  
+        // Play incoming audio
+        peer.ontrack = (event) => {
+          if (audioRef.current) {
+            audioRef.current.srcObject = event.streams[0];
+            audioRef.current.volume = volume;
+          }
+          setIsLive(true);
+        };
+  
+        await peer.setRemoteDescription(new RTCSessionDescription(offer));
+        const answer = await peer.createAnswer();
+        await peer.setLocalDescription(answer);
+        socket.emit("voice-answer", { answer, to: from });
       };
-
-      // A new viewer connected while admin is live
-      const onViewerJoined = ({ viewerId }) => {
-        if (isLive) offerViewer(viewerId);
-      };
-
-      // Viewer sent back an answer
-      const onAnswer = async ({ answer, from }) => {
-        const peer = peersRef.current[from];
-        if (peer) {
-          await peer.setRemoteDescription(new RTCSessionDescription(answer));
-        }
-      };
-
-      // ICE from viewer
+  
       const onIce = async ({ candidate, from }) => {
         const peer = peersRef.current[from];
         if (peer) {
           try { await peer.addIceCandidate(new RTCIceCandidate(candidate)); } catch (_) {}
         }
       };
-
-      socket.on("voice-room-viewers", onRoomViewers);
-      socket.on("voice-viewer-joined", onViewerJoined);
-      socket.on("voice-answer", onAnswer);
-      socket.on("voice-ice-candidate", onIce);
-
-      return () => {
-        socket.off("voice-room-viewers", onRoomViewers);
-        socket.off("voice-viewer-joined", onViewerJoined);
-        socket.off("voice-answer", onAnswer);
-        socket.off("voice-ice-candidate", onIce);
-      };
-    }
-
-    // ── VIEWER listeners ─────────────────────────────────────────────────────
-    const onOffer = async ({ offer, from }) => {
-      const peer = createPeer(from);
-      peersRef.current[from] = peer;
-
-      // Play incoming audio
-      peer.ontrack = (event) => {
-        if (audioRef.current) {
-          audioRef.current.srcObject = event.streams[0];
-          audioRef.current.volume = volume;
-        }
-        setIsLive(true);
-      };
-
-      await peer.setRemoteDescription(new RTCSessionDescription(offer));
-      const answer = await peer.createAnswer();
-      await peer.setLocalDescription(answer);
-      socket.emit("voice-answer", { answer, to: from });
-    };
-
-    const onIce = async ({ candidate, from }) => {
-      const peer = peersRef.current[from];
-      if (peer) {
-        try { await peer.addIceCandidate(new RTCIceCandidate(candidate)); } catch (_) {}
-      }
-    };
 
     socket.on("voice-offer", onOffer);
     socket.on("voice-ice-candidate", onIce);

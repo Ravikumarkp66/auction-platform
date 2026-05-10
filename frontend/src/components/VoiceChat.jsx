@@ -101,6 +101,19 @@ export function VoiceChatViewer({ socket, roomId }) {
   const { isLive, volume, audioRef, changeVolume } =
     useVoiceChat(socket, roomId, false);
 
+  // Fallback: If not live after joining, nudge the admin for an offer
+  useEffect(() => {
+    if (socket && roomId && !isLive) {
+      const timer = setInterval(() => {
+        if (!isLive) {
+          console.log("[VoiceChat] Nudging admin for offer...");
+          socket.emit("voice-request-offer", { to: roomId }); // Send to room (admin listens)
+        }
+      }, 5000);
+      return () => clearInterval(timer);
+    }
+  }, [socket, roomId, isLive]);
+
   if (!socket || !roomId) return null;
 
   return (

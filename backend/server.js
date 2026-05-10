@@ -305,6 +305,11 @@ io.on("connection", (socket) => {
     io.to(to).emit("voice-answer", { answer, from: socket.id });
   });
 
+  // Viewer asks for an offer (fallback if they missed the initial one)
+  socket.on("voice-request-offer", ({ to }) => {
+    io.to(to).emit("voice-request-offer", { from: socket.id });
+  });
+
   // ICE candidate exchange (bidirectional)
   socket.on("voice-ice-candidate", ({ candidate, to }) => {
     io.to(to).emit("voice-ice-candidate", { candidate, from: socket.id });
