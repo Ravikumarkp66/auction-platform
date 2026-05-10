@@ -8,6 +8,7 @@ import Image from "next/image"
 import { io } from "socket.io-client"
 import BreakControlPanel from '../../components/BreakControlPanel'
 import CompactBreakControl from '../../components/CompactBreakControl'
+import { VoiceChatAdmin } from '../../components/VoiceChat'
 import SplashScreen from '../../components/SplashScreen'
 import ImageCropperModal from '../../components/ImageCropperModal'
 import { uploadToS3 } from "../../lib/uploadToS3"
@@ -842,6 +843,7 @@ function LiveAuctionContent({ initialTournament: tournament }) {
     const nextPlayerObj = players.slice(currentPlayerIndex + 1).find(p => !p.type) || null;
 
     socket.emit("auctionUpdate", {
+      _id: selectedAuction?._id || currentTournamentId,
       player: activePlayer,
       nextPlayer: nextPlayerObj ? { name: nextPlayerObj.name, role: nextPlayerObj.role } : null,
       currentBid: currentBid,
@@ -850,6 +852,7 @@ function LiveAuctionContent({ initialTournament: tournament }) {
       tournamentName: config.name,
       tournamentLogo: selectedAuction?.assets?.logoUrl || selectedAuction?.organizerLogo || null,
       tournament: { 
+        _id: selectedAuction?._id || currentTournamentId,
         name: config.name,
         iconsPerTeam: config.iconsPerTeam 
       },
@@ -2022,6 +2025,9 @@ function LiveAuctionContent({ initialTournament: tournament }) {
                 socket={socket}
                 onViewSquads={() => router.push(`/teams?tournament=${currentTournamentId}`)}
               />
+
+              {/* Voice broadcast — admin mic to viewers */}
+              <VoiceChatAdmin socket={socket} roomId={currentTournamentId} />
 
               {/* Navigation Arrows */}
               <div className="flex bg-slate-900/80 rounded-xl p-1 border border-slate-700 shadow-xl backdrop-blur-md">

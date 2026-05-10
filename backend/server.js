@@ -269,6 +269,38 @@ io.on("connection", (socket) => {
     }
   });
 
+  // ===== WEBRTC VOICE SIGNALING =====
+  // Admin joins a voice room (one room per auction)
+  socket.on("voice-join-room", ({ roomId }) => {
+    socket.join(roomId);
+    // Notify admin of all current listeners in the room so it can create peer connections
+    const room = io.sockets.adapter.rooms.get(roomId);
+    const viewers = room ? [...room].filter(id => id !== socket.id) : [];
+    socket.emit("voice-room-viewers", { viewers });
+    // Notify others that someone joined (so admin can initiate offer)
+    socket.to(roomId).emit("voice-viewer-joined", { viewerId: socket.id });
+  });
+
+  // Admin sends WebRTC offer to a specific viewer
+  socket.on("voice-offer", ({ offer, to }) => {
+    io.to(to).emit("voice-offer", { offer, from: socket.id });
+  });
+
+  // Viewer sends answer back to admin
+  socket.on("voice-answer", ({ answer, to }) => {
+    io.to(to).emit("voice-answer", { answer, from: socket.id });
+  });
+
+  // ICE candidate exchange (bidirectional)
+  socket.on("voice-ice-candidate", ({ candidate, to }) => {
+    io.to(to).emit("voice-ice-candidate", { candidate, from: socket.id });
+  });
+
+  // Admin stops voice broadcast
+  socket.on("voice-stop", ({ roomId }) => {
+    socket.to(roomId).emit("voice-stopped");
+  });
+
   socket.on("disconnect", () => {
     console.log("Client disconnected:", socket.id);
   });

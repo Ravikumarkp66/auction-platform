@@ -12,6 +12,7 @@ import TeamDrawCinematic from './TeamDrawCinematic'
 import TeamDrawOverlay from '../../components/TeamDrawOverlay'
 import ResultOverlay from '../../components/ResultOverlay'
 import SplashScreen from '../../components/SplashScreen'
+import { VoiceChatViewer } from '../../components/VoiceChat'
 
 function getStoredBreakState() {
   if (typeof window === 'undefined') {
@@ -246,6 +247,7 @@ export default function OverlayPage() {
         console.log('✅ Overlay socket connected successfully:', s.id);
         console.log('📡 Socket transport:', s.io.opts.transports);
         s.emit('getBreakStatus') // Request current break status
+        s.emit('getAuctionState') // Request current auction state (for voice room ID)
       })
 
       s.on('connect_error', (error) => {
@@ -609,6 +611,12 @@ export default function OverlayPage() {
   // Use new premium overlay component
   return (
     <>
+      {/* Voice audio — auto-joins room, shows live banner when admin is broadcasting */}
+      {socket && auction?._id && (
+        <div style={{ position: 'fixed', top: 68, right: 12, zIndex: 9999 }}>
+          <VoiceChatViewer socket={socket} roomId={auction._id} />
+        </div>
+      )}
       <AuctionOverlayNew
         player={player}
         nextPlayer={auction.nextPlayer}
