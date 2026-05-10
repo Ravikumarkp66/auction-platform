@@ -25,7 +25,21 @@ app.use(helmet({
       scriptSrc: ["'self'"],  // ✅ NO unsafe-inline, unsafe-eval
       styleSrc: ["'self'", "https://fonts.googleapis.com"],
       imgSrc: ["'self'", "data:", "blob:", "https://*.amazonaws.com", "https://ui-avatars.com"],
-      connectSrc: ["'self'", "https://*.amazonaws.com", "wss://localhost:*", "ws://10.251.142.178:*", "ws://localhost:*"],
+      connectSrc: [
+        "'self'", 
+        "https://*.amazonaws.com", 
+        "wss://*.vercel.app",
+        "wss://*.render.com",
+        "https://*.render.com",
+        "stun:stun.l.google.com:19302",
+        "stun:stun1.l.google.com:19302",
+        "stun:stun2.l.google.com:19302",
+        "stun:stun3.l.google.com:19302",
+        "stun:stun4.l.google.com:19302",
+        "wss://localhost:*", 
+        "ws://localhost:*",
+        "*" // Fallback for production signaling
+      ],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       objectSrc: ["'none'"],
       upgradeInsecureRequests: [],

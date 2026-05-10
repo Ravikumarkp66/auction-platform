@@ -98,57 +98,65 @@ export function VoiceChatAdmin({ socket, roomId }) {
      <VoiceChatViewer socket={socket} roomId={tournamentId} />
 ──────────────────────────────────────────────────────────────────────────── */
 export function VoiceChatViewer({ socket, roomId }) {
-  const { isLive, volume, audioRef, joinVoiceRoom, changeVolume } =
+  const { isLive, volume, audioRef, changeVolume } =
     useVoiceChat(socket, roomId, false);
 
-  // Auto-join room on mount
-  const joined = useRef(false);
-  if (socket && roomId && !joined.current) {
-    joined.current = true;
-    joinVoiceRoom();
-  }
+  if (!socket || !roomId) return null;
 
   return (
     <>
-      {/* Hidden audio element — browser plays this automatically */}
       <audio ref={audioRef} autoPlay playsInline style={{ display: "none" }} />
 
-      {isLive && (
-        <div style={{
-          display: "flex", alignItems: "center", gap: "10px",
-          background: "rgba(0,0,0,0.6)", backdropFilter: "blur(10px)",
-          border: "1px solid rgba(239,68,68,0.4)",
-          borderRadius: "12px", padding: "8px 14px"
-        }}>
-          <span style={{
-            width: 8, height: 8, borderRadius: "50%",
-            background: "#ef4444", boxShadow: "0 0 6px #ef4444",
-            animation: "pulse 1.5s infinite", flexShrink: 0
-          }} />
-          <span style={{ color: "#f1f5f9", fontSize: 13, fontWeight: 600 }}>
-            🔊 Auctioneer Live
-          </span>
+      <div style={{
+        display: "flex", alignItems: "center", gap: "10px",
+        background: "rgba(0,0,0,0.7)", backdropFilter: "blur(12px)",
+        border: `1px solid ${isLive ? "rgba(239,68,68,0.5)" : "rgba(255,255,255,0.1)"}`,
+        borderRadius: "14px", padding: "10px 16px",
+        boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+        transition: "all 0.3s ease"
+      }}>
+        {/* Status indicator */}
+        <span style={{
+          width: 10, height: 10, borderRadius: "50%",
+          background: isLive ? "#ef4444" : "#64748b",
+          boxShadow: isLive ? "0 0 10px #ef4444" : "none",
+          animation: isLive ? "pulse 1.5s infinite" : "none",
+          flexShrink: 0
+        }} />
 
-          {/* Volume slider */}
-          <input
-            id="voice-volume-slider"
-            type="range" min="0" max="1" step="0.05"
-            value={volume}
-            onChange={(e) => changeVolume(parseFloat(e.target.value))}
-            style={{ width: 70, accentColor: "#ef4444", cursor: "pointer" }}
-          />
-          <span style={{ color: "#94a3b8", fontSize: 11, minWidth: 28 }}>
-            {Math.round(volume * 100)}%
+        <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+          <span style={{ color: "#f1f5f9", fontSize: 13, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+            {isLive ? "🔊 Auctioneer Live" : "🎙️ Voice Ready"}
           </span>
-
-          <style>{`
-            @keyframes pulse {
-              0%,100% { opacity:1; }
-              50% { opacity:0.4; }
-            }
-          `}</style>
+          {!isLive && (
+            <span style={{ color: "#94a3b8", fontSize: 10, fontWeight: 500 }}>
+              Waiting for broadcast...
+            </span>
+          )}
         </div>
-      )}
+
+        {isLive && (
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginLeft: "4px", borderLeft: "1px solid rgba(255,255,255,0.1)", paddingLeft: "12px" }}>
+            <input
+              id="voice-volume-slider"
+              type="range" min="0" max="1" step="0.05"
+              value={volume}
+              onChange={(e) => changeVolume(parseFloat(e.target.value))}
+              style={{ width: 80, accentColor: "#ef4444", cursor: "pointer" }}
+            />
+            <span style={{ color: "#94a3b8", fontSize: 11, fontWeight: 700, minWidth: 30, fontFamily: "monospace" }}>
+              {Math.round(volume * 100)}%
+            </span>
+          </div>
+        )}
+
+        <style>{`
+          @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(0.9); }
+          }
+        `}</style>
+      </div>
     </>
   );
 }
