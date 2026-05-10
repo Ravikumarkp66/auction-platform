@@ -1,5 +1,5 @@
 "use client";
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
 import { useVoiceChat } from "@/hooks/useVoiceChat";
 
 /* ────────────────────────────────────────────────────────────────────────────
