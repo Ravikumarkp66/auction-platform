@@ -5,19 +5,24 @@
 export const getApiUrl = () => {
   const envUrl = process.env.NEXT_PUBLIC_API_URL;
   
-  if (typeof window !== 'undefined') {
-    if (envUrl && envUrl !== "undefined" && envUrl.startsWith("http")) {
-      return envUrl;
-    }
-    // If we are on localhost/127.0.0.1, use the current hostname to avoid CORS mismatch
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-      return `http://${window.location.hostname}:5050`;
-    }
-    return `http://${window.location.hostname}:5050`; 
+  if (envUrl && envUrl !== "undefined" && envUrl.startsWith("http")) {
+    return envUrl;
   }
 
-  if (envUrl && envUrl !== "undefined" && envUrl.length > 0) {
-    return envUrl;
+  if (typeof window !== 'undefined') {
+    // If we are on localhost/127.0.0.1, use the current hostname to avoid CORS mismatch
+    const isLocal = window.location.hostname === 'localhost' || 
+                   window.location.hostname === '127.0.0.1' || 
+                   window.location.hostname.startsWith('192.168.') || 
+                   window.location.hostname.startsWith('10.');
+
+    if (isLocal) {
+      return `http://${window.location.hostname}:5050`;
+    }
+    
+    // In production, we MUST have NEXT_PUBLIC_API_URL set. 
+    // Fallback to empty string to prevent hitting port 5050 on the frontend domain
+    return ""; 
   }
 
   if (process.env.NODE_ENV === "development") {

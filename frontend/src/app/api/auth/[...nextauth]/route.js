@@ -1,6 +1,7 @@
 import NextAuth from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
+import { API_URL } from "@/lib/apiConfig";
 
 const authOptions = {
   providers: [
@@ -26,7 +27,10 @@ const authOptions = {
           const email = (credentials.email || "").toLowerCase().trim();
           const password = (credentials.password || "").trim();
 
-          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://10.251.142.178:5050'}/api/auth/login`, {
+          const loginUrl = `${API_URL}/api/auth/login`;
+          console.log(`[AUTH] Attempting login at: ${loginUrl}`);
+
+          const res = await fetch(loginUrl, {
             method: 'POST',
             body: JSON.stringify({ email, password }),
             headers: { "Content-Type": "application/json" }
@@ -35,12 +39,14 @@ const authOptions = {
           const data = await res.json();
 
           if (res.ok && data.success && data.user) {
+            console.log(`[AUTH] Login successful for: ${email}`);
             return data.user;
           }
           
+          console.warn(`[AUTH] Login failed for ${email}: ${data.message || 'Invalid status'}`);
           return null;
         } catch (err) {
-          console.error("Auth fetch error:", err);
+          console.error("[AUTH] Fetch error during login:", err.message);
           return null;
         }
       }
@@ -71,8 +77,7 @@ const authOptions = {
           // Google login needs to sync with backend to get a valid JWT
           try {
             console.log("[AUTH SYNC] Synchronizing Google User with Backend:", userEmail);
-            const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://10.251.142.178:5050";
-            const res = await fetch(`${apiBase}/api/auth/google-sync`, {
+            const res = await fetch(`${API_URL}/api/auth/google-sync`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ email: userEmail })
@@ -85,7 +90,7 @@ const authOptions = {
               console.warn("[AUTH SYNC] Backend returned success but no token (likely not an admin)");
             }
           } catch (err) {
-            console.error("[AUTH SYNC] Backend sync failed:", err);
+            console.error("[AUTH SYNC] Backend sync failed:", err.message);
           }
         }
         
