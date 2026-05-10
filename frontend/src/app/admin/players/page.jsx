@@ -13,7 +13,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { uploadToS3 } from "../../../lib/uploadToS3";
 import html2canvas from "html2canvas";
-import { API_URL, getProxiedImageUrl, calculateAge } from "../../../lib/apiConfig";
+import { API_URL, getMediaUrl, getProxiedImageUrl, calculateAge } from "../../../lib/apiConfig";
 
 let socket;
 

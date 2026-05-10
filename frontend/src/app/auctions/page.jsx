@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useSession } from "next-auth/react";
 import { Trophy, Play, Users, Calendar, ExternalLink, Clock, XCircle } from "lucide-react";
-import { API_URL, DEFAULT_ASSETS, getMediaUrl } from "@/lib/apiConfig";
+import { API_URL, DEFAULT_ASSETS, getMediaUrl } from "../../lib/apiConfig";
 
 export default function AuctionsPage() {
   const { data: session, status } = useSession();
@@ -212,7 +212,7 @@ export default function AuctionsPage() {
               >
                 <span className="relative z-10 flex items-center gap-3">
                   <Play className="w-5 h-5 md:w-6 md:h-6 fill-current" />
-                  Enter Live Auction
+                  {session?.user?.role === "admin" ? "Start Auction" : "Enter Live Auction"}
                 </span>
                 <div className="absolute inset-0 bg-gradient-to-r from-teal-500 to-violet-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
               </Link>
@@ -304,7 +304,7 @@ export default function AuctionsPage() {
                       >
                         <span className="relative z-10 flex items-center gap-2">
                           <Play className="w-4 h-4 md:w-5 md:h-5 fill-current" />
-                          Watch
+                          {session?.user?.role === "admin" ? "Start Auction" : "Watch"}
                         </span>
                         <div className="absolute inset-0 bg-gradient-to-r from-teal-500 to-violet-500 opacity-0 group-hover/btn:opacity-100 transition-opacity duration-300"></div>
                       </Link>

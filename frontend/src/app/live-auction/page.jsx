@@ -15,8 +15,8 @@ import ResultOverlay from '../../components/ResultOverlay'
 import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
 import { Search, ChevronLeft, ChevronRight, Play, Trophy, LogOut, Settings, BarChart, Download, Users, History, Gavel, Image as ImageIcon } from "lucide-react"
-import { API_URL, DEFAULT_ASSETS, getMediaUrl, calculateAge } from "@/lib/apiConfig";
-import CurrencySymbol from "@/components/CurrencySymbol";
+import { API_URL, DEFAULT_ASSETS, getMediaUrl, calculateAge } from "../../lib/apiConfig";
+import CurrencySymbol from "../../components/CurrencySymbol";
 
 // Module-level socket instance to persist across React re-renders in development
 let globalSocket = null
@@ -32,12 +32,12 @@ function LiveAuctionContent({ initialTournament: tournament }) {
   // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [auctionBg, setAuctionBg] = useState('/splash-screen.png')
+  const [auctionBg, setAuctionBg] = useState('https://auction-platform-kp.s3.ap-south-1.amazonaws.com/backgrounds/auction+bg.jpg')
 
   const [currentTournamentId, setCurrentTournamentId] = useState(tournamentId)
   const [activeAssets, setActiveAssets] = useState({
     splashUrl: "",
-    backgroundUrl: "/backgrounds/auction-bg.jpg",
+    backgroundUrl: "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/backgrounds/auction+bg.jpg",
     badges: { leftBadge: "", rightBadge: "" }
   });
 
@@ -939,23 +939,6 @@ function LiveAuctionContent({ initialTournament: tournament }) {
 
     setRoundHistory([{ team: biddingTeam.name, teamId: teamId, bid: bidAmount }, ...roundHistory])
 
-    // Broadcast bid to all connected devices via socket
-    if (socket) {
-      // Auto-stop break if any bid is placed
-      socket.emit('breakTimeEnd');
-
-      socket.emit('auctionUpdate', {
-        player: player,
-        currentBid: bidAmount,
-        highestBidder: teamId,
-        highestBidderLogo: biddingTeam.logoUrl,
-        tournamentName: config.name,
-        teams: teams,
-        roundHistory: [{ team: biddingTeam.name, teamId: teamId, bid: bidAmount }, ...roundHistory],
-        timestamp: Date.now()
-      })
-    }
-
     // Auto-prepare next bid price using dynamic Credits increment
     setBidIncrement(bidAmount + getBidIncrement(bidAmount))
 
@@ -1283,18 +1266,6 @@ function LiveAuctionContent({ initialTournament: tournament }) {
 
         if (res.ok) {
           console.log(`✅ REVERTED: ${player.name} back to auction from UNSOLD`);
-          if (socket) {
-            socket.emit('auctionUpdate', {
-              player: updatedPlayers[currentPlayerIndex],
-              currentBid: 0,
-              highestBidder: null,
-              highestBidderLogo: null,
-              tournamentName: config.name,
-              teams: teams,
-              roundHistory: roundHistory,
-              timestamp: Date.now()
-            });
-          }
         } else {
           // Revert state if API call failed
           console.error(`❌ API Error: ${res.status} - ${resText}`);

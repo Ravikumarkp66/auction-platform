@@ -1241,7 +1241,7 @@ export default function AuctionOverlayNew({
                     </div>
 
                     {/* 💰 Current Bid Section - Compact & Horizontal */}
-                    <div className={`w-full p-6 rounded-[28px] flex flex-row items-center justify-between transition-all ${bidAmount > 0 ? 'bid-accent-glow' : ''}`}
+                    <div key={bidAmount} className={`w-full p-6 rounded-[28px] flex flex-row items-center justify-between transition-all ${bidAmount > 0 ? 'bid-accent-glow' : ''}`}
                       style={{ 
                         background: 'linear-gradient(135deg, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.4) 100%)',
                         boxShadow: 'inset 0 2px 20px rgba(0,0,0,0.5)',
@@ -1367,7 +1367,7 @@ export default function AuctionOverlayNew({
                 </div>
 
                 {/* 💰 Current Bid Section */}
-                <div className={`w-full p-6 rounded-2xl flex flex-col items-center transition-all ${bidAmount > 0 ? 'bid-accent-glow' : ''}`}
+                <div key={bidAmount} className={`w-full p-6 rounded-2xl flex flex-col items-center transition-all ${bidAmount > 0 ? 'bid-accent-glow' : ''}`}
                   style={{ 
                     background: 'radial-gradient(circle at center, #132f3e, #0c2432)',
                     boxShadow: 'inset 0 0 20px rgba(0,0,0,0.4)',
