@@ -66,7 +66,7 @@ const authOptions = {
         if (adminEmails.includes(userEmail)) {
           token.role = "admin";
         } else {
-          token.role = user.role || "user";
+          token.role = (user.role || "user").toLowerCase();
         }
 
         // 2. Token Sync (Backend JWT)

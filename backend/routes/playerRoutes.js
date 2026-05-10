@@ -233,8 +233,11 @@ router.get("/audit/duplicates",
 router.post("/check-duplicate", async (req, res) => {
     try {
         const { name, mobile, tournamentId, aadhaarNumber } = req.body;
-        const duplicateCriteria = [{ name: { $regex: new RegExp(`^${name?.trim()}$`, "i") }, mobile: mobile?.trim() }];
-        if (aadhaarNumber) duplicateCriteria.push({ aadhaarNumber: aadhaarNumber.trim() });
+        const safeName = name != null ? String(name).trim() : "";
+        const safeMobile = mobile != null ? String(mobile).trim() : "";
+        
+        const duplicateCriteria = [{ name: { $regex: new RegExp(`^${safeName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, "i") }, mobile: safeMobile }];
+        if (aadhaarNumber) duplicateCriteria.push({ aadhaarNumber: String(aadhaarNumber).trim() });
         const existing = await Player.findOne({ tournamentId, $or: duplicateCriteria, isDeleted: { $ne: true } });
         if (existing) {
             return res.status(409).json({ message: `Identity collision. Already registered to player: ${existing.name}.` });
@@ -348,6 +351,8 @@ router.post("/import",
     async (req, res) => {
         try {
             const { players, tournamentId, mode } = req.body;
+            console.log(`[IMPORT] Received ${players?.length} players for tournament ${tournamentId}`);
+            console.log(`[IMPORT] Player names: ${players?.map(p => p.name).join(", ")}`);
 
             // If mode is REPLACE, soft-delete existing players first
             if (mode === "replace") {
@@ -356,6 +361,12 @@ router.post("/import",
                     { $set: { isDeleted: true, deletedAt: new Date() } }
                 );
                 console.log(`[IMPORT] Replaced existing players for tournament ${tournamentId}`);
+            } else if (mode === "replaceIcons") {
+                await Player.updateMany(
+                    { tournamentId, isIcon: true, isDeleted: { $ne: true } },
+                    { $set: { isDeleted: true, deletedAt: new Date() } }
+                );
+                console.log(`[IMPORT] Replaced existing icon players for tournament ${tournamentId}`);
             }
 
             let added = 0;
@@ -370,30 +381,68 @@ router.post("/import",
             for (const p of players) {
                 const sanitizedPlayer = sanitizeObject(p);
                 const isIcon = sanitizedPlayer.isIcon === true;
+
+                // Resolve teamName -> team ObjectId for icons that came from CSV
+                if (isIcon && sanitizedPlayer.teamName && !sanitizedPlayer.team) {
+                    try {
+                        const escapedTeamName = String(sanitizedPlayer.teamName).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                        const matchedTeam = await Team.findOne({
+                            tournamentId,
+                            name: { $regex: new RegExp(`^${escapedTeamName}$`, 'i') }
+                        });
+                        if (matchedTeam) sanitizedPlayer.team = matchedTeam._id;
+                    } catch (_) {}
+                }
                 
                 // CRITICAL: Duplicate Check
                 // Skip if player with same name or mobile already exists in this tournament
-                const nameKey = sanitizedPlayer.name?.trim();
-                const mobileKey = sanitizedPlayer.mobile?.trim();
+                const rawName = sanitizedPlayer.name != null ? String(sanitizedPlayer.name) : "";
+                const nameKey = rawName.trim();
+                const escapedName = nameKey.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                
+                const rawMobile = sanitizedPlayer.mobile != null ? String(sanitizedPlayer.mobile) : "";
+                const mobileKey = rawMobile.trim();
+                
+                // Skip dummy mobile numbers from duplicate check
+                const dummyMobiles = ["", "-", "0", "na", "n/a", "none", "null", "undefined"];
+                const isDummyMobile = dummyMobiles.includes(mobileKey.toLowerCase());
                 
                 const existing = await Player.findOne({
                     tournamentId,
                     isDeleted: { $ne: true },
                     $or: [
-                        { name: { $regex: new RegExp(`^${nameKey}$`, "i") } },
-                        ...(mobileKey && mobileKey !== "-" ? [{ mobile: mobileKey }] : [])
+                        { 
+                            name: { $regex: new RegExp(`^${escapedName}$`, "i") },
+                            ...(isIcon && sanitizedPlayer.team ? { team: sanitizedPlayer.team } : {})
+                        },
+                        ...(!isDummyMobile && !isIcon ? [{ mobile: mobileKey }] : [])
                     ]
                 });
-
-                if (existing) {
-                    skipped++;
-                    continue;
-                }
 
                 // Set photo object if image URL exists
                 const photoData = sanitizedPlayer.imageUrl 
                     ? { s3: sanitizedPlayer.imageUrl, status: "done" } 
                     : undefined;
+
+                if (existing) {
+                    if (isIcon) {
+                        // Update existing player to be an icon
+                        existing.isIcon = true;
+                        existing.status = "sold";
+                        existing.iconId = existing.iconId || nextIconId++;
+                        existing.team = sanitizedPlayer.team || existing.team;
+                        existing.teamName = sanitizedPlayer.teamName || existing.teamName;
+                        existing.iconRole = sanitizedPlayer.iconRole || existing.iconRole;
+                        if (photoData) existing.photo = photoData;
+                        
+                        await existing.save();
+                        added++;
+                        continue;
+                    } else {
+                        skipped++;
+                        continue;
+                    }
+                }
 
                 const newPlayer = new Player({
                     ...sanitizedPlayer,
@@ -412,6 +461,7 @@ router.post("/import",
             res.json({ success: true, added, skipped });
         } catch (err) {
             console.error("[IMPORT ERROR]:", err);
+            require('fs').writeFileSync('import_error.log', err.stack || err.message);
             res.status(500).json({ message: err.message });
         }
     });

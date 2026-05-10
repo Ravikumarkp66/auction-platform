@@ -32,12 +32,12 @@ function LiveAuctionContent({ initialTournament: tournament }) {
   // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [auctionBg, setAuctionBg] = useState('https://auction-platform-kp.s3.ap-south-1.amazonaws.com/backgrounds/auction+bg.jpg')
+  const [auctionBg, setAuctionBg] = useState('https://auction-platform-kp.s3.ap-south-1.amazonaws.com/banners/1777801051801.png')
 
   const [currentTournamentId, setCurrentTournamentId] = useState(tournamentId)
   const [activeAssets, setActiveAssets] = useState({
     splashUrl: "",
-    backgroundUrl: "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/backgrounds/auction+bg.jpg",
+    backgroundUrl: "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/banners/1777801051801.png",
     badges: { leftBadge: "", rightBadge: "" }
   });
 
@@ -572,7 +572,7 @@ function LiveAuctionContent({ initialTournament: tournament }) {
             ...prev,
             splashUrl: tournament.assets.splashUrl || "",
             logoUrl: tournament.assets.logoUrl || "",
-            backgroundUrl: tournament.assets.backgroundUrl || "/backgrounds/auction-bg.jpg",
+            backgroundUrl: tournament.assets.backgroundUrl || "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/banners/1777801051801.png",
             badges: tournament.assets.badges || { leftBadge: "", rightBadge: "" }
           }));
           if (tournament.assets.backgroundUrl) setAuctionBg(tournament.assets.backgroundUrl);
@@ -612,7 +612,7 @@ function LiveAuctionContent({ initialTournament: tournament }) {
             totalBudget: data.tournament.baseBudget,
             remainingBudget: t.remainingBudget,
             players: (() => {
-              const teamPlayers = data.players.filter(p => p.team === t._id);
+              const teamPlayers = data.players.filter(p => String(p.team) === String(t._id) || p.team === t.name);
               const unique = [];
               const seen = new Set();
               teamPlayers.forEach(p => {
@@ -831,6 +831,7 @@ function LiveAuctionContent({ initialTournament: tournament }) {
       shortName: t.shortName,
       logoUrl: t.logoUrl,
       remainingBudget: t.remainingBudget,
+      players: t.players || [], // CRITICAL: Include players for squad rendering
       playersCount: t.players?.length || 0,
       maxPlayers: config.squadSize || 15,
       squadImageUrl: t.squadImageUrl || null,
@@ -847,13 +848,14 @@ function LiveAuctionContent({ initialTournament: tournament }) {
       highestBidder: topTeam?.name || null,
       highestBidderLogo: topTeam?.logoUrl || null,
       tournamentName: config.name,
+      tournamentLogo: selectedAuction?.assets?.logoUrl || selectedAuction?.organizerLogo || null,
       tournament: { 
         name: config.name,
         iconsPerTeam: config.iconsPerTeam 
       },
       teams: overlayTeams,
       roundHistory: roundHistory.slice(0, 5),
-      result: result, // CRITICAL: Include result in overlay data
+      result: result,
       timestamp: Date.now()
     })
   }, [socket, players, currentPlayerIndex, currentBid, highestBidder, teams, config, result, roundHistory])
@@ -1393,7 +1395,7 @@ function LiveAuctionContent({ initialTournament: tournament }) {
               logoUrl: t.logoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(t.name)}&background=random`,
               totalBudget: data.tournament.baseBudget,
               remainingBudget: t.remainingBudget,
-              players: data.players?.filter(p => p.team === t._id) || [],
+              players: data.players?.filter(p => String(p.team) === String(t._id) || p.team === t.name) || [],
               color: t.color || "bg-blue-600"
             })))
           }
@@ -1816,7 +1818,7 @@ function LiveAuctionContent({ initialTournament: tournament }) {
     )
   }
 
-  if (!session || session.user?.role !== "admin") {
+  if (!session || session.user?.role?.toLowerCase() !== "admin") {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center">
         <div className="text-center">
@@ -1856,7 +1858,7 @@ function LiveAuctionContent({ initialTournament: tournament }) {
         <Link href="/auctions" className="bg-violet-600 hover:bg-violet-500 px-8 py-3 rounded-xl font-bold shadow-lg transition-colors">
           View Auctions
         </Link>
-        {session?.user?.role === "admin" && (
+        {session?.user?.role?.toLowerCase() === "admin" && (
           <Link href="/auction" className="bg-slate-700 hover:bg-slate-600 px-8 py-3 rounded-xl font-bold shadow-lg transition-colors">
             Create Tournament
           </Link>
@@ -1879,7 +1881,7 @@ function LiveAuctionContent({ initialTournament: tournament }) {
       {/* Background Layer - Fixed & Clear */}
       <div className="fixed inset-0 z-0">
         <img
-          src={activeAssets.backgroundUrl || '/splash-screen.png'}
+          src={getMediaUrl(activeAssets.backgroundUrl || 'https://auction-platform-kp.s3.ap-south-1.amazonaws.com/banners/1777801051801.png')}
           className="w-full h-full object-cover scale-100"
           alt=""
           style={{
@@ -2048,7 +2050,7 @@ function LiveAuctionContent({ initialTournament: tournament }) {
               {selectedAuction?.organizerLogo && (
                 <div className="w-16 h-16 lg:w-24 lg:h-24 relative bg-slate-900/40 rounded-2xl border border-white/5 p-2 flex items-center justify-center backdrop-blur-md shadow-2xl">
                   <img
-                    src={selectedAuction.organizerLogo}
+                    src={getMediaUrl(selectedAuction.organizerLogo)}
                     className="w-full h-full object-contain"
                     alt="Tournament Logo"
                     onError={(e) => { e.target.style.display = 'none'; }}
@@ -2189,7 +2191,7 @@ function LiveAuctionContent({ initialTournament: tournament }) {
                             <div className="flex items-center justify-between mb-3">
                               <div className="flex items-center gap-3">
                                 <div className="w-12 h-12 rounded-lg overflow-hidden border border-slate-600">
-                                  <img src={team.logoUrl} alt={team.name} className="w-full h-full object-cover" />
+                                  <img src={getMediaUrl(team.logoUrl, DEFAULT_ASSETS.DEFAULT_TEAM)} alt={team.name} className="w-full h-full object-cover" />
                                 </div>
                                 <div>
                                   <h3 className="text-sm font-black text-white uppercase tracking-tight">{team.name}</h3>
@@ -2210,22 +2212,40 @@ function LiveAuctionContent({ initialTournament: tournament }) {
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
                               {/* Captain */}
                               {squad.captain && (
-                                <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 rounded-lg p-2">
-                                  <span className="px-1.5 py-0.5 bg-amber-500 text-black text-[8px] font-black rounded-full">C</span>
+                                <div className="flex items-center gap-3 bg-amber-500/10 border border-amber-500/20 rounded-xl p-2 group hover:bg-amber-500/20 transition-all">
+                                  <div className="relative">
+                                    <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-amber-500/30 shadow-lg">
+                                      <img 
+                                        src={getMediaUrl(squad.captain.imageUrl || squad.captain.image || squad.captain.photo?.s3 || squad.captain.photo?.drive, DEFAULT_ASSETS.DEFAULT_PLAYER)} 
+                                        alt={squad.captain.name} 
+                                        className="w-full h-full object-cover" 
+                                      />
+                                    </div>
+                                    <span className="absolute -bottom-1 -right-1 w-5 h-5 bg-amber-500 text-black text-[9px] font-black rounded-full flex items-center justify-center border-2 border-slate-900 shadow-lg">C</span>
+                                  </div>
                                   <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-black text-white truncate">{squad.captain.name}</p>
-                                    <p className="text-[8px] text-slate-400">{squad.captain.role} • {formatCurrency(squad.captain.soldPrice || squad.captain.basePrice)}</p>
+                                    <p className="text-xs font-black text-white truncate uppercase">{squad.captain.name}</p>
+                                    <p className="text-[8px] text-slate-400 font-bold">{squad.captain.role} • {formatCurrency(squad.captain.soldPrice || squad.captain.basePrice)}</p>
                                   </div>
                                 </div>
                               )}
 
                               {/* Vice Captain */}
                               {squad.viceCaptain && (
-                                <div className="flex items-center gap-2 bg-slate-500/10 border border-slate-500/20 rounded-lg p-2">
-                                  <span className="px-1.5 py-0.5 bg-slate-400 text-black text-[8px] font-black rounded-full">VC</span>
+                                <div className="flex items-center gap-3 bg-slate-500/10 border border-slate-500/20 rounded-xl p-2 group hover:bg-slate-500/20 transition-all">
+                                  <div className="relative">
+                                    <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-slate-400/30 shadow-lg">
+                                      <img 
+                                        src={getMediaUrl(squad.viceCaptain.imageUrl || squad.viceCaptain.image || squad.viceCaptain.photo?.s3 || squad.viceCaptain.photo?.drive, DEFAULT_ASSETS.DEFAULT_PLAYER)} 
+                                        alt={squad.viceCaptain.name} 
+                                        className="w-full h-full object-cover" 
+                                      />
+                                    </div>
+                                    <span className="absolute -bottom-1 -right-1 w-5 h-5 bg-slate-400 text-black text-[9px] font-black rounded-full flex items-center justify-center border-2 border-slate-900 shadow-lg">VC</span>
+                                  </div>
                                   <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-black text-white truncate">{squad.viceCaptain.name}</p>
-                                    <p className="text-[8px] text-slate-400">{squad.viceCaptain.role} • {formatCurrency(squad.viceCaptain.soldPrice || squad.viceCaptain.basePrice)}</p>
+                                    <p className="text-xs font-black text-white truncate uppercase">{squad.viceCaptain.name}</p>
+                                    <p className="text-[8px] text-slate-400 font-bold">{squad.viceCaptain.role} • {formatCurrency(squad.viceCaptain.soldPrice || squad.viceCaptain.basePrice)}</p>
                                   </div>
                                 </div>
                               )}
@@ -2237,15 +2257,57 @@ function LiveAuctionContent({ initialTournament: tournament }) {
                                 <p className="text-[8px] font-black text-emerald-400 uppercase tracking-wider mb-1">Retained Players</p>
                                 <div className="space-y-1">
                                   {squad.retained.map((player, i) => (
-                                    <div key={player._id || player.id || i} className="flex items-center gap-2 bg-emerald-500/5 border border-emerald-500/10 rounded-lg p-1.5">
-                                      <span className="px-1.5 py-0.5 bg-emerald-500 text-white text-[8px] font-black rounded-full">R</span>
-                                      <p className="text-xs font-black text-white truncate flex-1">{player.name}</p>
-                                      <p className="text-[8px] text-slate-400">{formatCurrency(player.soldPrice || player.basePrice)}</p>
+                                    <div key={player._id || player.id || i} className="flex items-center gap-3 bg-emerald-500/5 border border-emerald-500/10 rounded-xl p-1.5 hover:bg-emerald-500/10 transition-all">
+                                      <div className="relative">
+                                        <div className="w-8 h-8 rounded-full overflow-hidden border border-emerald-500/30">
+                                          <img 
+                                            src={getMediaUrl(player.imageUrl || player.image || player.photo?.s3 || player.photo?.drive, DEFAULT_ASSETS.DEFAULT_PLAYER)} 
+                                            alt={player.name} 
+                                            className="w-full h-full object-cover" 
+                                          />
+                                        </div>
+                                        <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 text-white text-[7px] font-black rounded-full flex items-center justify-center border border-slate-900 shadow-sm">R</span>
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-[11px] font-black text-white truncate uppercase">{player.name}</p>
+                                        <p className="text-[8px] text-slate-400 font-bold">{player.role}</p>
+                                      </div>
+                                      <div className="text-right">
+                                        <p className="text-[9px] font-black text-emerald-400">{formatCurrency(player.soldPrice || player.basePrice)}</p>
+                                      </div>
                                     </div>
                                   ))}
                                 </div>
                               </div>
                             )}
+
+                            {/* Auctioned Players */}
+                            {squad.auctioned.length > 0 && (
+                              <div className="mb-3">
+                                <p className="text-[8px] font-black text-blue-400 uppercase tracking-wider mb-1">Auctioned Players</p>
+                                <div className="space-y-1">
+                                  {squad.auctioned.map((player, i) => (
+                                    <div key={player._id || player.id || i} className="flex items-center gap-3 bg-blue-500/5 border border-blue-500/10 rounded-xl p-1.5 hover:bg-blue-500/10 transition-all">
+                                      <div className="w-8 h-8 rounded-full overflow-hidden border border-blue-500/30">
+                                        <img 
+                                          src={getMediaUrl(player.imageUrl || player.image || player.photo?.s3 || player.photo?.drive, DEFAULT_ASSETS.DEFAULT_PLAYER)} 
+                                          alt={player.name} 
+                                          className="w-full h-full object-cover" 
+                                        />
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-[11px] font-black text-white truncate uppercase">{player.name}</p>
+                                        <p className="text-[8px] text-slate-400 font-bold">{player.role}</p>
+                                      </div>
+                                      <div className="text-right">
+                                        <p className="text-[9px] font-black text-blue-400">{formatCurrency(player.soldPrice || player.basePrice)}</p>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
 
                             {/* Squad Status */}
                             <div className="flex items-center justify-between text-xs p-2 bg-slate-800/30 rounded-lg">
@@ -2330,7 +2392,7 @@ function LiveAuctionContent({ initialTournament: tournament }) {
                                   <td className="px-2 md:px-4 py-3">
                                     <div className="flex items-center gap-2 md:gap-3">
                                       <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg overflow-hidden border border-slate-700 shrink-0">
-                                        <img src={team.logoUrl} alt={team.name} className="w-full h-full object-cover" />
+                                        <img src={getMediaUrl(team.logoUrl, DEFAULT_ASSETS.DEFAULT_TEAM)} alt={team.name} className="w-full h-full object-cover" />
                                       </div>
                                       <span className="text-[11px] md:text-sm font-black text-white uppercase truncate max-w-[80px] md:max-w-none">{team.name}</span>
                                     </div>
@@ -2502,14 +2564,14 @@ function LiveAuctionContent({ initialTournament: tournament }) {
                   {/* 1. PHOTO - Glass Panel */}
                   <div className="relative group/photo w-30 h-37.5 sm:w-40 sm:h-50 md:w-60 md:h-75 mx-auto md:mx-0 rounded-xl overflow-hidden border-2 border-cyan-500/30 shadow-[0_8px_32px_rgba(0,0,0,0.6),0_0_15px_rgba(0,255,200,0.3)] bg-black/50 backdrop-blur-sm ring-4 ring-black/40 transition-all duration-300 ease hover:shadow-[0_12px_40px_rgba(0,255,200,0.4)] shrink-0">
                     <div className="absolute inset-0 z-0">
-                      <Image
+                      <img
                         src={getImgUrl(player)}
-                        alt="" fill className="object-cover blur-2xl opacity-50 scale-110" unoptimized={true}
+                        alt="" className="w-full h-full object-cover blur-2xl opacity-50 scale-110"
                       />
                     </div>
-                    <Image
+                    <img
                       src={getImgUrl(player)}
-                      alt={player.name} fill className={`relative z-10 object-cover ${player.status !== 'available' ? 'grayscale opacity-50' : ''}`} unoptimized={true}
+                      alt={player.name} className={`w-full h-full relative z-10 object-cover ${player.status !== 'available' ? 'grayscale opacity-50' : ''}`}
                     />
 
                     {player.photo?.status === "pending" && !player.photo?.s3 && !player.imageUrl && !player.image && (
@@ -2797,7 +2859,7 @@ function LiveAuctionContent({ initialTournament: tournament }) {
                             <div className="flex items-center gap-3 px-3 py-1.5 bg-violet-500/10 rounded-xl border border-violet-500/20 shadow-lg">
                               <div className="w-5 h-5 rounded-lg overflow-hidden border border-white/10 shrink-0">
                                 <img
-                                  src={teams.find(t => t.id === highestBidder)?.logoUrl}
+                                  src={getMediaUrl(teams.find(t => t.id === highestBidder)?.logoUrl, DEFAULT_ASSETS.DEFAULT_TEAM)}
                                   className="w-full h-full object-cover"
                                   onError={(e) => { e.target.style.display = 'none'; }}
                                 />
@@ -2941,7 +3003,7 @@ function LiveAuctionContent({ initialTournament: tournament }) {
                               <div className="relative group/logo shrink-0">
                                 <div className={`w-18 h-18 sm:w-20 sm:h-20 rounded-full overflow-hidden bg-slate-800/40 border-2 flex items-center justify-center shadow-md transition-all 
                                   ${highestBidder === team.id ? 'border-violet-500' : !finalCanBid ? 'border-red-900/50' : 'border-slate-600 group-hover:border-violet-500/50'}`}>
-                                  <img src={team.logoUrl} alt={`${team.name} logo`} className="w-full h-full object-cover" />
+                                  <img src={getMediaUrl(team.logoUrl, DEFAULT_ASSETS.DEFAULT_TEAM)} alt={`${team.name} logo`} className="w-full h-full object-cover" />
                                 </div>
                                 
                                 {/* Floating Shortcut Badge/Input */}
@@ -3196,7 +3258,7 @@ function LiveAuctionContent({ initialTournament: tournament }) {
                                   <div className="flex items-center gap-2">
                                     <div className="w-7 h-7 rounded overflow-hidden border border-slate-700 shrink-0">
                                       <img
-                                        src={team.logoUrl}
+                                        src={getMediaUrl(team.logoUrl, DEFAULT_ASSETS.DEFAULT_TEAM)}
                                         className="w-full h-full object-cover"
                                         alt=""
                                         onError={(e) => { e.target.style.display = 'none'; }}
@@ -3329,7 +3391,7 @@ function LiveAuctionContent({ initialTournament: tournament }) {
                     boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
                   }}>
                     <div style={{ width: '56px', height: '56px', borderRadius: '18px', overflow: 'hidden', flexShrink: 0, background: 'rgba(0,0,0,0.3)', padding: '5px' }}>
-                      <img src={team.logoUrl} style={{ width: '100%', height: '100%', objectFit: 'contain' }} alt="" />
+                      <img src={getMediaUrl(team.logoUrl, DEFAULT_ASSETS.DEFAULT_TEAM)} style={{ width: '100%', height: '100%', objectFit: 'contain' }} alt="" />
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <span style={{ fontSize: '18px', fontWeight: '900', textTransform: 'uppercase', color: '#f8fafc' }}>{team.name}</span>
@@ -3366,7 +3428,7 @@ function LiveAuctionContent({ initialTournament: tournament }) {
                     boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
                   }}>
                     <div style={{ width: '56px', height: '56px', borderRadius: '18px', overflow: 'hidden', flexShrink: 0, background: 'rgba(0,0,0,0.3)', padding: '5px' }}>
-                      <img src={team.logoUrl} style={{ width: '100%', height: '100%', objectFit: 'contain' }} alt="" />
+                      <img src={getMediaUrl(team.logoUrl, DEFAULT_ASSETS.DEFAULT_TEAM)} style={{ width: '100%', height: '100%', objectFit: 'contain' }} alt="" />
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <span style={{ fontSize: '18px', fontWeight: '900', textTransform: 'uppercase', color: '#f8fafc' }}>{team.name}</span>
@@ -3397,7 +3459,7 @@ function LiveAuctionContent({ initialTournament: tournament }) {
 
 function LiveAuctionWithSplash({ tournamentId, role }) {
   const searchParams = useSearchParams()
-  const isAdmin = role === 'admin'
+  const isAdmin = role?.toLowerCase() === 'admin'
   const [showSplash, setShowSplash] = useState(!isAdmin)
   const [fadeOut, setFadeOut] = useState(false)
   const [tournament, setTournament] = useState(null)
@@ -3437,7 +3499,7 @@ function LiveAuctionWithSplash({ tournamentId, role }) {
       {showSplash && (
         <div className={`fixed inset-0 z-9999 transition-all duration-700 ${fadeOut ? 'opacity-0 scale-110 blur-md' : 'opacity-100 scale-100'}`}>
           <SplashScreen
-            src={getMediaUrl(tournament?.assets?.splashUrl)}
+            src={getMediaUrl(tournament?.assets?.splashUrl || 'https://auction-platform-kp.s3.ap-south-1.amazonaws.com/banners/1777801051801.png')}
             title={tournament?.name}
           />
         </div>
@@ -3464,9 +3526,13 @@ export default function LiveAuctionPage() {
 }
 
 function LiveAuctionPageContent() {
+  const { data: session } = useSession()
   const searchParams = useSearchParams()
-  const role = searchParams.get("role")
+  const queryRole = searchParams.get("role")
   const tournamentId = searchParams.get("id")
+
+  // Combine query param and session role for robustness
+  const role = queryRole || session?.user?.role || 'user'
 
   return <LiveAuctionWithSplash tournamentId={tournamentId} role={role} />
 }

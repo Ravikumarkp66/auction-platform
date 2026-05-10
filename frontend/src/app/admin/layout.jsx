@@ -420,7 +420,7 @@ export default function AdminLayout({ children }) {
                 const target = live || selectedAuction;
                 return (
                   <Link
-                    href={target ? `/live-auction?id=${target._id}` : "#"}
+                    href={target ? `/live-auction?id=${target._id}&role=admin` : "#"}
                     className="px-3 py-2 md:px-4 md:py-2 rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest text-black
                       bg-linear-to-r from-yellow-400 to-yellow-600
                       shadow-lg shadow-yellow-500/20

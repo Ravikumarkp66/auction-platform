@@ -5,7 +5,9 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { useSession } from "next-auth/react"
 import Link from "next/link"
 import Image from "next/image"
-import { API_URL } from "@/lib/apiConfig";
+import { API_URL, getMediaUrl } from "@/lib/apiConfig";
+
+
 
 function TeamsContent() {
   const router = useRouter()
@@ -240,12 +242,10 @@ function TeamsContent() {
                 border: '3px solid rgba(71, 85, 105, 0.5)',
                 transition: 'all 0.3s ease'
               }}>
-                <Image
-                  src={team.logo || `https://ui-avatars.com/api/?name=${encodeURIComponent(team.name)}&background=random`}
+                <img
+                  src={getMediaUrl(team.logoUrl || team.logo, `https://ui-avatars.com/api/?name=${encodeURIComponent(team.name)}&background=random`)}
                   alt={team.name}
-                  width={80}
-                  height={80}
-                  style={{ objectFit: 'cover' }}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                 />
               </div>
               <div style={{ textAlign: 'center' }}>

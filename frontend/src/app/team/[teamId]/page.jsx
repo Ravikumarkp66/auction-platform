@@ -12,12 +12,9 @@ import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import "./team-squad.css"
-import { DEFAULT_ASSETS, API_URL } from "@/lib/apiConfig";
+import { DEFAULT_ASSETS, API_URL, getMediaUrl } from "@/lib/apiConfig";
 
-const getProxiedUrl = (url) => {
-  if (!url || url.startsWith('blob:') || url.startsWith('data:') || url.startsWith('/')) return url;
-  return `${API_URL}/api/upload/proxy-image?url=${encodeURIComponent(url)}`;
-};
+
 
 function TeamSquadContent() {
   const router = useRouter()
@@ -89,11 +86,12 @@ function TeamSquadContent() {
             zIndex: isActuallyHighlighted ? 99999 : 1
           }}
         >
-          <Image
-            src={player.imageUrl || player.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(player.name)}&background=random`}
+          <img
+            src={getMediaUrl(player.imageUrl || player.image || player.photo?.s3 || player.photo?.drive, `https://ui-avatars.com/api/?name=${encodeURIComponent(player.name)}&background=random`)}
             alt={player.name}
-            fill
             style={{ 
+              width: '100%',
+              height: '100%',
               objectFit: 'cover', 
               objectPosition: 'center',
               transform: 'scale(1.1)' // SLIGHT ZOOM TO FILL FULLY
@@ -191,7 +189,7 @@ function TeamSquadContent() {
    const getBase64FromUrl = async (url) => {
     if (!url || typeof url !== 'string') return null;
     try {
-      const proxied = getProxiedUrl(url);
+      const proxied = getMediaUrl(url);
       const res = await fetch(proxied);
       if (!res.ok) return null;
       
@@ -297,9 +295,11 @@ function TeamSquadContent() {
 
       // 3. SECTION 1: RETAINED PLAYERS
       // 3. SECTION 1: RETAINED PLAYERS (ALWAYS SHOW 3 SLOTS AS REQUESTED)
-      const actualIcons = players.filter(p => p.team === team._id && p.isIcon === true);
+      const getTeamId2 = (p) => { if (!p.team) return null; if (typeof p.team === 'object') return String(p.team._id || ''); return String(p.team); };
+      const tid2 = String(team._id || '');
+      const actualIcons = players.filter(p => getTeamId2(p) === tid2 && p.isIcon === true);
       const iconPlayers = actualIcons.length > 0 ? actualIcons : Array(3).fill({ name: "To be confirmed", isPlaceholder: true });
-      const auctionPlayers = players.filter(p => p.team === team._id && !p.isIcon && p.status === 'sold');
+      const auctionPlayers = players.filter(p => getTeamId2(p) === tid2 && !p.isIcon && p.status === 'sold');
       
       doc.setFontSize(13);
       doc.setTextColor(40, 40, 40);
@@ -467,10 +467,45 @@ function TeamSquadContent() {
           console.log('Team fetched from API:', data.name, 'Logo:', data.logo || data.logoUrl)
           setTeam({
             ...data,
-            logo: data.logo || data.logoUrl, // Ensure logo is set from logoUrl
+            logo: data.logo || data.logoUrl,
             purse: data.purse || data.remainingBudget || 0
           })
-          setPlayers(data.squad || [])
+
+          // Fetch icons and sold auction players via separate clean API calls
+          const tId = data.tournamentId || tournamentId;
+          const [iconRes, auctionRes] = await Promise.all([
+            fetch(`${API_URL}/api/players?tournamentId=${tId}&isIcon=true`),
+            fetch(`${API_URL}/api/players?tournamentId=${tId}&status=sold&isIcon=false`)
+          ]);
+
+          const iconPlayers = iconRes.ok ? await iconRes.json() : [];
+          const auctionPlayers = auctionRes.ok ? await auctionRes.json() : [];
+
+          // Normalize team ID helper
+          const pTeamId = (p) => typeof p.team === 'object'
+            ? String(p.team?._id || '')
+            : String(p.team || '');
+          const tid = String(data._id);
+          const currentTeamName = (data.name || '').toLowerCase().trim();
+
+          // Filter to this team only — match by ObjectId OR teamName string
+          // (icons imported from CSV may have teamName but team: null)
+          const allTeamPlayers = [...iconPlayers, ...auctionPlayers]
+            .filter(p => {
+              const idMatch = pTeamId(p) === tid;
+              const nameMatch = (p.teamName || '').toLowerCase().trim() === currentTeamName;
+              return idMatch || nameMatch;
+            });
+
+          const seen = new Set();
+          const deduped = allTeamPlayers.filter(p => {
+            const key = String(p._id);
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+
+          setPlayers(deduped);
           setLoading(false)
           return
         }
@@ -508,7 +543,13 @@ function TeamSquadContent() {
               logo: foundTeam.logoUrl || foundTeam.logo,
               purse: foundTeam.remainingBudget || foundTeam.purse || 0
             })
-            setPlayers(tournamentData.players?.filter(p => p.team === teamId) || [])
+            const rawPlayers = tournamentData.players?.filter(p =>
+              String(p.team?._id || p.team) === String(teamId)
+            ) || [];
+            const dedupedPlayers = rawPlayers.filter(
+              (p, idx, self) => idx === self.findIndex(x => String(x._id) === String(p._id))
+            );
+            setPlayers(dedupedPlayers);
             setLoading(false)
             return
           }
@@ -714,17 +755,10 @@ function TeamSquadContent() {
               boxShadow: '0 0 30px rgba(0, 255, 204, 0.3)',
               marginBottom: '16px'
             }}>
-              <Image
-                src={team.logo || team.logoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(team.name)}&background=ff6b6b&color=fff&size=200`}
+              <img
+                src={getMediaUrl(team.logoUrl || team.logo, `https://ui-avatars.com/api/?name=${encodeURIComponent(team.name)}&background=ff6b6b&color=fff&size=200`)}
                 alt={team.name}
-                width={100}
-                height={100}
-                style={{ objectFit: 'cover' }}
-                priority
-                onError={(e) => {
-                  // Fallback to UI avatar if database logo fails
-                  e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(team.name)}&background=ff6b6b&color=fff&size=200`
-                }}
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
               />
             </div>
             
@@ -739,13 +773,17 @@ function TeamSquadContent() {
         {/* MAIN CONTENT WITH SIDEBAR */}
         <div className="content">
           {(() => {
-            // Use local copies of player groups to avoid recalculating unnecessarily in larger blocks
+            // Normalize team id: p.team may be a populated object or a string
+            const getTeamId = (p) => {
+              if (!p.team) return null;
+              if (typeof p.team === 'object') return String(p.team._id || '');
+              return String(p.team);
+            };
+            const tid = String(team._id || '');
+
             // Separate icon players (isIcon = true) from auction players
-            const iconPlayers = players.filter(p => p.team === team._id && p.isIcon === true)
-            const auctionPlayers = players.filter(p => p.team === team._id && !p.isIcon && p.status === 'sold')
-            
-            console.log("ICON PLAYERS:", iconPlayers);
-            console.log("AUCTION PLAYERS:", auctionPlayers);
+            const iconPlayers = players.filter(p => getTeamId(p) === tid && p.isIcon === true);
+            const auctionPlayers = players.filter(p => getTeamId(p) === tid && !p.isIcon && p.status === 'sold');
             
             const batsmen = auctionPlayers.filter(p => p.role?.toLowerCase().includes('bat'))
             const allrounders = auctionPlayers.filter(p => p.role?.toLowerCase().includes('all'))
@@ -774,7 +812,7 @@ function TeamSquadContent() {
                           const isHighlighted = pId === highlightId;
                           
                           // ... same logic as before but with delay
-                          const playerImage = `https://ui-avatars.com/api/?name=${encodeURIComponent(player.name)}&background=random`;
+                           const playerImage = getMediaUrl(player.imageUrl || player.image || player.photo?.s3 || player.photo?.drive, `https://ui-avatars.com/api/?name=${encodeURIComponent(player.name)}&background=random`);
                           const roleBadge = player.iconRole === 'captain' ? 'C' : player.iconRole === 'viceCaptain' ? 'VC' : 'R';
                           const roleColor = player.iconRole === 'captain' ? '#f59e0b' : player.iconRole === 'viceCaptain' ? '#3b82f6' : '#10b981';
                           const roleName = player.iconRole === 'captain' ? 'Captain' : player.iconRole === 'viceCaptain' ? 'Vice-Captain' : 'Retained';
@@ -790,7 +828,7 @@ function TeamSquadContent() {
                                boxShadow: '0 0 20px rgba(16, 185, 129, 0.4)',
                                position: 'relative'
                             }}>
-                               <Image src={playerImage} alt={player.name} width={80} height={80} style={{ objectFit: 'cover' }} />
+                               <img src={playerImage} alt={player.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                <div style={{ position: 'absolute', top: '2px', right: '2px', background: roleColor, color: 'white', borderRadius: '50%', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 'bold', border: '2px solid white' }}>
                                  {roleBadge}
                                </div>
@@ -827,7 +865,7 @@ function TeamSquadContent() {
           width: '1200px',
           height: 'auto',
           minHeight: '1200px',
-          background: `url('${getProxiedUrl(squadBg)}') center/cover no-repeat`,
+          background: `url('${getMediaUrl(squadBg)}') center/cover no-repeat`,
           backgroundColor: '#020617',
           padding: '60px 40px',
           display: 'none',
@@ -852,12 +890,12 @@ function TeamSquadContent() {
             marginBottom: '50px' 
           }}>
             <img 
-              src={getProxiedUrl(team.logo || team.logoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(team.name)}&background=ff6b6b&color=fff&size=200`)} 
+              src={getMediaUrl(team.logo || team.logoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(team.name)}&background=ff6b6b&color=fff&size=200`)} 
               crossOrigin="anonymous" 
               style={{ width: '130px', height: '130px', borderRadius: '50%', border: '6px solid #00ffcc', objectFit: 'cover', marginBottom: '15px', backgroundColor: 'rgba(255,255,255,0.1)' }} 
               alt=""
               onError={(e) => {
-                e.target.src = getProxiedUrl(`https://ui-avatars.com/api/?name=${encodeURIComponent(team.name)}&background=ff6b6b&color=fff&size=200`)
+                e.target.src = getMediaUrl(`https://ui-avatars.com/api/?name=${encodeURIComponent(team.name)}&background=ff6b6b&color=fff&size=200`)
               }}
             />
             <h1 style={{ color: 'white', fontSize: '64px', margin: '0', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '4px' }}>{team.name}</h1>
@@ -909,7 +947,7 @@ function TeamSquadContent() {
                   <div key={idx} style={{ textAlign: 'center', width: itemWidth }}>
                     <div style={{ position: 'relative', display: 'inline-block' }}>
                       <img 
-                        src={getProxiedUrl(player.photo?.s3 || player.photo?.drive || player.imageUrl || player.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(player.name)}&background=random`)} 
+                        src={getMediaUrl(player.photo?.s3 || player.photo?.drive || player.imageUrl || player.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(player.name)}&background=random`)} 
                         crossOrigin="anonymous" 
                         style={{ width: imgSize, height: imgSize, borderRadius: '50%', border: '3px solid white', objectFit: 'cover', background: 'rgba(255,255,255,0.1)' }} 
                         alt=""

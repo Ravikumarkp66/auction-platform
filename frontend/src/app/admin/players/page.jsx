@@ -351,7 +351,7 @@ function PlayersRegistryContent() {
 
         // Deduplicate locally by name (case-insensitive)
         const uniquePlayers = Array.from(
-          new Map(rawPlayers.map((p) => [p.name.toLowerCase().trim(), p])).values()
+          new Map(rawPlayers.map((p) => [String(p.name).toLowerCase().trim(), p])).values()
         );
 
         const res = await fetch(`${API_URL}/api/players/import`, {

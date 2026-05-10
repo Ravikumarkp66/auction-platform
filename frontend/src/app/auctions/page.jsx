@@ -207,12 +207,12 @@ export default function AuctionsPage() {
           {liveTournaments.length > 0 && (
             <div className="flex justify-center mb-12">
               <Link
-                href="/overlay"
+                href={session?.user?.role?.toLowerCase() === "admin" ? `/live-auction?id=${liveTournaments[0].shortId || liveTournaments[0]._id}&role=admin` : `/overlay`}
                 className="group relative px-6 py-4 md:px-10 md:py-5 bg-gradient-to-r from-violet-500 to-teal-500 text-white font-black uppercase tracking-wider text-base md:text-lg rounded-2xl overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-[0_0_40px_rgba(16,185,129,0.5)]"
               >
                 <span className="relative z-10 flex items-center gap-3">
                   <Play className="w-5 h-5 md:w-6 md:h-6 fill-current" />
-                  {session?.user?.role === "admin" ? "Start Auction" : "Enter Live Auction"}
+                  {session?.user?.role?.toLowerCase() === "admin" ? "Start Auction" : "Enter Live Auction"}
                 </span>
                 <div className="absolute inset-0 bg-gradient-to-r from-teal-500 to-violet-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
               </Link>
@@ -299,12 +299,12 @@ export default function AuctionsPage() {
                     {/* Action Buttons */}
                     <div className="flex flex-wrap gap-2">
                       <Link
-                        href={status === "authenticated" ? `/live-auction?id=${tournament.shortId || tournament._id}&role=admin` : `/overlay`}
+                        href={session?.user?.role?.toLowerCase() === "admin" ? `/live-auction?id=${tournament.shortId || tournament._id}&role=admin` : `/overlay`}
                         className="group/btn relative flex-[2_1_0%] min-w-[120px] px-4 py-3 md:py-4 bg-gradient-to-r from-violet-500 to-teal-500 text-white font-black uppercase tracking-wider text-xs md:text-base rounded-xl overflow-hidden transition-all duration-300 hover:shadow-[0_0_30px_rgba(16,185,129,0.4)] flex items-center justify-center gap-2"
                       >
                         <span className="relative z-10 flex items-center gap-2">
                           <Play className="w-4 h-4 md:w-5 md:h-5 fill-current" />
-                          {session?.user?.role === "admin" ? "Start Auction" : "Watch"}
+                          {session?.user?.role?.toLowerCase() === "admin" ? "Start Auction" : "Watch"}
                         </span>
                         <div className="absolute inset-0 bg-gradient-to-r from-teal-500 to-violet-500 opacity-0 group-hover/btn:opacity-100 transition-opacity duration-300"></div>
                       </Link>
@@ -544,9 +544,9 @@ function SquadViewModal({ tournament, onClose }) {
                     </div>
                     <div className="text-left flex-1 min-w-0">
                        <p className={`text-xs md:text-sm font-black truncate ${selectedTeam?._id === t._id ? 'text-white' : 'text-slate-300'}`}>{t.name}</p>
-                       <p className="text-[9px] md:text-[10px] font-bold text-slate-500 uppercase tracking-tighter">
-                          {data.players?.filter(p => p.team === t._id).length} Players
-                       </p>
+                        <p className="text-[9px] md:text-[10px] font-bold text-slate-500 uppercase tracking-tighter">
+                          {data.players?.filter(p => String(p.team) === String(t._id) || p.team === t.name).length} Players
+                        </p>
                     </div>
                   </button>
                 ))
@@ -566,7 +566,7 @@ function SquadViewModal({ tournament, onClose }) {
                ) : selectedTeam ? (
                  <SquadList 
                     team={selectedTeam} 
-                    players={data.players.filter(p => p.team === selectedTeam._id)} 
+                    players={data.players.filter(p => String(p.team) === String(selectedTeam._id) || p.team === selectedTeam.name)} 
                  />
                ) : (
                  <div className="h-full flex flex-col items-center justify-center opacity-30 italic text-sm">

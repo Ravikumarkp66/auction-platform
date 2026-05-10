@@ -1,23 +1,22 @@
 "use client";
 
-import Image from "next/image";
 import { getMediaUrl } from "../lib/apiConfig";
 
 export default function SplashScreen({ src, title }) {
-  const displaySrc = src || "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/static/space-bg.jpg";
+  const displaySrc = src || "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/banners/1777801051801.png";
   
   return (
     <div className="fixed inset-0 bg-[#0a0f18] flex items-center justify-center overflow-hidden z-[200]">
       {/* Background Image */}
       <div className="absolute inset-0">
         <img 
-          src={getMediaUrl(displaySrc)} 
-          className="w-full h-full object-cover opacity-60 scale-110 animate-zoomIn" 
+          src={src?.includes('api/proxy-image') ? src : getMediaUrl(displaySrc)} 
+          className="w-full h-full object-cover opacity-80 scale-110 animate-zoomIn" 
           alt="Splash Background" 
           onError={(e) => { e.target.style.display = 'none'; }}
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0a0f18] via-transparent to-[#0a0f18] opacity-80" />
-        <div className="absolute inset-0 bg-black/40" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0a0f18] via-transparent to-[#0a0f18] opacity-60" />
+        <div className="absolute inset-0 bg-black/20" />
       </div>
 
       {/* Content */}

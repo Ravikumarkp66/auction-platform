@@ -52,18 +52,30 @@ export const DEFAULT_ASSETS = {
 export const getMediaUrl = (path, fallback = DEFAULT_ASSETS.BANNER_LOGO) => {
   const targetPath = path || fallback;
   if (!targetPath) return "";
-  
-  // If it's already an external URL, proxy it to avoid CORS/403 issues
+
   if (targetPath.startsWith('http')) {
     // Skip proxying if it's already an internal API URL
     if (API_URL && targetPath.startsWith(API_URL)) return targetPath;
+
+    // Skip proxying for ui-avatars.com — simple public CDN, no CORS issues
+    if (targetPath.includes('ui-avatars.com')) return targetPath;
+
+    // Skip proxying for our own S3 bucket — public read is allowed
+    if (targetPath.includes('auction-platform-kp.s3')) return targetPath;
+
+    // Only proxy Google Drive URLs (they require auth workaround)
+    if (targetPath.includes('drive.google.com')) {
+      return getProxiedImageUrl(targetPath);
+    }
+
+    // For all other external URLs, proxy to avoid CORS/403
     return getProxiedImageUrl(targetPath);
   }
-  
+
   const baseUrl = API_URL || "";
   const normalizedPath = targetPath.startsWith('/') ? targetPath : `/${targetPath}`;
   const cleanBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-  
+
   return `${cleanBase}${normalizedPath}`;
 };
 

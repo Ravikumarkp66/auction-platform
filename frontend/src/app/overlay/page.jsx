@@ -48,7 +48,7 @@ export default function OverlayPage() {
   const [language, setLanguage] = useState('en')
   const [breakNow, setBreakNow] = useState(() => Date.now())
   const [focusMode, setFocusMode] = useState(false)
-  const [splashUrl, setSplashUrl] = useState('https://auction-platform-kp.s3.ap-south-1.amazonaws.com/backgrounds/auction+bg.jpg')
+  const [splashUrl, setSplashUrl] = useState('https://auction-platform-kp.s3.ap-south-1.amazonaws.com/banners/1777801051801.png')
   const [poolA, setPoolA] = useState([])
   const [poolB, setPoolB] = useState([])
   const [drawEvent, setDrawEvent] = useState(null)
@@ -216,9 +216,7 @@ export default function OverlayPage() {
 
   // Redirect standard authenticated users (if any) away from overlay, but ALLOW ADMINS
   useEffect(() => {
-    // If we had non-admin roles, we might redirect them. 
-    // But if the user is an admin, we now ALLOW them to stay and watch.
-    if (status === "authenticated" && session?.user?.role !== "admin") {
+    if (status === "authenticated" && session?.user?.role?.toLowerCase() !== "admin") {
       router.push("/auction"); 
     }
   }, [status, session, router])
@@ -338,7 +336,7 @@ export default function OverlayPage() {
         // Save to both storage methods
         if (typeof window !== 'undefined') {
           localStorage.setItem('overlayBreakState', JSON.stringify(breakData))
-          sessionStorage.setItem('currentBreakState', JSON.stringify(breakData))
+          sessionStorage.setItem('currentBreakState', JSON.stringify(breakTime))
         }
       })
 
@@ -357,7 +355,7 @@ export default function OverlayPage() {
           // Save to both storage methods
           if (typeof window !== 'undefined') {
             localStorage.setItem('overlayBreakState', JSON.stringify(breakData))
-            sessionStorage.setItem('currentBreakState', JSON.stringify(breakData))
+            sessionStorage.setItem('currentBreakState', JSON.stringify(breakTime))
           }
         }
       })
@@ -446,7 +444,7 @@ export default function OverlayPage() {
       'custom': breakTime.customReason || t.customBreak
     }
     const breakTypeLabel = breakTypeMap[breakTime.type] || t.customBreak
-    const tourLogo = auction?.tournament?.logoUrl || auction?.tournament?.assets?.logoUrl;
+    const tourLogo = auction?.tournamentLogo || auction?.tournament?.assets?.logoUrl || auction?.tournament?.organizerLogo;
     
     return (
       <div className="min-h-screen w-full bg-[#050505] flex items-center justify-center overflow-hidden font-sans">
@@ -619,6 +617,7 @@ export default function OverlayPage() {
         highestBidder={highestBidder}
         highestBidderLogo={highestBidderLogo}
         tournamentName={tournamentName}
+        tournamentLogo={auction.tournamentLogo || auction.tournament?.assets?.logoUrl || auction.tournament?.organizerLogo}
         roundHistory={roundHistory}
         auctionResult={auctionResult}
         currencyUnit={auction.tournament?.currencyUnit || (auction.tournament?.auctionMode === "points" ? "CR" : "₹")}

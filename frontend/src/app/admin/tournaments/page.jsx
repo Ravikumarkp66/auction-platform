@@ -400,7 +400,7 @@ export default function TournamentsPage() {
             {t.status === "active" ? (
               <>
                 <Link
-                  href={`/live-auction?id=${tournamentId}`}
+                  href={`/live-auction?id=${tournamentId}&role=admin`}
                   className="flex-1 flex items-center justify-center gap-2 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg font-black text-[10px] uppercase tracking-wider shadow-lg shadow-red-600/20 transition-all active:scale-95"
                 >
                   <Zap className="w-3.5 h-3.5" /> Start Engine
@@ -427,7 +427,7 @@ export default function TournamentsPage() {
             ) : (
               <>
                 <Link
-                  href={`/live-auction?id=${tournamentId}`}
+                  href={`/live-auction?id=${tournamentId}&role=admin`}
                   className="flex-1 flex items-center justify-center gap-2 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-lg font-black text-[10px] uppercase tracking-wider transition-all active:scale-95"
                 >
                   <ExternalLink className="w-3.5 h-3.5" /> Review Results

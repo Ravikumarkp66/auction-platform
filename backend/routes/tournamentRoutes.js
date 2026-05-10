@@ -100,8 +100,8 @@ router.post("/",
         let teamId = null;
         let slotId = null;
 
-        // ✅ CRITICAL FIX - Use teamName field from frontend
-        const foundTeam = savedTeams.find(t => t.name === player.teamName);
+        // ✅ CRITICAL FIX - Use team field or teamName field from frontend
+        const foundTeam = savedTeams.find(t => t.name === (player.team || player.teamName));
         if (foundTeam) {
           teamId = foundTeam._id;  // ✅ Set the actual MongoDB ObjectId
           const currentCount = foundTeam.playerCount || 0;

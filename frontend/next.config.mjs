@@ -1,7 +1,5 @@
 /** @type {import('next').NextConfig} */
 
-import withPWA from 'next-pwa';
-
 const nextConfig = {
   images: {
     remotePatterns: [
@@ -62,12 +60,18 @@ const nextConfig = {
       },
     ];
   },
+
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        path: false,
+        crypto: false,
+      };
+    }
+    return config;
+  },
 };
 
-export default withPWA({
-  dest: 'public',
-  register: true,
-  skipWaiting: true,
-  disable: process.env.NODE_ENV === 'development',
-  publicExcludes: ['!manifest.webmanifest'],
-})(nextConfig);
+export default nextConfig;
