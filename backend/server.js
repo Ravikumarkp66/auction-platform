@@ -286,29 +286,39 @@ io.on("connection", (socket) => {
   // ===== WEBRTC VOICE SIGNALING =====
   let currentBroadcaster = null; // { adminId, socketId, roomId }
 
+  const normalizeVoiceRoomId = (roomId) => {
+    if (roomId == null) return null;
+    const s = String(roomId).trim();
+    return s || null;
+  };
+
   socket.on("voice-join-room", ({ roomId }) => {
-    socket.join(roomId);
-    
+    const rid = normalizeVoiceRoomId(roomId);
+    if (!rid) return;
+    socket.join(rid);
+
     // Notify about current broadcaster status
-    if (currentBroadcaster && currentBroadcaster.roomId === roomId) {
-      socket.emit("voice-broadcaster-update", { 
-        isLive: true, 
+    if (currentBroadcaster && String(currentBroadcaster.roomId) === rid) {
+      socket.emit("voice-broadcaster-update", {
+        isLive: true,
         broadcasterId: currentBroadcaster.adminId,
         broadcasterSocketId: currentBroadcaster.socketId
       });
     }
 
-    const room = io.sockets.adapter.rooms.get(roomId);
+    const room = io.sockets.adapter.rooms.get(rid);
     const viewers = room ? [...room].filter(id => id !== socket.id) : [];
     socket.emit("voice-room-viewers", { viewers });
-    socket.to(roomId).emit("voice-viewer-joined", { viewerId: socket.id });
+    socket.to(rid).emit("voice-viewer-joined", { viewerId: socket.id });
   });
 
   socket.on("voice-start-broadcast", ({ roomId, adminId }) => {
-    if (!currentBroadcaster || currentBroadcaster.roomId !== roomId) {
-      currentBroadcaster = { adminId, socketId: socket.id, roomId };
-      io.to(roomId).emit("voice-broadcaster-update", { 
-        isLive: true, 
+    const rid = normalizeVoiceRoomId(roomId);
+    if (!rid) return;
+    if (!currentBroadcaster || String(currentBroadcaster.roomId) !== rid) {
+      currentBroadcaster = { adminId, socketId: socket.id, roomId: rid };
+      io.to(rid).emit("voice-broadcaster-update", {
+        isLive: true,
         broadcasterId: adminId,
         broadcasterSocketId: socket.id
       });
@@ -318,10 +328,12 @@ io.on("connection", (socket) => {
   });
 
   socket.on("voice-stop-broadcast", ({ roomId }) => {
+    const rid = normalizeVoiceRoomId(roomId);
+    if (!rid) return;
     if (currentBroadcaster && currentBroadcaster.socketId === socket.id) {
       currentBroadcaster = null;
-      io.to(roomId).emit("voice-broadcaster-update", { isLive: false });
-      socket.to(roomId).emit("voice-stopped");
+      io.to(rid).emit("voice-broadcaster-update", { isLive: false });
+      socket.to(rid).emit("voice-stopped");
     }
   });
 
@@ -346,7 +358,9 @@ io.on("connection", (socket) => {
 
   // Admin stops voice broadcast
   socket.on("voice-stop", ({ roomId }) => {
-    socket.to(roomId).emit("voice-stopped");
+    const rid = normalizeVoiceRoomId(roomId);
+    if (!rid) return;
+    socket.to(rid).emit("voice-stopped");
   });
 
   socket.on("disconnect", () => {

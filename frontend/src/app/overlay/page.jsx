@@ -74,10 +74,11 @@ export default function OverlayPage() {
   const isMobileView = windowSize.width < windowSize.height || windowSize.width < 768
 
   // Same id the admin page uses for voice (Mongo tournament _id from auctionUpdate)
-  const voiceRoomId = auction?._id ?? auction?.tournament?._id ?? null
+  const rawVoiceRoom = auction?._id ?? auction?.tournament?._id ?? null
+  const voiceRoomId = rawVoiceRoom != null && rawVoiceRoom !== "" ? String(rawVoiceRoom) : null
   const voiceOverlay =
     socket && voiceRoomId ? (
-      <div style={{ position: "fixed", top: 68, right: 12, zIndex: 9999 }}>
+      <div style={{ position: "fixed", top: 68, right: 12, zIndex: 500000, pointerEvents: "auto" }}>
         <VoiceChatViewer socket={socket} roomId={voiceRoomId} />
       </div>
     ) : null

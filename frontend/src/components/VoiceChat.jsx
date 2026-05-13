@@ -184,7 +184,10 @@ export function VoiceChatViewer({ socket, roomId }) {
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
-    if (videoRef.current && remoteVideoStream) videoRef.current.srcObject = remoteVideoStream;
+    const el = videoRef.current;
+    if (!el || !remoteVideoStream) return;
+    el.srcObject = remoteVideoStream;
+    el.play?.().catch(() => {});
   }, [remoteVideoStream]);
 
   useEffect(() => {
@@ -219,7 +222,7 @@ export function VoiceChatViewer({ socket, roomId }) {
             borderRadius: isFullscreen ? "0" : "18px",
             overflow: "hidden",
             boxShadow: isFullscreen ? "none" : "0 8px 30px rgba(0,0,0,0.45)",
-            zIndex: 999,
+            zIndex: 500001,
             border: isFullscreen ? "none" : "1px solid rgba(255, 0, 0, 0.2)",
             animation: "broadcastIn 0.5s cubic-bezier(0.16, 1, 0.3, 1)",
             display: "flex", flexDirection: "column"
@@ -248,7 +251,7 @@ export function VoiceChatViewer({ socket, roomId }) {
         border: `1px solid ${isLive ? "rgba(239, 68, 68, 0.25)" : "rgba(255, 255, 255, 0.1)"}`,
         borderRadius: "16px", padding: "10px 18px",
         boxShadow: "0 10px 40px rgba(0,0,0,0.4)",
-        transition: "all 0.4s", position: "relative", zIndex: 998
+        transition: "all 0.4s", position: "relative", zIndex: 500002
       }}>
         <span style={{ width: 8, height: 8, borderRadius: "50%", background: isLive ? "#ef4444" : "#475569", boxShadow: isLive ? "0 0 12px #ef4444" : "none", animation: isLive ? "pulse 1.5s infinite" : "none" }} />
         <span style={{ color: isLive ? "#f1f5f9" : "#94a3b8", fontSize: "11px", fontWeight: "900", textTransform: "uppercase", letterSpacing: "0.1em" }}>
