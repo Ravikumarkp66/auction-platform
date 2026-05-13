@@ -5,57 +5,48 @@ const ICE_SERVERS = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
     { urls: "stun:stun1.l.google.com:19302" },
-    { urls: "stun:stun2.l.google.com:19302" },
-    // Free TURN Relay (Essential for different locations/firewalls)
-    {
-      urls: "turn:openrelay.metered.ca:80",
-      username: "openrelayproject",
-      credential: "openrelayproject",
-    },
-    {
-      urls: "turn:openrelay.metered.ca:443",
-      username: "openrelayproject",
-      credential: "openrelayproject",
-    },
-    {
-      urls: "turn:openrelay.metered.ca:443?transport=tcp",
-      username: "openrelayproject",
-      credential: "openrelayproject",
-    },
+    { urls: "turn:openrelay.metered.ca:80", username: "openrelayproject", credential: "openrelayproject" },
+    { urls: "turn:openrelay.metered.ca:443", username: "openrelayproject", credential: "openrelayproject" },
   ],
   iceTransportPolicy: "all",
 };
 
-/**
- * useVoiceChat — WebRTC one-way voice broadcast hook
- *
- * Admin mode:  isAdmin=true  → captures mic, pushes audio to all viewers
- * Viewer mode: isAdmin=false → receives audio stream from admin
- *
- * @param {object} socket  — existing socket.io socket instance
- * @param {string} roomId  — unique room id (e.g. tournamentId)
- * @param {boolean} isAdmin
- */
-export function useVoiceChat(socket, roomId, isAdmin) {
+export function useVoiceChat(socket, roomId, isAdmin, adminId) {
+  // ─── UI State ─────────────────────────────────────────────────────────────
   const [isLive, setIsLive] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
+  const [isVideoLive, setIsVideoLive] = useState(false);
+  const [isMicMuted, setIsMicMuted] = useState(false);
+  const [isVideoMuted, setIsVideoMuted] = useState(false);
+  const [isBroadcaster, setIsBroadcaster] = useState(false);
+  const [broadcasterId, setBroadcasterId] = useState(null);
+  const [facingMode, setFacingMode] = useState("user");
+  const [zoom, setZoom] = useState(1);
   const [volume, setVolume] = useState(1);
   const [viewerCount, setViewerCount] = useState(0);
   const [error, setError] = useState(null);
+  const [remoteVideoStream, setRemoteVideoStream] = useState(null);
+  /** Same tracks as localStreamRef — state so consumers can render preview without reading refs in render */
+  const [localStream, setLocalStream] = useState(null);
 
-  const localStreamRef = useRef(null);     // admin mic stream
-  const peersRef = useRef({});             // { socketId: RTCPeerConnection }
-  const audioRef = useRef(null);           // viewer <audio> element
+  // ─── Refs (avoid stale closures in socket callbacks) ──────────────────────
+  const localStreamRef = useRef(null);
+  const peersRef = useRef({});
+  const audioRef = useRef(null);
+  const videoTrackRef = useRef(null);
+  const isBroadcasterRef = useRef(false);   // source of truth for callbacks
+  const volumeRef = useRef(1);
 
-  // ─── helpers ───────────────────────────────────────────────────────────────
+  // Keep refs in sync with state
+  useEffect(() => { isBroadcasterRef.current = isBroadcaster; }, [isBroadcaster]);
+  useEffect(() => { volumeRef.current = volume; }, [volume]);
+
+  // ─── Peer factory ─────────────────────────────────────────────────────────
   const createPeer = useCallback((viewerId) => {
     const peer = new RTCPeerConnection(ICE_SERVERS);
 
-    // Send ICE candidates to the other side
     peer.onicecandidate = (e) => {
-      if (e.candidate) {
+      if (e.candidate && socket)
         socket.emit("voice-ice-candidate", { candidate: e.candidate, to: viewerId });
-      }
     };
 
     peer.onconnectionstatechange = () => {
@@ -66,182 +57,238 @@ export function useVoiceChat(socket, roomId, isAdmin) {
       }
     };
 
-    return peer;
-  }, [socket]);
+    // Only relevant for renegotiation (e.g. adding video mid-stream)
+    peer.onnegotiationneeded = async () => {
+      // Use ref so we always see the latest value — no stale closure
+      if (!isBroadcasterRef.current) return;
+      if (peer.signalingState !== "stable") return;
+      try {
+        const offer = await peer.createOffer();
+        await peer.setLocalDescription(offer);
+        socket.emit("voice-offer", { offer, to: viewerId });
+        console.log("[VoiceChat] Renegotiation offer sent to:", viewerId);
+      } catch (err) {
+        console.error("[VoiceChat] Renegotiation error:", err);
+      }
+    };
 
-  // ─── ADMIN: start broadcasting ─────────────────────────────────────────────
-  const startVoice = useCallback(async () => {
+    return peer;
+  }, [socket]); // No isBroadcaster dependency — uses ref instead
+
+  // ─── Admin: offer one viewer ───────────────────────────────────────────────
+  const offerViewer = useCallback(async (viewerId) => {
+    if (!localStreamRef.current) {
+      console.warn("[VoiceChat] offerViewer called but no local stream yet");
+      return;
+    }
+    console.log("[VoiceChat] Offering viewer:", viewerId);
+
+    let peer = peersRef.current[viewerId];
+    if (!peer) {
+      peer = createPeer(viewerId);
+      peersRef.current[viewerId] = peer;
+    }
+
+    // Add all tracks — onnegotiationneeded fires automatically
+    localStreamRef.current.getTracks().forEach((track) => {
+      const alreadyAdded = peer.getSenders().find((s) => s.track === track);
+      if (!alreadyAdded) peer.addTrack(track, localStreamRef.current);
+    });
+
+    // Explicitly create & send offer (don't rely on onnegotiationneeded for initial offer
+    // because it may fire before we're ready)
+    try {
+      if (peer.signalingState !== "stable") return;
+      const offer = await peer.createOffer();
+      await peer.setLocalDescription(offer);
+      socket.emit("voice-offer", { offer, to: viewerId });
+      setViewerCount(Object.keys(peersRef.current).length);
+    } catch (err) {
+      console.error("[VoiceChat] offerViewer error:", err);
+    }
+  }, [createPeer, socket]);
+
+  // ─── Admin: offer ALL current room members (called after stream ready) ────
+  const offerAllViewers = useCallback(async () => {
+    if (!socket || !roomId) return;
+    // Re-query room — server will respond with voice-room-viewers
+    socket.emit("voice-join-room", { roomId });
+  }, [socket, roomId]);
+
+  // ─── Broadcast: Start ─────────────────────────────────────────────────────
+  const startBroadcast = useCallback(async () => {
     if (!socket || !roomId) return;
     setError(null);
-
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+        video: {
+          width: { ideal: 640 }, height: { ideal: 480 },
+          frameRate: { ideal: 15 }, facingMode: "user"
+        }
       });
       localStreamRef.current = stream;
+      setLocalStream(stream);
+      videoTrackRef.current = stream.getVideoTracks()[0] || null;
 
-      // Join room — server responds with current viewer list
-      socket.emit("voice-join-room", { roomId });
-      setIsLive(true);
+      // Tell backend we're going live — server will confirm via voice-broadcaster-update
+      socket.emit("voice-start-broadcast", { roomId, adminId });
     } catch (err) {
-      setError("Microphone access denied. Please allow mic permission.");
-      console.error("[VoiceChat] Mic error:", err);
+      console.error("[VoiceChat] getUserMedia error:", err);
+      setError("Camera/Mic access denied. Please allow permissions.");
     }
-  }, [socket, roomId]);
+  }, [socket, roomId, adminId]);
 
-  // ─── ADMIN: stop broadcasting ──────────────────────────────────────────────
-  const stopVoice = useCallback(() => {
+  // ─── Broadcast: Stop ──────────────────────────────────────────────────────
+  const stopBroadcast = useCallback(() => {
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach((t) => t.stop());
       localStreamRef.current = null;
     }
+    setLocalStream(null);
+    videoTrackRef.current = null;
     Object.values(peersRef.current).forEach((p) => p.close());
     peersRef.current = {};
+    isBroadcasterRef.current = false;
     setViewerCount(0);
     setIsLive(false);
-    socket?.emit("voice-stop", { roomId });
+    setIsVideoLive(false);
+    setIsBroadcaster(false);
+    socket?.emit("voice-stop-broadcast", { roomId });
   }, [socket, roomId]);
 
-  // ─── ADMIN: mute toggle ────────────────────────────────────────────────────
-  const toggleMute = useCallback(() => {
-    if (localStreamRef.current) {
-      localStreamRef.current.getAudioTracks().forEach((t) => {
-        t.enabled = isMuted; // flip: if currently muted, enable
+  // ─── Camera Switch (seamless via replaceTrack) ────────────────────────────
+  const switchCamera = useCallback(async () => {
+    if (!isBroadcasterRef.current || !localStreamRef.current) return;
+    const newMode = facingMode === "user" ? "environment" : "user";
+    try {
+      const newStream = await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 15 }, facingMode: newMode }
       });
-      setIsMuted((m) => !m);
-    }
-  }, [isMuted]);
+      const newTrack = newStream.getVideoTracks()[0];
 
-  // ─── VIEWER: reset state ──────────────────────────────────────────────────
+      // Seamlessly replace in all peer connections — no reconnect
+      for (const peer of Object.values(peersRef.current)) {
+        const sender = peer.getSenders().find((s) => s.track?.kind === "video");
+        if (sender) await sender.replaceTrack(newTrack);
+      }
+
+      if (videoTrackRef.current) videoTrackRef.current.stop();
+      localStreamRef.current.removeTrack(videoTrackRef.current);
+      localStreamRef.current.addTrack(newTrack);
+      videoTrackRef.current = newTrack;
+      setFacingMode(newMode);
+      setZoom(1);
+    } catch (err) {
+      console.error("[VoiceChat] Switch camera error:", err);
+      setError("Could not switch camera.");
+    }
+  }, [facingMode]);
+
+  // ─── Zoom ─────────────────────────────────────────────────────────────────
+  const adjustZoom = useCallback(async (value) => {
+    if (!videoTrackRef.current) return;
+    try {
+      await videoTrackRef.current.applyConstraints({ advanced: [{ zoom: value }] });
+      setZoom(value);
+    } catch (_) {
+      // Zoom not supported on this device — silently ignore
+    }
+  }, []);
+
+  // ─── Mic / Video mute ─────────────────────────────────────────────────────
+  const toggleMic = useCallback(() => {
+    if (!localStreamRef.current) return;
+    localStreamRef.current.getAudioTracks().forEach((t) => { t.enabled = !t.enabled; });
+    setIsMicMuted((m) => !m);
+  }, []);
+
+  const toggleVideo = useCallback(() => {
+    if (!videoTrackRef.current) return;
+    videoTrackRef.current.enabled = !videoTrackRef.current.enabled;
+    setIsVideoMuted((v) => !v);
+  }, []);
+
+  // ─── Viewer: reset ────────────────────────────────────────────────────────
   const resetViewerState = useCallback(() => {
     if (audioRef.current) audioRef.current.srcObject = null;
+    setRemoteVideoStream(null);
     Object.values(peersRef.current).forEach((p) => p.close());
     peersRef.current = {};
     setIsLive(false);
   }, []);
 
-  // ─── VIEWER: join room to receive audio ────────────────────────────────────
-  const joinVoiceRoom = useCallback(() => {
-    if (!socket || !roomId) return;
-    console.log("[VoiceChat] Joining room:", roomId);
-    socket.emit("voice-join-room", { roomId });
-  }, [socket, roomId]);
-
-  // Auto-join room when socket and roomId are ready
-  useEffect(() => {
-    if (socket && roomId) {
-      joinVoiceRoom();
-    }
-    // Cleanup: if roomId changes, we stop the current voice session
-    return () => {
-      if (!isAdmin) {
-        resetViewerState();
-      }
-    };
-  }, [socket, roomId, joinVoiceRoom, isAdmin, resetViewerState]);
-
-  // ─── VIEWER: change volume ─────────────────────────────────────────────────
+  // ─── Volume ───────────────────────────────────────────────────────────────
   const changeVolume = useCallback((val) => {
     setVolume(val);
+    volumeRef.current = val;
     if (audioRef.current) audioRef.current.volume = val;
   }, []);
 
-  // ─── ADMIN: offer a specific viewer ───────────────────────────────────────
-  const offerViewer = useCallback(async (viewerId) => {
-    if (!localStreamRef.current) return;
-    const peer = createPeer(viewerId);
-    peersRef.current[viewerId] = peer;
+  // ─── Socket event listeners ───────────────────────────────────────────────
+  useEffect(() => {
+    if (!socket) return;
 
-    // Attach mic tracks
-    localStreamRef.current.getTracks().forEach((track) =>
-      peer.addTrack(track, localStreamRef.current)
-    );
+    // Shared: broadcast status update (admin + viewer)
+    const onBroadcasterUpdate = ({ isLive: serverLive, broadcasterId: bId, broadcasterSocketId }) => {
+      console.log("[VoiceChat] broadcaster-update:", { serverLive, bId, broadcasterSocketId, myId: socket.id });
+      setIsLive(serverLive);
+      setBroadcasterId(bId ?? null);
 
-    const offer = await peer.createOffer();
-    await peer.setLocalDescription(offer);
-    socket.emit("voice-offer", { offer, to: viewerId });
-    setViewerCount(Object.keys(peersRef.current).length);
-  }, [createPeer, socket]);
-
-    // ─── Socket event listeners ───────────────────────────────────────────────
-    useEffect(() => {
-      if (!socket) return;
-  
-      // ── ADMIN listeners ──────────────────────────────────────────────────────
-      if (isAdmin) {
-        // Server sends current viewer list when admin joins room
-        const onRoomViewers = ({ viewers }) => {
-          viewers.forEach((viewerId) => offerViewer(viewerId));
-        };
-  
-        // A new viewer connected while admin is live
-        const onViewerJoined = ({ viewerId }) => {
-          if (localStreamRef.current) {
-            console.log("[VoiceChat] New viewer joined, offering:", viewerId);
-            offerViewer(viewerId);
-          }
-        };
-  
-        // A viewer explicitly asked for an offer (fallback)
-        const onOfferRequest = ({ from }) => {
-          if (localStreamRef.current) {
-            console.log("[VoiceChat] Received offer request from:", from);
-            offerViewer(from);
-          }
-        };
-
-        // Viewer sent back an answer
-        const onAnswer = async ({ answer, from }) => {
-          const peer = peersRef.current[from];
-          if (peer) {
-            await peer.setRemoteDescription(new RTCSessionDescription(answer));
-          }
-        };
-
-        // ICE from viewer
-        const onIce = async ({ candidate, from }) => {
-          const peer = peersRef.current[from];
-          if (peer) {
-            try { await peer.addIceCandidate(new RTCIceCandidate(candidate)); } catch (_) {}
-          }
-        };
-  
-        socket.on("voice-room-viewers", onRoomViewers);
-        socket.on("voice-viewer-joined", onViewerJoined);
-        socket.on("voice-request-offer", onOfferRequest);
-        socket.on("voice-answer", onAnswer);
-        socket.on("voice-ice-candidate", onIce);
-  
-        return () => {
-          socket.off("voice-room-viewers", onRoomViewers);
-          socket.off("voice-viewer-joined", onViewerJoined);
-          socket.off("voice-request-offer", onOfferRequest);
-          socket.off("voice-answer", onAnswer);
-          socket.off("voice-ice-candidate", onIce);
-        };
+      if (serverLive && broadcasterSocketId === socket.id) {
+        // WE are confirmed as broadcaster — now offer all viewers in room
+        isBroadcasterRef.current = true;
+        setIsBroadcaster(true);
+        setIsVideoLive(true);
+        // Re-emit join so server returns current viewers list
+        socket.emit("voice-join-room", { roomId });
+      } else {
+        isBroadcasterRef.current = false;
+        setIsBroadcaster(false);
+        if (!serverLive) resetViewerState();
+        else if (!isAdmin && roomId) {
+          // Viewer: broadcaster just went live — prompt offer immediately (interval is 6s otherwise)
+          socket.emit("voice-request-offer", { to: roomId });
+        }
       }
-  
-      // ── VIEWER listeners ─────────────────────────────────────────────────────
-      const onOffer = async ({ offer, from }) => {
-        console.log("[VoiceChat] Received offer from admin:", from);
-        const peer = createPeer(from);
-        peersRef.current[from] = peer;
-  
-        // Play incoming audio
-        peer.ontrack = (event) => {
-          if (audioRef.current) {
-            audioRef.current.srcObject = event.streams[0];
-            audioRef.current.volume = volume;
-          }
-          setIsLive(true);
-        };
-  
-        await peer.setRemoteDescription(new RTCSessionDescription(offer));
-        const answer = await peer.createAnswer();
-        await peer.setLocalDescription(answer);
-        socket.emit("voice-answer", { answer, to: from });
+    };
+
+    const onVoiceError = ({ message }) => setError(message);
+
+    socket.on("voice-broadcaster-update", onBroadcasterUpdate);
+    socket.on("voice-error", onVoiceError);
+
+    if (isAdmin) {
+      // ── ADMIN listeners ────────────────────────────────────────────────────
+      const onRoomViewers = ({ viewers }) => {
+        // Only offer if WE are the broadcaster (check ref for freshness)
+        if (!isBroadcasterRef.current) return;
+        console.log("[VoiceChat] Room viewers to offer:", viewers);
+        viewers.forEach((id) => offerViewer(id));
       };
-  
+
+      const onViewerJoined = ({ viewerId }) => {
+        if (!isBroadcasterRef.current) return;
+        console.log("[VoiceChat] New viewer joined:", viewerId);
+        offerViewer(viewerId);
+      };
+
+      const onOfferRequest = ({ from }) => {
+        if (!isBroadcasterRef.current) return;
+        offerViewer(from);
+      };
+
+      const onAnswer = async ({ answer, from }) => {
+        const peer = peersRef.current[from];
+        if (peer) {
+          try {
+            await peer.setRemoteDescription(new RTCSessionDescription(answer));
+          } catch (err) {
+            console.error("[VoiceChat] setRemoteDescription error:", err);
+          }
+        }
+      };
+
       const onIce = async ({ candidate, from }) => {
         const peer = peersRef.current[from];
         if (peer) {
@@ -249,35 +296,119 @@ export function useVoiceChat(socket, roomId, isAdmin) {
         }
       };
 
+      socket.on("voice-room-viewers", onRoomViewers);
+      socket.on("voice-viewer-joined", onViewerJoined);
+      socket.on("voice-request-offer", onOfferRequest);
+      socket.on("voice-answer", onAnswer);
+      socket.on("voice-ice-candidate", onIce);
+
+      return () => {
+        socket.off("voice-broadcaster-update", onBroadcasterUpdate);
+        socket.off("voice-error", onVoiceError);
+        socket.off("voice-room-viewers", onRoomViewers);
+        socket.off("voice-viewer-joined", onViewerJoined);
+        socket.off("voice-request-offer", onOfferRequest);
+        socket.off("voice-answer", onAnswer);
+        socket.off("voice-ice-candidate", onIce);
+      };
+    }
+
+    // ── VIEWER listeners ───────────────────────────────────────────────────
+    const onOffer = async ({ offer, from }) => {
+      console.log("[VoiceChat] Viewer received offer from:", from);
+      let peer = peersRef.current[from];
+
+      if (!peer) {
+        peer = createPeer(from);
+        peersRef.current[from] = peer;
+
+        peer.ontrack = (e) => {
+          console.log("[VoiceChat] Track received:", e.track.kind);
+          const stream = e.streams[0];
+          if (e.track.kind === "audio") {
+            if (audioRef.current) {
+              audioRef.current.srcObject = stream;
+              audioRef.current.volume = volumeRef.current;
+            }
+          } else if (e.track.kind === "video") {
+            setRemoteVideoStream(stream);
+            e.track.onended = () => setRemoteVideoStream(null);
+          }
+          setIsLive(true);
+        };
+      }
+
+      if (peer.signalingState !== "stable") {
+        console.warn("[VoiceChat] Skipping offer — state:", peer.signalingState);
+        return;
+      }
+
+      try {
+        await peer.setRemoteDescription(new RTCSessionDescription(offer));
+        const answer = await peer.createAnswer();
+        await peer.setLocalDescription(answer);
+        socket.emit("voice-answer", { answer, to: from });
+      } catch (err) {
+        console.error("[VoiceChat] Answer error:", err);
+      }
+    };
+
+    const onIceViewer = async ({ candidate, from }) => {
+      const peer = peersRef.current[from];
+      if (peer) try { await peer.addIceCandidate(new RTCIceCandidate(candidate)); } catch (_) {}
+    };
+
     socket.on("voice-offer", onOffer);
-    socket.on("voice-ice-candidate", onIce);
+    socket.on("voice-ice-candidate", onIceViewer);
     socket.on("voice-stopped", resetViewerState);
 
     return () => {
+      socket.off("voice-broadcaster-update", onBroadcasterUpdate);
+      socket.off("voice-error", onVoiceError);
       socket.off("voice-offer", onOffer);
-      socket.off("voice-ice-candidate", onIce);
+      socket.off("voice-ice-candidate", onIceViewer);
       socket.off("voice-stopped", resetViewerState);
     };
-  }, [socket, isAdmin, volume, createPeer, resetViewerState]);
+  }, [socket, roomId, isAdmin, createPeer, offerViewer, resetViewerState]);
 
-  // Cleanup on unmount
+  // ─── Join room on mount ───────────────────────────────────────────────────
+  useEffect(() => {
+    if (socket && roomId) {
+      console.log("[VoiceChat] Joining room:", roomId);
+      socket.emit("voice-join-room", { roomId });
+    }
+    return () => {
+      if (!isAdmin) resetViewerState();
+    };
+  }, [socket, roomId, isAdmin, resetViewerState]);
+
+  // ─── Viewer: nudge admin periodically if not yet live ─────────────────────
+  useEffect(() => {
+    if (isAdmin || !socket || !roomId || isLive) return;
+    const timer = setInterval(() => {
+      if (!isLive) socket.emit("voice-request-offer", { to: roomId });
+    }, 6000);
+    return () => clearInterval(timer);
+  }, [isAdmin, socket, roomId, isLive]);
+
+  // ─── Cleanup on unmount ───────────────────────────────────────────────────
   useEffect(() => {
     return () => {
-      stopVoice();
+      if (isAdmin) stopBroadcast();
     };
-  }, [stopVoice]);
+  }, []); // eslint-disable-line
 
   return {
-    isLive,
-    isMuted,
-    volume,
-    viewerCount,
-    error,
-    audioRef,        // attach to <audio ref={audioRef} autoPlay />
-    startVoice,      // admin: start mic
-    stopVoice,       // admin: stop
-    toggleMute,      // admin: mute/unmute
-    joinVoiceRoom,   // viewer: join room
-    changeVolume,    // viewer: set volume 0-1
+    isLive, isVideoLive, isMicMuted, isVideoMuted,
+    isBroadcaster, broadcasterId,
+    facingMode, zoom, volume,
+    viewerCount, error,
+    audioRef,
+    localStream,
+    remoteVideoStream,
+    startBroadcast, stopBroadcast,
+    switchCamera, adjustZoom,
+    toggleMic, toggleVideo,
+    changeVolume,
   };
 }

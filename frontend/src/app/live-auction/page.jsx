@@ -2026,8 +2026,14 @@ function LiveAuctionContent({ initialTournament: tournament }) {
                 onViewSquads={() => router.push(`/teams?tournament=${currentTournamentId}`)}
               />
 
-              {/* Voice broadcast — admin mic to viewers */}
-              <VoiceChatAdmin socket={socket} roomId={currentTournamentId} />
+              {/* Voice broadcast — roomId must match overlay (auction._id from auctionUpdate), not URL shortId */}
+              {selectedAuction?._id && (
+                <VoiceChatAdmin
+                  socket={socket}
+                  roomId={selectedAuction._id}
+                  currentAdminId={session?.user?.id ?? session?.user?.email ?? undefined}
+                />
+              )}
 
               {/* Navigation Arrows */}
               <div className="flex bg-slate-900/80 rounded-xl p-1 border border-slate-700 shadow-xl backdrop-blur-md">

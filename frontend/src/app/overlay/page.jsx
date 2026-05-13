@@ -73,6 +73,15 @@ export default function OverlayPage() {
 
   const isMobileView = windowSize.width < windowSize.height || windowSize.width < 768
 
+  // Same id the admin page uses for voice (Mongo tournament _id from auctionUpdate)
+  const voiceRoomId = auction?._id ?? auction?.tournament?._id ?? null
+  const voiceOverlay =
+    socket && voiceRoomId ? (
+      <div style={{ position: "fixed", top: 68, right: 12, zIndex: 9999 }}>
+        <VoiceChatViewer socket={socket} roomId={voiceRoomId} />
+      </div>
+    ) : null
+
   // Update auction result ONLY when socket event arrives (not from player status)
   useEffect(() => {
     if (!socket) {
@@ -399,6 +408,7 @@ export default function OverlayPage() {
   if (showPoolView) {
     return (
       <>
+        {voiceOverlay}
         <TeamDrawOverlay poolA={poolA} poolB={poolB} drawEvent={drawEvent} />
         {drawEvent && (
           <TeamDrawCinematic event={drawEvent} onComplete={() => setDrawEvent(null)} />
@@ -450,6 +460,7 @@ export default function OverlayPage() {
     
     return (
       <div className="min-h-screen w-full bg-[#050505] flex items-center justify-center overflow-hidden font-sans">
+        {voiceOverlay}
         {/* Aspect-Ratio Poster Stage */}
         <div 
           className="relative flex flex-col items-center overflow-hidden"
@@ -603,7 +614,12 @@ export default function OverlayPage() {
     const splashTitle = auction?.tournamentName 
       ? (auction.tournamentName.toUpperCase().includes('SEASON') ? auction.tournamentName : `${auction.tournamentName} - SEASON 01`)
       : 'KOLALA PREMIERE LEAGUE - SEASON 01';
-    return <SplashScreen src={getMediaUrl(splashUrl)} title={splashTitle} />
+    return (
+      <>
+        {voiceOverlay}
+        <SplashScreen src={getMediaUrl(splashUrl)} title={splashTitle} />
+      </>
+    )
   }
 
   const { player, currentBid, highestBidder, highestBidderLogo, tournamentName, teams, roundHistory } = auction
@@ -611,12 +627,7 @@ export default function OverlayPage() {
   // Use new premium overlay component
   return (
     <>
-      {/* Voice audio — auto-joins room, shows live banner when admin is broadcasting */}
-      {socket && auction?._id && (
-        <div style={{ position: 'fixed', top: 68, right: 12, zIndex: 9999 }}>
-          <VoiceChatViewer socket={socket} roomId={auction._id} />
-        </div>
-      )}
+      {voiceOverlay}
       <AuctionOverlayNew
         player={player}
         nextPlayer={auction.nextPlayer}

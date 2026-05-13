@@ -284,18 +284,47 @@ io.on("connection", (socket) => {
   });
 
   // ===== WEBRTC VOICE SIGNALING =====
-  // Admin joins a voice room (one room per auction)
+  let currentBroadcaster = null; // { adminId, socketId, roomId }
+
   socket.on("voice-join-room", ({ roomId }) => {
     socket.join(roomId);
-    // Notify admin of all current listeners in the room so it can create peer connections
+    
+    // Notify about current broadcaster status
+    if (currentBroadcaster && currentBroadcaster.roomId === roomId) {
+      socket.emit("voice-broadcaster-update", { 
+        isLive: true, 
+        broadcasterId: currentBroadcaster.adminId,
+        broadcasterSocketId: currentBroadcaster.socketId
+      });
+    }
+
     const room = io.sockets.adapter.rooms.get(roomId);
     const viewers = room ? [...room].filter(id => id !== socket.id) : [];
     socket.emit("voice-room-viewers", { viewers });
-    // Notify others that someone joined (so admin can initiate offer)
     socket.to(roomId).emit("voice-viewer-joined", { viewerId: socket.id });
   });
 
-  // Admin sends WebRTC offer to a specific viewer
+  socket.on("voice-start-broadcast", ({ roomId, adminId }) => {
+    if (!currentBroadcaster || currentBroadcaster.roomId !== roomId) {
+      currentBroadcaster = { adminId, socketId: socket.id, roomId };
+      io.to(roomId).emit("voice-broadcaster-update", { 
+        isLive: true, 
+        broadcasterId: adminId,
+        broadcasterSocketId: socket.id
+      });
+    } else {
+      socket.emit("voice-error", { message: "Another admin is already live." });
+    }
+  });
+
+  socket.on("voice-stop-broadcast", ({ roomId }) => {
+    if (currentBroadcaster && currentBroadcaster.socketId === socket.id) {
+      currentBroadcaster = null;
+      io.to(roomId).emit("voice-broadcaster-update", { isLive: false });
+      socket.to(roomId).emit("voice-stopped");
+    }
+  });
+
   socket.on("voice-offer", ({ offer, to }) => {
     io.to(to).emit("voice-offer", { offer, from: socket.id });
   });
@@ -322,6 +351,14 @@ io.on("connection", (socket) => {
 
   socket.on("disconnect", () => {
     console.log("Client disconnected:", socket.id);
+    if (currentBroadcaster && currentBroadcaster.socketId === socket.id) {
+      const { roomId } = currentBroadcaster;
+      currentBroadcaster = null;
+      if (roomId) {
+        io.to(roomId).emit("voice-broadcaster-update", { isLive: false });
+        io.to(roomId).emit("voice-stopped");
+      }
+    }
   });
 });
 
