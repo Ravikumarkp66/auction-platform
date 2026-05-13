@@ -1,5 +1,6 @@
 "use client";
 import { useRef, useEffect, useState } from "react";
+import Link from "next/link";
 import { useVoiceChat } from "@/hooks/useVoiceChat";
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -27,18 +28,20 @@ export function VoiceChatAdmin({ socket, roomId, currentAdminId }) {
   const localVideoRef = useRef(null);
 
   useEffect(() => {
-    if (localVideoRef.current && localStream && isBroadcaster) {
+    if (localVideoRef.current && localStream) {
       localVideoRef.current.srcObject = localStream;
+      localVideoRef.current.play?.().catch(() => {});
     }
-  }, [localStream, isBroadcaster]);
+  }, [localStream]);
 
   const isAnotherAdminLive = isLive && !isBroadcaster;
+  const showCameraPanel = !isAnotherAdminLive && (!!localStream || isBroadcaster);
 
   return (
     <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "15px" }}>
       
-      {/* 📺 BROADCASTER CONTROL PANEL (Floating) */}
-      {isBroadcaster && (
+      {/* 📺 BROADCASTER CONTROL PANEL — full preview whenever local camera is active */}
+      {showCameraPanel && (
         <div style={{
           width: "280px",
           background: "rgba(10, 10, 10, 0.85)",
@@ -121,21 +124,40 @@ export function VoiceChatAdmin({ socket, roomId, currentAdminId }) {
              <span style={{ color: "#94a3b8", fontSize: "11px", fontWeight: "600" }}>Stream is locked</span>
           </>
         ) : !isBroadcaster ? (
-          <button
-            onClick={startBroadcast}
-            style={{
-              background: "linear-gradient(135deg, #ef4444, #991b1b)",
-              border: "none", borderRadius: "10px",
-              color: "#fff", fontWeight: "800", fontSize: "12px",
-              padding: "8px 20px", cursor: "pointer",
-              boxShadow: "0 5px 15px rgba(239, 68, 68, 0.3)",
-              transition: "transform 0.2s"
-            }}
-            onMouseEnter={e => e.currentTarget.style.transform = "scale(1.05)"}
-            onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
-          >
-            🚀 START LIVE BROADCAST
-          </button>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "stretch", gap: "10px" }}>
+            <button
+              onClick={startBroadcast}
+              style={{
+                background: "linear-gradient(135deg, #ef4444, #991b1b)",
+                border: "none", borderRadius: "10px",
+                color: "#fff", fontWeight: "800", fontSize: "12px",
+                padding: "8px 20px", cursor: "pointer",
+                boxShadow: "0 5px 15px rgba(239, 68, 68, 0.3)",
+                transition: "transform 0.2s"
+              }}
+              onMouseEnter={e => e.currentTarget.style.transform = "scale(1.05)"}
+              onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
+            >
+              🚀 START LIVE BROADCAST
+            </button>
+            {roomId && (
+              <Link
+                href={`/auction/live-broadcast?id=${encodeURIComponent(roomId)}`}
+                style={{
+                  textAlign: "center",
+                  fontSize: "11px",
+                  fontWeight: "800",
+                  color: "#93c5fd",
+                  textDecoration: "none",
+                  padding: "6px 10px",
+                  borderRadius: "8px",
+                  border: "1px solid rgba(147, 197, 253, 0.35)",
+                }}
+              >
+                Full-screen camera mode (venue)
+              </Link>
+            )}
+          </div>
         ) : (
            <span style={{ color: "#4ade80", fontWeight: "900", fontSize: "11px", letterSpacing: "0.1em" }}>
              ● YOU ARE BROADCASTING

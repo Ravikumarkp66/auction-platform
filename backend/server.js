@@ -292,6 +292,14 @@ io.on("connection", (socket) => {
     return s || null;
   };
 
+  /** Unicast WebRTC signaling to a socket id (io.to(id) can miss in some adapter / ordering cases). */
+  function emitToSocketId(targetSocketId, event, payload) {
+    if (!targetSocketId) return;
+    const dest = io.sockets?.sockets?.get(targetSocketId);
+    if (dest) dest.emit(event, payload);
+    else io.to(targetSocketId).emit(event, payload);
+  }
+
   socket.on("voice-join-room", ({ roomId }) => {
     const rid = normalizeVoiceRoomId(roomId);
     if (!rid) return;
@@ -307,7 +315,10 @@ io.on("connection", (socket) => {
     }
 
     const room = io.sockets.adapter.rooms.get(rid);
-    const viewers = room ? [...room].filter(id => id !== socket.id) : [];
+    const viewers = room ? [...room].filter((id) => id !== socket.id) : [];
+    if (viewers.length === 0 && process.env.NODE_ENV !== "production") {
+      console.log("[voice] join room", rid, "only self — overlay may not have joined yet");
+    }
     socket.emit("voice-room-viewers", { viewers });
     socket.to(rid).emit("voice-viewer-joined", { viewerId: socket.id });
   });
@@ -338,22 +349,22 @@ io.on("connection", (socket) => {
   });
 
   socket.on("voice-offer", ({ offer, to }) => {
-    io.to(to).emit("voice-offer", { offer, from: socket.id });
+    emitToSocketId(to, "voice-offer", { offer, from: socket.id });
   });
 
   // Viewer sends answer back to admin
   socket.on("voice-answer", ({ answer, to }) => {
-    io.to(to).emit("voice-answer", { answer, from: socket.id });
+    emitToSocketId(to, "voice-answer", { answer, from: socket.id });
   });
 
   // Viewer asks for an offer (fallback if they missed the initial one)
   socket.on("voice-request-offer", ({ to }) => {
-    io.to(to).emit("voice-request-offer", { from: socket.id });
+    emitToSocketId(to, "voice-request-offer", { from: socket.id });
   });
 
   // ICE candidate exchange (bidirectional)
   socket.on("voice-ice-candidate", ({ candidate, to }) => {
-    io.to(to).emit("voice-ice-candidate", { candidate, from: socket.id });
+    emitToSocketId(to, "voice-ice-candidate", { candidate, from: socket.id });
   });
 
   // Admin stops voice broadcast

@@ -11,6 +11,8 @@ const DEFAULT_ICE = {
     { urls: "turn:openrelay.metered.ca:443?transport=tcp", username: "openrelayproject", credential: "openrelayproject" },
   ],
   iceTransportPolicy: "all",
+  iceCandidatePoolSize: 10,
+  bundlePolicy: "max-bundle",
 };
 
 /** Production: remote SDP often omits streams[]; without this, video srcObject stays null. */
@@ -49,6 +51,10 @@ function buildRtcConfiguration() {
 export function useVoiceChat(socket, roomId, isAdmin, adminId) {
   const rtcConfig = useMemo(() => buildRtcConfiguration(), []);
   const voiceRoomId = roomId != null && roomId !== "" ? String(roomId) : null;
+  const voiceRoomIdRef = useRef(voiceRoomId);
+  useEffect(() => {
+    voiceRoomIdRef.current = voiceRoomId;
+  }, [voiceRoomId]);
   // ─── UI State ─────────────────────────────────────────────────────────────
   const [isLive, setIsLive] = useState(false);
   const [isVideoLive, setIsVideoLive] = useState(false);
@@ -93,21 +99,12 @@ export function useVoiceChat(socket, roomId, isAdmin, adminId) {
         peer.close();
         delete peersRef.current[viewerId];
         setViewerCount(Object.keys(peersRef.current).length);
-      }
-    };
-
-    // Only relevant for renegotiation (e.g. adding video mid-stream)
-    peer.onnegotiationneeded = async () => {
-      // Use ref so we always see the latest value — no stale closure
-      if (!isBroadcasterRef.current) return;
-      if (peer.signalingState !== "stable") return;
-      try {
-        const offer = await peer.createOffer();
-        await peer.setLocalDescription(offer);
-        socket.emit("voice-offer", { offer, to: viewerId });
-        console.log("[VoiceChat] Renegotiation offer sent to:", viewerId);
-      } catch (err) {
-        console.error("[VoiceChat] Renegotiation error:", err);
+        // Viewer: ask broadcaster for a fresh offer (common on mobile / NAT)
+        if (st === "failed" && !isBroadcasterRef.current && socket?.connected && voiceRoomIdRef.current) {
+          setTimeout(() => {
+            socket.emit("voice-request-offer", { to: voiceRoomIdRef.current });
+          }, 400);
+        }
       }
     };
 
@@ -128,14 +125,15 @@ export function useVoiceChat(socket, roomId, isAdmin, adminId) {
       peersRef.current[viewerId] = peer;
     }
 
-    // Add all tracks — onnegotiationneeded fires automatically
+    // Add all tracks (no onnegotiationneeded handler — it raced createOffer on mobile)
     localStreamRef.current.getTracks().forEach((track) => {
       const alreadyAdded = peer.getSenders().find((s) => s.track === track);
       if (!alreadyAdded) peer.addTrack(track, localStreamRef.current);
     });
 
-    // Explicitly create & send offer (don't rely on onnegotiationneeded for initial offer
-    // because it may fire before we're ready)
+    await Promise.resolve();
+
+    // Explicit createOffer (single code path — avoids glare with negotiationneeded)
     try {
       if (peer.signalingState !== "stable") return;
       const offer = await peer.createOffer();
@@ -154,29 +152,55 @@ export function useVoiceChat(socket, roomId, isAdmin, adminId) {
     socket.emit("voice-join-room", { roomId: voiceRoomId });
   }, [socket, voiceRoomId]);
 
-  // ─── Broadcast: Start ─────────────────────────────────────────────────────
-  const startBroadcast = useCallback(async () => {
-    if (!socket || !voiceRoomId) return;
+  // ─── Camera: open mic + camera only (no socket publish) — for full-screen mobile prep UI
+  const prepareCamera = useCallback(async () => {
+    if (!voiceRoomId) {
+      setError("Missing tournament for broadcast.");
+      return;
+    }
     setError(null);
     try {
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach((t) => t.stop());
+        localStreamRef.current = null;
+        setLocalStream(null);
+        videoTrackRef.current = null;
+      }
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
         video: {
-          width: { ideal: 640 }, height: { ideal: 480 },
-          frameRate: { ideal: 15 }, facingMode: "user"
-        }
+          facingMode,
+          width: { ideal: 1280, max: 1920 },
+          height: { ideal: 720, max: 1080 },
+          frameRate: { ideal: 30, max: 30 },
+        },
       });
       localStreamRef.current = stream;
       setLocalStream(stream);
       videoTrackRef.current = stream.getVideoTracks()[0] || null;
-
-      // Tell backend we're going live — server will confirm via voice-broadcaster-update
-      socket.emit("voice-start-broadcast", { roomId: voiceRoomId, adminId });
     } catch (err) {
       console.error("[VoiceChat] getUserMedia error:", err);
       setError("Camera/Mic access denied. Please allow permissions.");
     }
+  }, [voiceRoomId, facingMode]);
+
+  // ─── Publish: announce live to room (expects prepareCamera already done) ─
+  const publishLive = useCallback(() => {
+    if (!socket || !voiceRoomId) return;
+    if (!localStreamRef.current) {
+      setError("Open the camera first.");
+      return;
+    }
+    setError(null);
+    socket.emit("voice-start-broadcast", { roomId: voiceRoomId, adminId });
   }, [socket, voiceRoomId, adminId]);
+
+  // ─── Broadcast: one-tap (camera + go live) — desktop / embedded admin bar ─
+  const startBroadcast = useCallback(async () => {
+    if (!socket || !voiceRoomId) return;
+    await prepareCamera();
+    if (localStreamRef.current) publishLive();
+  }, [socket, voiceRoomId, prepareCamera, publishLive]);
 
   // ─── Broadcast: Stop ──────────────────────────────────────────────────────
   const stopBroadcast = useCallback(() => {
@@ -198,11 +222,16 @@ export function useVoiceChat(socket, roomId, isAdmin, adminId) {
 
   // ─── Camera Switch (seamless via replaceTrack) ────────────────────────────
   const switchCamera = useCallback(async () => {
-    if (!isBroadcasterRef.current || !localStreamRef.current) return;
+    if (!localStreamRef.current) return;
     const newMode = facingMode === "user" ? "environment" : "user";
     try {
       const newStream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 15 }, facingMode: newMode }
+        video: {
+          facingMode: newMode,
+          width: { ideal: 1280, max: 1920 },
+          height: { ideal: 720, max: 1080 },
+          frameRate: { ideal: 30, max: 30 },
+        },
       });
       const newTrack = newStream.getVideoTracks()[0];
 
@@ -357,6 +386,13 @@ export function useVoiceChat(socket, roomId, isAdmin, adminId) {
       console.log("[VoiceChat] Viewer received offer from:", from);
       let peer = peersRef.current[from];
 
+      if (peer && peer.signalingState !== "stable") {
+        console.warn("[VoiceChat] Replacing peer — state was:", peer.signalingState);
+        peer.close();
+        delete peersRef.current[from];
+        peer = null;
+      }
+
       if (!peer) {
         peer = createPeer(from);
         peersRef.current[from] = peer;
@@ -446,6 +482,8 @@ export function useVoiceChat(socket, roomId, isAdmin, adminId) {
     audioRef,
     localStream,
     remoteVideoStream,
+    prepareCamera,
+    publishLive,
     startBroadcast, stopBroadcast,
     switchCamera, adjustZoom,
     toggleMic, toggleVideo,
