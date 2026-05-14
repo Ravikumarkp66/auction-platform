@@ -8,7 +8,7 @@ A comprehensive role-based cricket auction platform with real-time bidding, admi
 - **Dual Authentication**: Google OAuth + Email/Password with JWT
 - **Role-Based Access Control**: Admin & User roles
 - **Protected Routes**: Middleware-based route protection
-- **Admin Credentials**: `admin.15feblsrbp@gmail.com` / `15feblsrbp@mar15`
+- 
 
 ### 🎯 Admin Features
 - **Tournament Management**: Create, start, and manage tournaments
