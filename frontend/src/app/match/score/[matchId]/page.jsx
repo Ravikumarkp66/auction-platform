@@ -29,14 +29,14 @@ export default function MatchScorer({ params }) {
   // Fetch players when role selected
   useEffect(() => {
     if (!selectingRole || !match) return;
-    
+
     const currentInnings = match.innings[match.currentInnings - 1] || {};
-    const teamData = (selectingRole === 'striker' || selectingRole === 'nonStriker') 
-      ? currentInnings.battingTeam 
-      : currentInnings.bowlingTeam;
-      
+    const teamData = selectingRole === 'striker' || selectingRole === 'nonStriker' ?
+    currentInnings.battingTeam :
+    currentInnings.bowlingTeam;
+
     const teamId = typeof teamData === 'object' && teamData !== null ? teamData._id : teamData;
-      
+
     if (!teamId) return;
 
     const fetchTeamPlayers = async () => {
@@ -97,11 +97,11 @@ export default function MatchScorer({ params }) {
 
   const handleSelectPlayer = async (playerId) => {
     if (!match || !selectingRole) return;
-    
+
     // Create a deep copy of innings
     const updatedInnings = JSON.parse(JSON.stringify(match.innings));
     const currentInningIdx = match.currentInnings - 1;
-    
+
     if (selectingRole === 'striker') {
       updatedInnings[currentInningIdx].striker = playerId;
     } else if (selectingRole === 'nonStriker') {
@@ -127,14 +127,14 @@ export default function MatchScorer({ params }) {
   };
 
   const handleCreatePlayer = async () => {
-    if (!match || (!newPlayerName.trim() && !newPlayerId.trim())) return;
+    if (!match || !newPlayerName.trim() && !newPlayerId.trim()) return;
     setIsAddingPlayer(true);
-    
+
     const currentInnings = match.innings[match.currentInnings - 1] || {};
-    const teamData = (selectingRole === 'striker' || selectingRole === 'nonStriker') 
-      ? currentInnings.battingTeam 
-      : currentInnings.bowlingTeam;
-      
+    const teamData = selectingRole === 'striker' || selectingRole === 'nonStriker' ?
+    currentInnings.battingTeam :
+    currentInnings.bowlingTeam;
+
     const teamId = typeof teamData === 'object' && teamData !== null ? teamData._id : teamData;
 
     try {
@@ -150,7 +150,7 @@ export default function MatchScorer({ params }) {
             status: 'available'
           })
         });
-        
+
         if (!res.ok) {
           const errData = await res.json();
           alert("Failed to add player: " + errData.message);
@@ -158,13 +158,13 @@ export default function MatchScorer({ params }) {
           return;
         }
       } else if (newPlayerId.trim()) {
+
+
+
         // If we were to add existing player by ID, we'd update that player's team
         // Assuming newPlayerId is the _id or applicationId. For now, simple mock update:
         // (This part requires more specific backend support, but we handle the Create perfectly)
-      }
-      
-      setNewPlayerName("");
-      setNewPlayerId("");
+      }setNewPlayerName("");setNewPlayerId("");
       setShowAddModal(false);
     } catch (err) {
       console.error("Failed to create player", err);
@@ -180,7 +180,7 @@ export default function MatchScorer({ params }) {
   const overs = Math.floor((currentInnings.legalBalls || 0) / 6);
   const balls = (currentInnings.legalBalls || 0) % 6;
   const crr = overs > 0 || balls > 0 ? ((currentInnings.totalRuns || 0) / ((overs * 6 + balls) / 6)).toFixed(1) : "0.0";
-  
+
   // Calculate total extras
   const extras = currentInnings.ballsData?.reduce((acc, b) => acc + (b.extras || 0), 0) || 0;
 
@@ -211,11 +211,11 @@ export default function MatchScorer({ params }) {
         <div className="text-center mt-6 px-4 relative">
           <div className="flex justify-between items-start absolute w-full px-4 left-0 top-12">
             <div className="flex items-center gap-1 bg-black text-white px-2 py-1 rounded text-xs">
-              <span>0</span> <Settings size={12}/>
+              <span>0</span> <Settings size={12} />
             </div>
             <div className="flex gap-2">
-              <div className="bg-black text-white p-1.5 rounded"><Volume2 size={14}/></div>
-              <div className="bg-black text-white p-1.5 rounded"><Share2 size={14}/></div>
+              <div className="bg-black text-white p-1.5 rounded"><Volume2 size={14} /></div>
+              <div className="bg-black text-white p-1.5 rounded"><Share2 size={14} /></div>
             </div>
           </div>
 
@@ -242,7 +242,7 @@ export default function MatchScorer({ params }) {
           <table className="w-full text-sm mb-6 min-w-[340px]">
             <thead>
               <tr className="text-slate-500 border-b border-slate-100">
-                <th className="text-left font-normal pb-2 flex items-center gap-2"><Edit2 size={14} className="text-amber-500"/> Batsman</th>
+                <th className="text-left font-normal pb-2 flex items-center gap-2"><Edit2 size={14} className="text-amber-500" /> Batsman</th>
                 <th className="font-normal pb-2 w-8 text-center">R</th>
                 <th className="font-normal pb-2 w-8 text-center">B</th>
                 <th className="font-normal pb-2 w-8 text-center">4s</th>
@@ -252,7 +252,7 @@ export default function MatchScorer({ params }) {
             </thead>
             <tbody>
               <tr className="border-b border-slate-50">
-                <td className="py-3 text-slate-800 font-semibold">{currentInnings.striker ? (currentInnings.striker.name || 'Striker') : '-'}</td>
+                <td className="py-3 text-slate-800 font-semibold">{currentInnings.striker ? currentInnings.striker.name || 'Striker' : '-'}</td>
                 <td className="text-center text-slate-600">-</td>
                 <td className="text-center text-slate-600">-</td>
                 <td className="text-center text-slate-600">-</td>
@@ -260,7 +260,7 @@ export default function MatchScorer({ params }) {
                 <td className="text-center text-slate-600">-</td>
               </tr>
               <tr className="border-b border-slate-50">
-                <td className="py-3 text-slate-800 font-semibold">{currentInnings.nonStriker ? (currentInnings.nonStriker.name || 'Non-Striker') : '-'}</td>
+                <td className="py-3 text-slate-800 font-semibold">{currentInnings.nonStriker ? currentInnings.nonStriker.name || 'Non-Striker' : '-'}</td>
                 <td className="text-center text-slate-600">-</td>
                 <td className="text-center text-slate-600">-</td>
                 <td className="text-center text-slate-600">-</td>
@@ -274,7 +274,7 @@ export default function MatchScorer({ params }) {
           <table className="w-full text-sm min-w-[340px]">
             <thead>
               <tr className="text-slate-500 border-b border-slate-100">
-                <th className="text-left font-normal pb-2 flex items-center gap-2"><Edit2 size={14} className="text-amber-500"/> Bowler</th>
+                <th className="text-left font-normal pb-2 flex items-center gap-2"><Edit2 size={14} className="text-amber-500" /> Bowler</th>
                 <th className="font-normal pb-2 w-8 text-center">O</th>
                 <th className="font-normal pb-2 w-8 text-center">M</th>
                 <th className="font-normal pb-2 w-8 text-center">R</th>
@@ -284,7 +284,7 @@ export default function MatchScorer({ params }) {
             </thead>
             <tbody>
               <tr className="border-b border-slate-50">
-                <td className="py-3 text-slate-800 font-semibold">{currentInnings.bowler ? (currentInnings.bowler.name || 'Bowler') : '-'}</td>
+                <td className="py-3 text-slate-800 font-semibold">{currentInnings.bowler ? currentInnings.bowler.name || 'Bowler' : '-'}</td>
                 <td className="text-center text-slate-600">-</td>
                 <td className="text-center text-slate-600">-</td>
                 <td className="text-center text-slate-600">-</td>
@@ -299,10 +299,10 @@ export default function MatchScorer({ params }) {
         <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white border-t border-slate-200 rounded-t-[24px] shadow-[0_-20px_40px_rgba(0,0,0,0.1)] z-50 overflow-hidden">
           
           {/* If no players selected, show Orange Overlay exactly like the screenshot */}
-          {(!currentInnings.striker || !currentInnings.bowler) ? (
-            <div className="bg-[#ff9800] p-6 flex flex-col items-center justify-center w-full min-h-[220px]">
+          {!currentInnings.striker || !currentInnings.bowler ?
+          <div className="bg-[#ff9800] p-6 flex flex-col items-center justify-center w-full min-h-[220px]">
                <div className="flex items-center text-black mb-8 w-full relative">
-                 <button className="absolute left-0 p-1"><X size={24}/></button>
+                 <button className="absolute left-0 p-1"><X size={24} /></button>
                  <h3 className="text-xl font-medium w-full text-center">Select Players</h3>
                </div>
                <div className="flex gap-4 justify-center w-full">
@@ -313,8 +313,8 @@ export default function MatchScorer({ params }) {
                    Select Bowler
                  </button>
                </div>
-            </div>
-          ) : (
+            </div> :
+
           <div className="p-5">
             {/* Timeline & Actions */}
             <div className="flex items-center justify-between mb-4">
@@ -329,11 +329,11 @@ export default function MatchScorer({ params }) {
               <div className="text-xs font-medium text-slate-500 flex items-center gap-2">
                 This Over: 
                 <div className="flex gap-1">
-                  {timeline.map((b, i) => (
-                    <span key={i} className={`w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold ${b.type === 'wicket' ? 'bg-red-500 text-white' : b.runs === 4 || b.runs === 6 ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'}`}>
+                  {timeline.map((b, i) =>
+                  <span key={i} className={`w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold ${b.type === 'wicket' ? 'bg-red-500 text-white' : b.runs === 4 || b.runs === 6 ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'}`}>
                       {b.type === 'wicket' ? 'W' : b.type === 'wide' ? 'wd' : b.runs}
                     </span>
-                  ))}
+                  )}
                 </div>
               </div>
             </div>
@@ -355,11 +355,11 @@ export default function MatchScorer({ params }) {
               <button onClick={() => sendEvent({ type: "wicket" })} className="h-14 bg-red-100 text-red-600 hover:bg-red-200 active:scale-95 transition-transform rounded-xl font-black text-xl">W</button>
             </div>
           </div>
-        )}
+          }
       </div>
 
       {/* ── PLAYER SELECTION MODAL (Image 3) ── */}
-      {selectingRole && (
+      {selectingRole &&
         <div className="fixed inset-0 z-[200] bg-white flex flex-col animate-in slide-in-from-bottom-full duration-300">
           
           <div className="bg-[#ff9800] flex items-center p-4 text-white h-16 shadow-sm">
@@ -372,11 +372,11 @@ export default function MatchScorer({ params }) {
           </div>
           
           <div className="flex-1 flex flex-col bg-slate-50 relative overflow-hidden">
-            {loadingPlayers ? (
-              <div className="flex-1 flex items-center justify-center text-slate-500 font-medium">Loading squad...</div>
-            ) : availablePlayers.length === 0 ? (
-              <div className="flex-1 flex flex-col items-center justify-center p-8 text-center w-full max-w-sm mx-auto">
-                <img src="/assets/batsman-sketch.png" alt="No players" className="w-32 opacity-80 mix-blend-multiply mb-6 grayscale" onError={(e) => { e.target.style.display = 'none'; }} />
+            {loadingPlayers ?
+            <div className="flex-1 flex items-center justify-center text-slate-500 font-medium">Loading squad...</div> :
+            availablePlayers.length === 0 ?
+            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center w-full max-w-sm mx-auto">
+                <img src="/assets/batsman-sketch.png" alt="No players" className="w-32 opacity-80 mix-blend-multiply mb-6 grayscale" onError={(e) => {e.target.style.display = 'none';}} />
                 
                 <h3 className="text-2xl font-bold text-slate-800 mb-2">No Players</h3>
                 <p className="text-slate-500 text-[15px] mb-8 leading-relaxed px-4">
@@ -386,18 +386,18 @@ export default function MatchScorer({ params }) {
                 <button onClick={() => setShowAddModal(true)} className="bg-[#008060] hover:bg-[#006e52] text-white font-bold text-sm tracking-wide py-3.5 px-8 rounded-xl w-full max-w-[280px] shadow-sm transition-colors uppercase">
                   Add / Create Player
                 </button>
-              </div>
-            ) : (
-              <div className="w-full h-full flex flex-col bg-white relative">
+              </div> :
+
+            <div className="w-full h-full flex flex-col bg-white relative">
                 <div className="flex-1 overflow-y-auto w-full px-2 pb-24 pt-2">
-                  {availablePlayers.map((p, idx) => (
-                    <button key={p._id} onClick={() => handleSelectPlayer(p._id)} className="bg-white border-b border-slate-200 py-3 flex items-center justify-between hover:bg-slate-50 transition text-left px-2">
+                  {availablePlayers.map((p, idx) =>
+                <button key={p._id} onClick={() => handleSelectPlayer(p._id)} className="bg-white border-b border-slate-200 py-3 flex items-center justify-between hover:bg-slate-50 transition text-left px-2">
                       <div className="flex items-center gap-3">
                         <div className="w-5 h-5 rounded-full bg-slate-300 text-white flex items-center justify-center text-[10px] font-bold">
                           {idx + 1}
                         </div>
                         <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden border border-slate-200 shadow-sm">
-                           {p.photo?.drive ? <img src={p.photo.drive} className="w-full h-full object-cover"/> : <img src="/assets/default-avatar.png" className="w-full h-full opacity-50" onError={(e) => e.target.style.display='none'} />}
+                           {p.photo?.drive ? <img src={p.photo.drive} className="w-full h-full object-cover" alt="" /> : <img src="/assets/default-avatar.png" className="w-full h-full opacity-50" onError={(e) => e.target.style.display = 'none'} alt="" />}
                         </div>
                         <div className="text-left">
                           <h4 className="font-bold text-slate-700 text-sm">{p.name}</h4>
@@ -407,7 +407,7 @@ export default function MatchScorer({ params }) {
                          <div className="px-3 py-1 rounded-md bg-slate-200 text-slate-500 font-medium text-[10px]">SELECT</div>
                       </div>
                     </button>
-                  ))}
+                )}
                 </div>
                 
                 <div className="mt-auto absolute bottom-0 left-0 w-full">
@@ -416,13 +416,13 @@ export default function MatchScorer({ params }) {
                    </button>
                 </div>
               </div>
-            )}
+            }
           </div>
         </div>
-      )}
+        }
 
       {/* ── ADD PLAYER MODAL (Image 2) ── */}
-      {showAddModal && (
+      {showAddModal &&
         <div className="fixed inset-0 z-[300] bg-black/60 flex items-center justify-center p-4 animate-in fade-in duration-200">
           <div className="bg-white w-full max-w-sm rounded-[24px] p-6 relative shadow-2xl animate-in zoom-in-95 duration-200">
             <button onClick={() => setShowAddModal(false)} className="absolute top-4 left-4 p-1 bg-black text-white rounded-full hover:bg-slate-800 transition">
@@ -431,40 +431,40 @@ export default function MatchScorer({ params }) {
             
             <div className="mt-8">
               <h3 className="text-base font-bold text-slate-800 text-center mb-6">Add Player (Using Profile ID)</h3>
-              <input 
-                type="text" 
-                placeholder="Eg : abxy9840" 
+              <input
+                type="text"
+                placeholder="Eg : abxy9840"
                 value={newPlayerId}
                 onChange={(e) => setNewPlayerId(e.target.value)}
-                className="w-full text-center py-2 text-slate-800 font-medium border-b border-slate-300 focus:outline-none focus:border-[#008060] placeholder:text-slate-400 bg-transparent mb-8"
-              />
+                className="w-full text-center py-2 text-slate-800 font-medium border-b border-slate-300 focus:outline-none focus:border-[#008060] placeholder:text-slate-400 bg-transparent mb-8" />
+              
               
               <div className="text-center text-sm font-medium text-slate-500 mb-8">(Or)</div>
               
               <h3 className="text-base font-bold text-slate-800 text-center mb-6">Create New Player</h3>
-              <input 
-                type="text" 
-                placeholder="Full Name" 
+              <input
+                type="text"
+                placeholder="Full Name"
                 value={newPlayerName}
                 onChange={(e) => setNewPlayerName(e.target.value)}
-                className="w-full text-center py-2 text-slate-800 font-medium border-b border-slate-300 focus:outline-none focus:border-[#008060] placeholder:text-slate-400 bg-transparent mb-10"
-              />
+                className="w-full text-center py-2 text-slate-800 font-medium border-b border-slate-300 focus:outline-none focus:border-[#008060] placeholder:text-slate-400 bg-transparent mb-10" />
+              
               
               <div className="flex justify-center">
-                <button 
+                <button
                   onClick={handleCreatePlayer}
-                  disabled={isAddingPlayer || (!newPlayerName.trim() && !newPlayerId.trim())}
-                  className="bg-[#00a884] hover:bg-[#008f6f] disabled:opacity-50 text-white font-bold text-sm tracking-wide px-8 py-3.5 rounded-xl w-full shadow-sm transition-colors uppercase"
-                >
+                  disabled={isAddingPlayer || !newPlayerName.trim() && !newPlayerId.trim()}
+                  className="bg-[#00a884] hover:bg-[#008f6f] disabled:opacity-50 text-white font-bold text-sm tracking-wide px-8 py-3.5 rounded-xl w-full shadow-sm transition-colors uppercase">
+                  
                   {isAddingPlayer ? "Adding..." : "Add / Create Player"}
                 </button>
               </div>
             </div>
           </div>
         </div>
-      )}
+        }
 
       </div>
-    </div>
-  );
+    </div>);
+
 }

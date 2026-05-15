@@ -20,9 +20,9 @@ import { API_URL, getMediaUrl, getProxiedImageUrl, calculateAge } from "../../..
 const findValue = (row, keys) => {
   const rk = Object.keys(row);
   for (const k of keys) {
-    const f = rk.find(key => 
-      key.toLowerCase().trim() === k.toLowerCase().trim() || 
-      key.toLowerCase().includes(k.toLowerCase())
+    const f = rk.find((key) =>
+    key.toLowerCase().trim() === k.toLowerCase().trim() ||
+    key.toLowerCase().includes(k.toLowerCase())
     );
     if (f) return row[f];
   }
@@ -33,8 +33,8 @@ export default function PlayersRegistry() {
   return (
     <Suspense fallback={<div className="p-20 text-center text-slate-500 uppercase tracking-widest font-black animate-pulse">Initializing Registry...</div>}>
       <PlayersRegistryContent />
-    </Suspense>
-  );
+    </Suspense>);
+
 }
 
 function PlayersRegistryContent() {
@@ -176,9 +176,9 @@ function PlayersRegistryContent() {
     setLoading(true);
     try {
       const [pRes, tRes] = await Promise.all([
-        fetch(`${API_URL}/api/players?tournamentId=${selectedAuction._id}&isIcon=false`),
-        fetch(`${API_URL}/api/teams?tournamentId=${selectedAuction._id}`)
-      ]);
+      fetch(`${API_URL}/api/players?tournamentId=${selectedAuction._id}&isIcon=false`),
+      fetch(`${API_URL}/api/teams?tournamentId=${selectedAuction._id}`)]
+      );
       const pData = await pRes.json();
       const tData = await tRes.json();
       setPlayers(pData);
@@ -225,7 +225,7 @@ function PlayersRegistryContent() {
     }
   };
 
-  useEffect(() => { fetchData(); }, [activeTab]);
+  useEffect(() => {fetchData();}, [activeTab]);
 
   const handleAddPlayer = async () => {
     // VALIDATION: Check all required fields
@@ -234,8 +234,8 @@ function PlayersRegistryContent() {
     if (!newPlayer.name) errors.name = "Player name is required";
     if (!newPlayer.role) errors.role = "Playing role is required";
     if (!newPlayer.basePrice || newPlayer.basePrice <= 0) errors.basePrice = "Base price is required";
-    if (!newPlayer.mobile) errors.mobile = "Contact number is required";
-    else if (!/^\d{10}$/.test(newPlayer.mobile)) errors.mobile = "Must be 10 digits";
+    if (!newPlayer.mobile) errors.mobile = "Contact number is required";else
+    if (!/^\d{10}$/.test(newPlayer.mobile)) errors.mobile = "Must be 10 digits";
 
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
@@ -320,7 +320,7 @@ function PlayersRegistryContent() {
         const ws = wb.Sheets[wb.SheetNames[0]];
         const data = XLSX.utils.sheet_to_json(ws);
 
-        const rawPlayers = data.map(row => {
+        const rawPlayers = data.map((row) => {
           const dobVal = findValue(row, ["dob", "birth", "date of birth", "ಪುಟ್ಟಿದ ದಿನಾಂಕ"]);
           const ageVal = findValue(row, ["age", "years", "ವಯಸ್ಸು"]);
           const calculatedAge = calculateAge(dobVal);
@@ -351,8 +351,8 @@ function PlayersRegistryContent() {
             "Content-Type": "application/json",
             "Authorization": `Bearer ${session?.accessToken}`
           },
-          body: JSON.stringify({ 
-            players: uniquePlayers, 
+          body: JSON.stringify({
+            players: uniquePlayers,
             tournamentId: selectedAuction._id,
             mode: mode // Send mode to backend
           })
@@ -395,7 +395,7 @@ function PlayersRegistryContent() {
         setConfirmText("");
         fetchData();
       }
-    } catch (err) { alert("Update failed"); }
+    } catch (err) {alert("Update failed");}
   };
 
   const handleDeletePlayer = async (id) => {
@@ -490,7 +490,7 @@ function PlayersRegistryContent() {
         alert("Auction sequence jumbled successfully!");
         fetchData();
       }
-    } catch (err) { alert("Jumble failed"); }
+    } catch (err) {alert("Jumble failed");}
   };
 
   const handleRevertOrder = async () => {
@@ -508,7 +508,7 @@ function PlayersRegistryContent() {
         alert("Original auction order restored!");
         fetchData();
       }
-    } catch (err) { alert("Revert failed"); }
+    } catch (err) {alert("Revert failed");}
   };
 
   const getBase64FromUrl = async (url) => {
@@ -563,7 +563,7 @@ function PlayersRegistryContent() {
           reader.onloadend = () => resolve(reader.result);
           reader.readAsDataURL(blob);
         });
-      } catch { return null; }
+      } catch {return null;}
     };
 
     doc.setFillColor(15, 23, 42);
@@ -624,7 +624,7 @@ function PlayersRegistryContent() {
 
       const doc = new jsPDF();
       const tournamentName = currentAuction?.name || "Tournament";
-      
+
       const getBase64 = async (url, isHighQuality = false) => {
         return new Promise((resolve) => {
           const img = new Image();
@@ -641,7 +641,7 @@ function PlayersRegistryContent() {
               const maxDim = isHighQuality ? 1200 : 400; // High res for branding
               let width = img.width;
               let height = img.height;
-              
+
               if (width > height) {
                 if (width > maxDim) {
                   height *= maxDim / width;
@@ -653,7 +653,7 @@ function PlayersRegistryContent() {
                   height = maxDim;
                 }
               }
-              
+
               canvas.width = width;
               canvas.height = height;
               const ctx = canvas.getContext('2d');
@@ -668,9 +668,9 @@ function PlayersRegistryContent() {
             clearTimeout(timeout);
             resolve(null);
           };
-          const fullUrl = url.startsWith('http') ? 
-            `${API_URL}/api/proxy-image?url=${encodeURIComponent(url)}` : 
-            url;
+          const fullUrl = url.startsWith('http') ?
+          `${API_URL}/api/proxy-image?url=${encodeURIComponent(url)}` :
+          url;
           img.src = fullUrl;
         });
       };
@@ -686,14 +686,14 @@ function PlayersRegistryContent() {
 
       const total = filtered.length;
       setPdfProgress({ current: 0, total, active: true });
-      
+
       const base64Images = [];
       const sortedPlayers = [...filtered].sort((a, b) => (a.applicationId || 0) - (b.applicationId || 0));
-      
+
       for (let i = 0; i < sortedPlayers.length; i++) {
         const p = sortedPlayers[i];
-        setPdfProgress(prev => ({ ...prev, current: i + 1 }));
-        
+        setPdfProgress((prev) => ({ ...prev, current: i + 1 }));
+
         const imgUrl = p.imageUrl || p.image;
         let imgData = null;
         if (imgUrl) {
@@ -716,13 +716,13 @@ function PlayersRegistryContent() {
       autoTable(doc, {
         theme: "grid",
         columns: [
-          { header: "Sl No", dataKey: "id" },
-          { header: "Image", dataKey: "image" },
-          { header: "Player Name", dataKey: "name" },
-          { header: "Contact", dataKey: "contact" },
-          { header: "Role", dataKey: "role" },
-          { header: "Village", dataKey: "village" }
-        ],
+        { header: "Sl No", dataKey: "id" },
+        { header: "Image", dataKey: "image" },
+        { header: "Player Name", dataKey: "name" },
+        { header: "Contact", dataKey: "contact" },
+        { header: "Role", dataKey: "role" },
+        { header: "Village", dataKey: "village" }],
+
         body: rawData,
         startY: 45,
         margin: { top: 45, bottom: 25 },
@@ -732,7 +732,7 @@ function PlayersRegistryContent() {
           fontSize: 8.5,
           valign: "middle",
           minCellHeight: 35,
-          cellPadding: 2,
+          cellPadding: 2
         },
         headStyles: {
           fillColor: [124, 58, 237],
@@ -763,7 +763,7 @@ function PlayersRegistryContent() {
               const y = dataCell.cell.y + (dataCell.cell.height - imgSize) / 2;
               try {
                 doc.addImage(item.image, "JPEG", x, y, imgSize, imgSize, undefined, "FAST");
-              } catch (e) { console.warn("Image skipped", e); }
+              } catch (e) {console.warn("Image skipped", e);}
             }
           }
         },
@@ -772,10 +772,10 @@ function PlayersRegistryContent() {
           doc.setFillColor(15, 23, 42);
           doc.rect(0, 0, 210, 40, 'F');
           if (tournamentLogo) {
-            try { doc.addImage(tournamentLogo, 'JPEG', 15, 5, 25, 25); } catch (e) {}
+            try {doc.addImage(tournamentLogo, 'JPEG', 15, 5, 25, 25);} catch (e) {}
           }
           if (manifestLogo) {
-            try { doc.addImage(manifestLogo, 'PNG', 170, 5, 25, 25); } catch (e) {}
+            try {doc.addImage(manifestLogo, 'PNG', 170, 5, 25, 25);} catch (e) {}
           }
           doc.setFont(undefined, "bold");
           doc.setFontSize(20);
@@ -801,13 +801,13 @@ function PlayersRegistryContent() {
           doc.addPage();
           doc.setFillColor(15, 23, 42);
           doc.rect(0, 0, 210, 297, 'F');
-          
+
           const imgWidth = 180;
           const imgHeight = 180;
           const x = (210 - imgWidth) / 2;
           const y = (297 - imgHeight) / 2;
           doc.addImage(creatorImg, 'JPEG', x, y, imgWidth, imgHeight, undefined, "FAST");
-          
+
           doc.setFontSize(14);
           doc.setTextColor(255, 255, 255);
           doc.text("LAKSHMISH CRICKET EVENTS", 105, y + imgHeight + 15, { align: 'center' });
@@ -828,9 +828,9 @@ function PlayersRegistryContent() {
     }
   };
 
-  const filtered = players.filter(p => {
-    const matchesSearch = (p.name || "").toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          (p.applicationId || "").toString().includes(searchTerm);
+  const filtered = players.filter((p) => {
+    const matchesSearch = (p.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (p.applicationId || "").toString().includes(searchTerm);
     const matchesTab = activeTab === "ALL" || (p.status || "").toUpperCase() === activeTab;
     return matchesSearch && matchesTab;
   });
@@ -854,24 +854,24 @@ function PlayersRegistryContent() {
               placeholder="Search by name or ID..."
               className="w-full bg-white/5 border border-white/10 rounded-2xl pl-11 pr-4 py-3 font-bold text-white focus:border-violet-500 outline-none transition-all"
               value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-            />
-            {searchTerm && !isNaN(searchTerm) && (
-              <button 
-                onClick={() => router.push(`/live-auction?id=${selectedAuction._id}&player=${searchTerm}`)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-violet-600/20 text-violet-400 rounded-lg text-[8px] font-black uppercase tracking-widest border border-violet-500/20 hover:bg-violet-600 hover:text-white transition-all"
-              >
+              onChange={(e) => setSearchTerm(e.target.value)} />
+            
+            {searchTerm && !isNaN(searchTerm) &&
+            <button
+              onClick={() => router.push(`/live-auction?id=${selectedAuction._id}&player=${searchTerm}`)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-violet-600/20 text-violet-400 rounded-lg text-[8px] font-black uppercase tracking-widest border border-violet-500/20 hover:bg-violet-600 hover:text-white transition-all">
+              
                 Jump to Auction
               </button>
-            )}
+            }
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={downloadPlayersPDF}
               disabled={isDownloadingPdf}
-              className="flex-1 sm:flex-none px-4 py-3 bg-white/5 border border-white/10 rounded-2xl text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white hover:border-violet-500/50 transition-all flex items-center justify-center gap-2 shadow-xl shadow-black/20 disabled:opacity-50"
-            >
+              className="flex-1 sm:flex-none px-4 py-3 bg-white/5 border border-white/10 rounded-2xl text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white hover:border-violet-500/50 transition-all flex items-center justify-center gap-2 shadow-xl shadow-black/20 disabled:opacity-50">
+              
               {isDownloadingPdf ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
               <span className="truncate">{isDownloadingPdf ? "Compiling..." : "PDF"}</span>
             </button>
@@ -884,8 +884,8 @@ function PlayersRegistryContent() {
 
             <button
               onClick={() => setIsAddModalOpen(true)}
-              className="flex-1 sm:flex-none px-4 py-3 bg-linear-to-r from-violet-600 to-cyan-500 rounded-2xl text-[9px] md:text-[10px] font-black uppercase tracking-widest text-white shadow-xl shadow-violet-500/20 hover:scale-105 transition-all flex items-center justify-center gap-2"
-            >
+              className="flex-1 sm:flex-none px-4 py-3 bg-linear-to-r from-violet-600 to-cyan-500 rounded-2xl text-[9px] md:text-[10px] font-black uppercase tracking-widest text-white shadow-xl shadow-violet-500/20 hover:scale-105 transition-all flex items-center justify-center gap-2">
+              
               <Plus className="w-4 h-4" /> Add
             </button>
 
@@ -893,22 +893,22 @@ function PlayersRegistryContent() {
               <button
                 onClick={handleJumble}
                 className="p-3 bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 rounded-2xl hover:bg-cyan-500/20 transition-all active:scale-95 shadow-xl"
-                title="Jumble Sequence"
-              >
+                title="Jumble Sequence">
+                
                 <Shuffle className="w-4 h-4" />
               </button>
               <button
                 onClick={handleRevertOrder}
                 className="p-3 bg-white/5 text-slate-400 border border-white/10 rounded-2xl hover:bg-white/10 transition-all active:scale-95 shadow-xl"
-                title="Revert to Original Order"
-              >
+                title="Revert to Original Order">
+                
                 <RefreshCw className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setIsDeleteRangeModalOpen(true)}
                 className="p-3 bg-red-500/10 text-red-500 border border-red-500/20 rounded-2xl hover:bg-red-500/20 transition-all active:scale-95 shadow-xl"
-                title="Delete ID Range"
-              >
+                title="Delete ID Range">
+                
                 <Trash2 className="w-4 h-4" />
               </button>
             </div>
@@ -917,8 +917,8 @@ function PlayersRegistryContent() {
       </div>
 
       {/* ── DELETE RANGE MODAL ── */}
-      {isDeleteRangeModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {isDeleteRangeModalOpen &&
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={() => setIsDeleteRangeModalOpen(false)} />
           <div className="relative w-full max-w-md bg-slate-900 border border-white/10 rounded-3xl p-8 shadow-2xl">
             <h3 className="text-xl font-black text-white mb-6 uppercase tracking-wider flex items-center gap-3">
@@ -930,22 +930,22 @@ function PlayersRegistryContent() {
               <div>
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">From Application ID</label>
                 <input
-                  type="number"
-                  placeholder="e.g. 10"
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white font-bold outline-none focus:border-red-500 transition-all"
-                  value={deleteRange.from}
-                  onChange={e => setDeleteRange({...deleteRange, from: e.target.value})}
-                />
+                type="number"
+                placeholder="e.g. 10"
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white font-bold outline-none focus:border-red-500 transition-all"
+                value={deleteRange.from}
+                onChange={(e) => setDeleteRange({ ...deleteRange, from: e.target.value })} />
+              
               </div>
               <div>
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">To Application ID</label>
                 <input
-                  type="number"
-                  placeholder="e.g. 50"
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white font-bold outline-none focus:border-red-500 transition-all"
-                  value={deleteRange.to}
-                  onChange={e => setDeleteRange({...deleteRange, to: e.target.value})}
-                />
+                type="number"
+                placeholder="e.g. 50"
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white font-bold outline-none focus:border-red-500 transition-all"
+                value={deleteRange.to}
+                onChange={(e) => setDeleteRange({ ...deleteRange, to: e.target.value })} />
+              
               </div>
               <p className="text-[10px] text-slate-500 italic leading-relaxed">
                 Note: This will delete all players within this ID range and automatically re-index the remaining players to maintain a clean sequence.
@@ -954,35 +954,35 @@ function PlayersRegistryContent() {
 
             <div className="flex gap-3">
               <button
-                onClick={() => setIsDeleteRangeModalOpen(false)}
-                className="flex-1 py-4 bg-white/5 hover:bg-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-400 transition-all"
-              >
+              onClick={() => setIsDeleteRangeModalOpen(false)}
+              className="flex-1 py-4 bg-white/5 hover:bg-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-400 transition-all">
+              
                 Cancel
               </button>
               <button
-                onClick={handleDeleteRange}
-                className="flex-1 py-4 bg-red-600 hover:bg-red-700 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white shadow-xl shadow-red-500/20 transition-all"
-              >
+              onClick={handleDeleteRange}
+              className="flex-1 py-4 bg-red-600 hover:bg-red-700 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white shadow-xl shadow-red-500/20 transition-all">
+              
                 Delete Range
               </button>
             </div>
           </div>
         </div>
-      )}
+      }
 
       {/* ── FILTER TABS ── */}
       <div className="flex p-1 bg-white/5 rounded-2xl border border-white/10 w-full overflow-x-auto no-scrollbar">
         <div className="flex min-w-max gap-1">
-          {["ALL", "PENDING", "AVAILABLE", "SOLD", "UNSOLD"].map(tab => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-4 md:px-6 py-2 rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === tab ? 'bg-violet-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'
-                }`}
-            >
+          {["ALL", "PENDING", "AVAILABLE", "SOLD", "UNSOLD"].map((tab) =>
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`px-4 md:px-6 py-2 rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === tab ? 'bg-violet-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`
+            }>
+            
               {tab}
             </button>
-          ))}
+          )}
         </div>
       </div>
 
@@ -1004,67 +1004,67 @@ function PlayersRegistryContent() {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {filtered.sort((a, b) => (a.applicationId || 0) - (b.applicationId || 0)).map((p) => (
-                <tr key={p._id} className="group hover:bg-white/3 transition-all">
+              {filtered.sort((a, b) => (a.applicationId || 0) - (b.applicationId || 0)).map((p) =>
+              <tr key={p._id} className="group hover:bg-white/3 transition-all">
                   <td className="px-4 md:px-8 py-4">
-                    <Link 
-                      href={`/live-auction?id=${selectedAuction._id}&player=${p.applicationId}`}
-                      className="text-xs md:text-sm font-black text-violet-400 bg-violet-500/10 px-2 md:px-3 py-1 rounded-xl border border-violet-500/10 hover:bg-violet-500/20 hover:border-violet-500/30 transition-all cursor-pointer block w-fit"
-                      title="Jump to Live Auction for this player"
-                    >
+                    <Link
+                    href={`/live-auction?id=${selectedAuction._id}&player=${p.applicationId}`}
+                    className="text-xs md:text-sm font-black text-violet-400 bg-violet-500/10 px-2 md:px-3 py-1 rounded-xl border border-violet-500/10 hover:bg-violet-500/20 hover:border-violet-500/30 transition-all cursor-pointer block w-fit"
+                    title="Jump to Live Auction for this player">
+                    
                       {p.applicationId || "—"}
                     </Link>
                   </td>
                   <td className="px-4 md:px-6 py-4">
                     <div className="flex items-center gap-2 md:gap-3">
                       <div
-                        onClick={() => setEditImageTarget({ id: p._id, url: p.imageUrl, name: p.name })}
-                        className="relative w-8 h-8 md:w-9 md:h-9 rounded-xl overflow-hidden border border-white/10 bg-slate-800 flex items-center justify-center font-black text-white cursor-pointer hover:border-violet-500/50 transition-all group/img shrink-0"
-                      >
+                      onClick={() => setEditImageTarget({ id: p._id, url: p.imageUrl, name: p.name })}
+                      className="relative w-8 h-8 md:w-9 md:h-9 rounded-xl overflow-hidden border border-white/10 bg-slate-800 flex items-center justify-center font-black text-white cursor-pointer hover:border-violet-500/50 transition-all group/img shrink-0">
+                      
                         <img
-                          src={getImgUrl(p)}
-                          onError={(e) => {
-                            const parent = e.target.parentElement;
-                            e.target.style.display = 'none';
-                            if (parent && !parent.querySelector('.fallback-initial')) {
-                              const span = document.createElement('span');
-                              span.className = 'fallback-initial text-[10px] font-black text-white uppercase';
-                              span.innerText = p.name?.[0] || 'P';
-                              parent.appendChild(span);
-                            }
-                          }}
-                          className="w-full h-full object-cover"
-                        />
+                        src={getImgUrl(p)}
+                        onError={(e) => {
+                          const parent = e.target.parentElement;
+                          e.target.style.display = 'none';
+                          if (parent && !parent.querySelector('.fallback-initial')) {
+                            const span = document.createElement('span');
+                            span.className = 'fallback-initial text-[10px] font-black text-white uppercase';
+                            span.innerText = p.name?.[0] || 'P';
+                            parent.appendChild(span);
+                          }
+                        }}
+                        className="w-full h-full object-cover" alt="" />
+                      
                         <div className="absolute inset-0 bg-black/60 opacity-0 group-hover/img:opacity-100 flex items-center justify-center transition-opacity">
                           <Edit3 className="w-3 h-3 text-white" />
                         </div>
                       </div>
                       <div className="relative min-w-0">
                         <button
-                          onClick={(e) => { e.stopPropagation(); setActiveMenuPlayer(activeMenuPlayer === p._id ? null : p._id); }}
-                          className="text-xs md:text-sm font-black text-white leading-tight hover:text-violet-400 transition-colors block text-left truncate max-w-30 md:max-w-none"
-                        >
+                        onClick={(e) => {e.stopPropagation();setActiveMenuPlayer(activeMenuPlayer === p._id ? null : p._id);}}
+                        className="text-xs md:text-sm font-black text-white leading-tight hover:text-violet-400 transition-colors block text-left truncate max-w-30 md:max-w-none">
+                        
                           {p.name}
                         </button>
 
-                        {activeMenuPlayer === p._id && (
-                          <div
-                            onClick={(e) => e.stopPropagation()}
-                            className="absolute left-0 mt-2 w-48 bg-[#0f172a] border border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                        {activeMenuPlayer === p._id &&
+                      <div
+                        onClick={(e) => e.stopPropagation()}
+                        className="absolute left-0 mt-2 w-48 bg-[#0f172a] border border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
                             <button
-                              onClick={() => { setHistoryPlayer(p); setActiveMenuPlayer(null); }}
-                              className="w-full px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white hover:bg-white/5 flex items-center gap-3 transition-all"
-                            >
+                          onClick={() => {setHistoryPlayer(p);setActiveMenuPlayer(null);}}
+                          className="w-full px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white hover:bg-white/5 flex items-center gap-3 transition-all">
+                          
                               <RefreshCw className="w-3 h-3 text-violet-500" /> Open Bid History
                             </button>
                             <Link
-                              href={`/live-auction?id=${selectedAuction._id}&player=${p.applicationId}`}
-                              className="w-full px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white hover:bg-white/5 flex items-center gap-3 transition-all"
-                            >
+                          href={`/live-auction?id=${selectedAuction._id}&player=${p.applicationId}`}
+                          className="w-full px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white hover:bg-white/5 flex items-center gap-3 transition-all">
+                          
                               <Zap className="w-3 h-3 text-cyan-500" /> Live Auction
                             </Link>
                           </div>
-                        )}
+                      }
 
                         {p.isIcon && <span className="text-[7px] md:text-[8px] font-black uppercase text-yellow-500 tracking-tighter flex items-center gap-0.5 mt-0.5"><Trophy className="w-2 h-2" /> ICON</span>}
                         <span className="md:hidden block text-[8px] font-bold text-slate-500 uppercase">{p.role}</span>
@@ -1075,44 +1075,44 @@ function PlayersRegistryContent() {
                   <td className="hidden lg:table-cell px-6 py-4 text-[10px] font-black uppercase text-slate-400">{p.village || "—"}</td>
                   <td className="px-4 md:px-6 py-4">
                     <span className={`text-[7px] md:text-[8px] font-black uppercase tracking-widest px-1.5 md:px-2 py-0.5 rounded-full border ${p.status === 'sold' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' :
-                        p.status === 'unsold' ? 'bg-red-500/10 border-red-500/20 text-red-400' : 'bg-slate-800 text-slate-500'
-                      }`}>{p.status}</span>
+                  p.status === 'unsold' ? 'bg-red-500/10 border-red-500/20 text-red-400' : 'bg-slate-800 text-slate-500'}`
+                  }>{p.status}</span>
                   </td>
                   <td className="hidden sm:table-cell px-6 py-4 font-black text-sm">{p.status === 'sold' ? `₹${p.soldPrice?.toLocaleString()}` : <span className="text-slate-700 italic">₹{p.basePrice}</span>}</td>
                   <td className="hidden xl:table-cell px-6 py-4">
                     <Link
-                      href={`/team/${p.team?._id}?tournament=${selectedAuction._id}&from=sold&highlight=${p._id}`}
-                      className="text-[10px] font-black uppercase text-slate-400 hover:text-violet-400 transition-colors truncate max-w-25 block"
-                    >
+                    href={`/team/${p.team?._id}?tournament=${selectedAuction._id}&from=sold&highlight=${p._id}`}
+                    className="text-[10px] font-black uppercase text-slate-400 hover:text-violet-400 transition-colors truncate max-w-25 block">
+                    
                       {p.team?.name || "—"}
                     </Link>
                   </td>
                   <td className="hidden xl:table-cell px-6 py-4">
-                    {p.teamSlotId ? (
-                      <Link
-                        href={`/team/${p.team?._id || p.team}?tournament=${selectedAuction._id}&from=sold&highlight=${p._id}`}
-                        className="text-[10px] font-black uppercase text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 rounded-lg hover:bg-cyan-500/20 hover:border-cyan-500/40 transition-all active:scale-95 block w-fit"
-                      >
+                    {p.teamSlotId ?
+                  <Link
+                    href={`/team/${p.team?._id || p.team}?tournament=${selectedAuction._id}&from=sold&highlight=${p._id}`}
+                    className="text-[10px] font-black uppercase text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 rounded-lg hover:bg-cyan-500/20 hover:border-cyan-500/40 transition-all active:scale-95 block w-fit">
+                    
                         {p.teamSlotId}
-                      </Link>
-                    ) : "—"}
+                      </Link> :
+                  "—"}
                   </td>
                   <td className="px-4 md:px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-1 md:gap-2">
-                      {p.status === 'pending' && (
-                        <button
-                          onClick={() => handleApprovePlayer(p)}
-                          className="p-1.5 md:p-2 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white rounded-lg md:rounded-xl transition-all"
-                          title="Approve & Notify (WhatsApp)"
-                        >
+                      {p.status === 'pending' &&
+                    <button
+                      onClick={() => handleApprovePlayer(p)}
+                      className="p-1.5 md:p-2 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white rounded-lg md:rounded-xl transition-all"
+                      title="Approve & Notify (WhatsApp)">
+                      
                           <Check className="w-3.5 h-3.5 md:w-4 md:h-4" />
                         </button>
-                      )}
+                    }
                       <Link
-                        href={`/live-auction?id=${selectedAuction._id}&player=${p.applicationId}`}
-                        className="p-1.5 md:p-2 bg-violet-600/10 text-violet-400 hover:bg-violet-600 hover:text-white rounded-lg md:rounded-xl transition-all"
-                        title="Live Bidding"
-                      >
+                      href={`/live-auction?id=${selectedAuction._id}&player=${p.applicationId}`}
+                      className="p-1.5 md:p-2 bg-violet-600/10 text-violet-400 hover:bg-violet-600 hover:text-white rounded-lg md:rounded-xl transition-all"
+                      title="Live Bidding">
+                      
                         <Zap className="w-3.5 h-3.5 md:w-4 md:h-4" />
                       </Link>
                       <button onClick={() => setSelectedVerifyPlayer(p)} className="p-1.5 md:p-2 bg-white/5 hover:bg-violet-600/20 text-slate-400 hover:text-violet-400 rounded-lg md:rounded-xl transition-all" title="View Verification Details">
@@ -1127,7 +1127,7 @@ function PlayersRegistryContent() {
                     </div>
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
           {filtered.length === 0 && <div className="py-20 text-center text-slate-500 font-bold uppercase tracking-widest">Archive Empty</div>}
@@ -1135,8 +1135,8 @@ function PlayersRegistryContent() {
       </div>
 
 
-      {isAddModalOpen && (
-        <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm">
+      {isAddModalOpen &&
+      <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm">
           <div className="bg-[#0f172a] border border-white/10 rounded-[2.5rem] w-full max-w-2xl overflow-hidden shadow-2xl animate-in zoom-in-95">
             <div className="px-8 py-6 border-b border-white/5 flex items-center justify-between">
               <h2 className="text-xl font-black text-white">Manual <span className="text-violet-500">Player Entry</span></h2>
@@ -1161,11 +1161,11 @@ function PlayersRegistryContent() {
                       Full Name <span className="text-red-500">*</span>
                     </label>
                     <input
-                      className={`w-full bg-slate-900 border ${formErrors.name ? 'border-red-500' : 'border-white/10'} rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-violet-500`}
-                      value={newPlayer.name}
-                      onChange={e => setNewPlayer({ ...newPlayer, name: e.target.value })}
-                      placeholder="Enter player name"
-                    />
+                    className={`w-full bg-slate-900 border ${formErrors.name ? 'border-red-500' : 'border-white/10'} rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-violet-500`}
+                    value={newPlayer.name}
+                    onChange={(e) => setNewPlayer({ ...newPlayer, name: e.target.value })}
+                    placeholder="Enter player name" />
+                  
                     {formErrors.name && <p className="text-[8px] text-red-400 font-bold mt-1">{formErrors.name}</p>}
                   </div>
 
@@ -1175,12 +1175,12 @@ function PlayersRegistryContent() {
                       Playing Role <span className="text-red-500">*</span>
                     </label>
                     <select
-                      className={`w-full bg-slate-900 border ${formErrors.role ? 'border-red-500' : 'border-white/10'} rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-violet-500 cursor-pointer`}
-                      value={newPlayer.role}
-                      onChange={e => setNewPlayer({ ...newPlayer, role: e.target.value })}
-                    >
+                    className={`w-full bg-slate-900 border ${formErrors.role ? 'border-red-500' : 'border-white/10'} rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-violet-500 cursor-pointer`}
+                    value={newPlayer.role}
+                    onChange={(e) => setNewPlayer({ ...newPlayer, role: e.target.value })}>
+                    
                       <option value="">Select Role</option>
-                      {["Batsman", "Bowler", "All-Rounder", "Wicketkeeper", "WK-Batsman"].map(r => <option key={r} value={r}>{r}</option>)}
+                      {["Batsman", "Bowler", "All-Rounder", "Wicketkeeper", "WK-Batsman"].map((r) => <option key={r} value={r}>{r}</option>)}
                     </select>
                     {formErrors.role && <p className="text-[8px] text-red-400 font-bold mt-1">{formErrors.role}</p>}
                   </div>
@@ -1191,12 +1191,12 @@ function PlayersRegistryContent() {
                       Base Price <span className="text-red-500">*</span>
                     </label>
                     <input
-                      type="number"
-                      className={`w-full bg-slate-900 border ${formErrors.basePrice ? 'border-red-500' : 'border-white/10'} rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-violet-500`}
-                      value={newPlayer.basePrice}
-                      onChange={e => setNewPlayer({ ...newPlayer, basePrice: parseInt(e.target.value) || 0 })}
-                      placeholder="Enter amount (e.g., 100)"
-                    />
+                    type="number"
+                    className={`w-full bg-slate-900 border ${formErrors.basePrice ? 'border-red-500' : 'border-white/10'} rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-violet-500`}
+                    value={newPlayer.basePrice}
+                    onChange={(e) => setNewPlayer({ ...newPlayer, basePrice: parseInt(e.target.value) || 0 })}
+                    placeholder="Enter amount (e.g., 100)" />
+                  
                     {formErrors.basePrice && <p className="text-[8px] text-red-400 font-bold mt-1">{formErrors.basePrice}</p>}
                   </div>
 
@@ -1206,16 +1206,16 @@ function PlayersRegistryContent() {
                       Contact Number <span className="text-red-500">*</span>
                     </label>
                     <input
-                      type="tel"
-                      maxLength={10}
-                      className={`w-full bg-slate-900 border ${formErrors.mobile ? 'border-red-500' : 'border-white/10'} rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-violet-500`}
-                      value={newPlayer.mobile}
-                      onChange={e => {
-                        const val = e.target.value.replace(/\D/g, ''); // Only digits
-                        setNewPlayer({ ...newPlayer, mobile: val });
-                      }}
-                      placeholder="10-digit mobile number"
-                    />
+                    type="tel"
+                    maxLength={10}
+                    className={`w-full bg-slate-900 border ${formErrors.mobile ? 'border-red-500' : 'border-white/10'} rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-violet-500`}
+                    value={newPlayer.mobile}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, ''); // Only digits
+                      setNewPlayer({ ...newPlayer, mobile: val });
+                    }}
+                    placeholder="10-digit mobile number" />
+                  
                     {formErrors.mobile && <p className="text-[8px] text-red-400 font-bold mt-1">{formErrors.mobile}</p>}
                   </div>
                 </div>
@@ -1228,16 +1228,16 @@ function PlayersRegistryContent() {
                       Contact Number <span className="text-red-500">*</span>
                     </label>
                     <input
-                      type="tel"
-                      maxLength={10}
-                      className={`w-full bg-slate-900 border ${formErrors.mobile ? 'border-red-500' : 'border-white/10'} rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-violet-500`}
-                      value={newPlayer.mobile}
-                      onChange={e => {
-                        const val = e.target.value.replace(/\D/g, '');
-                        setNewPlayer({ ...newPlayer, mobile: val });
-                      }}
-                      placeholder="10-digit mobile number"
-                    />
+                    type="tel"
+                    maxLength={10}
+                    className={`w-full bg-slate-900 border ${formErrors.mobile ? 'border-red-500' : 'border-white/10'} rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-violet-500`}
+                    value={newPlayer.mobile}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '');
+                      setNewPlayer({ ...newPlayer, mobile: val });
+                    }}
+                    placeholder="10-digit mobile number" />
+                  
                     {formErrors.mobile && <p className="text-[8px] text-red-400 font-bold mt-1">{formErrors.mobile}</p>}
                   </div>
 
@@ -1245,11 +1245,11 @@ function PlayersRegistryContent() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Age (Optional)</label>
-                      <input type="number" className="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-violet-500" value={newPlayer.age} onChange={e => setNewPlayer({ ...newPlayer, age: parseInt(e.target.value) || 0 })} />
+                      <input type="number" className="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-violet-500" value={newPlayer.age} onChange={(e) => setNewPlayer({ ...newPlayer, age: parseInt(e.target.value) || 0 })} />
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Location (Optional)</label>
-                      <input className="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-violet-500" value={newPlayer.village} onChange={e => setNewPlayer({ ...newPlayer, village: e.target.value })} placeholder="Village/Town" />
+                      <input className="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-violet-500" value={newPlayer.village} onChange={(e) => setNewPlayer({ ...newPlayer, village: e.target.value })} placeholder="Village/Town" />
                     </div>
                   </div>
 
@@ -1260,18 +1260,18 @@ function PlayersRegistryContent() {
                     </label>
 
                     <div className={`relative h-28 bg-white/5 border-2 ${formErrors.photo ? 'border-red-500' : 'border-dashed border-white/10'} rounded-2xl flex flex-col items-center justify-center group hover:border-violet-500/50 transition-all overflow-hidden`}>
-                      {newPlayer.photo ? (
-                        <div className="text-center w-full h-full">
+                      {newPlayer.photo ?
+                    <div className="text-center w-full h-full">
                           <img src={newPlayer.photo instanceof File ? URL.createObjectURL(newPlayer.photo) : newPlayer.photo} alt="Preview" className="w-full h-full object-cover" />
                           <button type="button" onClick={() => setNewPlayer({ ...newPlayer, photo: null })} className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full hover:bg-red-600"><X size={12} /></button>
-                        </div>
-                      ) : (
-                        <>
+                        </div> :
+
+                    <>
                           <Plus className="w-6 h-6 text-slate-600 group-hover:text-violet-500 transition-colors" />
                           <p className="text-[10px] font-black text-slate-600 uppercase mt-1">Upload Photo</p>
-                          <input type="file" accept="image/*" onChange={e => setNewPlayer({ ...newPlayer, photo: e.target.files[0] })} className="absolute inset-0 opacity-0 cursor-pointer" />
+                          <input type="file" accept="image/*" onChange={(e) => setNewPlayer({ ...newPlayer, photo: e.target.files[0] })} className="absolute inset-0 opacity-0 cursor-pointer" />
                         </>
-                      )}
+                    }
                     </div>
                   </div>
 
@@ -1279,52 +1279,52 @@ function PlayersRegistryContent() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Batting (Optional)</label>
-                      <select className="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-violet-500 cursor-pointer" value={newPlayer.battingStyle} onChange={e => setNewPlayer({ ...newPlayer, battingStyle: e.target.value })}>
+                      <select className="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-violet-500 cursor-pointer" value={newPlayer.battingStyle} onChange={(e) => setNewPlayer({ ...newPlayer, battingStyle: e.target.value })}>
                         <option value="Right Hand Bat">Right Hand</option>
                         <option value="Left Hand Bat">Left Hand</option>
                       </select>
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Bowling (Optional)</label>
-                      <input className="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-violet-500" value={newPlayer.bowlingStyle} onChange={e => setNewPlayer({ ...newPlayer, bowlingStyle: e.target.value })} placeholder="Style" />
+                      <input className="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-violet-500" value={newPlayer.bowlingStyle} onChange={(e) => setNewPlayer({ ...newPlayer, bowlingStyle: e.target.value })} placeholder="Style" />
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* Icon Player Section */}
-              {newPlayer.isIcon && (
-                <div className="space-y-1.5 animate-in slide-in-from-top-2 border-t border-white/5 pt-4">
+              {newPlayer.isIcon &&
+            <div className="space-y-1.5 animate-in slide-in-from-top-2 border-t border-white/5 pt-4">
                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Assigned Team</label>
-                  <select className="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-violet-500" value={newPlayer.teamId} onChange={e => setNewPlayer({ ...newPlayer, teamId: e.target.value })}>
+                  <select className="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-violet-500" value={newPlayer.teamId} onChange={(e) => setNewPlayer({ ...newPlayer, teamId: e.target.value })}>
                     <option value="">Select Team</option>
-                    {teams.map(t => <option key={t._id} value={t._id}>{t.name}</option>)}
+                    {teams.map((t) => <option key={t._id} value={t._id}>{t.name}</option>)}
                   </select>
                 </div>
-              )}
+            }
 
               <div className="flex items-center gap-2 p-3 bg-white/5 rounded-xl border border-white/5">
-                <input type="checkbox" className="w-4 h-4 rounded border-white/10 accent-violet-500" checked={newPlayer.isIcon} onChange={e => setNewPlayer({ ...newPlayer, isIcon: e.target.checked })} id="icon-check" />
+                <input type="checkbox" className="w-4 h-4 rounded border-white/10 accent-violet-500" checked={newPlayer.isIcon} onChange={(e) => setNewPlayer({ ...newPlayer, isIcon: e.target.checked })} id="icon-check" />
                 <label htmlFor="icon-check" className="text-xs font-black text-slate-400 uppercase tracking-widest cursor-pointer">Mark as Icon Player</label>
               </div>
 
               <button
-                onClick={handleAddPlayer}
-                disabled={loading}
-                className="w-full py-4 bg-linear-to-r from-violet-600 to-cyan-500 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-white shadow-xl shadow-violet-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all mt-4 flex items-center justify-center gap-2 disabled:opacity-50"
-              >
+              onClick={handleAddPlayer}
+              disabled={loading}
+              className="w-full py-4 bg-linear-to-r from-violet-600 to-cyan-500 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-white shadow-xl shadow-violet-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all mt-4 flex items-center justify-center gap-2 disabled:opacity-50">
+              
                 {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
                 {loading ? "SAVING..." : "SAVE PLAYER TO DATABASE"}
               </button>
             </div>
           </div>
         </div>
-      )}
+      }
 
 
       {/* ── MANAGE/EDIT MODAL ── */}
-      {isManageModalOpen && (
-        <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm">
+      {isManageModalOpen &&
+      <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm">
           <div className="bg-[#0f172a] border border-white/10 rounded-[2.5rem] w-full max-w-lg overflow-hidden shadow-2xl">
             <div className="px-8 py-6 border-b border-white/5 flex items-center justify-between">
               <h2 className="text-xl font-black text-white">System <span className="text-violet-500">Override</span></h2>
@@ -1333,100 +1333,100 @@ function PlayersRegistryContent() {
             <div className="p-8 space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5"><label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Name</label>
-                  <input className="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-violet-500" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} /></div>
+                  <input className="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-violet-500" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} /></div>
                 <div className="space-y-1.5"><label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Role</label>
-                  <select className="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-violet-500" value={formData.role} onChange={e => setFormData({ ...formData, role: e.target.value })}>
-                    {["Batsman", "Bowler", "All-Rounder", "Wicket Keeper", "WK-Batsman"].map(r => <option key={r}>{r}</option>)}
+                  <select className="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-violet-500" value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value })}>
+                    {["Batsman", "Bowler", "All-Rounder", "Wicket Keeper", "WK-Batsman"].map((r) => <option key={r}>{r}</option>)}
                   </select></div>
               </div>
 
               <div className="space-y-1.5"><label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Life Status</label>
                 <div className="flex gap-2">
-                  {["available", "sold", "unsold"].map(s => (
-                    <button key={s} onClick={() => setFormData({ ...formData, status: s })} className={`flex-1 py-3 rounded-xl text-[8px] font-black uppercase tracking-[0.2em] border transition-all ${formData.status === s ? 'bg-violet-600 border-violet-500 text-white shadow-xl' : 'bg-white/5 border-white/10 text-slate-500 hover:bg-white/10'}`}>{s}</button>
-                  ))}
+                  {["available", "sold", "unsold"].map((s) =>
+                <button key={s} onClick={() => setFormData({ ...formData, status: s })} className={`flex-1 py-3 rounded-xl text-[8px] font-black uppercase tracking-[0.2em] border transition-all ${formData.status === s ? 'bg-violet-600 border-violet-500 text-white shadow-xl' : 'bg-white/5 border-white/10 text-slate-500 hover:bg-white/10'}`}>{s}</button>
+                )}
                 </div></div>
 
-              {formData.status === 'sold' && (
-                <div className="grid grid-cols-2 gap-4 border-t border-white/5 pt-4 animate-in slide-in-from-top-2">
+              {formData.status === 'sold' &&
+            <div className="grid grid-cols-2 gap-4 border-t border-white/5 pt-4 animate-in slide-in-from-top-2">
                   <div className="space-y-1.5"><label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Sold Price (₹)</label>
-                    <input type="number" className="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-violet-500" value={formData.soldPrice} onChange={e => setFormData({ ...formData, soldPrice: e.target.value })} /></div>
+                    <input type="number" className="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-violet-500" value={formData.soldPrice} onChange={(e) => setFormData({ ...formData, soldPrice: e.target.value })} /></div>
                   <div className="space-y-1.5"><label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Drafted Team</label>
-                    <select className="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-violet-500" value={formData.team} onChange={e => setFormData({ ...formData, team: e.target.value })}>
+                    <select className="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-violet-500" value={formData.team} onChange={(e) => setFormData({ ...formData, team: e.target.value })}>
                       <option value="">Select Team</option>
-                      {teams.map(t => <option key={t._id} value={t._id}>{t.name}</option>)}
+                      {teams.map((t) => <option key={t._id} value={t._id}>{t.name}</option>)}
                     </select></div>
                 </div>
-              )}
+            }
 
               <div className="flex items-center gap-2 p-3 bg-white/5 rounded-xl border border-white/5">
-                <input type="checkbox" className="w-4 h-4 rounded border-white/10 accent-violet-500" checked={formData.isIcon} onChange={e => setFormData({ ...formData, isIcon: e.target.checked })} id="icon-edit" />
+                <input type="checkbox" className="w-4 h-4 rounded border-white/10 accent-violet-500" checked={formData.isIcon} onChange={(e) => setFormData({ ...formData, isIcon: e.target.checked })} id="icon-edit" />
                 <label htmlFor="icon-edit" className="text-xs font-black text-slate-400 uppercase tracking-widest cursor-pointer">Icon Player Status</label>
               </div>
 
-              <button onClick={() => { setIsManageModalOpen(false); setIsConfirmModalOpen(true); }} className="w-full py-4 bg-linear-to-r from-violet-600 to-cyan-500 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white shadow-xl shadow-violet-500/20 hover:scale-105 transition-all">Stage Override</button>
+              <button onClick={() => {setIsManageModalOpen(false);setIsConfirmModalOpen(true);}} className="w-full py-4 bg-linear-to-r from-violet-600 to-cyan-500 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white shadow-xl shadow-violet-500/20 hover:scale-105 transition-all">Stage Override</button>
             </div>
           </div>
         </div>
-      )}
+      }
 
       {/* ── SECURITY CONFIRMATION ── */}
-      {isConfirmModalOpen && (
-        <div className="fixed inset-0 z-110 flex items-center justify-center p-4 bg-black/95 backdrop-blur-md">
+      {isConfirmModalOpen &&
+      <div className="fixed inset-0 z-110 flex items-center justify-center p-4 bg-black/95 backdrop-blur-md">
           <div className="bg-[#0f172a] border border-red-500/20 rounded-[2.5rem] w-full max-w-sm overflow-hidden shadow-[0_0_50px_rgba(239,68,68,0.2)]">
             <div className="p-8 text-center space-y-4">
               <div className="w-16 h-16 bg-red-500/10 rounded-3xl flex items-center justify-center mx-auto border border-red-500/20"><AlertTriangle className="w-8 h-8 text-red-500 animate-pulse" /></div>
               <div><h3 className="text-xl font-black text-white">Manual Write?</h3><p className="text-xs text-slate-500 mt-2">You are modifying sensitive live data for <span className="text-white font-black">{editingPlayer.name}</span>.</p></div>
               <div className="space-y-1.5 text-left"><label className="text-[9px] font-black uppercase tracking-widest text-slate-600">Type &quot;CONFIRM&quot; to proceed</label>
-                <input className="w-full bg-slate-900 border border-red-500/20 rounded-xl px-4 py-3 text-center text-sm font-black text-red-400 outline-none" placeholder="CONFIRM" value={confirmText} onChange={e => setConfirmText(e.target.value.toUpperCase())} /></div>
+                <input className="w-full bg-slate-900 border border-red-500/20 rounded-xl px-4 py-3 text-center text-sm font-black text-red-400 outline-none" placeholder="CONFIRM" value={confirmText} onChange={(e) => setConfirmText(e.target.value.toUpperCase())} /></div>
               <div className="flex gap-2"><button onClick={() => setIsConfirmModalOpen(false)} className="flex-1 py-3 text-[10px] font-black uppercase text-slate-600">Abort</button>
                 <button disabled={confirmText !== 'CONFIRM'} onClick={handleFinalConfirm} className="flex-1 py-3 bg-red-600 disabled:opacity-20 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-1"><ShieldCheck className="w-3 h-3" /> Commit</button></div>
             </div>
           </div>
         </div>
-      )}
+      }
 
       {/* ── IMAGE EDIT MODAL ── */}
-      {editImageTarget && (
-        <ImageEditModal
-          title={`Edit Photo: ${editImageTarget.name}`}
-          initialImage={editImageTarget.url}
-          onClose={() => setEditImageTarget(null)}
-          onSave={async (file) => {
-            // Handle photo update via S3 and PATCH
-            try {
-              // 1. Get upload URL
-              const fileType = file.type;
-              const { uploadUrl, fileUrl } = await fetch(`${API_URL}/api/upload/get-upload-url?fileType=${fileType}&folder=players`).then(r => r.json());
+      {editImageTarget &&
+      <ImageEditModal
+        title={`Edit Photo: ${editImageTarget.name}`}
+        initialImage={editImageTarget.url}
+        onClose={() => setEditImageTarget(null)}
+        onSave={async (file) => {
+          // Handle photo update via S3 and PATCH
+          try {
+            // 1. Get upload URL
+            const fileType = file.type;
+            const { uploadUrl, fileUrl } = await fetch(`${API_URL}/api/upload/get-upload-url?fileType=${fileType}&folder=players`).then((r) => r.json());
 
-              // 2. Upload to S3
-              await fetch(uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": fileType } });
+            // 2. Upload to S3
+            await fetch(uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": fileType } });
 
-              // 3. Update DB
-              const res = await fetch(`${API_URL}/api/players/${editImageTarget.id}`, {
-                method: "PATCH",
-                headers: {
-                  "Content-Type": "application/json",
-                  "Authorization": `Bearer ${session?.accessToken}`
-                },
-                body: JSON.stringify({ imageUrl: fileUrl })
-              });
+            // 3. Update DB
+            const res = await fetch(`${API_URL}/api/players/${editImageTarget.id}`, {
+              method: "PATCH",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${session?.accessToken}`
+              },
+              body: JSON.stringify({ imageUrl: fileUrl })
+            });
 
-              if (res.ok) {
-                socket.emit("auctionUpdate", { type: "system_refresh", auctionId: selectedAuction._id });
-                fetchData();
-              }
-            } catch (err) {
-              console.error("Photo update failed", err);
-              alert("Photo update failed");
+            if (res.ok) {
+              socket.emit("auctionUpdate", { type: "system_refresh", auctionId: selectedAuction._id });
+              fetchData();
             }
-          }}
-        />
-      )}
+          } catch (err) {
+            console.error("Photo update failed", err);
+            alert("Photo update failed");
+          }
+        }} />
+
+      }
 
       {/* ── BID HISTORY MODAL ── */}
-      {historyPlayer && (
-        <div className="fixed inset-0 z-120 flex items-center justify-center p-4 bg-black/95 backdrop-blur-xl animate-in fade-in duration-300">
+      {historyPlayer &&
+      <div className="fixed inset-0 z-120 flex items-center justify-center p-4 bg-black/95 backdrop-blur-xl animate-in fade-in duration-300">
           <div className="bg-[#0B0F2A] border border-white/10 rounded-[2.5rem] w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[85vh]">
             <div className="px-8 py-6 border-b border-white/5 flex items-center justify-between bg-white/1">
               <div className="flex items-center gap-4">
@@ -1444,75 +1444,75 @@ function PlayersRegistryContent() {
             </div>
 
             <div className="flex-1 overflow-y-auto p-8 space-y-4 custom-scrollbar">
-              {(!historyPlayer.bidHistory || historyPlayer.bidHistory.length === 0) ? (
-                historyPlayer.status === 'sold' ? (
-                  <div className="flex items-center justify-between p-4 bg-white/4 border border-violet-500/30 rounded-2xl group transition-all">
+              {!historyPlayer.bidHistory || historyPlayer.bidHistory.length === 0 ?
+            historyPlayer.status === 'sold' ?
+            <div className="flex items-center justify-between p-4 bg-white/4 border border-violet-500/30 rounded-2xl group transition-all">
                     <div className="flex items-center gap-4">
                       <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center text-[10px] font-black text-emerald-400 border border-emerald-500/20">
                         <ShieldCheck className="w-4 h-4" />
                       </div>
                       <div>
                         <Link
-                          href={`/team/${historyPlayer.team?._id || historyPlayer.team}?tournament=${selectedAuction._id}&from=sold&highlight=${historyPlayer._id}`}
-                          className="text-xs font-black text-white hover:text-violet-400 transition-colors uppercase tracking-tight block"
-                        >
+                    href={`/team/${historyPlayer.team?._id || historyPlayer.team}?tournament=${selectedAuction._id}&from=sold&highlight=${historyPlayer._id}`}
+                    className="text-xs font-black text-white hover:text-violet-400 transition-colors uppercase tracking-tight block">
+                    
                           {historyPlayer.team?.name || 'Assigned Team'}
                         </Link>
                         <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest italic">Final Award Entry</p>
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-1 text-right">
-                      {historyPlayer.teamSlotId && (
-                        <Link
-                          href={`/team/${historyPlayer.team?._id || historyPlayer.team}?tournament=${selectedAuction._id}&from=sold&highlight=${historyPlayer._id}`}
-                          className="text-[8px] font-black text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 rounded-md hover:bg-cyan-500/20 transition-all"
-                        >
+                      {historyPlayer.teamSlotId &&
+                <Link
+                  href={`/team/${historyPlayer.team?._id || historyPlayer.team}?tournament=${selectedAuction._id}&from=sold&highlight=${historyPlayer._id}`}
+                  className="text-[8px] font-black text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 rounded-md hover:bg-cyan-500/20 transition-all">
+                  
                           {historyPlayer.teamSlotId}
                         </Link>
-                      )}
+                }
                       <p className="text-sm font-black text-emerald-400">₹{historyPlayer.soldPrice?.toLocaleString()}</p>
                       <p className="text-[8px] text-emerald-500/40 font-black uppercase tracking-tighter">Legacy Record</p>
                     </div>
-                  </div>
-                ) : (
-                  <div className="py-20 text-center space-y-4 opacity-40">
+                  </div> :
+
+            <div className="py-20 text-center space-y-4 opacity-40">
                     <ShieldAlert className="w-12 h-12 text-slate-500 mx-auto" />
                     <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">No Bidding Traffic Recorded</p>
-                  </div>
-                )
-              ) : (
-                <div className="space-y-3">
-                  {[...historyPlayer.bidHistory].reverse().map((bid, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-4 bg-white/2 border border-white/5 rounded-2xl group hover:border-violet-500/30 transition-all">
+                  </div> :
+
+
+            <div className="space-y-3">
+                  {[...historyPlayer.bidHistory].reverse().map((bid, idx) =>
+              <div key={idx} className="flex items-center justify-between p-4 bg-white/2 border border-white/5 rounded-2xl group hover:border-violet-500/30 transition-all">
                       <div className="flex items-center gap-4">
                         <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center text-[10px] font-black text-slate-500 border border-white/5">
                           #{historyPlayer.bidHistory.length - idx}
                         </div>
                         <div>
                           <Link
-                            href={`/team/${bid.teamId}?tournament=${selectedAuction._id}&from=sold&highlight=${historyPlayer._id}`}
-                            className="text-xs font-black text-white hover:text-violet-400 transition-colors uppercase tracking-tight block"
-                          >
+                      href={`/team/${bid.teamId}?tournament=${selectedAuction._id}&from=sold&highlight=${historyPlayer._id}`}
+                      className="text-xs font-black text-white hover:text-violet-400 transition-colors uppercase tracking-tight block">
+                      
                             {bid.teamName}
                           </Link>
                           <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">
                             {new Date(bid.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                           </p>
-                          <img 
-                            src={getProxiedImageUrl(historyPlayer)} 
-                            alt="" 
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              const parent = e.target.parentElement;
-                              e.target.style.display = 'none';
-                              if (parent && !parent.querySelector('.fallback-initial')) {
-                                const span = document.createElement('span');
-                                span.className = 'fallback-initial text-[10px] font-black text-white uppercase';
-                                span.innerText = historyPlayer.name?.[0] || 'P';
-                                parent.appendChild(span);
-                              }
-                            }}
-                          />
+                          <img
+                      src={getProxiedImageUrl(historyPlayer)}
+                      alt=""
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        const parent = e.target.parentElement;
+                        e.target.style.display = 'none';
+                        if (parent && !parent.querySelector('.fallback-initial')) {
+                          const span = document.createElement('span');
+                          span.className = 'fallback-initial text-[10px] font-black text-white uppercase';
+                          span.innerText = historyPlayer.name?.[0] || 'P';
+                          parent.appendChild(span);
+                        }
+                      }} />
+                    
                         </div>
                       </div>
                       <div className="text-right">
@@ -1520,9 +1520,9 @@ function PlayersRegistryContent() {
                         <p className="text-[8px] text-slate-600 font-black uppercase tracking-tighter">Verified Bid</p>
                       </div>
                     </div>
-                  ))}
-                </div>
               )}
+                </div>
+            }
             </div>
 
             <div className="p-8 bg-black/40 border-t border-white/5 flex items-center justify-between">
@@ -1539,10 +1539,10 @@ function PlayersRegistryContent() {
             </div>
           </div>
         </div>
-      )}
+      }
       {/* ── VERIFICATION MODAL ── */}
-      {selectedVerifyPlayer && (
-        <div className="fixed inset-0 z-1000 flex items-center justify-center p-6 bg-[#020617]/95 backdrop-blur-3xl animate-in fade-in duration-300">
+      {selectedVerifyPlayer &&
+      <div className="fixed inset-0 z-1000 flex items-center justify-center p-6 bg-[#020617]/95 backdrop-blur-3xl animate-in fade-in duration-300">
           <div className="max-w-4xl w-full bg-[#0f172a] border border-white/10 rounded-[3rem] overflow-hidden shadow-2xl relative">
             <button onClick={() => setSelectedVerifyPlayer(null)} className="absolute top-8 right-8 w-12 h-12 bg-white/5 hover:bg-white/10 rounded-full flex items-center justify-center text-slate-400 transition-all z-20"><X size={20} /></button>
             <div className="grid grid-cols-1 md:grid-cols-12">
@@ -1553,11 +1553,11 @@ function PlayersRegistryContent() {
                     <h1 className="text-sm font-black text-white italic tracking-tighter uppercase">Official Poster</h1>
                   </div>
                   <img
-                    src={getImgUrl(selectedVerifyPlayer)}
-                    crossOrigin="anonymous"
-                    onError={(e) => { e.currentTarget.src = '/placeholder-player.png'; }}
-                    className="w-56 h-56 object-cover rounded-[2.5rem] border-4 border-white/10 shadow-xl"
-                  />
+                  src={getImgUrl(selectedVerifyPlayer)}
+                  crossOrigin="anonymous"
+                  onError={(e) => {e.currentTarget.src = '/placeholder-player.png';}}
+                  className="w-56 h-56 object-cover rounded-[2.5rem] border-4 border-white/10 shadow-xl" alt="" />
+                
                   <div className="text-center space-y-1">
                     <h3 className="text-2xl font-black text-white italic tracking-tighter leading-none">{selectedVerifyPlayer.name}</h3>
                     <p className="text-[9px] font-black text-[#94a3b8] uppercase tracking-widest leading-none">ID #{selectedVerifyPlayer.applicationId}</p>
@@ -1570,7 +1570,7 @@ function PlayersRegistryContent() {
                 <div className="w-full space-y-6">
                   <div className="p-5 bg-white/5 rounded-2xl border border-white/10 group cursor-pointer hover:bg-white/10 transition-all" onClick={() => window.open(selectedVerifyPlayer.aadhaarUrl, '_blank')}>
                     <div className="flex items-center justify-between mb-3"><p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Aadhaar Evidence</p><ExternalLink size={12} className="text-violet-500" /></div>
-                    {selectedVerifyPlayer.aadhaarUrl ? <img src={selectedVerifyPlayer.aadhaarUrl} className="w-full h-32 object-cover rounded-xl" /> : <div className="h-32 rounded-xl bg-slate-900 flex items-center justify-center text-[9px] font-black text-slate-800 uppercase italic">No identity proof attached</div>}
+                    {selectedVerifyPlayer.aadhaarUrl ? <img src={selectedVerifyPlayer.aadhaarUrl} className="w-full h-32 object-cover rounded-xl" alt="" /> : <div className="h-32 rounded-xl bg-slate-900 flex items-center justify-center text-[9px] font-black text-slate-800 uppercase italic">No identity proof attached</div>}
                   </div>
                 </div>
               </div>
@@ -1590,10 +1590,10 @@ function PlayersRegistryContent() {
                 </div>
                 <div className="pt-10 border-t border-white/5 flex flex-wrap gap-4">
                   <button
-                    onClick={() => downloadPosterAsImage(selectedVerifyPlayer)}
-                    className="px-6 py-5 bg-linear-to-r from-emerald-600 to-teal-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-emerald-500/20 hover:scale-105 transition-all flex items-center gap-2"
-                    disabled={isCapturing}
-                  >
+                  onClick={() => downloadPosterAsImage(selectedVerifyPlayer)}
+                  className="px-6 py-5 bg-linear-to-r from-emerald-600 to-teal-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-emerald-500/20 hover:scale-105 transition-all flex items-center gap-2"
+                  disabled={isCapturing}>
+                  
                     {isCapturing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Download size={14} />}
                     {isCapturing ? "Capturing..." : "Download Poster (PNG Image)"}
                   </button>
@@ -1606,36 +1606,36 @@ function PlayersRegistryContent() {
             </div>
           </div>
         </div>
-      )}
+      }
       {/* ── PDF GENERATION OVERLAY ── */}
-      {pdfProgress.active && (
-        <div className="fixed inset-0 z-200 flex items-center justify-center p-4">
+      {pdfProgress.active &&
+      <div className="fixed inset-0 z-200 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md" />
           <div className="relative w-full max-w-md bg-slate-900 border border-white/10 rounded-3xl p-10 text-center shadow-2xl">
             <div className="relative w-32 h-32 mx-auto mb-8">
               <div className="absolute inset-0 rounded-full border-4 border-white/5" />
-              <div 
-                className="absolute inset-0 rounded-full border-4 border-violet-500 border-t-transparent animate-spin" 
-                style={{ animationDuration: '2s' }}
-              />
+              <div
+              className="absolute inset-0 rounded-full border-4 border-violet-500 border-t-transparent animate-spin"
+              style={{ animationDuration: '2s' }} />
+            
               <div className="absolute inset-0 flex items-center justify-center flex-col">
-                <span className="text-2xl font-black text-white">{Math.round((pdfProgress.current / pdfProgress.total) * 100)}%</span>
+                <span className="text-2xl font-black text-white">{Math.round(pdfProgress.current / pdfProgress.total * 100)}%</span>
                 <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Complete</span>
               </div>
             </div>
             <h3 className="text-xl font-black text-white uppercase tracking-tight mb-2">Preparing <span className="text-violet-500">PDF Roster</span></h3>
             <p className="text-sm text-slate-400 font-medium mb-6">Processing {pdfProgress.current} of {pdfProgress.total} players...</p>
             <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-violet-500 transition-all duration-300 shadow-[0_0_15px_rgba(139,92,246,0.5)]" 
-                style={{ width: `${(pdfProgress.current / pdfProgress.total) * 100}%` }}
-              />
+              <div
+              className="h-full bg-violet-500 transition-all duration-300 shadow-[0_0_15px_rgba(139,92,246,0.5)]"
+              style={{ width: `${pdfProgress.current / pdfProgress.total * 100}%` }} />
+            
             </div>
           </div>
         </div>
-      )}
-    </div>
-  );
+      }
+    </div>);
+
 }
 
 function DetailNode({ icon: Icon, label, value, color = "text-white" }) {
@@ -1643,22 +1643,21 @@ function DetailNode({ icon: Icon, label, value, color = "text-white" }) {
     <div className="space-y-2">
       <div className="flex items-center gap-2 opacity-40"><Icon size={12} className="text-slate-400" /><p className="text-[9px] font-black uppercase tracking-widest">{label}</p></div>
       <p className={`text-xs font-bold uppercase tracking-widest truncate ${color}`}>{value || "---"}</p>
-    </div>
-  );
+    </div>);
+
 }
 
-const ExternalLink = ({ size, className }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
-);
-const MapPin = ({ size, className }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-);
-const Activity = ({ size, className }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
-);
-const Phone = ({ size, className }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
-);
-const CreditCard = ({ size, className }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={className}><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
-);
+const ExternalLink = ({ size, className }) =>
+<svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>;
+
+const MapPin = ({ size, className }) =>
+<svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>;
+
+const Activity = ({ size, className }) =>
+<svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>;
+
+const Phone = ({ size, className }) =>
+<svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>;
+
+const CreditCard = ({ size, className }) =>
+<svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={className}><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>;

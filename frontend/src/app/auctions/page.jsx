@@ -16,13 +16,13 @@ export default function AuctionsPage() {
 
   useEffect(() => {
     fetchTournaments();
-    
+
     // Safety timeout — if fetch hangs, force loading to false after 5s
     const safetyTimer = setTimeout(() => setLoading(false), 5000);
-    
+
     // Poll every 60 seconds for new tournaments
     const interval = setInterval(fetchTournaments, 60000);
-    
+
     return () => {
       clearTimeout(safetyTimer);
       clearInterval(interval);
@@ -36,12 +36,12 @@ export default function AuctionsPage() {
       const timeout = setTimeout(() => controller.abort(), 20000);
 
       console.log(`Fetching tournaments from: ${API_URL}/api/tournaments`);
-      
+
       const response = await fetch(`${API_URL}/api/tournaments`, {
         signal: controller.signal
       });
       clearTimeout(timeout);
-      
+
       if (response.ok) {
         const data = await response.json();
         setTournaments(data);
@@ -59,27 +59,27 @@ export default function AuctionsPage() {
       }
       // Use mock data when backend fails
       const mockTournaments = [
-        {
-          _id: "1",
-          name: "PC-26 Cricket Auction",
-          date: "2024-03-20",
-          location: "Bangalore",
-          status: "upcoming",
-          teams: 8,
-          totalPlayers: 50,
-          basePrice: 1000
-        },
-        {
-          _id: "2", 
-          name: "Summer Cricket League",
-          date: "2024-04-15",
-          location: "Mumbai",
-          status: "ongoing",
-          teams: 6,
-          totalPlayers: 40,
-          basePrice: 800
-        }
-      ];
+      {
+        _id: "1",
+        name: "PC-26 Cricket Auction",
+        date: "2024-03-20",
+        location: "Bangalore",
+        status: "upcoming",
+        teams: 8,
+        totalPlayers: 50,
+        basePrice: 1000
+      },
+      {
+        _id: "2",
+        name: "Summer Cricket League",
+        date: "2024-04-15",
+        location: "Mumbai",
+        status: "ongoing",
+        teams: 6,
+        totalPlayers: 40,
+        basePrice: 800
+      }];
+
       setTournaments(mockTournaments);
       setError("Using demo data - backend connection failed");
     } finally {
@@ -106,12 +106,12 @@ export default function AuctionsPage() {
 
   const getStatusLabel = (status, tournamentName) => {
     // Show LIVE if status is active or live
-    const isActive = (status?.toLowerCase() === "active" || status?.toLowerCase() === "live");
-    
+    const isActive = status?.toLowerCase() === "active" || status?.toLowerCase() === "live";
+
     if (!isActive && status?.toLowerCase() !== "upcoming") {
       return "CONCLUDED";
     }
-    
+
     // Otherwise show actual status
     switch (status?.toLowerCase()) {
       case "active":
@@ -144,16 +144,16 @@ export default function AuctionsPage() {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center">
         <div className="text-white">Loading live auctions...</div>
-      </div>
-    );
+      </div>);
+
   }
 
-  const liveTournaments = tournaments.filter(t => 
-    (t.status?.toLowerCase() === "active" || t.status?.toLowerCase() === "live")
+  const liveTournaments = tournaments.filter((t) =>
+  t.status?.toLowerCase() === "active" || t.status?.toLowerCase() === "live"
   );
-  
-  const otherTournaments = tournaments.filter(t => 
-    t.status?.toLowerCase() !== "active" && t.status?.toLowerCase() !== "live"
+
+  const otherTournaments = tournaments.filter((t) =>
+  t.status?.toLowerCase() !== "active" && t.status?.toLowerCase() !== "live"
   );
 
   return (
@@ -169,14 +169,14 @@ export default function AuctionsPage() {
           {/* Organizer Badge - Relative on mobile, Absolute on desktop */}
           <div className="flex justify-center md:absolute md:top-8 md:right-8 mb-8 md:mb-0">
             <div className="w-24 h-24 md:w-36 md:h-36 rounded-full overflow-hidden border-2 border-amber-400/50 shadow-[0_0_30px_rgba(251,191,36,0.3)] bg-gradient-to-br from-amber-500/20 to-amber-600/20 backdrop-blur-sm relative">
-              <Image 
-                src={getMediaUrl(liveTournaments[0]?.organizerLogo)} 
+              <Image
+                src={getMediaUrl(liveTournaments[0]?.organizerLogo)}
                 alt={liveTournaments[0]?.name || "Organizer Logo"}
                 fill
                 className="object-cover"
                 unoptimized
-                priority
-              />
+                priority />
+              
             </div>
           </div>
           
@@ -204,12 +204,12 @@ export default function AuctionsPage() {
           </p>
           
           {/* CTA Button */}
-          {liveTournaments.length > 0 && (
-            <div className="flex justify-center mb-12">
+          {liveTournaments.length > 0 &&
+          <div className="flex justify-center mb-12">
               <Link
-                href={session?.user?.role?.toLowerCase() === "admin" ? `/live-auction?id=${liveTournaments[0].shortId || liveTournaments[0]._id}&role=admin` : `/overlay`}
-                className="group relative px-6 py-4 md:px-10 md:py-5 bg-gradient-to-r from-violet-500 to-teal-500 text-white font-black uppercase tracking-wider text-base md:text-lg rounded-2xl overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-[0_0_40px_rgba(16,185,129,0.5)]"
-              >
+              href={session?.user?.role?.toLowerCase() === "admin" ? `/live-auction?id=${liveTournaments[0].shortId || liveTournaments[0]._id}&role=admin` : `/overlay`}
+              className="group relative px-6 py-4 md:px-10 md:py-5 bg-gradient-to-r from-violet-500 to-teal-500 text-white font-black uppercase tracking-wider text-base md:text-lg rounded-2xl overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-[0_0_40px_rgba(16,185,129,0.5)]">
+              
                 <span className="relative z-10 flex items-center gap-3">
                   <Play className="w-5 h-5 md:w-6 md:h-6 fill-current" />
                   {session?.user?.role?.toLowerCase() === "admin" ? "Start Auction" : "Enter Live Auction"}
@@ -217,27 +217,27 @@ export default function AuctionsPage() {
                 <div className="absolute inset-0 bg-gradient-to-r from-teal-500 to-violet-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
               </Link>
             </div>
-          )}
+          }
         </div>
       </div>
 
       <div className="relative z-10 max-w-6xl mx-auto px-4 pb-12">
         {/* Error State */}
-        {error && (
-          <div className="mb-8 bg-red-500/10 border border-red-500/20 p-4 rounded-lg text-center">
+        {error &&
+        <div className="mb-8 bg-red-500/10 border border-red-500/20 p-4 rounded-lg text-center">
             <p className="text-red-400">{error}</p>
-            <button 
-              onClick={fetchTournaments}
-              className="mt-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-500 transition-colors text-sm"
-            >
+            <button
+            onClick={fetchTournaments}
+            className="mt-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-500 transition-colors text-sm">
+            
               Retry Connection
             </button>
           </div>
-        )}
+        }
 
         {/* Live Auctions */}
-        {liveTournaments.length > 0 && (
-          <section className="mb-12">
+        {liveTournaments.length > 0 &&
+        <section className="mb-12">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
               <h2 className="text-2xl font-bold text-white">Live Auctions</h2>
@@ -247,11 +247,11 @@ export default function AuctionsPage() {
             </div>
             
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {liveTournaments.map((tournament) => (
-                <div 
-                  key={tournament._id} 
-                  className="relative group bg-gradient-to-br from-slate-800/90 to-slate-900/90 rounded-2xl border border-violet-500/30 overflow-hidden transition-all duration-500 hover:border-violet-500/60 hover:shadow-[0_0_40px_rgba(16,185,129,0.2)]"
-                >
+              {liveTournaments.map((tournament) =>
+            <div
+              key={tournament._id}
+              className="relative group bg-gradient-to-br from-slate-800/90 to-slate-900/90 rounded-2xl border border-violet-500/30 overflow-hidden transition-all duration-500 hover:border-violet-500/60 hover:shadow-[0_0_40px_rgba(16,185,129,0.2)]">
+              
                   {/* Glow Effect */}
                   <div className="absolute inset-0 bg-gradient-to-br from-violet-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                   
@@ -291,7 +291,7 @@ export default function AuctionsPage() {
                         <div className="text-[9px] md:text-xs text-slate-500 uppercase tracking-wider">Players</div>
                       </div>
                       <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-2 md:p-3 text-center">
-                        <div className="text-xl md:text-2xl font-black text-amber-400">{tournament.iconCount || tournament.players?.filter(p => p.isIcon).length || 0}</div>
+                        <div className="text-xl md:text-2xl font-black text-amber-400">{tournament.iconCount || tournament.players?.filter((p) => p.isIcon).length || 0}</div>
                         <div className="text-[9px] md:text-xs text-slate-500 uppercase tracking-wider">Icons</div>
                       </div>
                     </div>
@@ -299,9 +299,9 @@ export default function AuctionsPage() {
                     {/* Action Buttons */}
                     <div className="flex flex-wrap gap-2">
                       <Link
-                        href={session?.user?.role?.toLowerCase() === "admin" ? `/live-auction?id=${tournament.shortId || tournament._id}&role=admin` : `/overlay`}
-                        className="group/btn relative flex-[2_1_0%] min-w-[120px] px-4 py-3 md:py-4 bg-gradient-to-r from-violet-500 to-teal-500 text-white font-black uppercase tracking-wider text-xs md:text-base rounded-xl overflow-hidden transition-all duration-300 hover:shadow-[0_0_30px_rgba(16,185,129,0.4)] flex items-center justify-center gap-2"
-                      >
+                    href={session?.user?.role?.toLowerCase() === "admin" ? `/live-auction?id=${tournament.shortId || tournament._id}&role=admin` : `/overlay`}
+                    className="group/btn relative flex-[2_1_0%] min-w-[120px] px-4 py-3 md:py-4 bg-gradient-to-r from-violet-500 to-teal-500 text-white font-black uppercase tracking-wider text-xs md:text-base rounded-xl overflow-hidden transition-all duration-300 hover:shadow-[0_0_30px_rgba(16,185,129,0.4)] flex items-center justify-center gap-2">
+                    
                         <span className="relative z-10 flex items-center gap-2">
                           <Play className="w-4 h-4 md:w-5 md:h-5 fill-current" />
                           {session?.user?.role?.toLowerCase() === "admin" ? "Start Auction" : "Watch"}
@@ -310,53 +310,53 @@ export default function AuctionsPage() {
                       </Link>
 
                       <button
-                        onClick={() => setSquadViewTournament(tournament)}
-                        className="flex-1 min-w-[100px] px-3 py-3 md:py-4 bg-white/5 hover:bg-white/10 text-white border border-white/10 font-black uppercase tracking-wider text-xs md:text-base rounded-xl transition-all duration-300 flex items-center justify-center gap-2 group/squad"
-                      >
+                    onClick={() => setSquadViewTournament(tournament)}
+                    className="flex-1 min-w-[100px] px-3 py-3 md:py-4 bg-white/5 hover:bg-white/10 text-white border border-white/10 font-black uppercase tracking-wider text-xs md:text-base rounded-xl transition-all duration-300 flex items-center justify-center gap-2 group/squad">
+                    
                         <Users className="w-4 h-4 md:w-5 md:h-5 group-hover:text-violet-400 transition-colors" />
                         Squads
                       </button>
 
                       <Link
-                        href={`/tournaments/${tournament._id}`}
-                        className="flex-1 min-w-[100px] px-3 py-3 md:py-4 bg-white/5 hover:bg-white/10 text-white border border-white/10 font-black uppercase tracking-wider text-xs md:text-base rounded-xl transition-all duration-300 flex items-center justify-center gap-2 group/details"
-                      >
+                    href={`/tournaments/${tournament._id}`}
+                    className="flex-1 min-w-[100px] px-3 py-3 md:py-4 bg-white/5 hover:bg-white/10 text-white border border-white/10 font-black uppercase tracking-wider text-xs md:text-base rounded-xl transition-all duration-300 flex items-center justify-center gap-2 group/details">
+                    
                         <ExternalLink className="w-4 h-4 md:w-5 md:h-5 group-hover/details:text-blue-400 transition-colors" />
                         Details
                       </Link>
                     </div>
                   </div>
                 </div>
-              ))}
+            )}
             </div>
           </section>
-        )}
+        }
 
         {/* --- SQUAD VIEW MODAL --- */}
-        {squadViewTournament && (
-          <SquadViewModal 
-            tournament={squadViewTournament} 
-            onClose={() => setSquadViewTournament(null)} 
-          />
-        )}
+        {squadViewTournament &&
+        <SquadViewModal
+          tournament={squadViewTournament}
+          onClose={() => setSquadViewTournament(null)} />
+
+        }
 
         {/* Other Tournaments */}
-        {otherTournaments.length > 0 && (
-          <section>
+        {otherTournaments.length > 0 &&
+        <section>
             <h2 className="text-2xl font-bold text-white mb-6">Other Tournaments</h2>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {otherTournaments.map((tournament) => {
-                const isConcluded = tournament.status?.toLowerCase() === "completed" || 
-                                   (tournament.status?.toLowerCase() !== "active" && tournament.status?.toLowerCase() !== "live" && tournament.status?.toLowerCase() !== "upcoming");
-                const statusLabel = getStatusLabel(tournament.status, tournament.name);
-                
-                return (
-                  <Link 
-                    href={`/tournaments/${tournament._id}`}
-                    key={tournament._id} 
-                    className="block group h-full"
-                  >
+              const isConcluded = tournament.status?.toLowerCase() === "completed" ||
+              tournament.status?.toLowerCase() !== "active" && tournament.status?.toLowerCase() !== "live" && tournament.status?.toLowerCase() !== "upcoming";
+              const statusLabel = getStatusLabel(tournament.status, tournament.name);
+
+              return (
+                <Link
+                  href={`/tournaments/${tournament._id}`}
+                  key={tournament._id}
+                  className="block group h-full">
+                  
                     <div className="bg-slate-800/50 hover:bg-slate-800 rounded-2xl border border-slate-700/50 hover:border-violet-500/30 p-6 transition-all duration-300 h-full flex flex-col hover:shadow-[0_0_30px_rgba(139,92,246,0.1)]">
                       <div className="flex items-center justify-between mb-4">
                         <div className={`flex items-center gap-2 px-3 py-1 rounded-full border text-[10px] font-black tracking-widest ${getStatusColor(tournament.status, isConcluded)}`}>
@@ -393,16 +393,16 @@ export default function AuctionsPage() {
                         </span>
                       </div>
                     </div>
-                  </Link>
-                );
-              })}
+                  </Link>);
+
+            })}
             </div>
           </section>
-        )}
+        }
 
         {/* No Live Tournaments */}
-        {liveTournaments.length === 0 && !error && (
-          <div className="text-center py-20">
+        {liveTournaments.length === 0 && !error &&
+        <div className="text-center py-20">
             <div className="relative inline-block mb-8">
               <div className="w-20 h-20 border-4 border-violet-500/20 rounded-full"></div>
               <div className="absolute top-0 left-0 w-20 h-20 border-4 border-violet-500 border-t-transparent rounded-full animate-spin"></div>
@@ -427,19 +427,19 @@ export default function AuctionsPage() {
 
             {/* Refresh Button */}
             <div className="mt-12">
-              <button 
-                onClick={fetchTournaments}
-                className="px-6 py-3 bg-violet-600 text-white rounded-lg hover:bg-violet-500 transition-colors inline-flex items-center gap-2"
-              >
+              <button
+              onClick={fetchTournaments}
+              className="px-6 py-3 bg-violet-600 text-white rounded-lg hover:bg-violet-500 transition-colors inline-flex items-center gap-2">
+              
                 <Clock className="w-5 h-5" />
                 Refresh for Live Auctions
               </button>
             </div>
           </div>
-        )}
+        }
       </div>
-    </div>
-  );
+    </div>);
+
 }
 
 // ── HELPERS ────────────────────────────────────────────────
@@ -451,13 +451,13 @@ function SquadList({ team, players }) {
          <h4 className="text-xs md:text-sm font-black text-white uppercase tracking-widest">{team.name} Squad</h4>
       </div>
       <div className="grid grid-cols-1 gap-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-        {players.length === 0 ? (
-          <div className="py-10 text-center border-2 border-dashed border-white/5 rounded-2xl opacity-40 italic text-xs">No players drafted yet</div>
-        ) : (
-          players.map((p, idx) => (
-            <div key={p._id || idx} className="flex items-center gap-3 p-3 bg-white/5 rounded-xl border border-white/5 group/p hover:border-violet-500/30 transition-all">
+        {players.length === 0 ?
+        <div className="py-10 text-center border-2 border-dashed border-white/5 rounded-2xl opacity-40 italic text-xs">No players drafted yet</div> :
+
+        players.map((p, idx) =>
+        <div key={p._id || idx} className="flex items-center gap-3 p-3 bg-white/5 rounded-xl border border-white/5 group/p hover:border-violet-500/30 transition-all">
                <div className="w-10 h-10 rounded-lg overflow-hidden border border-white/10 shrink-0">
-                  <img src={getMediaUrl(p.photo?.s3 || p.imageUrl || p.image, `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.name}`)} className="w-full h-full object-cover" />
+                  <img src={getMediaUrl(p.photo?.s3 || p.imageUrl || p.image, `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.name}`)} className="w-full h-full object-cover" alt="" />
                </div>
                <div className="flex-1 min-w-0">
                   <p className="text-sm font-black text-white truncate">{p.name}</p>
@@ -468,11 +468,11 @@ function SquadList({ team, players }) {
                   <p className="text-[8px] font-bold text-slate-600 uppercase tracking-widest">{p.isIcon ? 'Icon' : 'Auction'}</p>
                </div>
             </div>
-          ))
-        )}
+        )
+        }
       </div>
-    </div>
-  );
+    </div>);
+
 }
 
 function SquadViewModal({ tournament, onClose }) {
@@ -501,7 +501,7 @@ function SquadViewModal({ tournament, onClose }) {
   }, [tournament]);
 
   useEffect(() => {
-    const handleEsc = (e) => { if (e.key === 'Escape') onClose(); };
+    const handleEsc = (e) => {if (e.key === 'Escape') onClose();};
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
   }, [onClose]);
@@ -510,10 +510,10 @@ function SquadViewModal({ tournament, onClose }) {
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 md:p-4 bg-[#020617]/90 backdrop-blur-md animate-in fade-in">
        <div className="bg-[#0f172a] border border-white/10 rounded-3xl md:rounded-[2.5rem] w-full max-w-5xl h-[92vh] md:h-[85vh] overflow-hidden shadow-2xl flex flex-col relative">
           
-          <button 
-            onClick={onClose}
-            className="absolute top-4 right-4 md:top-6 md:right-8 z-20 p-2 bg-white/5 hover:bg-white/10 rounded-full text-slate-400 hover:text-white transition-all shadow-inner border border-white/5"
-          >
+          <button
+          onClick={onClose}
+          className="absolute top-4 right-4 md:top-6 md:right-8 z-20 p-2 bg-white/5 hover:bg-white/10 rounded-full text-slate-400 hover:text-white transition-all shadow-inner border border-white/5">
+          
             <XCircle className="w-5 h-5 md:w-6 md:h-6" />
           </button>
 
@@ -525,57 +525,57 @@ function SquadViewModal({ tournament, onClose }) {
           <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
             <div className="w-full md:w-80 border-b md:border-b-0 md:border-r border-white/5 overflow-y-auto p-3 md:p-4 space-y-2 bg-black/20 max-h-[35vh] md:max-h-full">
               <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-4 mb-2 md:mb-3">Teams</p>
-              {loading ? (
-                Array(6).fill(0).map((_, i) => (
-                  <div key={i} className="h-14 md:h-16 w-full animate-pulse bg-white/5 rounded-xl md:rounded-2xl border border-white/5" />
-                ))
-              ) : (
-                data.teams.map((t) => (
-                  <button
-                    key={t._id}
-                    onClick={() => setSelectedTeam(t)}
-                    className={`w-full flex items-center gap-3 md:gap-4 p-3 md:p-4 rounded-xl md:rounded-2xl border transition-all duration-300 group
-                      ${selectedTeam?._id === t._id 
-                        ? 'bg-violet-600/20 border-violet-500 shadow-lg shadow-violet-500/10' 
-                        : 'bg-white/5 border-white/10 hover:border-white/20 hover:bg-white/[0.07]'}`}
-                  >
+              {loading ?
+            Array(6).fill(0).map((_, i) =>
+            <div key={i} className="h-14 md:h-16 w-full animate-pulse bg-white/5 rounded-xl md:rounded-2xl border border-white/5" />
+            ) :
+
+            data.teams.map((t) =>
+            <button
+              key={t._id}
+              onClick={() => setSelectedTeam(t)}
+              className={`w-full flex items-center gap-3 md:gap-4 p-3 md:p-4 rounded-xl md:rounded-2xl border transition-all duration-300 group
+                      ${selectedTeam?._id === t._id ?
+              'bg-violet-600/20 border-violet-500 shadow-lg shadow-violet-500/10' :
+              'bg-white/5 border-white/10 hover:border-white/20 hover:bg-white/[0.07]'}`}>
+              
                     <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl overflow-hidden border border-white/10 shrink-0 bg-slate-800 shadow-inner group-hover:scale-110 transition-transform">
-                       <img src={getMediaUrl(t.logoUrl, `https://ui-avatars.com/api/?name=${encodeURIComponent(t.name)}&background=random`)} className="w-full h-full object-cover" />
+                       <img src={getMediaUrl(t.logoUrl, `https://ui-avatars.com/api/?name=${encodeURIComponent(t.name)}&background=random`)} className="w-full h-full object-cover" alt="" />
                     </div>
                     <div className="text-left flex-1 min-w-0">
                        <p className={`text-xs md:text-sm font-black truncate ${selectedTeam?._id === t._id ? 'text-white' : 'text-slate-300'}`}>{t.name}</p>
                         <p className="text-[9px] md:text-[10px] font-bold text-slate-500 uppercase tracking-tighter">
-                          {data.players?.filter(p => String(p.team) === String(t._id) || p.team === t.name).length} Players
+                          {data.players?.filter((p) => String(p.team) === String(t._id) || p.team === t.name).length} Players
                         </p>
                     </div>
                   </button>
-                ))
-              )}
+            )
+            }
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 md:p-8">
-               {loading ? (
-                 <div className="space-y-4">
+               {loading ?
+            <div className="space-y-4">
                     <div className="h-8 w-48 animate-pulse bg-white/5 rounded-lg" />
                     <div className="grid grid-cols-1 gap-2">
-                       {Array(5).fill(0).map((_, i) => (
-                         <div key={i} className="h-20 w-full animate-pulse bg-white/5 rounded-xl border border-white/5" />
-                       ))}
+                       {Array(5).fill(0).map((_, i) =>
+                <div key={i} className="h-20 w-full animate-pulse bg-white/5 rounded-xl border border-white/5" />
+                )}
                     </div>
-                 </div>
-               ) : selectedTeam ? (
-                 <SquadList 
-                    team={selectedTeam} 
-                    players={data.players.filter(p => String(p.team) === String(selectedTeam._id) || p.team === selectedTeam.name)} 
-                 />
-               ) : (
-                 <div className="h-full flex flex-col items-center justify-center opacity-30 italic text-sm">
+                 </div> :
+            selectedTeam ?
+            <SquadList
+              team={selectedTeam}
+              players={data.players.filter((p) => String(p.team) === String(selectedTeam._id) || p.team === selectedTeam.name)} /> :
+
+
+            <div className="h-full flex flex-col items-center justify-center opacity-30 italic text-sm">
                     Select a team to view their roster
                  </div>
-               )}
+            }
             </div>
           </div>
        </div>
-    </div>
-  );
+    </div>);
+
 }

@@ -3,14 +3,14 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
-import { 
-  Trophy, Users, Calendar, Search, 
-  Filter, TrendingUp, History, Star, 
+import {
+  Trophy, Users, Calendar, Search,
+  Filter, TrendingUp, History, Star,
   ChevronRight, ArrowLeft, Download,
   ExternalLink, DollarSign, Activity,
   LayoutDashboard, ListChecks, CheckCircle, HelpCircle, X,
-  ArrowRight, FileDown
-} from "lucide-react";
+  ArrowRight, FileDown } from
+"lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
@@ -25,7 +25,7 @@ const C = {
   amber: '#fbbf24',
   border: 'rgba(255, 255, 255, 0.08)',
   textPrimary: '#ffffff',
-  textSecondary: '#94a3b8',
+  textSecondary: '#94a3b8'
 };
 
 export default function TournamentDetailsPage() {
@@ -58,7 +58,7 @@ export default function TournamentDetailsPage() {
         setTournament(data.tournament);
         setTeams(data.teams || []);
         // Only show approved/available players in the dashboard pool
-        setPlayers((data.players || []).filter(p => p.status !== 'pending'));
+        setPlayers((data.players || []).filter((p) => p.status !== 'pending'));
       }
     } catch (err) {
       console.error("Failed to fetch tournament data:", err);
@@ -69,7 +69,7 @@ export default function TournamentDetailsPage() {
 
   const exportTournamentData = () => {
     try {
-      const dataToExport = players.map(p => ({
+      const dataToExport = players.map((p) => ({
         'Player ID': p._id,
         'Name': p.name,
         'Role': p.role,
@@ -99,8 +99,8 @@ export default function TournamentDetailsPage() {
           <div className="w-12 h-12 border-4 border-violet-500 border-t-transparent rounded-full animate-spin"></div>
           <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">Loading Auction Data...</p>
         </div>
-      </div>
-    );
+      </div>);
+
   }
 
   if (!tournament) {
@@ -113,16 +113,16 @@ export default function TournamentDetailsPage() {
             <ArrowLeft size={18} /> Back to Auctions
           </button>
         </div>
-      </div>
-    );
+      </div>);
+
   }
 
   // Derive stats
-  const soldPlayers = players.filter(p => p.status === 'sold' || p.team);
-  const actuallyUnsoldPlayers = players.filter(p => p.status === 'unsold');
-  const availablePlayers = players.filter(p => p.status === 'available' || p.status === 'auction' || (!p.team && p.status !== 'sold' && p.status !== 'unsold'));
+  const soldPlayers = players.filter((p) => p.status === 'sold' || p.team);
+  const actuallyUnsoldPlayers = players.filter((p) => p.status === 'unsold');
+  const availablePlayers = players.filter((p) => p.status === 'available' || p.status === 'auction' || !p.team && p.status !== 'sold' && p.status !== 'unsold');
   const totalSpend = soldPlayers.reduce((acc, p) => acc + (p.soldPrice || 0), 0);
-  const iconPlayers = players.filter(p => p.isIcon);
+  const iconPlayers = players.filter((p) => p.isIcon);
 
   return (
     <div className="min-h-screen bg-[#0a0f18] text-white pb-20 selection:bg-violet-500/30">
@@ -136,10 +136,10 @@ export default function TournamentDetailsPage() {
       {/* ── HEADER NAVIGATION ────────────────────────────────────────────── */}
       <header className="sticky top-0 z-[100] bg-[#0a0f18]/80 backdrop-blur-xl border-b border-white/5">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-          <button 
+          <button
             onClick={() => router.push('/auctions')}
-            className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors group"
-          >
+            className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors group">
+            
             <div className="p-1.5 rounded-lg bg-white/5 group-hover:bg-white/10 transition-colors">
               <ArrowLeft size={18} />
             </div>
@@ -147,11 +147,11 @@ export default function TournamentDetailsPage() {
           </button>
 
           <div className="flex items-center gap-4">
-             <button 
-               onClick={exportTournamentData}
-               className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10 transition-all flex items-center gap-2"
-               title="Export Roster to Excel"
-             >
+             <button
+              onClick={exportTournamentData}
+              className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10 transition-all flex items-center gap-2"
+              title="Export Roster to Excel">
+              
                 <FileDown size={18} />
                 <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">Export Roster</span>
              </button>
@@ -168,14 +168,14 @@ export default function TournamentDetailsPage() {
             <div className="flex flex-col md:flex-row items-center gap-6 relative z-10">
               {/* Simple Tournament Logo */}
               <div className="w-24 h-24 shrink-0 rounded-2xl bg-[#0f172a] flex items-center justify-center overflow-hidden border border-white/10 p-1">
-                  <Image 
-                    src={getMediaUrl(tournament.logoUrl, DEFAULT_ASSETS.BANNER_LOGO)} 
-                    alt={tournament.name}
-                    width={96}
-                    height={96}
-                    className="object-cover rounded-xl"
-                    unoptimized
-                  />
+                  <Image
+                  src={getMediaUrl(tournament.logoUrl, DEFAULT_ASSETS.BANNER_LOGO)}
+                  alt={tournament.name}
+                  width={96}
+                  height={96}
+                  className="object-cover rounded-xl"
+                  unoptimized />
+                
               </div>
 
               <div className="text-center md:text-left">
@@ -183,16 +183,16 @@ export default function TournamentDetailsPage() {
                    <span className="px-3 py-1 bg-white/5 border border-white/10 text-slate-400 rounded-full text-[10px] font-black uppercase tracking-widest">
                      Auction Session
                    </span>
-                   {tournament.status !== 'completed' && tournament.status !== 'concluded' ? (
-                     <span className="flex items-center gap-1.5 px-3 py-1 bg-red-500/10 border border-red-500/30 text-red-400 rounded-full text-[10px] font-black uppercase tracking-widest animate-pulse">
+                   {tournament.status !== 'completed' && tournament.status !== 'concluded' ?
+                  <span className="flex items-center gap-1.5 px-3 py-1 bg-red-500/10 border border-red-500/30 text-red-400 rounded-full text-[10px] font-black uppercase tracking-widest animate-pulse">
                         <div className="w-1.5 h-1.5 bg-red-500 rounded-full shadow-[0_0_8px_rgba(239,68,68,0.8)]"></div>
                         Live Auction
-                     </span>
-                   ) : (
-                     <span className="px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 rounded-full text-[10px] font-black uppercase tracking-widest">
+                     </span> :
+
+                  <span className="px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 rounded-full text-[10px] font-black uppercase tracking-widest">
                         Draft Concluded
                      </span>
-                   )}
+                  }
                 </div>
                 <h1 className="text-3xl md:text-5xl font-black text-white uppercase tracking-tight leading-none italic">
                   {tournament.name}
@@ -212,29 +212,29 @@ export default function TournamentDetailsPage() {
         {/* ── 2. QUICK STATS BAR ────────────────────────────────────────── */}
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
            {[
-             { id: 'teams', label: 'Registered Teams', val: teams.length, icon: Users, color: 'text-violet-400', bg: 'bg-violet-500/5' },
-             { id: 'players', label: 'Auction Pool', val: players.length - iconPlayers.length, icon: Users, color: 'text-blue-400', bg: 'bg-blue-500/5' },
-             { id: 'icons', label: 'Icon Signings', val: iconPlayers.length, icon: Star, color: 'text-amber-400', bg: 'bg-amber-500/5' },
-             { id: 'available', label: 'Available', val: availablePlayers.filter(p => !p.isIcon).length, icon: Activity, color: 'text-cyan-400', bg: 'bg-cyan-500/5' },
-             { id: 'sold', label: 'Players Sold', val: soldPlayers.filter(p => !p.isIcon).length, icon: CheckCircle, color: 'text-emerald-400', bg: 'bg-emerald-500/5' },
-             { id: 'unsold', label: 'Pool Unsold', val: actuallyUnsoldPlayers.filter(p => !p.isIcon).length, icon: HelpCircle, color: 'text-rose-400', bg: 'bg-rose-500/5' },
-           ].map((stat, i) => (
-             <div 
-               key={i} 
-               onClick={() => {
-                 if (['teams', 'players', 'icons', 'available', 'sold', 'unsold'].includes(stat.id)) {
-                   if (['available', 'sold', 'unsold'].includes(stat.id)) {
-                     setActiveTab('players');
-                     setPlayerFilter(stat.id);
-                   } else {
-                     setActiveTab(stat.id);
-                     if (stat.id === 'players') setPlayerFilter('all');
-                   }
-                   window.scrollTo({ top: 400, behavior: 'smooth' });
-                 }
-               }}
-               className={`p-4 rounded-2xl border border-white/5 ${stat.bg} group hover:border-white/20 transition-all duration-300 cursor-pointer text-center`}
-             >
+          { id: 'teams', label: 'Registered Teams', val: teams.length, icon: Users, color: 'text-violet-400', bg: 'bg-violet-500/5' },
+          { id: 'players', label: 'Auction Pool', val: players.length - iconPlayers.length, icon: Users, color: 'text-blue-400', bg: 'bg-blue-500/5' },
+          { id: 'icons', label: 'Icon Signings', val: iconPlayers.length, icon: Star, color: 'text-amber-400', bg: 'bg-amber-500/5' },
+          { id: 'available', label: 'Available', val: availablePlayers.filter((p) => !p.isIcon).length, icon: Activity, color: 'text-cyan-400', bg: 'bg-cyan-500/5' },
+          { id: 'sold', label: 'Players Sold', val: soldPlayers.filter((p) => !p.isIcon).length, icon: CheckCircle, color: 'text-emerald-400', bg: 'bg-emerald-500/5' },
+          { id: 'unsold', label: 'Pool Unsold', val: actuallyUnsoldPlayers.filter((p) => !p.isIcon).length, icon: HelpCircle, color: 'text-rose-400', bg: 'bg-rose-500/5' }].
+          map((stat, i) =>
+          <div
+            key={i}
+            onClick={() => {
+              if (['teams', 'players', 'icons', 'available', 'sold', 'unsold'].includes(stat.id)) {
+                if (['available', 'sold', 'unsold'].includes(stat.id)) {
+                  setActiveTab('players');
+                  setPlayerFilter(stat.id);
+                } else {
+                  setActiveTab(stat.id);
+                  if (stat.id === 'players') setPlayerFilter('all');
+                }
+                window.scrollTo({ top: 400, behavior: 'smooth' });
+              }
+            }}
+            className={`p-4 rounded-2xl border border-white/5 ${stat.bg} group hover:border-white/20 transition-all duration-300 cursor-pointer text-center`}>
+            
                 <div className="flex items-center justify-center mb-1">
                    <div className={`p-1 rounded-lg bg-white/5 ${stat.color}`}>
                       <stat.icon size={14} />
@@ -243,7 +243,7 @@ export default function TournamentDetailsPage() {
                 <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">{stat.label}</p>
                 <p className={`text-xl font-black ${stat.color}`}>{stat.val}</p>
              </div>
-           ))}
+          )}
         </div>
 
         {/* ── 3. MAIN DASHBOARD LAYOUT (Ribbon + Content) ────────────────── */}
@@ -252,97 +252,97 @@ export default function TournamentDetailsPage() {
           {/* 🎗️ SIDE RIBBON NAVIGATION */}
           <aside className="lg:sticky lg:top-8 w-full lg:w-20 shrink-0 flex lg:flex-col gap-2 p-2 bg-slate-900 border border-white/5 rounded-[2rem] z-20">
             {[
-              { id: 'overview', icon: LayoutDashboard, label: 'Analytics' },
-              { id: 'teams', icon: Users, label: 'Teams' },
-              { id: 'players', icon: ListChecks, label: 'Pool' },
-              { id: 'icons', icon: Star, label: 'Icons' },
-              { id: 'history', icon: History, label: 'Log' }
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => {
-                  setActiveTab(tab.id);
-                  setSearchQuery('');
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }}
-                className={`relative group flex flex-col items-center justify-center w-full aspect-square lg:h-16 rounded-2xl transition-all duration-300
-                  ${activeTab === tab.id 
-                    ? 'bg-white text-slate-900 shadow-xl' 
-                    : 'text-slate-500 hover:text-white hover:bg-white/5'}`}
-              >
+            { id: 'overview', icon: LayoutDashboard, label: 'Analytics' },
+            { id: 'teams', icon: Users, label: 'Teams' },
+            { id: 'players', icon: ListChecks, label: 'Pool' },
+            { id: 'icons', icon: Star, label: 'Icons' },
+            { id: 'history', icon: History, label: 'Log' }].
+            map((tab) =>
+            <button
+              key={tab.id}
+              onClick={() => {
+                setActiveTab(tab.id);
+                setSearchQuery('');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className={`relative group flex flex-col items-center justify-center w-full aspect-square lg:h-16 rounded-2xl transition-all duration-300
+                  ${activeTab === tab.id ?
+              'bg-white text-slate-900 shadow-xl' :
+              'text-slate-500 hover:text-white hover:bg-white/5'}`}>
+              
                 <tab.icon size={22} />
                 <span className="text-[8px] font-black uppercase mt-1 hidden lg:block">{tab.label}</span>
               </button>
-            ))}
+            )}
           </aside>
 
           {/* 🖼️ CONTENT AREA */}
           <div className="flex-1 w-full min-h-[800px]">
             
             {/* 🔍 CONTEXTUAL SEARCH (Only for lists) */}
-            {(activeTab === 'players' || activeTab === 'teams') && (
-              <div className="flex flex-col sm:flex-row items-center gap-4 mb-8">
+            {(activeTab === 'players' || activeTab === 'teams') &&
+            <div className="flex flex-col sm:flex-row items-center gap-4 mb-8">
                  <div className="relative flex-1 w-full">
                     <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-600" size={18} />
-                    <input 
-                      type="text" 
-                      placeholder={`Find ${activeTab === 'players' ? 'Players' : 'Teams'}...`}
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full h-14 pl-12 pr-6 bg-slate-900 border border-white/5 rounded-2xl text-white text-sm font-medium focus:outline-none focus:border-white/20 transition-all"
-                    />
+                    <input
+                  type="text"
+                  placeholder={`Find ${activeTab === 'players' ? 'Players' : 'Teams'}...`}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full h-14 pl-12 pr-6 bg-slate-900 border border-white/5 rounded-2xl text-white text-sm font-medium focus:outline-none focus:border-white/20 transition-all" />
+                
                  </div>
-                 {activeTab === 'players' && (
-                   <div className="flex items-center gap-2">
+                 {activeTab === 'players' &&
+              <div className="flex items-center gap-2">
                       <div className="flex items-center gap-1 p-1 bg-slate-900 border border-white/5 rounded-2xl">
-                        {['all', 'available', 'sold', 'unsold'].map((f) => (
-                          <button
-                            key={f}
-                            onClick={() => setPlayerFilter(f)}
-                            className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all
-                              ${playerFilter === f ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-400'}`}
-                          >
+                        {['all', 'available', 'sold', 'unsold'].map((f) =>
+                  <button
+                    key={f}
+                    onClick={() => setPlayerFilter(f)}
+                    className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all
+                              ${playerFilter === f ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-400'}`}>
+                    
                             {f}
                           </button>
-                        ))}
+                  )}
                       </div>
 
-                      <select 
-                        value={sortBy}
-                        onChange={(e) => setSortBy(e.target.value)}
-                        className="h-14 px-5 bg-slate-900 border border-white/5 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-400 focus:outline-none focus:border-white/20 transition-all cursor-pointer"
-                      >
+                      <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="h-14 px-5 bg-slate-900 border border-white/5 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-400 focus:outline-none focus:border-white/20 transition-all cursor-pointer">
+                  
                          <option value="price_desc">Price: High to Low</option>
                          <option value="price_asc">Price: Low to High</option>
                          <option value="name_asc">Name: A-Z</option>
                       </select>
                    </div>
-                 )}
+              }
               </div>
-            )}
+            }
 
             {/* ─────────────────────────────────────────────────────────────
-                TEAMS GRID
-            ───────────────────────────────────────────────────────────── */}
-            {activeTab === 'teams' && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                {teams.filter(t => t.name.toLowerCase().includes(searchQuery.toLowerCase())).map((team) => {
-                  const teamPlayers = players.filter(p => (p.team?._id || p.team) === team._id);
-                  const teamSpent = teamPlayers.reduce((sum, p) => sum + (p.soldPrice || 0), 0);
-                  const teamBudget = team.budget || tournament.baseBudget || 50000;
-                  const remaining = teamBudget - teamSpent;
-                  
-                  return (
-                    <div 
-                      key={team._id} 
-                      onClick={() => setSelectedTeam(team)}
-                      className="group relative bg-slate-900 border border-white/5 rounded-2xl p-4 transition-all hover:bg-slate-800 hover:border-violet-500/30 cursor-pointer overflow-hidden shadow-xl"
-                    >
+                 TEAMS GRID
+              ───────────────────────────────────────────────────────────── */}
+            {activeTab === 'teams' &&
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                {teams.filter((t) => t.name.toLowerCase().includes(searchQuery.toLowerCase())).map((team) => {
+                const teamPlayers = players.filter((p) => (p.team?._id || p.team) === team._id);
+                const teamSpent = teamPlayers.reduce((sum, p) => sum + (p.soldPrice || 0), 0);
+                const teamBudget = team.budget || tournament.baseBudget || 50000;
+                const remaining = teamBudget - teamSpent;
+
+                return (
+                  <div
+                    key={team._id}
+                    onClick={() => setSelectedTeam(team)}
+                    className="group relative bg-slate-900 border border-white/5 rounded-2xl p-4 transition-all hover:bg-slate-800 hover:border-violet-500/30 cursor-pointer overflow-hidden shadow-xl">
+                    
                       <div className="absolute top-0 right-0 w-24 h-24 bg-violet-600/5 blur-[40px] pointer-events-none group-hover:bg-violet-600/10 transition-all"></div>
                       
                       <div className="flex items-center gap-4 mb-4">
                         <div className="w-12 h-12 rounded-xl bg-slate-800 flex items-center justify-center border border-white/10 p-1 group-hover:scale-105 transition-transform">
-                            <img src={getMediaUrl(team.logoUrl, DEFAULT_ASSETS.DEFAULT_TEAM)} className="w-full h-full object-cover rounded-lg" />
+                            <img src={getMediaUrl(team.logoUrl, DEFAULT_ASSETS.DEFAULT_TEAM)} className="w-full h-full object-cover rounded-lg" alt="" />
                         </div>
                         <div className="min-w-0">
                            <h3 className="text-sm font-black text-white uppercase italic truncate tracking-tighter">{team.name}</h3>
@@ -365,31 +365,31 @@ export default function TournamentDetailsPage() {
                            <p className="text-xs font-black text-white tabular-nums">₹{remaining.toLocaleString('en-IN')}</p>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    </div>);
+
+              })}
               </div>
-            )}
+            }
 
-            {activeTab === 'icons' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                {teams.map(team => {
-                  const teamIcons = players.filter(p => p.isIcon && (p.team?._id || p.team) === team._id);
-                  const maxIcons = tournament.iconsPerTeam || 0;
-                  
-                  // Fill remaining slots
-                  const slots = [...teamIcons];
-                  while (slots.length < maxIcons) {
-                    slots.push({ isEmpty: true, id: `empty-${team._id}-${slots.length}` });
-                  }
+            {activeTab === 'icons' &&
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                {teams.map((team) => {
+                const teamIcons = players.filter((p) => p.isIcon && (p.team?._id || p.team) === team._id);
+                const maxIcons = tournament.iconsPerTeam || 0;
 
-                  if (slots.length === 0) return null;
-                  
-                  return (
-                    <div key={team._id} className="bg-slate-900/40 border border-white/10 rounded-[2.5rem] p-8 hover:border-amber-500/30 transition-all shadow-2xl backdrop-blur-md flex flex-col">
+                // Fill remaining slots
+                const slots = [...teamIcons];
+                while (slots.length < maxIcons) {
+                  slots.push({ isEmpty: true, id: `empty-${team._id}-${slots.length}` });
+                }
+
+                if (slots.length === 0) return null;
+
+                return (
+                  <div key={team._id} className="bg-slate-900/40 border border-white/10 rounded-[2.5rem] p-8 hover:border-amber-500/30 transition-all shadow-2xl backdrop-blur-md flex flex-col">
                       <div className="flex items-start justify-between mb-8">
                         <div className="flex items-center gap-4 border-l-4 border-amber-500 pl-4">
-                          <img src={getMediaUrl(team.logoUrl, DEFAULT_ASSETS.DEFAULT_TEAM)} className="w-14 h-14 rounded-2xl object-cover shadow-lg border border-white/10" />
+                          <img src={getMediaUrl(team.logoUrl, DEFAULT_ASSETS.DEFAULT_TEAM)} className="w-14 h-14 rounded-2xl object-cover shadow-lg border border-white/10" alt="" />
                           <div>
                             <h3 className="text-2xl font-black text-white uppercase italic tracking-tight leading-none mb-1">{team.name}</h3>
                             <div className="flex items-center gap-2">
@@ -401,8 +401,8 @@ export default function TournamentDetailsPage() {
                       </div>
 
                       <div className="grid grid-cols-2 gap-5 flex-1">
-                        {slots.map((p, idx) => p.isEmpty ? (
-                          <div key={p.id} className="group bg-slate-950/20 border border-dashed border-white/5 rounded-3xl overflow-hidden relative flex flex-col items-center justify-center min-h-[240px]">
+                        {slots.map((p, idx) => p.isEmpty ?
+                      <div key={p.id} className="group bg-slate-950/20 border border-dashed border-white/5 rounded-3xl overflow-hidden relative flex flex-col items-center justify-center min-h-[240px]">
                             <div className="absolute inset-0 bg-gradient-to-t from-slate-950/40 to-transparent"></div>
                             <div className="relative z-10 text-center opacity-20 group-hover:opacity-50 transition-opacity">
                               <div className="w-14 h-14 rounded-full border-2 border-dashed border-white/20 flex items-center justify-center mx-auto mb-4">
@@ -411,22 +411,22 @@ export default function TournamentDetailsPage() {
                               <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Icon Slot {idx + 1}</p>
                               <p className="text-[8px] font-bold text-slate-600 uppercase tracking-tighter mt-1">Awaiting Assignment</p>
                             </div>
-                            <img 
-                              src={getMediaUrl(team.logoUrl, DEFAULT_ASSETS.DEFAULT_TEAM)} 
-                              className="absolute w-32 h-32 object-contain opacity-[0.02] grayscale pointer-events-none" 
-                              alt=""
-                            />
-                          </div>
-                        ) : (
-                          <div key={p._id} className="group bg-slate-950/60 border border-white/5 rounded-3xl overflow-hidden hover:border-amber-500/40 transition-all relative flex flex-col">
+                            <img
+                          src={getMediaUrl(team.logoUrl, DEFAULT_ASSETS.DEFAULT_TEAM)}
+                          className="absolute w-32 h-32 object-contain opacity-[0.02] grayscale pointer-events-none"
+                          alt="" />
+                        
+                          </div> :
+
+                      <div key={p._id} className="group bg-slate-950/60 border border-white/5 rounded-3xl overflow-hidden hover:border-amber-500/40 transition-all relative flex flex-col">
                             <div className="aspect-[1/1.2] relative overflow-hidden bg-slate-800">
-                               <Image 
-                                 src={getMediaUrl(p.imageUrl || p.photo?.s3 || p.photo?.drive, DEFAULT_ASSETS.DEFAULT_PLAYER)} 
-                                 alt={p.name}
-                                 fill
-                                 className="object-cover group-hover:scale-110 transition-transform duration-700"
-                                 unoptimized
-                               />
+                               <Image
+                            src={getMediaUrl(p.imageUrl || p.photo?.s3 || p.photo?.drive, DEFAULT_ASSETS.DEFAULT_PLAYER)}
+                            alt={p.name}
+                            fill
+                            className="object-cover group-hover:scale-110 transition-transform duration-700"
+                            unoptimized />
+                          
                                <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-90"></div>
                                <div className="absolute bottom-4 left-4 right-4 text-center">
                                   <p className="text-[9px] font-black text-amber-500 uppercase tracking-widest mb-1 drop-shadow-md">{p.role}</p>
@@ -440,49 +440,49 @@ export default function TournamentDetailsPage() {
                                </button>
                             </div>
                           </div>
-                        ))}
+                      )}
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+                    </div>);
 
-            {activeTab === 'players' && (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                 {players
-                   .filter(p => {
-                      const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
-                      const isIcon = p.isIcon;
-                      if (isIcon) return false; // Exclude icons from main pool tab
-                      if (playerFilter === 'available') return matchesSearch && (p.status === 'available' || p.status === 'auction' || (!p.team && p.status !== 'sold' && p.status !== 'unsold'));
-                      if (playerFilter === 'sold') return matchesSearch && (p.status === 'sold' || p.team);
-                      if (playerFilter === 'unsold') return matchesSearch && p.status === 'unsold';
-                      return matchesSearch;
-                   })
-                   .sort((a, b) => {
-                      if (sortBy === 'price_desc') return (b.soldPrice || b.basePrice) - (a.soldPrice || a.basePrice);
-                      if (sortBy === 'price_asc') return (a.soldPrice || a.basePrice) - (b.soldPrice || b.basePrice);
-                      if (sortBy === 'name_asc') return a.name.localeCompare(b.name);
-                      return 0;
-                   })
-                   .map((p) => (
-                    <div key={p._id} className="group bg-slate-900/40 border border-white/5 rounded-2xl overflow-hidden hover:border-violet-500/30 transition-all relative">
+              })}
+              </div>
+            }
+
+            {activeTab === 'players' &&
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                 {players.
+              filter((p) => {
+                const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
+                const isIcon = p.isIcon;
+                if (isIcon) return false; // Exclude icons from main pool tab
+                if (playerFilter === 'available') return matchesSearch && (p.status === 'available' || p.status === 'auction' || !p.team && p.status !== 'sold' && p.status !== 'unsold');
+                if (playerFilter === 'sold') return matchesSearch && (p.status === 'sold' || p.team);
+                if (playerFilter === 'unsold') return matchesSearch && p.status === 'unsold';
+                return matchesSearch;
+              }).
+              sort((a, b) => {
+                if (sortBy === 'price_desc') return (b.soldPrice || b.basePrice) - (a.soldPrice || a.basePrice);
+                if (sortBy === 'price_asc') return (a.soldPrice || a.basePrice) - (b.soldPrice || b.basePrice);
+                if (sortBy === 'name_asc') return a.name.localeCompare(b.name);
+                return 0;
+              }).
+              map((p) =>
+              <div key={p._id} className="group bg-slate-900/40 border border-white/5 rounded-2xl overflow-hidden hover:border-violet-500/30 transition-all relative">
                       <div className="aspect-[1/1.2] relative overflow-hidden bg-slate-800">
                          {/* Year Badge */}
-                         {p.year && (
-                           <div className="absolute top-3 left-3 z-10 px-2 py-1 bg-violet-600/90 backdrop-blur-md text-[8px] font-black text-white rounded-md uppercase tracking-widest border border-white/10 shadow-xl">
+                         {p.year &&
+                  <div className="absolute top-3 left-3 z-10 px-2 py-1 bg-violet-600/90 backdrop-blur-md text-[8px] font-black text-white rounded-md uppercase tracking-widest border border-white/10 shadow-xl">
                               {p.year}{p.year === 1 ? 'st' : p.year === 2 ? 'nd' : p.year === 3 ? 'rd' : 'th'} Year
                            </div>
-                         )}
+                  }
                          
-                         <Image 
-                           src={getMediaUrl(p.imageUrl || p.photo?.s3 || p.photo?.drive, DEFAULT_ASSETS.DEFAULT_PLAYER)} 
-                           alt={p.name}
-                           fill
-                           className="object-cover group-hover:scale-110 transition-transform duration-700"
-                           unoptimized
-                         />
+                         <Image
+                    src={getMediaUrl(p.imageUrl || p.photo?.s3 || p.photo?.drive, DEFAULT_ASSETS.DEFAULT_PLAYER)}
+                    alt={p.name}
+                    fill
+                    className="object-cover group-hover:scale-110 transition-transform duration-700"
+                    unoptimized />
+                  
                          <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent opacity-80"></div>
                          
                          <div className="absolute bottom-3 left-3 right-3 text-center">
@@ -499,10 +499,10 @@ export default function TournamentDetailsPage() {
 
                           <div className="py-2 border-y border-white/10 mb-4 min-h-[50px] flex flex-col items-center justify-center">
                             {(() => {
-                              const teamName = p.teamName || p.team?.name || (typeof p.team === 'string' ? teams.find(t => t._id === p.team)?.name : null);
-                              if (teamName) {
-                                return (
-                                  <div className="space-y-1">
+                      const teamName = p.teamName || p.team?.name || (typeof p.team === 'string' ? teams.find((t) => t._id === p.team)?.name : null);
+                      if (teamName) {
+                        return (
+                          <div className="space-y-1">
                                     <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic">{p.isIcon ? 'Retained By' : 'Sold To'}</p>
                                     <div className="flex items-center justify-center gap-1.5">
                                       <div className={`w-4 h-4 rounded-lg flex items-center justify-center text-[7px] font-black text-white ${p.isIcon ? 'bg-amber-500' : 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)]'}`}>
@@ -513,12 +513,12 @@ export default function TournamentDetailsPage() {
                                       </span>
                                     </div>
                                     <p className="text-[10px] font-black text-white tabular-nums">₹{(p.soldPrice || 0).toLocaleString('en-IN')}</p>
-                                  </div>
-                                );
-                              }
-                              if (p.status === 'unsold') return <span className="text-[10px] font-black text-red-500 uppercase tracking-[0.2em] italic">Unsold</span>;
-                              return <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] italic animate-pulse">Awaiting Bid</span>;
-                            })()}
+                                  </div>);
+
+                      }
+                      if (p.status === 'unsold') return <span className="text-[10px] font-black text-red-500 uppercase tracking-[0.2em] italic">Unsold</span>;
+                      return <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] italic animate-pulse">Awaiting Bid</span>;
+                    })()}
                           </div>
                          
                          <div className="flex items-center justify-between mb-3 text-left">
@@ -528,17 +528,17 @@ export default function TournamentDetailsPage() {
                                  <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-tighter inline-block ${p.team ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/20' : p.status === 'unsold' ? 'bg-red-500/20 text-red-400 border border-red-500/20' : 'bg-slate-500/10 text-slate-400'}`}>
                                    {p.team ? 'DRAFTED' : p.status === 'unsold' ? 'UNSOLD' : 'OPEN'}
                                  </span>
-                                 {p.teamSlotId && (
-                                   <span className="text-[8px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-widest bg-blue-500/20 text-blue-400 border border-blue-500/20">
+                                 {p.teamSlotId &&
+                        <span className="text-[8px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-widest bg-blue-500/20 text-blue-400 border border-blue-500/20">
                                      {p.teamSlotId}
                                    </span>
-                                 )}
+                        }
                                </div>
                             </div>
                             <div className="text-right shrink-0">
-                               <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">{p.isIcon ? 'Designation' : (p.team ? 'Value' : 'Pool')}</p>
-                               <p className={`text-[11px] font-black ${p.isIcon ? 'text-amber-400' : (p.team ? 'text-emerald-400' : 'text-slate-400')}`}>
-                                 {p.isIcon ? 'ICON' : (p.team ? '₹' + Number(p.soldPrice).toLocaleString('en-IN') : 'Auction')}
+                               <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">{p.isIcon ? 'Designation' : p.team ? 'Value' : 'Pool'}</p>
+                               <p className={`text-[11px] font-black ${p.isIcon ? 'text-amber-400' : p.team ? 'text-emerald-400' : 'text-slate-400'}`}>
+                                 {p.isIcon ? 'ICON' : p.team ? '₹' + Number(p.soldPrice).toLocaleString('en-IN') : 'Auction'}
                                </p>
                             </div>
                          </div>
@@ -548,18 +548,18 @@ export default function TournamentDetailsPage() {
                           </button>
                       </div>
                     </div>
-                  ))}
+              )}
               </div>
-            )}
+            }
 
             {/* ─────────────────────────────────────────────────────────────
-                BID HISTORY / TIMELINE
-            ───────────────────────────────────────────────────────────── */}
-            {activeTab === 'history' && (
-              <div className="max-w-4xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+                 BID HISTORY / TIMELINE
+              ───────────────────────────────────────────────────────────── */}
+            {activeTab === 'history' &&
+            <div className="max-w-4xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
                  <div className="relative border-l-2 border-white/5 ml-10 space-y-12">
-                    {soldPlayers.slice(0, 15).map((p, i) => (
-                      <div key={i} className="relative pl-12 group">
+                    {soldPlayers.slice(0, 15).map((p, i) =>
+                <div key={i} className="relative pl-12 group">
                          <div className="absolute left-[-26px] top-0 w-12 h-12 rounded-[1.2rem] bg-[#0a0f18] border-4 border-slate-900 shadow-xl flex items-center justify-center z-10 group-hover:border-violet-500/50 transition-colors">
                             <CheckCircle size={20} className="text-emerald-400" />
                          </div>
@@ -568,7 +568,7 @@ export default function TournamentDetailsPage() {
                             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
                                <div className="flex items-center gap-6">
                                   <div className="w-16 h-16 rounded-2xl overflow-hidden border border-white/10 shrink-0 bg-slate-800">
-                                     <img src={getMediaUrl(p.photo?.s3 || p.imageUrl || p.photo?.drive, DEFAULT_ASSETS.DEFAULT_PLAYER)} className="w-full h-full object-cover" />
+                                     <img src={getMediaUrl(p.photo?.s3 || p.imageUrl || p.photo?.drive, DEFAULT_ASSETS.DEFAULT_PLAYER)} className="w-full h-full object-cover" alt="" />
                                   </div>
                                   <div className="text-left">
                                      <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${p.isIcon ? 'text-amber-400' : 'text-emerald-400'}`}>
@@ -593,16 +593,16 @@ export default function TournamentDetailsPage() {
                             </div>
                          </div>
                       </div>
-                    ))}
+                )}
                  </div>
               </div>
-            )}
+            }
 
             {/* ─────────────────────────────────────────────────────────────
-                OVERVIEW DASHBOARD (ELITE TOP 5)
-            ───────────────────────────────────────────────────────────── */}
-            {activeTab === 'overview' && (
-               <div className="animate-in fade-in slide-in-from-bottom-8 duration-1000">
+                 OVERVIEW DASHBOARD (ELITE TOP 5)
+              ───────────────────────────────────────────────────────────── */}
+            {activeTab === 'overview' &&
+            <div className="animate-in fade-in slide-in-from-bottom-8 duration-1000">
                   <div className="max-w-5xl mx-auto py-4">
                      <div className="bg-slate-900 border border-white/5 rounded-[3.5rem] p-12 relative overflow-hidden shadow-2xl">
                         <div className="absolute top-0 right-0 w-[40rem] h-[40rem] bg-violet-600/5 blur-[150px] pointer-events-none"></div>
@@ -616,7 +616,7 @@ export default function TournamentDetailsPage() {
                               <div className="px-8 py-3 text-center border-r border-white/5 last:border-0">
                                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Peak Hammer Price</p>
                                  <p className="text-2xl font-black text-white tabular-nums">
-                                    ₹{players.length > 0 ? Math.max(...players.map(p => p.soldPrice || 0)).toLocaleString('en-IN') : '0'}
+                                    ₹{players.length > 0 ? Math.max(...players.map((p) => p.soldPrice || 0)).toLocaleString('en-IN') : '0'}
                                  </p>
                               </div>
                               <div className="px-8 py-3 text-center">
@@ -628,23 +628,23 @@ export default function TournamentDetailsPage() {
 
                         {/* Leaderboard Elite Cards */}
                         <div className="space-y-8 relative z-10">
-                           {players
-                             .filter(p => (p.status === 'sold' || p.team) && !p.isIcon)
-                             .sort((a,b) => (b.soldPrice || 0) - (a.soldPrice || 0))
-                             .slice(0, 5)
-                             .map((p, i) => (
-                              <div key={i} className="group relative flex flex-col md:flex-row items-center gap-10 p-8 bg-white/[0.02] hover:bg-white/[0.05] border border-white/5 hover:border-violet-500/30 rounded-[3rem] transition-all duration-700 cursor-default">
+                           {players.
+                    filter((p) => (p.status === 'sold' || p.team) && !p.isIcon).
+                    sort((a, b) => (b.soldPrice || 0) - (a.soldPrice || 0)).
+                    slice(0, 5).
+                    map((p, i) =>
+                    <div key={i} className="group relative flex flex-col md:flex-row items-center gap-10 p-8 bg-white/[0.02] hover:bg-white/[0.05] border border-white/5 hover:border-violet-500/30 rounded-[3rem] transition-all duration-700 cursor-default">
                                  <div className={`w-16 h-16 shrink-0 rounded-full flex items-center justify-center font-black italic text-3xl transition-all shadow-2xl
                                    ${i === 0 ? 'bg-amber-500 text-slate-900 scale-125' : 'bg-slate-800 text-slate-500'}`}>
                                     #{i + 1}
                                  </div>
 
                                  <div className="w-40 h-40 shrink-0 rounded-[2.5rem] overflow-hidden border-2 border-white/10 bg-slate-950 shadow-2xl group-hover:scale-105 transition-transform duration-1000">
-                                    <img 
-                                      src={getMediaUrl(p.photo?.s3 || p.imageUrl || p.photo?.drive, DEFAULT_ASSETS.DEFAULT_PLAYER)} 
-                                      alt={p.name}
-                                      className="w-full h-full object-cover transition-all"
-                                    />
+                                    <img
+                          src={getMediaUrl(p.photo?.s3 || p.imageUrl || p.photo?.drive, DEFAULT_ASSETS.DEFAULT_PLAYER)}
+                          alt={p.name}
+                          className="w-full h-full object-cover transition-all" />
+                        
                                  </div>
 
                                  <div className="flex-1 min-w-0 text-center md:text-left">
@@ -656,11 +656,11 @@ export default function TournamentDetailsPage() {
                                        <span className="px-4 py-1.5 bg-white/5 rounded-xl text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none shrink-0 border border-white/10">
                                           {p.role}
                                        </span>
-                                       {p.isIcon && (
-                                          <span className="px-4 py-1.5 bg-amber-500/10 text-amber-500 rounded-xl text-[10px] font-black uppercase tracking-tighter leading-none shrink-0 border border-amber-500/20">
+                                       {p.isIcon &&
+                          <span className="px-4 py-1.5 bg-amber-500/10 text-amber-500 rounded-xl text-[10px] font-black uppercase tracking-tighter leading-none shrink-0 border border-amber-500/20">
                                              Icon Asset
                                           </span>
-                                       )}
+                          }
                                     </div>
                                  </div>
 
@@ -671,44 +671,44 @@ export default function TournamentDetailsPage() {
                                     </p>
                                  </div>
                               </div>
-                             ))}
+                    )}
 
-                           {players.filter(p => (p.status === 'sold' || p.team)).length === 0 && (
-                              <div className="py-24 text-center">
+                           {players.filter((p) => p.status === 'sold' || p.team).length === 0 &&
+                    <div className="py-24 text-center">
                                  <p className="text-sm font-black text-slate-600 uppercase tracking-[0.6em] italic animate-pulse">Waiting for Bidding Data...</p>
                               </div>
-                           )}
+                    }
                         </div>
 
                         <div className="mt-16 pt-10 border-t border-white/5">
-                           <button 
-                             onClick={() => setActiveTab('players')}
-                             className="w-full py-6 bg-white/5 border border-white/10 rounded-3xl text-[11px] font-black text-slate-500 uppercase tracking-widest hover:text-white hover:bg-white/10 transition-all flex items-center justify-center gap-3"
-                           >
+                           <button
+                      onClick={() => setActiveTab('players')}
+                      className="w-full py-6 bg-white/5 border border-white/10 rounded-3xl text-[11px] font-black text-slate-500 uppercase tracking-widest hover:text-white hover:bg-white/10 transition-all flex items-center justify-center gap-3">
+                      
                               Explore Entire Auction Roster <ArrowRight size={18} />
                            </button>
                         </div>
                      </div>
                   </div>
                </div>
-            )}
+            }
 
           </div> {/* CLOSE CONTENT AREA */}
         </div> {/* CLOSE MAIN DASHBOARD LAYOUT */}
       </main>
 
       {/* ── 5. TEAM DRILL-DOWN MODAL ────────────────────────────────────── */}
-      {selectedTeam && (
-        <TeamDetailsModal 
-          team={selectedTeam} 
-          tournament={tournament}
-          players={players.filter(p => (p.team?._id || p.team) === selectedTeam._id)}
-          onClose={() => setSelectedTeam(null)} 
-        />
-      )}
+      {selectedTeam &&
+      <TeamDetailsModal
+        team={selectedTeam}
+        tournament={tournament}
+        players={players.filter((p) => (p.team?._id || p.team) === selectedTeam._id)}
+        onClose={() => setSelectedTeam(null)} />
 
-    </div>
-  );
+      }
+
+    </div>);
+
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -720,7 +720,7 @@ function TeamDetailsModal({ team, players, tournament, onClose }) {
   const handleDownloadSquad = async () => {
     try {
       setIsExporting(true);
-      
+
       const loadImage = (url) => {
         return new Promise((resolve) => {
           const proxyUrl = `${API_URL}/api/proxy-image?url=${encodeURIComponent(url)}`;
@@ -745,44 +745,44 @@ function TeamDetailsModal({ team, players, tournament, onClose }) {
       };
 
       const doc = new jsPDF();
-      
+
       // 1. STYLISH HEADER
-      doc.setFillColor(15, 23, 42); 
+      doc.setFillColor(15, 23, 42);
       doc.rect(0, 0, 210, 40, 'F');
-      
+
       doc.setFontSize(28);
       doc.setTextColor(255, 255, 255);
       doc.setFont("helvetica", "bold");
       doc.text(`${team.name.toUpperCase()}`, 14, 25);
-      
+
       doc.setFontSize(10);
       doc.setTextColor(148, 163, 184);
       doc.text(`OFFICIAL SQUAD ROSTER | ${tournament?.name || 'Tournament'}`, 14, 33);
-      
+
       // 2. LOAD IMAGES ASYNC (Using Proxy)
       const squadToExport = players.slice(0, 35);
-      const imageDataUrls = await Promise.all(squadToExport.map(p => {
+      const imageDataUrls = await Promise.all(squadToExport.map((p) => {
         const url = p.photo?.s3 || p.imageUrl || p.photo?.drive || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(p.name)}`;
         return loadImage(url);
       }));
 
       // 3. GENERATE TABLE
       const tableData = squadToExport.map((p, index) => [
-        index + 1,
-        '', 
-        p.name.toUpperCase(),
-        p.role.toUpperCase(),
-        p.isIcon ? 'ICON' : `INR ${p.soldPrice?.toLocaleString('en-IN')}`
-      ]);
+      index + 1,
+      '',
+      p.name.toUpperCase(),
+      p.role.toUpperCase(),
+      p.isIcon ? 'ICON' : `INR ${p.soldPrice?.toLocaleString('en-IN')}`]
+      );
 
       autoTable(doc, {
         startY: 50,
         head: [['#', 'PLAYER', 'PLAYER NAME', 'ROLE', 'PRICE']],
         body: tableData,
         theme: 'grid',
-        headStyles: { 
-          fillColor: [124, 58, 237], 
-          textColor: [255, 255, 255], 
+        headStyles: {
+          fillColor: [124, 58, 237],
+          textColor: [255, 255, 255],
           fontStyle: 'bold',
           halign: 'center',
           fontSize: 10
@@ -794,9 +794,9 @@ function TeamDetailsModal({ team, players, tournament, onClose }) {
           3: { halign: 'center' }, // Centered role
           4: { halign: 'center', fontStyle: 'bold' } // Centered price
         },
-        styles: { 
-          fontSize: 9, 
-          cellPadding: 4, 
+        styles: {
+          fontSize: 9,
+          cellPadding: 4,
           valign: 'middle',
           overflow: 'linebreak'
         },
@@ -813,7 +813,7 @@ function TeamDetailsModal({ team, players, tournament, onClose }) {
               doc.addImage(dataUrl, 'JPEG', x, y, size, size);
             } else {
               doc.setDrawColor(226, 232, 240);
-              doc.circle(data.cell.x + data.cell.width/2, data.cell.y + data.cell.height/2, 8, 'S');
+              doc.circle(data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2, 8, 'S');
             }
           }
         },
@@ -837,25 +837,25 @@ function TeamDetailsModal({ team, players, tournament, onClose }) {
        <div className="bg-[#111827] border border-white/10 rounded-[3rem] w-full max-w-5xl h-[90vh] overflow-hidden shadow-2xl flex flex-col relative">
           
           <div className="absolute top-8 right-8 z-50 flex items-center gap-3">
-             <button 
-               onClick={handleDownloadSquad}
-               disabled={isExporting}
-               className={`p-3 rounded-full transition-all border border-white/10 shadow-xl shadow-black/50 group flex items-center justify-center
-                 ${isExporting 
-                    ? 'bg-emerald-500/20 text-emerald-400 cursor-not-allowed' 
-                    : 'bg-white/5 text-slate-400 hover:bg-emerald-500/20 hover:text-emerald-400'}`}
-               title="Download Squad PDF"
-             >
-               {isExporting ? (
-                 <div className="w-5 h-5 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin"></div>
-               ) : (
-                 <FileDown size={22} className="group-hover:scale-110 transition-transform" />
-               )}
+             <button
+            onClick={handleDownloadSquad}
+            disabled={isExporting}
+            className={`p-3 rounded-full transition-all border border-white/10 shadow-xl shadow-black/50 group flex items-center justify-center
+                 ${isExporting ?
+            'bg-emerald-500/20 text-emerald-400 cursor-not-allowed' :
+            'bg-white/5 text-slate-400 hover:bg-emerald-500/20 hover:text-emerald-400'}`}
+            title="Download Squad PDF">
+            
+               {isExporting ?
+            <div className="w-5 h-5 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin"></div> :
+
+            <FileDown size={22} className="group-hover:scale-110 transition-transform" />
+            }
              </button>
-             <button 
-               onClick={onClose}
-               className="p-3 bg-white/5 hover:bg-red-500/20 rounded-full text-slate-400 hover:text-red-400 transition-all border border-white/10 shadow-xl shadow-black/50"
-             >
+             <button
+            onClick={onClose}
+            className="p-3 bg-white/5 hover:bg-red-500/20 rounded-full text-slate-400 hover:text-red-400 transition-all border border-white/10 shadow-xl shadow-black/50">
+            
                <X size={24} />
              </button>
           </div>
@@ -868,7 +868,7 @@ function TeamDetailsModal({ team, players, tournament, onClose }) {
              <div className="flex items-center gap-8 relative z-10">
                 <div className="w-24 h-24 rounded-[2rem] bg-slate-900 border border-white/10 p-1.5 shadow-2xl">
                    <div className="w-full h-full rounded-[1.7rem] overflow-hidden bg-slate-800">
-                      <img src={getMediaUrl(team.logoUrl, DEFAULT_ASSETS.DEFAULT_TEAM)} className="w-full h-full object-cover" />
+                      <img src={getMediaUrl(team.logoUrl, DEFAULT_ASSETS.DEFAULT_TEAM)} className="w-full h-full object-cover" alt="" />
                    </div>
                 </div>
                 <div>
@@ -876,10 +876,10 @@ function TeamDetailsModal({ team, players, tournament, onClose }) {
                   <h2 className="text-5xl font-black text-white tracking-tighter uppercase italic">{team.name}</h2>
                   <div className="flex items-center gap-6 mt-4">
                      <div className="flex items-center gap-2 font-black text-xs uppercase tracking-wider text-slate-400">
-                        Spent: <span className="text-emerald-400">₹{players.reduce((s,p) => s + (p.soldPrice || 0), 0).toLocaleString('en-IN')}</span>
+                        Spent: <span className="text-emerald-400">₹{players.reduce((s, p) => s + (p.soldPrice || 0), 0).toLocaleString('en-IN')}</span>
                      </div>
                      <div className="flex items-center gap-2 font-black text-xs uppercase tracking-wider text-slate-400">
-                        Purse: <span className="text-white">₹{((team.budget || tournament.baseBudget || 50000) - players.reduce((s,p) => s + (p.soldPrice || 0), 0)).toLocaleString('en-IN')}</span>
+                        Purse: <span className="text-white">₹{((team.budget || tournament.baseBudget || 50000) - players.reduce((s, p) => s + (p.soldPrice || 0), 0)).toLocaleString('en-IN')}</span>
                      </div>
                   </div>
                 </div>
@@ -893,20 +893,20 @@ function TeamDetailsModal({ team, players, tournament, onClose }) {
                    <div>
                       <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">Purse Usage</p>
                       <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden mb-2">
-                         <div className="h-full bg-violet-600 rounded-full" style={{ width: `${(players.reduce((s,p) => s + (p.soldPrice || 0), 0) / (team.budget || tournament.baseBudget || 50000)) * 100}%` }}></div>
+                         <div className="h-full bg-violet-600 rounded-full" style={{ width: `${players.reduce((s, p) => s + (p.soldPrice || 0), 0) / (team.budget || tournament.baseBudget || 50000) * 100}%` }}></div>
                       </div>
-                      <p className="text-[10px] font-bold text-slate-600">{Math.round((players.reduce((s,p) => s + (p.soldPrice || 0), 0) / (team.budget || tournament.baseBudget || 50000)) * 100)}% of budget utilized</p>
+                      <p className="text-[10px] font-bold text-slate-600">{Math.round(players.reduce((s, p) => s + (p.soldPrice || 0), 0) / (team.budget || tournament.baseBudget || 50000) * 100)}% of budget utilized</p>
                    </div>
                    
                    <div>
                       <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">Squad Balance</p>
                       <div className="space-y-2">
-                         {['Batsman', 'Bowler', 'All-Rounder'].map(role => (
-                            <div key={role} className="flex items-center justify-between text-[11px] font-bold text-slate-400 bg-white/5 p-3 px-5 rounded-2xl border border-white/5">
+                         {['Batsman', 'Bowler', 'All-Rounder'].map((role) =>
+                  <div key={role} className="flex items-center justify-between text-[11px] font-bold text-slate-400 bg-white/5 p-3 px-5 rounded-2xl border border-white/5">
                                <span>{role}</span>
-                               <span className="text-white">{players.filter(p => p.role?.toLowerCase() === role.toLowerCase()).length}</span>
+                               <span className="text-white">{players.filter((p) => p.role?.toLowerCase() === role.toLowerCase()).length}</span>
                             </div>
-                         ))}
+                  )}
                       </div>
                    </div>
                 </div>
@@ -914,13 +914,13 @@ function TeamDetailsModal({ team, players, tournament, onClose }) {
 
              <div className="flex-1 overflow-y-auto p-10 custom-scrollbar bg-slate-900/40">
                 <div className="grid grid-cols-1 gap-3">
-                   {players.length === 0 ? (
-                     <div className="py-20 text-center opacity-30 italic font-medium">No players in squad.</div>
-                   ) : (
-                     players.map((p, i) => (
-                       <div key={i} className="flex items-center gap-6 p-4 px-6 bg-slate-950/50 border border-white/5 rounded-[2rem] hover:border-violet-500/30 transition-all group">
+                   {players.length === 0 ?
+              <div className="py-20 text-center opacity-30 italic font-medium">No players in squad.</div> :
+
+              players.map((p, i) =>
+              <div key={i} className="flex items-center gap-6 p-4 px-6 bg-slate-950/50 border border-white/5 rounded-[2rem] hover:border-violet-500/30 transition-all group">
                           <div className="w-14 h-14 rounded-2xl overflow-hidden border border-white/10 shrink-0 bg-slate-900 shadow-inner group-hover:scale-105 transition-transform">
-                             <img src={getMediaUrl(p.imageUrl || p.photo?.s3 || p.photo?.drive, DEFAULT_ASSETS.DEFAULT_PLAYER)} className="w-full h-full object-cover" />
+                             <img src={getMediaUrl(p.imageUrl || p.photo?.s3 || p.photo?.drive, DEFAULT_ASSETS.DEFAULT_PLAYER)} className="w-full h-full object-cover" alt="" />
                           </div>
                           
                           <div className="flex-1 min-w-0">
@@ -941,12 +941,12 @@ function TeamDetailsModal({ team, players, tournament, onClose }) {
                              <ChevronRight size={18} className="text-slate-600" />
                           </button>
                        </div>
-                     ))
-                   )}
+              )
+              }
                 </div>
              </div>
           </div>
        </div>
-    </div>
-  );
+    </div>);
+
 }

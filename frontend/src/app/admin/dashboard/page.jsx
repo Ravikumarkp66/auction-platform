@@ -159,7 +159,7 @@ export default function AdminDashboard() {
           <Link
             href="/admin/create-tournament"
             className="flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-xs text-black
-              bg-gradient-to-r from-yellow-400 to-yellow-500
+              bg-linear-to-r from-yellow-400 to-yellow-500
               shadow-xl shadow-yellow-500/20
               hover:scale-105 transition-all duration-200"
           >
@@ -171,7 +171,7 @@ export default function AdminDashboard() {
 
       {/* ── Context Switcher Prompt ── */}
       {!selectedAuction && (
-        <div className="p-8 rounded-[2.5rem] bg-gradient-to-br from-violet-600/20 to-cyan-500/10 border border-violet-500/20 text-center">
+        <div className="p-8 rounded-[2.5rem] bg-linear-to-br from-violet-600/20 to-cyan-500/10 border border-violet-500/20 text-center">
           <AlertCircle className="w-12 h-12 text-yellow-500 mx-auto mb-4 animate-bounce" />
           <h2 className="text-2xl font-black text-white">System Context Missing</h2>
           <p className="text-slate-400 mt-2 max-w-md mx-auto text-sm font-semibold opacity-80 uppercase tracking-widest leading-relaxed">
@@ -189,7 +189,7 @@ export default function AdminDashboard() {
         <>
           {/* ── Context Header ── */}
           <div className="flex flex-col lg:flex-row gap-6">
-            <div className="flex-1 flex items-center gap-4 p-6 bg-white/[0.03] border border-white/10 rounded-3xl group shadow-inner">
+            <div className="flex-1 flex items-center gap-4 p-6 bg-white/3 border border-white/10 rounded-3xl group shadow-inner">
               <div className="w-16 h-16 bg-gradient-to-br from-violet-600 to-cyan-400 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-violet-500/20 group-hover:scale-110 transition-transform">
                 <BarChart3 className="w-8 h-8" />
               </div>
@@ -204,7 +204,7 @@ export default function AdminDashboard() {
             </div>
 
             {/* 🔗 Registration Intelligence Panel */}
-            <div className="lg:w-96 flex items-center gap-4 p-5 bg-gradient-to-br from-violet-600/20 to-cyan-500/20 border border-violet-500/30 rounded-3xl group relative overflow-hidden shadow-lg shadow-violet-500/10">
+            <div className="lg:w-96 flex items-center gap-4 p-5 bg-linear-to-br from-violet-600/20 to-cyan-500/20 border border-violet-500/30 rounded-3xl group relative overflow-hidden shadow-lg shadow-violet-500/10">
               <div className="absolute top-0 right-0 w-20 h-20 bg-violet-500/10 blur-2xl pointer-events-none"></div>
               <div className="shrink-0 w-12 h-12 bg-white border border-white/10 rounded-xl flex items-center justify-center p-1.5 shadow-xl">
                 {regUrl && (
@@ -301,7 +301,7 @@ export default function AdminDashboard() {
                 <div key={t._id} className="relative group overflow-hidden rounded-[2.5rem] border border-white/5 bg-[#0B0F2A]/60 backdrop-blur-xl hover:border-violet-500/30 transition-all duration-500 hover:shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
                   <div className="absolute inset-0 z-0">
                     <img src={getMediaUrl(t.assets?.splashUrl, "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=400&auto=format&fit=crop")} className="w-full h-full object-cover opacity-10 group-hover:scale-110 group-hover:opacity-20 transition-all duration-1000" alt="" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#0B0F2A] via-transparent to-transparent"></div>
+                    <div className="absolute inset-0 bg-linear-to-t from-[#0B0F2A] via-transparent to-transparent"></div>
                   </div>
 
                   <div className="relative z-10 p-6">

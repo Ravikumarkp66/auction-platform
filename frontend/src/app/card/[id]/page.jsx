@@ -7,82 +7,82 @@ import html2canvas from "html2canvas";
 import { API_URL, getMediaUrl } from "../../../lib/apiConfig";
 
 export default function PublicPlayerCard() {
-    const { id } = useParams();
-    const [player, setPlayer] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [isDownloading, setIsDownloading] = useState(false);
+  const { id } = useParams();
+  const [player, setPlayer] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [isDownloading, setIsDownloading] = useState(false);
 
-    const getImgUrl = (p) => {
-        if (!p) return "/placeholder-player.png";
-        const url = p.imageUrl || p.photo?.s3 || p.photo?.drive;
-        return getMediaUrl(url, "/placeholder-player.png");
-    };
+  const getImgUrl = (p) => {
+    if (!p) return "/placeholder-player.png";
+    const url = p.imageUrl || p.photo?.s3 || p.photo?.drive;
+    return getMediaUrl(url, "/placeholder-player.png");
+  };
 
-    const downloadAsImage = async () => {
-        setIsDownloading(true);
-        const element = document.getElementById("poster-canvas");
-        if (!element) return;
-        
-        try {
-            const canvas = await html2canvas(element, {
-                useCORS: true,
-                scale: 3, 
-                backgroundColor: "#020617",
-                logging: false,
-                onclone: (doc) => {
-                    // Universal Color Sanitizer - Resolves html2canvas v1.4.1 incompatibility with modern color spaces
-                    const allElements = doc.getElementsByTagName("*");
-                    const modernColorRegex = /okl(ch|ab)/i;
-                    
-                    for (let i = 0; i < allElements.length; i++) {
-                        const el = allElements[i];
-                        const style = window.getComputedStyle(el);
-                        
-                        // Sanitize standard color properties
-                        if (modernColorRegex.test(style.color)) el.style.color = "#ffffff";
-                        if (modernColorRegex.test(style.backgroundColor)) el.style.backgroundColor = "#1e1b4b"; // Indigo-950
-                        if (modernColorRegex.test(style.borderColor)) el.style.borderColor = "#334155"; // Slate-700
-                        
-                        // Sanitize SVG specific properties which often trigger this error
-                        if (modernColorRegex.test(style.fill)) el.style.fill = "#a855f7"; // Violet-500 fallback
-                        if (modernColorRegex.test(style.stroke)) el.style.stroke = "#a855f7";
-                        if (modernColorRegex.test(style.stopColor)) el.style.stopColor = "#a855f7";
-                    }
+  const downloadAsImage = async () => {
+    setIsDownloading(true);
+    const element = document.getElementById("poster-canvas");
+    if (!element) return;
 
-                    const poster = doc.getElementById("poster-canvas");
-                    if (poster) {
-                        poster.style.color = "#ffffff";
-                        poster.style.backgroundColor = "#0f172a";
-                    }
-                }
-            });
-            const data = canvas.toDataURL("image/png");
-            const link = document.createElement("a");
-            link.download = `${player.name}_Official_Poster.png`;
-            link.href = data;
-            link.click();
-        } catch (err) {
-            console.error("Poster export failed", err);
-        } finally {
-            setIsDownloading(false);
+    try {
+      const canvas = await html2canvas(element, {
+        useCORS: true,
+        scale: 3,
+        backgroundColor: "#020617",
+        logging: false,
+        onclone: (doc) => {
+          // Universal Color Sanitizer - Resolves html2canvas v1.4.1 incompatibility with modern color spaces
+          const allElements = doc.getElementsByTagName("*");
+          const modernColorRegex = /okl(ch|ab)/i;
+
+          for (let i = 0; i < allElements.length; i++) {
+            const el = allElements[i];
+            const style = window.getComputedStyle(el);
+
+            // Sanitize standard color properties
+            if (modernColorRegex.test(style.color)) el.style.color = "#ffffff";
+            if (modernColorRegex.test(style.backgroundColor)) el.style.backgroundColor = "#1e1b4b"; // Indigo-950
+            if (modernColorRegex.test(style.borderColor)) el.style.borderColor = "#334155"; // Slate-700
+
+            // Sanitize SVG specific properties which often trigger this error
+            if (modernColorRegex.test(style.fill)) el.style.fill = "#a855f7"; // Violet-500 fallback
+            if (modernColorRegex.test(style.stroke)) el.style.stroke = "#a855f7";
+            if (modernColorRegex.test(style.stopColor)) el.style.stopColor = "#a855f7";
+          }
+
+          const poster = doc.getElementById("poster-canvas");
+          if (poster) {
+            poster.style.color = "#ffffff";
+            poster.style.backgroundColor = "#0f172a";
+          }
         }
-    };
+      });
+      const data = canvas.toDataURL("image/png");
+      const link = document.createElement("a");
+      link.download = `${player.name}_Official_Poster.png`;
+      link.href = data;
+      link.click();
+    } catch (err) {
+      console.error("Poster export failed", err);
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
-    useEffect(() => {
-        fetch(`${API_URL}/api/players/public/${id}`)
-            .then(res => res.json())
-            .then(data => {
-                setPlayer(data);
-                setLoading(false);
-            })
-            .catch(() => setLoading(false));
-    }, [id]);
+  useEffect(() => {
+    fetch(`${API_URL}/api/players/public/${id}`).
+    then((res) => res.json()).
+    then((data) => {
+      setPlayer(data);
+      setLoading(false);
+    }).
+    catch(() => setLoading(false));
+  }, [id]);
 
-    if (loading) return <div className="min-h-screen bg-[#020617] flex items-center justify-center text-violet-400 font-black tracking-widest animate-pulse">GENERATING OFFICIAL POSTER...</div>;
-    if (!player) return <div className="min-h-screen bg-[#020617] flex items-center justify-center text-red-400 font-black">RECORD NOT FOUND</div>;
+  if (loading) return <div className="min-h-screen bg-[#020617] flex items-center justify-center text-violet-400 font-black tracking-widest animate-pulse">GENERATING OFFICIAL POSTER...</div>;
+  if (!player) return <div className="min-h-screen bg-[#020617] flex items-center justify-center text-red-400 font-black">RECORD NOT FOUND</div>;
 
-    return (
-        <div className="min-h-screen bg-[#020617] flex flex-col items-center justify-center p-6 sm:p-10 font-sans text-white overflow-hidden relative">
+  return (
+    <div className="min-h-screen bg-[#020617] flex flex-col items-center justify-center p-6 sm:p-10 font-sans text-white overflow-hidden relative">
             
             {/* Ambient Background Glows */}
             <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-violet-600/20 blur-[120px] rounded-full animate-pulse" />
@@ -115,19 +115,19 @@ export default function PublicPlayerCard() {
                         {/* TOURNAMENT TITLE - BOLD & PROMINENT (Fit Optimized) */}
                         <div className="relative z-10 flex flex-col items-center mt-4">
                           <h1 className="text-4xl md:text-5xl font-[1000] text-white italic tracking-tight uppercase drop-shadow-[0_0_30px_rgba(168,85,247,0.4)] leading-[1.1] text-center max-w-xs md:max-w-sm px-2">
-                             {player?.tournamentName ? (
-                                <span className="flex flex-col">
+                             {player?.tournamentName ?
+                <span className="flex flex-col">
                                     <span className="text-white break-keep">{player.tournamentName.split(' ')[0]}</span>
-                                    {player.tournamentName.split(' ').slice(1).join(' ') && (
-                                        <span className="text-lg md:text-xl font-black tracking-widest text-violet-400 mt-2">{player.tournamentName.split(' ').slice(1).join(' ')}</span>
-                                    )}
-                                </span>
-                            ) : (
-                                <span className="flex flex-col">
+                                    {player.tournamentName.split(' ').slice(1).join(' ') &&
+                  <span className="text-lg md:text-xl font-black tracking-widest text-violet-400 mt-2">{player.tournamentName.split(' ').slice(1).join(' ')}</span>
+                  }
+                                </span> :
+
+                <span className="flex flex-col">
                                     <span className="text-white">PARAMESHWAR</span>
                                     <span className="text-lg md:text-xl font-black tracking-widest text-violet-400 mt-2">CUP 2026</span>
                                 </span>
-                            )}
+                }
                           </h1>
                           <div className="flex items-center gap-3 mt-6">
                              <div className="h-px w-10 bg-gradient-to-r from-transparent to-violet-500/50" />
@@ -146,12 +146,12 @@ export default function PublicPlayerCard() {
                         <div className="absolute -inset-1 bg-gradient-to-tr from-violet-600 to-cyan-400 rounded-[3rem] blur opacity-40 group-hover:opacity-60 transition duration-1000"></div>
                         
                         <div className="relative w-64 h-64 md:w-72 md:h-72 bg-[#0f172a] rounded-[2.5rem] overflow-hidden border-2 border-white/10 p-1 shadow-2xl">
-                          <img 
-                            src={getImgUrl(player)} 
-                            crossOrigin="anonymous" 
-                            onError={(e) => { e.currentTarget.src = '/placeholder-player.png'; }}
-                            className="w-full h-full object-cover rounded-[2.3rem]" 
-                          />
+                          <img
+                  src={getImgUrl(player)}
+                  crossOrigin="anonymous"
+                  onError={(e) => {e.currentTarget.src = '/placeholder-player.png';}}
+                  className="w-full h-full object-cover rounded-[2.3rem]" alt="" />
+                
                           <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-80" />
                         </div>
                       </div>
@@ -208,7 +208,7 @@ export default function PublicPlayerCard() {
                         {/* Registry Footer */}
                         <div className="pt-8 opacity-40">
                            <p className="text-[8px] font-black text-[#475569] uppercase tracking-[0.4em] leading-relaxed">
-                              OFFICIAL TOURNAMENT REGISTRY PORTAL <br/>
+                              OFFICIAL TOURNAMENT REGISTRY PORTAL <br />
                               © 2026 {player?.tournamentName || "TOURNAMENT"} • ALL RIGHTS RESERVED
                            </p>
                         </div>
@@ -217,11 +217,11 @@ export default function PublicPlayerCard() {
 
                 {/* Footer Actions (Public) */}
                 <div className="mt-10 flex flex-col items-center gap-6">
-                    <button 
-                      onClick={downloadAsImage}
-                      disabled={isDownloading}
-                      className="w-full flex items-center justify-center gap-3 px-8 py-5 bg-gradient-to-r from-violet-600 to-cyan-500 rounded-[2rem] text-xs font-black uppercase tracking-widest shadow-2xl shadow-violet-500/20 active:scale-95 transition-all disabled:opacity-50"
-                    >
+                    <button
+            onClick={downloadAsImage}
+            disabled={isDownloading}
+            className="w-full flex items-center justify-center gap-3 px-8 py-5 bg-gradient-to-r from-violet-600 to-cyan-500 rounded-[2rem] text-xs font-black uppercase tracking-widest shadow-2xl shadow-violet-500/20 active:scale-95 transition-all disabled:opacity-50">
+            
                         {isDownloading ? <Activity className="w-5 h-5 animate-pulse" /> : <Download className="w-5 h-5" />}
                         {isDownloading ? "CAPTURING OFFICIAL POSTER..." : "DOWNLOAD OFFICIAL POSTER (PNG)"}
                     </button>
@@ -233,6 +233,6 @@ export default function PublicPlayerCard() {
             
             {/* Background Texture Overlay */}
             <div className="fixed inset-0 pointer-events-none opacity-[0.03] grayscale bg-[url('https://www.transparenttextures.com/patterns/60-lines.png')]" />
-        </div>
-    );
+        </div>);
+
 }
