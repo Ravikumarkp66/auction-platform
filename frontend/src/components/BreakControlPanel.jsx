@@ -11,6 +11,24 @@ export default function BreakControlPanel({ socket, onBreakStart, onBreakEnd }) 
   const [remainingTime, setRemainingTime] = useState(0)
   const timerRef = useRef(null)
 
+  function startLocalCountdown(secs) {
+    if (timerRef.current) clearInterval(timerRef.current)
+
+    const targetTime = Date.now() + (secs * 1000)
+
+    timerRef.current = setInterval(() => {
+      const now = Date.now()
+      const diff = Math.max(0, Math.ceil((targetTime - now) / 1000))
+
+      setRemainingTime(diff)
+
+      if (diff <= 0) {
+        clearInterval(timerRef.current)
+        setIsBreakActive(false)
+      }
+    }, 1000)
+  }
+
   useEffect(() => {
     if (!socket) return
 
@@ -22,7 +40,7 @@ export default function BreakControlPanel({ socket, onBreakStart, onBreakEnd }) 
       if (data && data.isActive) {
         setBreakType(data.type || 'short')
         setCustomReason(data.customReason || '')
-        
+
         const now = Date.now()
         const msLeft = data.endTime - now
         if (msLeft > 0) {
@@ -58,24 +76,6 @@ export default function BreakControlPanel({ socket, onBreakStart, onBreakEnd }) 
       if (timerRef.current) clearInterval(timerRef.current)
     }
   }, [socket])
-
-  const startLocalCountdown = (secs) => {
-    if (timerRef.current) clearInterval(timerRef.current)
-    
-    const targetTime = Date.now() + (secs * 1000)
-    
-    timerRef.current = setInterval(() => {
-      const now = Date.now()
-      const diff = Math.max(0, Math.ceil((targetTime - now) / 1000))
-      
-      setRemainingTime(diff)
-      
-      if (diff <= 0) {
-        clearInterval(timerRef.current)
-        setIsBreakActive(false)
-      }
-    }, 1000)
-  }
 
   const breakReasons = {
     lunch: {
@@ -169,11 +169,10 @@ export default function BreakControlPanel({ socket, onBreakStart, onBreakEnd }) 
                     setMinutes(reason.defaultMinutes)
                     setSeconds(0)
                   }}
-                  className={`p-3 rounded-xl border-2 transition-all flex items-center gap-2 ${
-                    breakType === key
+                  className={`p-3 rounded-xl border-2 transition-all flex items-center gap-2 ${breakType === key
                       ? `border-${reason.color}-500 bg-${reason.color}-500/10 text-${reason.color}-400`
                       : 'border-slate-600 bg-slate-800/50 text-slate-300 hover:border-slate-500'
-                  }`}
+                    }`}
                 >
                   <span className="text-xl">{reason.icon}</span>
                   <span className="text-sm font-medium">{reason.label}</span>
@@ -276,7 +275,7 @@ export default function BreakControlPanel({ socket, onBreakStart, onBreakEnd }) 
               {formatTime(remainingTime)}
             </div>
             <div className="w-full bg-slate-700 rounded-full h-3 mb-4">
-              <div 
+              <div
                 className="bg-gradient-to-r from-orange-500 to-red-500 h-3 rounded-full transition-all duration-1000"
                 style={{ width: `${((minutes * 60 + seconds - remainingTime) / (minutes * 60 + seconds)) * 100}%` }}
               />

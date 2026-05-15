@@ -89,8 +89,10 @@ export default function AdminDashboard() {
   const { selectedAuction, allTournaments } = useAuction();
   const [localStats, setLocalStats] = useState({ teams: 0, players: 0, sold: 0, available: 0, unsold: 0, icons: 0, pending: 0 });
   const [loading, setLoading] = useState(false);
-  const [regUrl, setRegUrl] = useState("");
   const [currentTime, setCurrentTime] = useState(new Date());
+  const regUrl = selectedAuction
+    ? `${typeof window !== "undefined" ? window.location.origin : ""}${selectedAuction.applyToken ? getCanonicalApplyRoute(selectedAuction.applyToken) : `/register/${selectedAuction._id}`}`
+    : "";
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -122,10 +124,13 @@ export default function AdminDashboard() {
   }
 
   useEffect(() => {
-    if (selectedAuction) {
-      setRegUrl(`${window.location.origin}${selectedAuction.applyToken ? getCanonicalApplyRoute(selectedAuction.applyToken) : `/register/${selectedAuction._id}`}`);
+    if (!selectedAuction) return;
+
+    const timer = setTimeout(() => {
       fetchAuctionStats();
-    }
+    }, 0);
+
+    return () => clearTimeout(timer);
   }, [selectedAuction]);
 
   const hour = new Date().getHours();
@@ -242,26 +247,26 @@ export default function AdminDashboard() {
               glow="#3b82f6"
               sub={(
                 <div className="flex flex-wrap gap-1.5 mt-2">
-                  <Link 
-                    href="/admin/players?tab=available" 
+                  <Link
+                    href="/admin/players?tab=available"
                     className="px-2 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-[9px] font-black text-emerald-500 border border-emerald-500/20 rounded-lg transition-all"
                   >
                     {localStats.available} Available
                   </Link>
-                  <Link 
-                    href="/admin/players?tab=sold" 
+                  <Link
+                    href="/admin/players?tab=sold"
                     className="px-2 py-1 bg-violet-500/10 hover:bg-violet-500/20 text-[9px] font-black text-violet-400 border border-violet-500/20 rounded-lg transition-all"
                   >
                     {localStats.sold} Sold
                   </Link>
-                  <Link 
-                    href="/admin/players?tab=unsold" 
+                  <Link
+                    href="/admin/players?tab=unsold"
                     className="px-2 py-1 bg-red-500/10 hover:bg-red-500/20 text-[9px] font-black text-red-500 border border-red-500/20 rounded-lg transition-all"
                   >
                     {localStats.unsold} Unsold
                   </Link>
-                  <Link 
-                    href="/admin/players?tab=pending" 
+                  <Link
+                    href="/admin/players?tab=pending"
                     className="px-2 py-1 bg-yellow-500/10 hover:bg-yellow-500/20 text-[9px] font-black text-yellow-500 border border-yellow-500/20 rounded-lg transition-all"
                   >
                     {localStats.pending} Pending

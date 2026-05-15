@@ -20,7 +20,6 @@
  * is created.
  */
 
-import { useState, useEffect } from "react";
 import {
   ChevronDown, ChevronUp, Plus, Trash2, AlertTriangle,
   CheckCircle, Zap, Settings, Users, RotateCcw,
@@ -34,9 +33,9 @@ export const DEFAULT_RULES_CONFIG = {
   retention: { enabled: true, maxPlayers: 1, costPerPlayer: 50 },
   basePrice: { batsman: 2, bowler: 2, allRounder: 4 },
   increments: [
-    { min: 2,  max: 10,   step: 1 },
-    { min: 10, max: 20,   step: 2 },
-    { min: 20, max: 50,   step: 5 },
+    { min: 2, max: 10, step: 1 },
+    { min: 10, max: 20, step: 2 },
+    { min: 20, max: 50, step: 5 },
     { min: 50, max: null, step: 10 },
   ],
   squad: { minPlayers: 11, maxPlayers: 15 },
@@ -120,10 +119,6 @@ const Toggle = ({ checked, onChange, label }) => (
 // MAIN COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
 export default function RulesConfigPanel({ tournamentId, auctionMode, currencyUnit = "CR", config, onChange }) {
-  const [issues, setIssues] = useState([]);
-
-  // Only active for points-based auctions
-  if (auctionMode !== "points") return null;
 
   // Helper: immutably update a nested path in config
   const set = (path, value) => {
@@ -144,11 +139,10 @@ export default function RulesConfigPanel({ tournamentId, auctionMode, currencyUn
     } catch { return fallback; }
   };
 
-  // ── Sanity check on every config change ──────────────────────────────────
-  useEffect(() => {
-    // Basic checks if any
-    setIssues([]);
-  }, [config]);
+  const issues = [];
+
+  // Only active for points-based auctions
+  if (auctionMode !== "points") return null;
 
   // ── Increment bands helpers ───────────────────────────────────────────────
   const increments = get("increments", []);
@@ -243,9 +237,9 @@ export default function RulesConfigPanel({ tournamentId, auctionMode, currencyUn
       <SectionCard title="Role Base Prices" icon="💎">
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           {[
-            ["Batsman",       "batsman"],
-            ["Bowler",        "bowler"],
-            ["All-Rounder",   "allRounder"],
+            ["Batsman", "batsman"],
+            ["Bowler", "bowler"],
+            ["All-Rounder", "allRounder"],
           ].map(([label, key]) => (
             <div key={key}>
               <Label>{label}</Label>
@@ -262,7 +256,7 @@ export default function RulesConfigPanel({ tournamentId, auctionMode, currencyUn
       {/* ── 4. Increment Rules ── */}
       <SectionCard title="Bid Increment Steps" icon="📈">
         <p className="text-[10px] text-slate-500 mb-3">
-          Define step size per bid range. Last row's max = ∞ (leave blank).
+          Define step size per bid range. Last row&apos;s max = ∞ (leave blank).
         </p>
         <div className="space-y-2">
           {/* Header */}
@@ -350,13 +344,13 @@ export default function RulesConfigPanel({ tournamentId, auctionMode, currencyUn
       {/* ── 7. Special Adjustments ── */}
       <SectionCard title="Special Adjustments" icon="🎖️">
         <p className="text-[10px] text-slate-500 mb-3">
-          When selected, reduces the category max by 1 for the player's category.
+          When selected, reduces the category max by 1 for the player&apos;s category.
         </p>
         <div className="space-y-3">
           {[
-            ["captainReducesMax",       "Captain reduces category max"],
-            ["viceCaptainReducesMax",   "Vice-Captain reduces category max"],
-            ["retainedPlayerReducesMax","Retained player reduces category max"],
+            ["captainReducesMax", "Captain reduces category max"],
+            ["viceCaptainReducesMax", "Vice-Captain reduces category max"],
+            ["retainedPlayerReducesMax", "Retained player reduces category max"],
           ].map(([key, label]) => (
             <Toggle
               key={key}

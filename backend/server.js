@@ -117,6 +117,7 @@ const apiLimiter = rateLimit({
   skip: (req) => {
     // Skip rate limiting for health checks or in development if needed
     if (process.env.NODE_ENV === 'development') return true;
+    if (req.path.startsWith('/api/auth/')) return true;
     return req.path === '/api/health';
   }
 });
@@ -184,7 +185,8 @@ const connectDB = async () => {
     const conn = await mongoose.connect(process.env.MONGO_URI, {
       maxPoolSize: 10,
       retryWrites: true,
-      w: 'majority'
+      w: 'majority',
+      serverSelectionTimeoutMS: 5000
     });
     console.log(`MongoDB Connected: ${conn.connection.host}`);
 } catch (error) {
@@ -196,7 +198,7 @@ const connectDB = async () => {
 
 connectDB();
 
-app.use(express.json());
+// Removed redundant express.json() call here as it is already defined on line 75
 app.use("/uploads", express.static("uploads"));
 
 

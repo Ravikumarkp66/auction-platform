@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import CurrencySymbol from './CurrencySymbol';
 import { getMediaUrl } from '../lib/apiConfig';
 
@@ -51,13 +51,15 @@ const ResultOverlay = ({ type, playerName, price, teamName, teamLogo, teamColor,
   useEffect(() => {
     console.log("ResultOverlay mounted with type:", type);
     if (isSold) {
-      setShowHammer(false);
-      setIsImpact(false);
-      setShowLogo(false);
-      setShowTeamName(false);
-      setDisplayPrice(0);
-      setPricePulse(false);
-      setPriceProgress(0);
+      const reset = setTimeout(() => {
+        setShowHammer(false);
+        setIsImpact(false);
+        setShowLogo(false);
+        setShowTeamName(false);
+        setDisplayPrice(0);
+        setPricePulse(false);
+        setPriceProgress(0);
+      }, 0);
 
       console.log("Sold event detected, starting hammer animation sequence...");
       const s1 = setTimeout(() => {
@@ -80,6 +82,7 @@ const ResultOverlay = ({ type, playerName, price, teamName, teamLogo, teamColor,
       }, 2500);
 
       return () => {
+        clearTimeout(reset);
         clearTimeout(s1);
         clearTimeout(s2);
         clearTimeout(s3);
@@ -92,14 +95,13 @@ const ResultOverlay = ({ type, playerName, price, teamName, teamLogo, teamColor,
   // Price count-up animation
   useEffect(() => {
     if (!price || type !== 'SOLD') {
-      setDisplayPrice(price || 0);
-      setPriceProgress(1);
       return;
     }
 
     const duration = 1000; // 1 second build up
     let startTime;
     let animationFrame;
+    let startFrame;
 
     const animate = (currentTime) => {
       if (!startTime) startTime = currentTime;
@@ -119,11 +121,14 @@ const ResultOverlay = ({ type, playerName, price, teamName, teamLogo, teamColor,
       }
     };
 
-    setDisplayPrice(0);
-    setPriceProgress(0);
-    animationFrame = requestAnimationFrame(animate);
+    startFrame = requestAnimationFrame(() => {
+      setDisplayPrice(0);
+      setPriceProgress(0);
+      animationFrame = requestAnimationFrame(animate);
+    });
 
     return () => {
+      if (startFrame) cancelAnimationFrame(startFrame);
       if (animationFrame) cancelAnimationFrame(animationFrame);
     };
   }, [price, type, playerName, teamName, teamLogo, teamShortName, playerImage]);
@@ -192,9 +197,9 @@ const ResultOverlay = ({ type, playerName, price, teamName, teamLogo, teamColor,
                 }}
               >
                 <span className="flex items-center gap-3 justify-center">
-                  {currency === "₹" && <CurrencySymbol unit={currency} className="scale-150" iconClassName="w-[0.8em] h-[0.8em]" />}
+                  {currency === "Γé╣" && <CurrencySymbol unit={currency} className="scale-150" iconClassName="w-[0.8em] h-[0.8em]" />}
                   <span>{displayPrice.toLocaleString()}</span>
-                  {currency !== "₹" && currency && <CurrencySymbol unit={currency} className="scale-150" />}
+                  {currency !== "Γé╣" && currency && <CurrencySymbol unit={currency} className="scale-150" />}
                 </span>
               </p>
             </div>

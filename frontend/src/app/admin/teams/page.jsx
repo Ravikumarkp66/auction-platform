@@ -5,16 +5,15 @@ import { Users, Search, Save, X, AlertTriangle, ShieldCheck, Trophy, AlertCircle
 import * as XLSX from 'xlsx';
 import { useAuction } from "../layout";
 import { useSession } from "next-auth/react";
-import { io } from "socket.io-client";
+// import { io } from "socket.io-client"; // Removed redundant import
 import ImageEditModal from "../../../components/ImageEditModal";
 import { API_URL, getMediaUrl, getProxiedImageUrl } from "../../../lib/apiConfig";
 
-// Socket instance for real-time broadcast
-let socket;
+// Socket instance shared from layout
 
 export default function TeamsRegistry() {
   const { data: session } = useSession();
-  const { selectedAuction } = useAuction();
+  const { selectedAuction, socket } = useAuction();
   const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -34,11 +33,9 @@ export default function TeamsRegistry() {
   useEffect(() => {
     if (selectedAuction?._id) {
       fetchTeams();
-      socket = io(API_URL);
     } else {
       setLoading(false);
     }
-    return () => socket?.disconnect();
   }, [selectedAuction]);
 
   const fetchTeams = async () => {

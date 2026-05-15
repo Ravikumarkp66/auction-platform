@@ -28,8 +28,14 @@ import {
 } from "lucide-react";
 import { API_URL, getMediaUrl } from "../../lib/apiConfig";
 
-// Create a Context for the selected Auction
-const AuctionContext = createContext(null);
+// Create a Context for the selected Auction and shared Socket
+const AuctionContext = createContext({
+  selectedAuction: null,
+  setSelectedAuction: () => {},
+  allTournaments: [],
+  socket: null,
+  isConnected: false
+});
 
 export const useAuction = () => useContext(AuctionContext);
 
@@ -198,7 +204,13 @@ export default function AdminLayout({ children }) {
   const initials = session.user?.name?.[0]?.toUpperCase() || "A";
 
   return (
-    <AuctionContext.Provider value={{ selectedAuction, setSelectedAuction: handleSelectAuction, allTournaments: tournaments }}>
+    <AuctionContext.Provider value={{ 
+      selectedAuction, 
+      setSelectedAuction: handleSelectAuction, 
+      allTournaments: tournaments,
+      socket: socketRef.current,
+      isConnected
+    }}>
       <div className="flex h-screen bg-[#0B0F2A] text-white overflow-hidden">
 
         {/* ── Mobile overlay ── */}

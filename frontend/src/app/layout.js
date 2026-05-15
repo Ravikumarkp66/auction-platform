@@ -1,5 +1,6 @@
 import './globals.css';
 import Navbar from '../components/Navbar';
+import MobileBottomNav from '../components/MobileBottomNav';
 import DynamicBackground from '../components/DynamicBackground';
 import { LanguageProvider } from '../context/LanguageContext';
 import AuthProvider from '../components/AuthProvider';
@@ -44,6 +45,7 @@ export default function RootLayout({ children }) {
               <main className="grow">
                 {children}
               </main>
+              <MobileBottomNav />
             </div>
           </LanguageProvider>
         </AuthProvider>

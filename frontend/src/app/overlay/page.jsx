@@ -72,6 +72,7 @@ export default function OverlayPage() {
   }, [])
 
   const isMobileView = windowSize.width < windowSize.height || windowSize.width < 768
+  const visibleAuctionResult = auction?.player?.status === 'active' ? null : auctionResult
 
   // Same id the admin page uses for voice (Mongo tournament _id from auctionUpdate)
   const rawVoiceRoom = auction?._id ?? auction?.tournament?._id ?? null
@@ -103,7 +104,7 @@ export default function OverlayPage() {
         playerId: data.playerId,
         teamId: data.teamId
       });
-      
+
       const resultData = {
         type: 'SOLD',
         playerName: data.playerName,
@@ -116,10 +117,10 @@ export default function OverlayPage() {
         currency: data.currency || (data.isPointsSystem ? "" : "₹"),
         isPointsSystem: data.isPointsSystem ?? false
       };
-      
+
       console.log('✅ Setting auctionResult:', resultData);
       setAuctionResult(resultData);
-      
+
       // Auto-clear after animation (3 seconds)
       setTimeout(() => {
         console.log('🕐 Auto-clearing auctionResult after 3 seconds');
@@ -130,7 +131,7 @@ export default function OverlayPage() {
     // Listen for unsold event
     socket.on('playerUnsold', (data) => {
       console.log('❌ UNSOLD EVENT RECEIVED:', data);
-      
+
       const resultData = {
         type: 'UNSOLD',
         playerName: data.playerName,
@@ -138,9 +139,9 @@ export default function OverlayPage() {
         currency: data.currency || (data.isPointsSystem ? "" : "₹"),
         isPointsSystem: data.isPointsSystem ?? false
       };
-      
+
       setAuctionResult(resultData);
-      
+
       // Auto-clear after animation
       setTimeout(() => {
         setAuctionResult(null);
@@ -165,17 +166,6 @@ export default function OverlayPage() {
       socket.off('disconnect');
     };
   }, [socket]);
-
-  // Clear result when new player starts (but not during ongoing animation)
-  useEffect(() => {
-    // Only clear if player status changes to 'active' AND we currently have a result showing
-    if (auction?.player?.status === 'active' && auctionResult) {
-      console.log('🧹 DEBUG: Clearing auctionResult for new active player');
-      setAuctionResult(null); // Clear overlay when new player starts
-    }
-  }, [auction?.player?.status]);
-
-
 
   // Note: Breaks are now driven only by socket events from the admin panel,
   // not by URL query parameters, to avoid accidental unsynchronised breaks.
@@ -217,7 +207,7 @@ export default function OverlayPage() {
       const interval = setInterval(() => {
         setLanguage(prev => prev === 'en' ? 'kn' : 'en')
       }, 3000) // Switch every 3 seconds
-      
+
       return () => {
         clearInterval(interval)
         clearInterval(tick)
@@ -228,7 +218,7 @@ export default function OverlayPage() {
   // Redirect standard authenticated users (if any) away from overlay, but ALLOW ADMINS
   useEffect(() => {
     if (status === "authenticated" && session?.user?.role?.toLowerCase() !== "admin") {
-      router.push("/auction"); 
+      router.push("/auction");
     }
   }, [status, session, router])
 
@@ -237,7 +227,7 @@ export default function OverlayPage() {
     // Now we connect regardless of authentication status so admins can also "Watch Live"
     if (status !== "loading") {
       console.log('🔌 Attempting socket connection to:', API_URL);
-      
+
       const s = io(API_URL, {
         transports: ['websocket', 'polling'], // Prefer websocket for stability
         timeout: 20000,
@@ -247,7 +237,7 @@ export default function OverlayPage() {
         forceNew: true,
         autoConnect: true
       })
-      
+
       const timeoutId = setTimeout(() => {
         setSocket(s)
       }, 0)
@@ -292,18 +282,18 @@ export default function OverlayPage() {
         }, 2000)
       })
 
-        s.on("auctionUpdate", (data) => {
-          setAuction(data)
-          // Use tournament splash URL if available, otherwise keep default
-          if (data.tournament?.assets?.splashUrl) {
-            setSplashUrl(data.tournament.assets.splashUrl);
-          }
-          if (data.tournament?.pools) {
-            const teamsList = data.teams || [];
-            setPoolA((data.tournament.pools.poolA || []).map(id => teamsList.find(t => t._id === id || t.id === id)).filter(Boolean));
-            setPoolB((data.tournament.pools.poolB || []).map(id => teamsList.find(t => t._id === id || t.id === id)).filter(Boolean));
-          }
-        })
+      s.on("auctionUpdate", (data) => {
+        setAuction(data)
+        // Use tournament splash URL if available, otherwise keep default
+        if (data.tournament?.assets?.splashUrl) {
+          setSplashUrl(data.tournament.assets.splashUrl);
+        }
+        if (data.tournament?.pools) {
+          const teamsList = data.teams || [];
+          setPoolA((data.tournament.pools.poolA || []).map(id => teamsList.find(t => t._id === id || t.id === id)).filter(Boolean));
+          setPoolB((data.tournament.pools.poolB || []).map(id => teamsList.find(t => t._id === id || t.id === id)).filter(Boolean));
+        }
+      })
 
       s.on("teamDrawEvent", (data) => {
         // Immediately update the pool lists so the board fills in real time
@@ -344,7 +334,7 @@ export default function OverlayPage() {
           startTime: data.startTime
         }
         setBreakTime(breakData)
-        
+
         // Save to both storage methods
         if (typeof window !== 'undefined') {
           localStorage.setItem('overlayBreakState', JSON.stringify(breakData))
@@ -363,7 +353,7 @@ export default function OverlayPage() {
             startTime: data.startTime
           }
           setBreakTime(breakData)
-          
+
           // Save to both storage methods
           if (typeof window !== 'undefined') {
             localStorage.setItem('overlayBreakState', JSON.stringify(breakData))
@@ -424,7 +414,7 @@ export default function OverlayPage() {
     const remainingSeconds = Math.max(0, Math.floor((breakTime.endTime - breakNow) / 1000))
     const remainingMinutes = Math.floor(remainingSeconds / 60)
     const displaySeconds = remainingSeconds % 60
-    
+
     const translations = {
       en: {
         breakTime: 'BREAK TIME',
@@ -447,7 +437,7 @@ export default function OverlayPage() {
         minutes: 'ನಿಮಿಷಗಳಲ್ಲಿ'
       }
     }
-    
+
     const t = translations[language]
     const breakTypeMap = {
       'lunch': t.lunchBreak,
@@ -458,12 +448,12 @@ export default function OverlayPage() {
     }
     const breakTypeLabel = breakTypeMap[breakTime.type] || t.customBreak
     const tourLogo = auction?.tournamentLogo || auction?.tournament?.assets?.logoUrl || auction?.tournament?.organizerLogo;
-    
+
     return (
       <div className="min-h-screen w-full bg-[#050505] flex items-center justify-center overflow-hidden font-sans">
         {voiceOverlay}
         {/* Aspect-Ratio Poster Stage */}
-        <div 
+        <div
           className="relative flex flex-col items-center overflow-hidden"
           style={{
             width: isMobileView ? '100vw' : '100vw',
@@ -471,8 +461,8 @@ export default function OverlayPage() {
             maxWidth: isMobileView ? '100vw' : '177.78vh',
             maxHeight: isMobileView ? '177.78vw' : '100vh',
             aspectRatio: isMobileView ? '9 / 16' : '16 / 9',
-            backgroundImage: `url(${getMediaUrl(isMobileView 
-              ? 'https://auction-platform-kp.s3.ap-south-1.amazonaws.com/backgrounds/auction-timer-mobile.png' 
+            backgroundImage: `url(${getMediaUrl(isMobileView
+              ? 'https://auction-platform-kp.s3.ap-south-1.amazonaws.com/backgrounds/auction-timer-mobile.png'
               : 'https://auction-platform-kp.s3.ap-south-1.amazonaws.com/backgrounds/auction-timer.png')})`,
             backgroundSize: '100% 100%',
             backgroundPosition: 'center',
@@ -483,9 +473,9 @@ export default function OverlayPage() {
           {/* 1. TOP LOGO SECTION */}
           {tourLogo && (
             <div className="absolute top-[6%] left-1/2 -translate-x-1/2 w-[18%] max-w-[130px] flex justify-center z-30">
-              <img 
-                src={getMediaUrl(tourLogo)} 
-                alt="Logo" 
+              <img
+                src={getMediaUrl(tourLogo)}
+                alt="Logo"
                 className="w-full h-auto object-contain drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]"
               />
             </div>
@@ -496,9 +486,9 @@ export default function OverlayPage() {
             {/* Left Sidebar - Extremely compact on mobile */}
             <div className={`flex flex-col gap-1.5 transition-all duration-700 ${isMobileView ? 'opacity-20 scale-[0.6] origin-left mt-[20%]' : 'opacity-100'}`}>
               {[
-                { icon: <Gavel size={12}/>, label: 'AUCTION' },
-                { icon: <Users size={12}/>, label: 'REGISTRY' },
-                { icon: <Award size={12}/>, label: 'SQUADS' }
+                { icon: <Gavel size={12} />, label: 'AUCTION' },
+                { icon: <Users size={12} />, label: 'REGISTRY' },
+                { icon: <Award size={12} />, label: 'SQUADS' }
               ].map((s, idx) => (
                 <div key={idx} className="flex items-center gap-2 px-3 py-1.5 bg-black/40 backdrop-blur-sm border-l-2 border-amber-500/30 rounded-r-md">
                   <span className="text-amber-400">{s.icon}</span>
@@ -511,17 +501,17 @@ export default function OverlayPage() {
             <div className={`flex flex-col items-end transition-all duration-700 ${isMobileView ? 'opacity-20 scale-[0.6] origin-right mt-[20%]' : 'opacity-100'}`}>
               <div className="bg-black/40 backdrop-blur-md p-3 border-r-2 border-amber-500/30 rounded-l-lg max-w-[110px] text-right">
                 <p className="text-white text-[9px] font-black leading-tight tracking-tighter uppercase italic">
-                  YOUR EVENT,<br/>OUR MANAGEMENT
+                  YOUR EVENT,<br />OUR MANAGEMENT
                 </p>
               </div>
             </div>
           </div>
 
           {/* 3. CENTER TIMER FRAME - THE MAIN FOCUS */}
-          <div 
+          <div
             className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center justify-center text-center z-20 pointer-events-none"
             style={{
-              top: isMobileView ? '37.5%' : '40%', 
+              top: isMobileView ? '37.5%' : '40%',
               width: isMobileView ? '85%' : '65%',
               height: isMobileView ? '22%' : '30%',
               gap: isMobileView ? '6px' : '12px',
@@ -529,7 +519,7 @@ export default function OverlayPage() {
             }}
           >
             {/* Break Title */}
-            <p 
+            <p
               className="text-amber-400 font-black uppercase italic tracking-[0.3em] leading-none"
               style={{
                 fontSize: isMobileView ? 'clamp(0.7rem, 3vw, 1.1rem)' : 'clamp(1rem, 2.2vw, 2rem)',
@@ -538,9 +528,9 @@ export default function OverlayPage() {
             >
               {breakTypeLabel}
             </p>
-            
+
             {/* Countdown Timer - Premium Typography */}
-            <div 
+            <div
               className="font-black leading-none text-white flex items-center justify-center tracking-tighter"
               style={{
                 fontSize: isMobileView ? 'clamp(3.2rem, 14vw, 5.5rem)' : 'clamp(5.5rem, 16vw, 10rem)',
@@ -556,9 +546,9 @@ export default function OverlayPage() {
             >
               {remainingMinutes.toString().padStart(2, '0')}<span className="opacity-40 mx-[-0.05em]">:</span>{displaySeconds.toString().padStart(2, '0')}
             </div>
-            
+
             {/* Subtitle */}
-            <p 
+            <p
               className="text-white/60 font-black uppercase tracking-[0.2em] leading-none"
               style={{
                 fontSize: isMobileView ? 'clamp(0.55rem, 2vw, 0.8rem)' : 'clamp(0.8rem, 1.5vw, 1.2rem)',
@@ -571,7 +561,7 @@ export default function OverlayPage() {
           </div>
 
           {/* 4. FOOTER SECTION - Simplified & Fixed */}
-          <div 
+          <div
             className="absolute left-0 right-0 px-6 flex flex-wrap items-center justify-center gap-3 sm:gap-10 z-30"
             style={{
               bottom: 'max(4%, env(safe-area-inset-bottom, 20px))',
@@ -587,9 +577,9 @@ export default function OverlayPage() {
             </div>
 
             {/* Instagram */}
-            <a 
-              href="https://www.instagram.com/lakshmish_virat/" 
-              target="_blank" 
+            <a
+              href="https://www.instagram.com/lakshmish_virat/"
+              target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1.5 px-3 py-1.5 bg-black/60 backdrop-blur-xl border border-white/5 rounded-full shadow-xl"
             >
@@ -612,7 +602,7 @@ export default function OverlayPage() {
   }
 
   if (!auction || !auction.player) {
-    const splashTitle = auction?.tournamentName 
+    const splashTitle = auction?.tournamentName
       ? (auction.tournamentName.toUpperCase().includes('SEASON') ? auction.tournamentName : `${auction.tournamentName} - SEASON 01`)
       : 'KOLALA PREMIERE LEAGUE - SEASON 01';
     return (
@@ -639,31 +629,31 @@ export default function OverlayPage() {
         tournamentName={tournamentName}
         tournamentLogo={auction.tournamentLogo || auction.tournament?.assets?.logoUrl || auction.tournament?.organizerLogo}
         roundHistory={roundHistory}
-        auctionResult={auctionResult}
+        auctionResult={visibleAuctionResult}
         currencyUnit={auction.tournament?.currencyUnit || (auction.tournament?.auctionMode === "points" ? "CR" : "₹")}
         iconsPerTeam={auction.tournament?.iconsPerTeam || 0}
         maxSlots={auction.tournament?.squad?.maxPlayers || auction.tournament?.squadSize || 15}
       />
-      
+
       {/* SOLD/UNSOLD ANIMATION - Exact same logic as admin auction */}
-      {auctionResult && (
+      {visibleAuctionResult && (
         <ResultOverlay
-          type={auctionResult.type}
-          playerName={auctionResult.playerName}
-          price={auctionResult.price}
-          teamName={auctionResult.teamName}
-          teamLogo={auctionResult.teamLogo}
-          teamColor={auctionResult.teamColor}
-          teamShortName={auctionResult.teamShortName}
-          playerImage={auctionResult.playerImage}
+          type={visibleAuctionResult.type}
+          playerName={visibleAuctionResult.playerName}
+          price={visibleAuctionResult.price}
+          teamName={visibleAuctionResult.teamName}
+          teamLogo={visibleAuctionResult.teamLogo}
+          teamColor={visibleAuctionResult.teamColor}
+          teamShortName={visibleAuctionResult.teamShortName}
+          playerImage={visibleAuctionResult.playerImage}
           onSkip={() => {
             setAuctionResult(null);
           }}
-          currency={auctionResult.currency}
-          isPointsSystem={auctionResult.isPointsSystem}
+          currency={visibleAuctionResult.currency}
+          isPointsSystem={visibleAuctionResult.isPointsSystem}
         />
       )}
-      
+
       {/* EXPLICIT POOL DRAW VIEW (ADMIN CONTROLLED) */}
       {showPoolView && (
         <TeamDrawOverlay
@@ -672,7 +662,7 @@ export default function OverlayPage() {
           drawEvent={drawEvent}
         />
       )}
-      
+
       {/* INDEPENDENT CINEMATIC TRIGGER (Overlay) */}
       {drawEvent && (
         <TeamDrawCinematic
@@ -680,7 +670,7 @@ export default function OverlayPage() {
           onComplete={() => setDrawEvent(null)}
         />
       )}
-      
+
     </>
   )
 }

@@ -12,6 +12,24 @@ export default function CompactBreakControl({ socket, onBreakStart, onBreakEnd, 
   const [remainingTime, setRemainingTime] = useState(0)
   const timerRef = useRef(null)
 
+  function startLocalCountdown(secs) {
+    if (timerRef.current) clearInterval(timerRef.current)
+
+    const targetTime = Date.now() + (secs * 1000)
+
+    timerRef.current = setInterval(() => {
+      const now = Date.now()
+      const diff = Math.max(0, Math.ceil((targetTime - now) / 1000))
+
+      setRemainingTime(diff)
+
+      if (diff <= 0) {
+        clearInterval(timerRef.current)
+        setIsBreakActive(false)
+      }
+    }, 1000)
+  }
+
   useEffect(() => {
     if (!socket) return
 
@@ -23,7 +41,7 @@ export default function CompactBreakControl({ socket, onBreakStart, onBreakEnd, 
       if (data && data.isActive) {
         setBreakType(data.type || 'short')
         setCustomReason(data.customReason || '')
-        
+
         const now = Date.now()
         const msLeft = data.endTime - now
         if (msLeft > 0) {
@@ -60,24 +78,6 @@ export default function CompactBreakControl({ socket, onBreakStart, onBreakEnd, 
     }
   }, [socket])
 
-  const startLocalCountdown = (secs) => {
-    if (timerRef.current) clearInterval(timerRef.current)
-    
-    const targetTime = Date.now() + (secs * 1000)
-    
-    timerRef.current = setInterval(() => {
-      const now = Date.now()
-      const diff = Math.max(0, Math.ceil((targetTime - now) / 1000))
-      
-      setRemainingTime(diff)
-      
-      if (diff <= 0) {
-        clearInterval(timerRef.current)
-        setIsBreakActive(false)
-      }
-    }, 1000)
-  }
-
   const breakTypes = [
     { id: 'lunch', icon: '🍽️', label: 'Lunch Break', defaultMinutes: 30 },
     { id: 'tea', icon: '☕', label: 'Tea Break', defaultMinutes: 15 },
@@ -101,7 +101,7 @@ export default function CompactBreakControl({ socket, onBreakStart, onBreakEnd, 
     if (socket) {
       socket.emit('breakTime', breakData)
     }
-    
+
     setShowModal(false)
     onBreakStart?.(breakData)
   }
@@ -136,7 +136,7 @@ export default function CompactBreakControl({ socket, onBreakStart, onBreakEnd, 
             <span className="font-bold text-sm">View Squads</span>
           </button>
         )}
-        
+
         {/* Break Button */}
         {!isBreakActive ? (
           <button
@@ -183,11 +183,10 @@ export default function CompactBreakControl({ socket, onBreakStart, onBreakEnd, 
                       setMinutes(type.defaultMinutes)
                       setSeconds(0)
                     }}
-                    className={`p-3 rounded-lg border-2 transition-all flex items-center gap-2 ${
-                      breakType === type.id
+                    className={`p-3 rounded-lg border-2 transition-all flex items-center gap-2 ${breakType === type.id
                         ? 'border-orange-500 bg-orange-500/10 text-orange-400'
                         : 'border-slate-600 bg-slate-800 text-slate-300 hover:border-slate-500'
-                    }`}
+                      }`}
                   >
                     <span>{type.icon}</span>
                     <span className="text-sm font-medium">{type.label}</span>

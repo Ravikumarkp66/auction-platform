@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, ShieldCheck, Sparkles, UserRound, Clock3 } from "lucide-react";
 
@@ -31,14 +31,10 @@ const MODE_COPY = {
 export default function KplPortalEntry({ mode = "apply" }) {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const [token, setToken] = useState("");
-
-    useEffect(() => {
+    const [token, setToken] = useState(() => {
         const queryToken = searchParams.get("token") || searchParams.get("invite") || "";
-        if (queryToken) {
-            setToken(queryToken.trim());
-        }
-    }, [searchParams]);
+        return queryToken.trim();
+    });
 
     const copy = MODE_COPY[mode] || MODE_COPY.apply;
 

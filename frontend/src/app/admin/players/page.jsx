@@ -7,7 +7,7 @@ import { User, Search, Plus, Filter, AlertTriangle, ShieldCheck, Check, X, Alert
 import * as XLSX from "xlsx";
 import { useAuction } from "../layout";
 import { useSession } from "next-auth/react";
-import { io } from "socket.io-client";
+// import { io } from "socket.io-client"; // Using shared socket from context
 import ImageEditModal from "../../../components/ImageEditModal";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -15,7 +15,7 @@ import { uploadToS3 } from "../../../lib/uploadToS3";
 import html2canvas from "html2canvas";
 import { API_URL, getMediaUrl, getProxiedImageUrl, calculateAge } from "../../../lib/apiConfig";
 
-let socket;
+// Socket shared from context
 
 const findValue = (row, keys) => {
   const rk = Object.keys(row);
@@ -39,7 +39,7 @@ export default function PlayersRegistry() {
 
 function PlayersRegistryContent() {
   const { data: session, status } = useSession();
-  const { selectedAuction } = useAuction();
+  const { selectedAuction, socket } = useAuction();
 
   useEffect(() => {
     if (session) {
@@ -106,14 +106,6 @@ function PlayersRegistryContent() {
   useEffect(() => {
     if (selectedAuction?._id) {
       fetchData();
-      socket = io(API_URL, {
-        transports: ["websocket", "polling"],
-        withCredentials: true,
-        reconnection: true,
-        reconnectionDelay: 1000,
-        reconnectionDelayMax: 5000,
-        reconnectionAttempts: 10
-      });
     } else {
       setLoading(false);
     }
@@ -122,7 +114,6 @@ function PlayersRegistryContent() {
     window.addEventListener("click", handleClickOutside);
 
     return () => {
-      socket?.disconnect();
       window.removeEventListener("click", handleClickOutside);
     };
   }, [selectedAuction]);

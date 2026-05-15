@@ -7,14 +7,14 @@ import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { useAuction } from "../layout";
-import { io } from "socket.io-client";
+// import { io } from "socket.io-client"; // Using shared socket from context
 import { API_URL, getProxiedImageUrl, getMediaUrl } from "../../../lib/apiConfig";
 import ImageEditModal from "../../../components/ImageEditModal";
 
-let socket;
+// Socket shared from context
 
 export default function IconPlayersPanel() {
-  const { selectedAuction } = useAuction();
+  const { selectedAuction, socket } = useAuction();
   const { data: session } = useSession();
   const [icons, setIcons] = useState([]);
   const [teams, setTeams] = useState([]);
@@ -36,29 +36,9 @@ export default function IconPlayersPanel() {
   useEffect(() => {
     if (selectedAuction?._id) {
       fetchIcons();
-      // Initialize socket connection
-      socket = io(API_URL, {
-        reconnection: true,
-        reconnectionAttempts: 5,
-        reconnectionDelay: 1000
-      });
-
-      socket.on('connect', () => {
-        console.log('Socket connected:', socket.id);
-      });
-
-      socket.on('connect_error', (error) => {
-        console.error('Socket connection error:', error);
-      });
     } else {
       setLoading(false);
     }
-    return () => {
-      if (socket) {
-        socket.disconnect();
-        socket = null;
-      }
-    };
   }, [selectedAuction]);
 
   // Handle CSV Import for Icons
