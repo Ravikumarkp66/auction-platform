@@ -117,9 +117,25 @@ export function useVoiceChat(socket, roomId, isAdmin, adminId) {
       console.warn("[VoiceChat] offerViewer called but no local stream yet");
       return;
     }
-    console.log("[VoiceChat] Offering viewer:", viewerId);
 
     let peer = peersRef.current[viewerId];
+    if (peer) {
+      const sigState = peer.signalingState;
+      const connState = peer.connectionState;
+      
+      // Prevent repeated offers if already connecting/connected, or if signaling is in progress
+      if (
+        connState === "connected" || 
+        connState === "connecting" || 
+        sigState === "have-local-offer" || 
+        (sigState === "stable" && peer.currentRemoteDescription)
+      ) {
+        return;
+      }
+    }
+
+    console.log("[VoiceChat] Offering viewer:", viewerId);
+
     if (!peer) {
       peer = createPeer(viewerId);
       peersRef.current[viewerId] = peer;
@@ -167,7 +183,13 @@ export function useVoiceChat(socket, roomId, isAdmin, adminId) {
         videoTrackRef.current = null;
       }
       const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+        audio: { 
+          echoCancellation: true, 
+          noiseSuppression: true, 
+          autoGainControl: true,
+          channelCount: 1,
+          sampleRate: 48000
+        },
         video: {
           facingMode,
           width: { ideal: 1280, max: 1920 },
@@ -386,7 +408,8 @@ export function useVoiceChat(socket, roomId, isAdmin, adminId) {
       console.log("[VoiceChat] Viewer received offer from:", from);
       let peer = peersRef.current[from];
 
-      if (peer && peer.signalingState !== "stable") {
+      // If peer is stuck in a weird state, recreate it
+      if (peer && peer.signalingState !== "stable" && peer.signalingState !== "have-remote-offer") {
         console.warn("[VoiceChat] Replacing peer — state was:", peer.signalingState);
         peer.close();
         delete peersRef.current[from];

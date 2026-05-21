@@ -208,8 +208,19 @@ app.get("/", (req, res) => {
 });
 
 // Socket.io connection
+
+// Global map to track active voice broadcasters by roomId
+// Key: roomId, Value: { adminId, socketId, roomId }
+const voiceBroadcasters = new Map();
+
 io.on("connection", (socket) => {
   console.log("Client connected to Socket.io:", socket.id);
+
+  // Join Sports Match Scorer/Projector Room
+  socket.on("join-sports-match", (matchId) => {
+    console.log(`🔌 Client ${socket.id} joined sports match room: ${matchId}`);
+    socket.join(matchId.toString());
+  });
 
   // Handle playerSold event - broadcast to ALL clients (including admin)
   socket.on("playerSold", (data) => {
@@ -286,7 +297,6 @@ io.on("connection", (socket) => {
   });
 
   // ===== WEBRTC VOICE SIGNALING =====
-  let currentBroadcaster = null; // { adminId, socketId, roomId }
 
   const normalizeVoiceRoomId = (roomId) => {
     if (roomId == null) return null;
@@ -307,8 +317,9 @@ io.on("connection", (socket) => {
     if (!rid) return;
     socket.join(rid);
 
-    // Notify about current broadcaster status
-    if (currentBroadcaster && String(currentBroadcaster.roomId) === rid) {
+    // Notify about current broadcaster status globally
+    const currentBroadcaster = voiceBroadcasters.get(rid);
+    if (currentBroadcaster) {
       socket.emit("voice-broadcaster-update", {
         isLive: true,
         broadcasterId: currentBroadcaster.adminId,
@@ -328,8 +339,10 @@ io.on("connection", (socket) => {
   socket.on("voice-start-broadcast", ({ roomId, adminId }) => {
     const rid = normalizeVoiceRoomId(roomId);
     if (!rid) return;
-    if (!currentBroadcaster || String(currentBroadcaster.roomId) !== rid) {
-      currentBroadcaster = { adminId, socketId: socket.id, roomId: rid };
+    
+    const existingBroadcaster = voiceBroadcasters.get(rid);
+    if (!existingBroadcaster || existingBroadcaster.socketId === socket.id) {
+      voiceBroadcasters.set(rid, { adminId, socketId: socket.id, roomId: rid });
       io.to(rid).emit("voice-broadcaster-update", {
         isLive: true,
         broadcasterId: adminId,
@@ -343,8 +356,10 @@ io.on("connection", (socket) => {
   socket.on("voice-stop-broadcast", ({ roomId }) => {
     const rid = normalizeVoiceRoomId(roomId);
     if (!rid) return;
+    
+    const currentBroadcaster = voiceBroadcasters.get(rid);
     if (currentBroadcaster && currentBroadcaster.socketId === socket.id) {
-      currentBroadcaster = null;
+      voiceBroadcasters.delete(rid);
       io.to(rid).emit("voice-broadcaster-update", { isLive: false });
       socket.to(rid).emit("voice-stopped");
     }
@@ -361,7 +376,11 @@ io.on("connection", (socket) => {
 
   // Viewer asks for an offer (fallback if they missed the initial one)
   socket.on("voice-request-offer", ({ to }) => {
-    emitToSocketId(to, "voice-request-offer", { from: socket.id });
+    // 'to' is the roomId here from the client. Let's find the broadcaster's socketId
+    const currentBroadcaster = voiceBroadcasters.get(to);
+    if (currentBroadcaster) {
+      emitToSocketId(currentBroadcaster.socketId, "voice-request-offer", { from: socket.id });
+    }
   });
 
   // ICE candidate exchange (bidirectional)
@@ -378,12 +397,13 @@ io.on("connection", (socket) => {
 
   socket.on("disconnect", () => {
     console.log("Client disconnected:", socket.id);
-    if (currentBroadcaster && currentBroadcaster.socketId === socket.id) {
-      const { roomId } = currentBroadcaster;
-      currentBroadcaster = null;
-      if (roomId) {
-        io.to(roomId).emit("voice-broadcaster-update", { isLive: false });
-        io.to(roomId).emit("voice-stopped");
+    
+    // Check if this disconnected socket was a broadcaster in any room
+    for (const [rid, broadcaster] of voiceBroadcasters.entries()) {
+      if (broadcaster.socketId === socket.id) {
+        voiceBroadcasters.delete(rid);
+        io.to(rid).emit("voice-broadcaster-update", { isLive: false });
+        io.to(rid).emit("voice-stopped");
       }
     }
   });
@@ -420,6 +440,7 @@ app.use("/api/squads", squadRoutes); // Squad generation API
 app.use("/api/location", require("./routes/locationRoutes"));
 app.use("/api/services", require("./routes/serviceRoutes"));
 app.use("/api/matches", matchRoutes);
+app.use("/api/sports-matches", require("./routes/sportsMatchRoutes"));
 app.use("/api/settings", require("./routes/settingsRoutes"));
 
 

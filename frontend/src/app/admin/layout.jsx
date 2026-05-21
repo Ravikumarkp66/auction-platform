@@ -40,18 +40,12 @@ const AuctionContext = createContext({
 export const useAuction = () => useContext(AuctionContext);
 
 const navigation = [
-  { name: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard, emoji: "📊" },
-  { name: "Auctions", href: "/admin/tournaments", icon: Trophy, emoji: "🏏" },
-  { name: "Teams", href: "/admin/teams", icon: Layout, emoji: "👥" },
-  { name: "Players", href: "/admin/players", icon: User, emoji: "🧍" },
-  { name: "Icon Players", href: "/admin/icons", icon: Star, emoji: "⭐" },
-  { name: "Live Control", href: "/live-auction", icon: Zap, emoji: "⚡" },
-  { name: "Live Scoring", href: "/scoring", icon: LayoutDashboard, emoji: "📱" },
-  { name: "Match Control", href: "/admin/matches", icon: LayoutDashboard, emoji: "🎮" },
-  { name: "Branding", href: "/admin/assets", icon: Palette, emoji: "🎨" },
-  { name: "Landing Editor", href: "/admin/landing", icon: Layout, emoji: "🏗️" },
-  { name: "Pricing & Services", href: "/admin/services", icon: LayoutDashboard, emoji: "💰" },
-  { name: "Settings", href: "/admin/settings", icon: ImageIcon, emoji: "⚙️" },
+  { name: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard, emoji: "D" },
+  { name: "Auctions", href: "/admin/tournaments", icon: Trophy, emoji: "A" },
+  { name: "Players", href: "/admin/players", icon: User, emoji: "P" },
+  { name: "Kabaddi", href: "/admin/sports", icon: Trophy, emoji: "K" },
+  { name: "Branding", href: "/admin/assets", icon: Palette, emoji: "B" },
+  { name: "Settings", href: "/admin/settings", icon: ImageIcon, emoji: "S" },
 ];
 
 export default function AdminLayout({ children }) {

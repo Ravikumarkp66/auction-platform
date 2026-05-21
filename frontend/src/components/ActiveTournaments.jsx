@@ -4,19 +4,24 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { API_URL, getMediaUrl } from "@/lib/apiConfig";
 import { getCanonicalApplyRoute } from "@/lib/applicationRoutes";
-import { Trophy, ArrowRight, Calendar, MapPin, Zap, Loader2 } from "lucide-react";
+import { Trophy, ArrowRight, Calendar, MapPin, Zap, Loader2, Radio, MonitorPlay } from "lucide-react";
 
 export default function ActiveTournaments() {
   const { data: session } = useSession();
   const [tournaments, setTournaments] = useState([]);
+  const [liveMatches, setLiveMatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const isAdmin = session?.user?.role === "admin";
 
   useEffect(() => {
     async function fetchTournaments() {
       try {
-        const res = await fetch(`${API_URL}/api/tournaments`);
+        const [res, matchRes] = await Promise.all([
+          fetch(`${API_URL}/api/tournaments`),
+          fetch(`${API_URL}/api/sports-matches`)
+        ]);
         const data = await res.json();
+        const matchData = matchRes.ok ? await matchRes.json() : [];
 
         // Safety check: Ensure data is an array
         if (!Array.isArray(data)) {
@@ -30,6 +35,13 @@ export default function ActiveTournaments() {
         // Sort by newest first
         active.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
         setTournaments(active.slice(0, 3)); // Show top 3
+        setLiveMatches(
+          Array.isArray(matchData)
+            ? matchData
+              .filter((match) => match.sport === "kabaddi" && ["live", "scheduled"].includes(match.status))
+              .slice(0, 3)
+            : []
+        );
       } catch (err) {
         console.error("Failed to fetch tournaments:", err);
       } finally {
@@ -46,7 +58,7 @@ export default function ActiveTournaments() {
     </div>
   );
 
-  if (tournaments.length === 0) return null;
+  if (tournaments.length === 0 && liveMatches.length === 0) return null;
 
   const isUrgent = (endDate, endTime) => {
     if (!endDate) return false;
@@ -76,9 +88,49 @@ export default function ActiveTournaments() {
           <h2 className="text-4xl md:text-6xl font-black text-white italic tracking-tighter">
             TOURNAMENT <span className="text-transparent bg-clip-text bg-linear-to-r from-violet-500 to-cyan-400">ARENA</span>
           </h2>
-          <p className="mt-4 text-slate-500 font-bold uppercase tracking-[0.4em] text-[10px]">Join the most prestigious local cricket battles</p>
+          <p className="mt-4 text-slate-500 font-bold uppercase tracking-[0.4em] text-[10px]">Watch live matches and upcoming arena events</p>
         </div>
 
+        {liveMatches.length > 0 && (
+          <div className="mb-10 grid grid-cols-1 md:grid-cols-3 gap-5">
+            {liveMatches.map((match) => {
+              const isLive = match.status === "live";
+              const raidLive = Boolean(match.kabaddiState?.isRaidActive);
+              return (
+                <Link
+                  key={match._id}
+                  href={`/live/kabaddi/${match._id}`}
+                  className="group rounded-2xl border border-red-500/20 bg-red-950/15 p-5 shadow-2xl shadow-red-950/10 transition hover:-translate-y-1 hover:border-red-400/45 hover:bg-red-950/25"
+                >
+                  <div className="mb-4 flex items-center justify-between gap-3">
+                    <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[9px] font-black uppercase tracking-[0.22em] ${isLive ? "border-red-400/30 bg-red-500/15 text-red-300" : "border-amber-400/30 bg-amber-500/15 text-amber-300"}`}>
+                      <span className={`h-2 w-2 rounded-full ${isLive ? "bg-red-500 animate-pulse" : "bg-amber-400"}`} />
+                      {isLive ? "Live Kabaddi Match" : "Upcoming Kabaddi"}
+                    </span>
+                    <MonitorPlay className="h-4 w-4 text-red-300" />
+                  </div>
+                  <h3 className="text-xl font-black uppercase tracking-tight text-white">
+                    {match.teamA?.name} vs {match.teamB?.name}
+                  </h3>
+                  <div className="mt-4 flex items-end justify-between gap-4">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-500">{match.name}</p>
+                      <p className="mt-1 text-sm font-bold text-slate-300">{raidLive ? "Raid Live" : isLive ? "Match is live" : match.venue}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-3xl font-black text-white">{match.teamA?.score || 0} - {match.teamB?.score || 0}</p>
+                      <p className="mt-1 inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-[0.2em] text-red-300">
+                        <Radio className="h-3 w-3" /> Watch Live
+                      </p>
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        )}
+
+        {tournaments.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {tournaments.map((t) => {
             const urgent = isUrgent(t.registrationEndDate, t.registrationEndTime);
@@ -164,6 +216,7 @@ export default function ActiveTournaments() {
             );
           })}
         </div>
+        )}
       </div>
     </section>
   );

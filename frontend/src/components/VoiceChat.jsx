@@ -6,7 +6,7 @@ import { useVoiceChat } from "@/hooks/useVoiceChat";
 /* ────────────────────────────────────────────────────────────────────────────
    VoiceChatAdmin  — show on live-auction (admin) page
 ──────────────────────────────────────────────────────────────────────────── */
-export function VoiceChatAdmin({ socket, roomId, currentAdminId }) {
+export function VoiceChatAdmin({ socket, roomId, currentAdminId, onLiveChange }) {
   const { 
     isLive, 
     isBroadcaster,
@@ -24,6 +24,10 @@ export function VoiceChatAdmin({ socket, roomId, currentAdminId }) {
     toggleMic,
     toggleVideo 
   } = useVoiceChat(socket, roomId, true, currentAdminId);
+
+  useEffect(() => {
+    if (onLiveChange) onLiveChange(isBroadcaster);
+  }, [isBroadcaster, onLiveChange]);
 
   const localVideoRef = useRef(null);
 

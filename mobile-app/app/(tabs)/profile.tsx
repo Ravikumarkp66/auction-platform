@@ -9,6 +9,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 export default function Profile() {
   const router = useRouter();
+  const [role, setRole] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    storage.getItem(USER_ROLE_KEY).then(setRole);
+  }, []);
 
   const handleLogout = async () => {
     await storage.removeItem(AUTH_TOKEN_KEY);
@@ -17,6 +22,8 @@ export default function Profile() {
   };
 
   const menuItems = [
+    ...(role === 'admin' ? [{ icon: <Settings size={20} color="#FF4D6D" />, title: 'Admin Dashboard', route: '/admin/dashboard' }] : []),
+    ...(role !== 'admin' ? [{ icon: <User size={20} color="#7B61FF" />, title: 'Sign In as Admin', route: '/login' }] : []),
     { icon: <Trophy size={20} color="#00D1FF" />, title: 'Hosted Tournaments', route: '/hosted-tournaments' },
     { icon: <Settings size={20} color="#00D1FF" />, title: 'Settings', route: '/settings' },
     { icon: <HelpCircle size={20} color="#00D1FF" />, title: 'Support', route: '/support' },
@@ -35,7 +42,12 @@ export default function Profile() {
           </View>
           <View>
             <Text style={styles.userName}>Ravikumar K P</Text>
-            <Text style={styles.userRole}>Tournament Organizer</Text>
+            <Text style={styles.userRole}>
+              {role === 'admin' ? 'Tournament Admin' :
+               role === 'owner' ? 'Team Owner' :
+               role === 'bidder' ? 'Bidder' :
+               role === 'viewer' ? 'Viewer' : 'Loading...'}
+            </Text>
           </View>
         </View>
 

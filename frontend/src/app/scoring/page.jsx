@@ -33,13 +33,13 @@ export default function ScoringHome() {
 
   return (
     <div className="p-4 max-w-md mx-auto w-full pb-20">
-      
+
       {/* ── Start Match Hero ── */}
-      <div className="bg-gradient-to-br from-emerald-600 to-teal-700 rounded-2xl p-6 text-white shadow-xl shadow-emerald-900/10 mb-8 relative overflow-hidden">
+      <div className="bg-linear-to-br from-emerald-600 to-teal-700 rounded-2xl p-6 text-white shadow-xl shadow-emerald-900/10 mb-8 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-32 h-32 bg-white rounded-full blur-[80px] opacity-20 -translate-y-1/2 translate-x-1/2"></div>
         <h2 className="text-2xl font-black mb-1">Start a Match</h2>
         <p className="text-emerald-100 text-sm font-medium mb-6">Score your local cricket matches like a pro.</p>
-        
+
         <Link href="/admin/matches" className="flex items-center justify-between bg-white text-emerald-700 font-bold px-5 py-3.5 rounded-xl hover:scale-[1.02] active:scale-95 transition-all shadow-md">
           <div className="flex items-center gap-2">
             <Play size={18} fill="currentColor" />
@@ -57,7 +57,7 @@ export default function ScoringHome() {
           </h3>
           <span className="text-xs font-bold text-slate-400 bg-slate-200 px-2 py-0.5 rounded-full">{activeMatches.length}</span>
         </div>
-        
+
         <div className="space-y-4">
           {activeMatches.length === 0 ? (
             <div className="bg-white border border-slate-200 rounded-xl p-8 text-center shadow-sm">
@@ -74,18 +74,18 @@ export default function ScoringHome() {
                   <span className="text-[10px] font-black uppercase tracking-widest text-red-500 bg-red-50 px-2 py-0.5 rounded animate-pulse">Live</span>
                   <span className="text-[10px] font-bold text-slate-400 uppercase">{match.totalOvers} Overs</span>
                 </div>
-                
+
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-600">{match.teamA?.name?.slice(0,2)}</div>
+                    <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-600">{match.teamA?.name?.slice(0, 2)}</div>
                     <span className="font-bold text-slate-800 text-sm">{match.teamA?.name}</span>
                   </div>
                   <span className="font-black text-lg text-slate-800">{match.innings[0]?.totalRuns || 0}-{match.innings[0]?.wickets || 0}</span>
                 </div>
-                
+
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-600">{match.teamB?.name?.slice(0,2)}</div>
+                    <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-600">{match.teamB?.name?.slice(0, 2)}</div>
                     <span className="font-bold text-slate-800 text-sm">{match.teamB?.name}</span>
                   </div>
                   <span className="font-black text-lg text-slate-800">{match.innings.length > 1 ? `${match.innings[1].totalRuns}-${match.innings[1].wickets}` : "Yet to bat"}</span>
@@ -110,12 +110,12 @@ export default function ScoringHome() {
                 </div>
                 <div className="flex items-center justify-center gap-4 text-center">
                   <div className="flex-1">
-                    <div className="w-12 h-12 rounded-full bg-slate-100 mx-auto mb-2 flex items-center justify-center font-bold text-slate-600">{match.teamA?.name?.slice(0,2)}</div>
+                    <div className="w-12 h-12 rounded-full bg-slate-100 mx-auto mb-2 flex items-center justify-center font-bold text-slate-600">{match.teamA?.name?.slice(0, 2)}</div>
                     <p className="text-sm font-bold text-slate-800 line-clamp-1">{match.teamA?.name}</p>
                   </div>
                   <div className="w-8 h-8 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center text-[10px] font-black text-slate-400 italic">VS</div>
                   <div className="flex-1">
-                    <div className="w-12 h-12 rounded-full bg-slate-100 mx-auto mb-2 flex items-center justify-center font-bold text-slate-600">{match.teamB?.name?.slice(0,2)}</div>
+                    <div className="w-12 h-12 rounded-full bg-slate-100 mx-auto mb-2 flex items-center justify-center font-bold text-slate-600">{match.teamB?.name?.slice(0, 2)}</div>
                     <p className="text-sm font-bold text-slate-800 line-clamp-1">{match.teamB?.name}</p>
                   </div>
                 </div>

@@ -31,6 +31,9 @@ export default function Navbar() {
     pathname === '/auction' ||
     pathname === '/live-auction' ||
     pathname === '/overlay' ||
+    pathname.startsWith('/sports/display') ||
+    pathname.startsWith('/sports/live') ||
+    pathname.startsWith('/live/mobile') ||
     pathname.startsWith('/team/') ||
     pathname.startsWith('/admin') ||
     pathname.startsWith('/mobile') ||
@@ -57,8 +60,8 @@ export default function Navbar() {
       {/* ── TOP NAVBAR ── */}
       <nav
         className={`sticky top-0 z-50 w-full transition-all duration-300 ${scrolled
-            ? 'bg-[#070B1A]/95 shadow-[0_4px_32px_rgba(0,0,0,0.5)] border-b border-white/[0.06]'
-            : 'bg-[#070B1A]/80 border-b border-white/[0.06]'
+          ? 'bg-[#070B1A]/95 shadow-[0_4px_32px_rgba(0,0,0,0.5)] border-b border-white/[0.06]'
+          : 'bg-[#070B1A]/80 border-b border-white/[0.06]'
           }`}
         style={{ backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}
       >
@@ -206,8 +209,8 @@ export default function Navbar() {
                                   key={lang}
                                   onClick={() => { changeLanguage(lang); setProfileDropdownOpen(false); }}
                                   className={`flex-1 py-1 rounded-md text-[11px] font-bold uppercase transition-colors ${language === lang
-                                      ? 'bg-violet-500/25 text-violet-300 border border-violet-500/30'
-                                      : 'bg-white/[0.04] text-slate-400 hover:text-white border border-transparent'
+                                    ? 'bg-violet-500/25 text-violet-300 border border-violet-500/30'
+                                    : 'bg-white/[0.04] text-slate-400 hover:text-white border border-transparent'
                                     }`}
                                 >
                                   {lang.toUpperCase()}

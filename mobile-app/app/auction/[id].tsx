@@ -23,6 +23,31 @@ const initialActivity = [
   { id: '4', text: 'Base price set at ₹2.0 Cr', time: '1m ago', type: 'info' },
 ];
 
+const TeamCardItem = ({ item, isSold, highestBidder }: { item: typeof initialTeams[0]; isSold: boolean; highestBidder: string }) => {
+  const animatedTeamCardStyle = useAnimatedStyle(() => {
+    const isWinning = item.name === highestBidder;
+    return {
+      transform: [{ scale: isSold && isWinning ? withTiming(1.05, { duration: 300 }) : 1 }],
+    };
+  });
+
+  return (
+    <Animated.View style={[styles.teamCard, item.active && styles.activeTeamCard, animatedTeamCardStyle]}>
+      <View style={styles.teamHeader}>
+        <item.icon size={16} color={item.active ? '#00D1FF' : '#9CA3AF'} />
+        <Text style={styles.teamName}>{item.name}</Text>
+        {item.active && <View style={styles.activeDot} />}
+      </View>
+      <Text style={styles.teamPurse}>₹{item.purse.toFixed(1)} Cr</Text>
+      
+      {/* Purse Progress Bar */}
+      <View style={styles.purseBar}>
+        <View style={[styles.purseFill, { width: `${(item.purse / item.totalPurse) * 100}%` }]} />
+      </View>
+    </Animated.View>
+  );
+};
+
 export default function AuctionDetail() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
@@ -384,30 +409,9 @@ export default function AuctionDetail() {
               <Text style={styles.sectionTitle}>Connected Teams</Text>
               <FlatList
                 data={teams}
-                renderItem={({ item }) => {
-                  const animatedTeamCardStyle = useAnimatedStyle(() => {
-                    const isWinning = item.name === highestBidder;
-                    return {
-                      transform: [{ scale: isSold && isWinning ? withTiming(1.05, { duration: 300 }) : 1 }],
-                    };
-                  });
-
-                  return (
-                    <Animated.View style={[styles.teamCard, item.active && styles.activeTeamCard, animatedTeamCardStyle]}>
-                      <View style={styles.teamHeader}>
-                        <item.icon size={16} color={item.active ? '#00D1FF' : '#9CA3AF'} />
-                        <Text style={styles.teamName}>{item.name}</Text>
-                        {item.active && <View style={styles.activeDot} />}
-                      </View>
-                      <Text style={styles.teamPurse}>₹{item.purse.toFixed(1)} Cr</Text>
-                      
-                      {/* Purse Progress Bar */}
-                      <View style={styles.purseBar}>
-                        <View style={[styles.purseFill, { width: `${(item.purse / item.totalPurse) * 100}%` }]} />
-                      </View>
-                    </Animated.View>
-                  );
-                }}
+                renderItem={({ item }) => (
+                  <TeamCardItem item={item} isSold={isSold} highestBidder={highestBidder} />
+                )}
                 keyExtractor={(item) => item.id}
                 horizontal
                 showsHorizontalScrollIndicator={false}

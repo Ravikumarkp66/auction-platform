@@ -61,6 +61,9 @@ export default function MobileBottomNav() {
     pathname === '/auction' ||
     pathname === '/live-auction' ||
     pathname === '/overlay' ||
+    pathname?.startsWith('/sports/display') ||
+    pathname?.startsWith('/sports/live') ||
+    pathname?.startsWith('/live/mobile') ||
     pathname?.startsWith('/admin') ||
     pathname?.startsWith('/team/') ||
     isApplicationRoute(pathname);
@@ -157,10 +160,10 @@ function TabItem({ tab, isActive }) {
         style={
           isActive
             ? {
-                background: `linear-gradient(135deg, ${tab.color}22, ${tab.color}11)`,
-                boxShadow: `0 0 14px ${tab.glow}`,
-                border: `1px solid ${tab.color}30`,
-              }
+              background: `linear-gradient(135deg, ${tab.color}22, ${tab.color}11)`,
+              boxShadow: `0 0 14px ${tab.glow}`,
+              border: `1px solid ${tab.color}30`,
+            }
             : {}
         }
       >

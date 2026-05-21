@@ -10,6 +10,7 @@ import { Instagram, Phone, Gavel, Award, Users, ClipboardList, Zap } from "lucid
 import AuctionOverlayNew from '../../components/AuctionOverlayNew'
 import TeamDrawCinematic from './TeamDrawCinematic'
 import TeamDrawOverlay from '../../components/TeamDrawOverlay'
+import SuperRaidOverlay from '../../components/SuperRaidOverlay'
 import ResultOverlay from '../../components/ResultOverlay'
 import SplashScreen from '../../components/SplashScreen'
 import { VoiceChatViewer } from '../../components/VoiceChat'
@@ -53,6 +54,7 @@ export default function OverlayPage() {
   const [poolA, setPoolA] = useState([])
   const [poolB, setPoolB] = useState([])
   const [drawEvent, setDrawEvent] = useState(null)
+  const [superRaid, setSuperRaid] = useState(null)
   const [showPoolView, setShowPoolView] = useState(false)
   // Store auction result separately to prevent unmounting during animation
   const [auctionResult, setAuctionResult] = useState(null)
@@ -315,6 +317,14 @@ export default function OverlayPage() {
         setTimeout(() => setDrawEvent(null), 11000);
       })
 
+      // Cinematic in-game events (e.g. Super Raid)
+      s.on("superRaid", (data) => {
+        // Expecting { title, iconUrl, teamColor, scoreFrom, scoreTo }
+        setSuperRaid(data);
+        // auto clear after animation length
+        setTimeout(() => setSuperRaid(null), 4200);
+      })
+
       s.on("togglePoolView", (data) => {
         setShowPoolView(data.show);
       })
@@ -472,7 +482,7 @@ export default function OverlayPage() {
         >
           {/* 1. TOP LOGO SECTION */}
           {tourLogo && (
-            <div className="absolute top-[6%] left-1/2 -translate-x-1/2 w-[18%] max-w-[130px] flex justify-center z-30">
+            <div className="absolute top-[6%] left-1/2 -translate-x-1/2 w-[18%] flex justify-center z-30" style={{ maxWidth: '130px' }}>
               <img
                 src={getMediaUrl(tourLogo)}
                 alt="Logo"
@@ -499,7 +509,7 @@ export default function OverlayPage() {
 
             {/* Right Sidebar - Extremely compact on mobile */}
             <div className={`flex flex-col items-end transition-all duration-700 ${isMobileView ? 'opacity-20 scale-[0.6] origin-right mt-[20%]' : 'opacity-100'}`}>
-              <div className="bg-black/40 backdrop-blur-md p-3 border-r-2 border-amber-500/30 rounded-l-lg max-w-[110px] text-right">
+              <div className="bg-black/40 backdrop-blur-md p-3 border-r-2 border-amber-500/30 rounded-l-lg text-right" style={{ maxWidth: '110px' }}>
                 <p className="text-white text-[9px] font-black leading-tight tracking-tighter uppercase italic">
                   YOUR EVENT,<br />OUR MANAGEMENT
                 </p>
@@ -664,6 +674,9 @@ export default function OverlayPage() {
       )}
 
       {/* INDEPENDENT CINEMATIC TRIGGER (Overlay) */}
+      {superRaid && (
+        <SuperRaidOverlay event={superRaid} onComplete={() => setSuperRaid(null)} />
+      )}
       {drawEvent && (
         <TeamDrawCinematic
           event={drawEvent}

@@ -134,6 +134,8 @@ function AuctionCard({ title, status, teams, date, onPress }: { title: string; s
   );
 }
 
+import { api } from '../../lib/api';
+
 // ── Main Screen ───────────────────────────────────────────────────────────────
 
 export default function Home() {
@@ -144,11 +146,37 @@ export default function Home() {
   const fadeAnim  = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
 
+  // Real active tournament states
+  const [activeTournament, setActiveTournament] = useState<any>(null);
+  const [activeTeams, setActiveTeams] = useState<any[]>([]);
+  const [activePlayers, setActivePlayers] = useState<any[]>([]);
+  const [allTournaments, setAllTournaments] = useState<any[]>([]);
+
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim,  { toValue: 1, duration: 700, delay: 100, useNativeDriver: true }),
       Animated.timing(slideAnim, { toValue: 0, duration: 600, delay: 100, useNativeDriver: true }),
     ]).start();
+
+    // Fetch active tournament and tournament list from backend
+    const loadHomeData = async () => {
+      try {
+        const activeData = await api.get('/api/tournaments/status/active');
+        if (activeData && activeData.tournament) {
+          setActiveTournament(activeData.tournament);
+          setActiveTeams(activeData.teams || []);
+          setActivePlayers(activeData.players || []);
+        }
+
+        const listData = await api.get('/api/tournaments');
+        if (Array.isArray(listData)) {
+          setAllTournaments(listData);
+        }
+      } catch (err) {
+        console.error('Error loading home data:', err);
+      }
+    };
+    loadHomeData();
   }, []);
 
   // Header blur on scroll
@@ -157,12 +185,6 @@ export default function Home() {
     outputRange: ['rgba(8,12,24,0)', 'rgba(8,12,24,0.98)'],
     extrapolate: 'clamp',
   });
-
-  const auctions = [
-    { id: 1, title: 'Premier League Auction',      status: 'LIVE',      teams: 10, date: 'Today' },
-    { id: 2, title: 'Makenahalli Premier League',  status: 'UPCOMING',  teams: 8,  date: 'Jun 15' },
-    { id: 3, title: 'Koratagere Premier League',   status: 'COMPLETED', teams: 12, date: 'May 10' },
-  ];
 
   return (
     <View style={styles.root}>
@@ -193,7 +215,11 @@ export default function Home() {
       >
         {/* ── Hero Card ── */}
         <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
-          <TouchableOpacity activeOpacity={0.92} style={styles.heroWrapper} onPress={() => router.push('/auction/1')}>
+          <TouchableOpacity 
+            activeOpacity={0.92} 
+            style={styles.heroWrapper} 
+            onPress={() => activeTournament ? router.push(`/auction/${activeTournament._id}`) : router.push('/(tabs)/auctions')}
+          >
             <LinearGradient
               colors={['#1A1040', '#0D1226', '#080C18']}
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
@@ -202,33 +228,41 @@ export default function Home() {
               {/* Top row: labels */}
               <View style={styles.heroTopRow}>
                 <Text style={styles.heroCornerLabel}>ACTIVE ARENA</Text>
-                <View style={styles.liveBadge}>
-                  <PulseDot />
-                  <Text style={styles.liveBadgeText}>LIVE NOW</Text>
-                </View>
+                {activeTournament ? (
+                  <View style={styles.liveBadge}>
+                    <PulseDot />
+                    <Text style={styles.liveBadgeText}>LIVE NOW</Text>
+                  </View>
+                ) : (
+                  <View style={[styles.liveBadge, { backgroundColor: '#374151' }]}>
+                    <Text style={[styles.liveBadgeText, { color: '#9CA3AF' }]}>OFFLINE</Text>
+                  </View>
+                )}
                 <Text style={styles.heroCornerLabel}>OCTAVE / WATCHERS</Text>
               </View>
 
               {/* Main content */}
-              <Text style={styles.heroTitle}>Premier League{'\n'}Auction</Text>
+              <Text style={styles.heroTitle}>{activeTournament ? activeTournament.name : 'No Active Auction'}</Text>
 
               <View style={styles.heroPlayerRow}>
-                <Text style={styles.heroPlayerLabel}>CURRENT PLAYER</Text>
-                <Text style={styles.heroPlayerName}>Virat Kohli</Text>
+                <Text style={styles.heroPlayerLabel}>{activeTournament ? 'ORGANIZER' : 'SYSTEM STATUS'}</Text>
+                <Text style={styles.heroPlayerName}>
+                  {activeTournament ? (activeTournament.organizerName || 'Organized') : 'Waiting for Auction'}
+                </Text>
               </View>
 
               {/* Stats */}
               <View style={styles.statsRow}>
-                <StatPill label="TEAMS"      value="10"      />
+                <StatPill label="TEAMS"      value={String(activeTournament ? activeTeams.length : 0)}      />
                 <View style={styles.statDivider} />
-                <StatPill label="PLAYERS"    value="250+"    />
+                <StatPill label="PLAYERS"    value={String(activeTournament ? activePlayers.filter(p => !p.isIcon).length : 0)}    />
                 <View style={styles.statDivider} />
-                <StatPill label="PRIZE POOL" value="₹100 Cr" />
+                <StatPill label="BASE BUDGET" value={activeTournament ? `₹${activeTournament.baseBudget} Cr` : 'N/A'} />
               </View>
 
               {/* CTA */}
               <TouchableOpacity
-                onPress={() => router.push('/auction/1')}
+                onPress={() => activeTournament ? router.push(`/auction/${activeTournament._id}`) : router.push('/(tabs)/auctions')}
                 activeOpacity={0.88}
               >
                 <LinearGradient
@@ -237,7 +271,7 @@ export default function Home() {
                   style={styles.enterBtn}
                 >
                   <Text style={styles.enterBtnIcon}>▶</Text>
-                  <Text style={styles.enterBtnText}>Enter Arena</Text>
+                  <Text style={styles.enterBtnText}>{activeTournament ? 'Enter Arena' : 'View Auctions'}</Text>
                 </LinearGradient>
               </TouchableOpacity>
 
@@ -287,9 +321,22 @@ export default function Home() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.horizontalScroll}
         >
-          {auctions.map(a => (
-            <AuctionCard key={a.id} {...a} onPress={() => router.push(`/auction/${a.id}`)} />
-          ))}
+          {allTournaments.slice(0, 5).map(t => {
+            const isLive = t.status === 'active';
+            const isCompleted = t.status === 'completed';
+            const statusText = isLive ? 'LIVE' : isCompleted ? 'COMPLETED' : 'UPCOMING';
+            
+            return (
+              <AuctionCard 
+                key={t._id} 
+                title={t.name}
+                status={statusText}
+                teams={t.numTeams || 0}
+                date={new Date(t.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                onPress={() => router.push(`/auction/${t._id}`)} 
+              />
+            );
+          })}
         </ScrollView>
 
         {/* ── Services section ── */}

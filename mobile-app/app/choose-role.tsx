@@ -17,6 +17,7 @@ export default function ChooseRole() {
   };
 
   const roles: { id: UserRole; title: string; desc: string }[] = [
+    { id: 'admin', title: 'Tournament Admin', desc: 'Create tournaments, manage auctions, and oversee the platform.' },
     { id: 'owner', title: 'Team Owner', desc: 'Manage budget, buy players, and build squad.' },
     { id: 'bidder', title: 'Bidder / Manager', desc: 'Participate in bidding on behalf of owners.' },
     { id: 'viewer', title: 'Viewer', desc: 'Watch the live auction and track results.' },
@@ -58,6 +59,13 @@ export default function ChooseRole() {
           disabled={!selectedRole}
         >
           <Text style={styles.buttonText}>Continue</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.loginLink}
+          onPress={() => router.push('/login')}
+        >
+          <Text style={styles.loginLinkText}>Are you an Admin? Sign In with Password</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -142,5 +150,15 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
+  },
+  loginLink: {
+    alignItems: 'center',
+    marginTop: 20,
+    paddingVertical: 10,
+  },
+  loginLinkText: {
+    color: '#00D1FF',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

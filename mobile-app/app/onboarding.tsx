@@ -162,9 +162,13 @@ export default function Onboarding() {
       {/* Top Header */}
       <View style={styles.header}>
         <Text style={styles.logoText}>ARENA</Text>
-        {currentSlide < 4 && (
+        {currentSlide < 4 ? (
           <TouchableOpacity onPress={handleSkip}>
             <Text style={styles.skipText}>Skip</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity onPress={() => router.push('/login')}>
+            <Text style={{ color: '#00D1FF', fontWeight: '700' }}>Admin Login</Text>
           </TouchableOpacity>
         )}
       </View>
