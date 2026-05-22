@@ -64,6 +64,8 @@ export default function MobileBottomNav() {
     pathname?.startsWith('/sports/display') ||
     pathname?.startsWith('/sports/live') ||
     pathname?.startsWith('/live/mobile') ||
+    pathname?.startsWith('/live/kabaddi') ||
+    pathname?.startsWith('/camera') ||
     pathname?.startsWith('/admin') ||
     pathname?.startsWith('/team/') ||
     isApplicationRoute(pathname);

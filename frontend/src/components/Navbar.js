@@ -34,6 +34,8 @@ export default function Navbar() {
     pathname.startsWith('/sports/display') ||
     pathname.startsWith('/sports/live') ||
     pathname.startsWith('/live/mobile') ||
+    pathname.startsWith('/live/kabaddi') ||
+    pathname.startsWith('/camera') ||
     pathname.startsWith('/team/') ||
     pathname.startsWith('/admin') ||
     pathname.startsWith('/mobile') ||

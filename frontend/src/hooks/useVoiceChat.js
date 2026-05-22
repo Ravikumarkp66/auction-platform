@@ -169,7 +169,7 @@ export function useVoiceChat(socket, roomId, isAdmin, adminId) {
   }, [socket, voiceRoomId]);
 
   // ─── Camera: open mic + camera only (no socket publish) — for full-screen mobile prep UI
-  const prepareCamera = useCallback(async () => {
+  const prepareCamera = useCallback(async (audioEnabled = true) => {
     if (!voiceRoomId) {
       setError("Missing tournament for broadcast.");
       return;
@@ -183,13 +183,13 @@ export function useVoiceChat(socket, roomId, isAdmin, adminId) {
         videoTrackRef.current = null;
       }
       const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { 
+        audio: audioEnabled ? { 
           echoCancellation: true, 
           noiseSuppression: true, 
           autoGainControl: true,
           channelCount: 1,
           sampleRate: 48000
-        },
+        } : false,
         video: {
           facingMode,
           width: { ideal: 1280, max: 1920 },
@@ -242,38 +242,75 @@ export function useVoiceChat(socket, roomId, isAdmin, adminId) {
     socket?.emit("voice-stop-broadcast", { roomId: voiceRoomId });
   }, [socket, voiceRoomId]);
 
-  // ─── Camera Switch (seamless via replaceTrack) ────────────────────────────
-  const switchCamera = useCallback(async () => {
+  // ─── Camera Switch (Robust Tear-down approach) ────────────────────────────
+  const switchCamera = useCallback(async (audioEnabled = true) => {
     if (!localStreamRef.current) return;
     const newMode = facingMode === "user" ? "environment" : "user";
+    
     try {
+      // 1. Remember if we were currently live
+      const wasLive = isBroadcasterRef.current;
+
+      // 2. Tear down the current broadcast completely
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach((t) => t.stop());
+        localStreamRef.current = null;
+      }
+      setLocalStream(null);
+      videoTrackRef.current = null;
+      
+      // We do NOT call `stopBroadcast` entirely because we don't want to clear peers
+      // just yet. Actually, `publishLive` will emit `voice-start-broadcast`,
+      // which forces the viewers to re-request offers! So we can just drop the stream
+      // and grab a new one.
+
+      setFacingMode(newMode);
+
+      // 3. Grab the new camera stream
       const newStream = await navigator.mediaDevices.getUserMedia({
+        audio: audioEnabled ? { 
+          echoCancellation: true, 
+          noiseSuppression: true, 
+          autoGainControl: true,
+          channelCount: 1,
+          sampleRate: 48000
+        } : false,
         video: {
-          facingMode: newMode,
+          facingMode: { exact: newMode }, // enforce exact mode
           width: { ideal: 1280, max: 1920 },
           height: { ideal: 720, max: 1080 },
           frameRate: { ideal: 30, max: 30 },
         },
       });
-      const newTrack = newStream.getVideoTracks()[0];
 
-      // Seamlessly replace in all peer connections — no reconnect
-      for (const peer of Object.values(peersRef.current)) {
-        const sender = peer.getSenders().find((s) => s.track?.kind === "video");
-        if (sender) await sender.replaceTrack(newTrack);
+      localStreamRef.current = newStream;
+      setLocalStream(newStream);
+      videoTrackRef.current = newStream.getVideoTracks()[0] || null;
+      setZoom(1);
+
+      // 4. Re-publish if we were live
+      if (wasLive) {
+        publishLive(); // This tells viewers a new broadcast started, triggering WebRTC renegotiation flawlessly
       }
 
-      if (videoTrackRef.current) videoTrackRef.current.stop();
-      localStreamRef.current.removeTrack(videoTrackRef.current);
-      localStreamRef.current.addTrack(newTrack);
-      videoTrackRef.current = newTrack;
-      setFacingMode(newMode);
-      setZoom(1);
     } catch (err) {
       console.error("[VoiceChat] Switch camera error:", err);
-      setError("Could not switch camera.");
+      // Fallback if "exact" facing mode fails on some devices (e.g., desktops without rear camera)
+      try {
+        const fallbackStream = await navigator.mediaDevices.getUserMedia({
+          audio: audioEnabled,
+          video: { facingMode: newMode },
+        });
+        localStreamRef.current = fallbackStream;
+        setLocalStream(fallbackStream);
+        videoTrackRef.current = fallbackStream.getVideoTracks()[0] || null;
+        if (isBroadcasterRef.current) publishLive();
+      } catch (fallbackErr) {
+        console.error("[VoiceChat] Fallback switch failed:", fallbackErr);
+        setError("Could not switch camera. Hardware unsupported or busy.");
+      }
     }
-  }, [facingMode]);
+  }, [facingMode, publishLive]);
 
   // ─── Zoom ─────────────────────────────────────────────────────────────────
   const adjustZoom = useCallback(async (value) => {

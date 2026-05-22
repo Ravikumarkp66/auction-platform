@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, use } from "react";
 import io from "socket.io-client";
 import { useVoiceChat } from "@/hooks/useVoiceChat";
-import { Camera, Radio, VideoOff, SwitchCamera, AlertTriangle, Battery, Signal, ArrowLeft } from "lucide-react";
+import { Camera, Radio, VideoOff, SwitchCamera, AlertTriangle, Battery, Signal, ArrowLeft, Mic, MicOff, RotateCcw } from "lucide-react";
 import Link from "next/link";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
@@ -14,6 +14,18 @@ export default function MobileCameraPage({ params }) {
 
     const [socket, setSocket] = useState(null);
     const videoRef = useRef(null);
+    const [audioEnabled, setAudioEnabled] = useState(false);
+    const [isPortrait, setIsPortrait] = useState(false);
+
+    // Orientation detection
+    useEffect(() => {
+        const checkOrientation = () => {
+            setIsPortrait(window.innerHeight > window.innerWidth);
+        };
+        checkOrientation();
+        window.addEventListener("resize", checkOrientation);
+        return () => window.removeEventListener("resize", checkOrientation);
+    }, []);
 
     // Initialize Socket.io
     useEffect(() => {
@@ -58,8 +70,12 @@ export default function MobileCameraPage({ params }) {
         if (isLive) {
             stopBroadcast();
         } else {
-            startBroadcast();
+            startBroadcast(audioEnabled);
         }
+    };
+
+    const handleSwitchCamera = () => {
+        switchCamera(audioEnabled);
     };
 
     return (
@@ -75,6 +91,17 @@ export default function MobileCameraPage({ params }) {
                     transform: facingMode === "user" ? "scaleX(-1)" : "none"
                 }}
             />
+
+            {/* PORTRAIT WARNING OVERLAY */}
+            {isPortrait && (
+                <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-xl p-8 text-center">
+                    <RotateCcw size={64} className="text-red-500 mb-6 animate-[spin_2s_ease-in-out_infinite]" />
+                    <h2 className="text-2xl font-black uppercase tracking-widest text-white mb-4">Rotate Device</h2>
+                    <p className="text-sm text-slate-400 font-bold uppercase tracking-wider leading-relaxed">
+                        Kabaddi broadcasts must be in landscape format. Please rotate your phone to continue.
+                    </p>
+                </div>
+            )}
 
             {/* Dark gradient overlays for readability */}
             <div className="absolute top-0 left-0 right-0 h-24 bg-gradient-to-b from-black/80 to-transparent z-10 pointer-events-none" />
@@ -153,7 +180,19 @@ export default function MobileCameraPage({ params }) {
                 {/* Auxiliary Controls */}
                 <div className="absolute right-8 bottom-10 flex gap-4">
                     <button 
-                        onClick={switchCamera}
+                        onClick={() => {
+                            setAudioEnabled(!audioEnabled);
+                            // If live, we would need to tear down and restart to change constraints, 
+                            // but for simplicity, we just change state. The user can restart stream.
+                        }}
+                        className={`p-4 border backdrop-blur rounded-full transition-colors active:scale-95 ${
+                            audioEnabled ? "bg-red-500/20 border-red-500 text-red-400" : "bg-white/10 hover:bg-white/20 border-white/10 text-white"
+                        }`}
+                    >
+                        {audioEnabled ? <Mic size={24} /> : <MicOff size={24} />}
+                    </button>
+                    <button 
+                        onClick={handleSwitchCamera}
                         className="p-4 bg-white/10 hover:bg-white/20 border border-white/10 backdrop-blur rounded-full transition-colors active:scale-95"
                     >
                         <SwitchCamera size={24} className="text-white" />
