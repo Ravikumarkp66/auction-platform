@@ -4,8 +4,10 @@ import { useState, useEffect, useRef, use } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import io from "socket.io-client";
-import { ArrowLeft, RotateCcw, Share2, Flame, Play, Pause, Plus, Minus, Hourglass, X, Check, Shield, Swords, Zap, Settings, AlertTriangle, Maximize2, MonitorUp, Radio, BarChart2, Mic, MicOff } from "lucide-react";
+import { ArrowLeft, RotateCcw, Share2, Flame, Play, Pause, Plus, Minus, Hourglass, X, Check, Shield, Swords, Zap, Settings, AlertTriangle, Maximize2, MonitorUp, Radio, BarChart2, Mic, MicOff, Camera, Video, Smartphone } from "lucide-react";
 import { VoiceChatAdmin } from "@/components/VoiceChat";
+import { useVoiceChat } from "@/hooks/useVoiceChat";
+import { QRCodeSVG } from "qrcode.react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
@@ -33,9 +35,14 @@ export default function SportsMatchScorer({ params }) {
   const [showMicPanel, setShowMicPanel] = useState(false);
   const [isMicLive, setIsMicLive] = useState(false);
   const [voiceSocket, setVoiceSocket] = useState(null);
+  const [cameraSocket, setCameraSocket] = useState(null);
   const timerIntervalRef = useRef(null);
   const socketRef = useRef(null);
   const voiceSocketRef = useRef(null);
+  const [showCameraPanel, setShowCameraPanel] = useState(false);
+
+  // Hook into the dedicated camera room purely as a viewer to check if the camera is LIVE
+  const { isLive: isCameraLive } = useVoiceChat(cameraSocket, `${matchId}_camera`, false);
 
   // ─── RAID RESOLUTION MODAL STATE ───
   const [showResolveModal, setShowResolveModal] = useState(false);
@@ -97,7 +104,18 @@ export default function SportsMatchScorer({ params }) {
     });
     voiceSocketRef.current = vs;
     setVoiceSocket(vs);
-    return () => vs.disconnect();
+    const cs = io(API_URL, {
+      transports: ["websocket", "polling"],
+      withCredentials: true,
+      forceNew: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+    });
+    setCameraSocket(cs);
+    return () => {
+      vs.disconnect();
+      cs.disconnect();
+    };
   }, []);
 
   // Client timer loop
@@ -617,6 +635,20 @@ export default function SportsMatchScorer({ params }) {
             <Radio size={15} /> Public Live
           </Link>
           <button
+            onClick={() => setShowCameraPanel(s => !s)}
+            className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition border ${
+              isCameraLive
+                ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.2)] animate-pulse"
+                : showCameraPanel
+                  ? "bg-slate-700 border-slate-600 text-white shadow-lg"
+                  : "bg-slate-800 border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700"
+            }`}
+            title="Connect Mobile Camera"
+          >
+            {isCameraLive ? <Video size={15} /> : <Camera size={15} />}
+            <span className="hidden lg:inline">{isCameraLive ? "Cam Live" : "Mobile Cam"}</span>
+          </button>
+          <button
             onClick={() => setShowStats(s => !s)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition border ${
               showStats
@@ -673,6 +705,37 @@ export default function SportsMatchScorer({ params }) {
               currentAdminId={matchId}
               onLiveChange={setIsMicLive}
             />
+          </div>
+        </div>
+      )}
+
+      {/* Camera Connect Panel */}
+      {showCameraPanel && (
+        <div className="p-4 border-b border-white/5 bg-slate-900 shadow-2xl relative overflow-hidden flex flex-col md:flex-row items-center gap-8 justify-center">
+          <button onClick={() => setShowCameraPanel(false)} className="absolute top-2 right-2 p-1.5 text-slate-500 hover:text-white hover:bg-white/10 rounded-lg transition">
+            <X size={16} />
+          </button>
+          <div className="flex flex-col items-center">
+            <div className="p-4 bg-white rounded-xl shadow-xl shadow-black/50">
+              <QRCodeSVG value={`${typeof window !== 'undefined' ? window.location.origin : ''}/camera/kabaddi/${matchId}`} size={160} />
+            </div>
+          </div>
+          <div className="max-w-md text-center md:text-left">
+            <div className="flex items-center gap-3 justify-center md:justify-start mb-2">
+              <Smartphone size={24} className={isCameraLive ? "text-emerald-400" : "text-slate-400"} />
+              <h3 className="text-lg font-black uppercase tracking-widest text-white">Live Mobile Camera</h3>
+            </div>
+            <p className="text-xs text-slate-400 mb-4 leading-relaxed font-semibold">
+              Scan this QR code with a mobile phone to instantly turn it into a wireless broadcast camera for this match. Mount the phone on a tripod for the best stadium view!
+            </p>
+            <div className="flex items-center justify-center md:justify-start gap-4">
+              <div className="flex items-center gap-2">
+                <div className={`w-3 h-3 rounded-full ${isCameraLive ? "bg-emerald-500 animate-pulse" : "bg-slate-600"}`} />
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-300">
+                  Status: {isCameraLive ? <span className="text-emerald-400">Connected & Live</span> : "Waiting..."}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       )}

@@ -258,6 +258,7 @@ function LiveBroadcastInner({ params }) {
     const [soundEnabled, setSoundEnabled] = useState(false);
     const [isNativeFullscreen, setIsNativeFullscreen] = useState(false);
     const [voiceSocket, setVoiceSocket] = useState(null);
+    const [cameraSocket, setCameraSocket] = useState(null);
     const [commentaryVolume, setCommentaryVolume] = useState(0.9);
 
     const timerIntervalRef = useRef(null);
@@ -268,10 +269,11 @@ function LiveBroadcastInner({ params }) {
     const audioContextRef = useRef(null);
     const rootRef = useRef(null);
     const commentaryAudioRef = useRef(null);
+    const videoRef = useRef(null);
 
     const isFullscreen = isFullscreenParam || isNativeFullscreen;
 
-    // ── Voice socket for commentary ──────────────────────────────────
+    // ── Voice and Camera sockets ──────────────────────────────────
     useEffect(() => {
         const vs = io(API_URL, { 
             transports: ["websocket", "polling"], 
@@ -281,18 +283,39 @@ function LiveBroadcastInner({ params }) {
             reconnectionDelay: 1000,
         });
         setVoiceSocket(vs);
-        return () => vs.disconnect();
+
+        const cs = io(API_URL, { 
+            transports: ["websocket", "polling"], 
+            withCredentials: true, 
+            forceNew: true,
+            reconnectionAttempts: 5,
+            reconnectionDelay: 1000,
+        });
+        setCameraSocket(cs);
+
+        return () => { vs.disconnect(); cs.disconnect(); };
     }, []);
 
     // ── useVoiceChat viewer hook ──────────────────────────────────────
     const voiceRoomId = voiceSocket ? `kabaddi-${matchId}` : null;
     const { isLive: isMicLive, audioRef: voiceAudioRef, changeVolume: setVoiceVolume } = useVoiceChat(voiceSocket, voiceRoomId, false);
 
+    // ── Camera viewer hook ───────────────────────────────────────────
+    const cameraRoomId = cameraSocket ? `${matchId}_camera` : null;
+    const { remoteVideoStream, isLive: isCameraLive } = useVoiceChat(cameraSocket, cameraRoomId, false);
+
     useEffect(() => {
         if (voiceAudioRef?.current) {
             voiceAudioRef.current.volume = commentaryVolume;
         }
     }, [commentaryVolume]);
+
+    // Attach incoming camera stream
+    useEffect(() => {
+        if (videoRef.current && remoteVideoStream) {
+            videoRef.current.srcObject = remoteVideoStream;
+        }
+    }, [remoteVideoStream]);
 
     // ── Fullscreen API ──────────────────────────────────────────
     const toggleFullscreen = async () => {
@@ -477,11 +500,25 @@ function LiveBroadcastInner({ params }) {
     return (
         <div
             ref={rootRef}
-            className="min-h-screen bg-[#04060f] text-white font-sans overflow-y-auto"
-            style={{ background: `radial-gradient(ellipse 60% 40% at 10% 0%, ${hex2rgba(colorA, 0.13)}, transparent 55%), radial-gradient(ellipse 60% 40% at 90% 0%, ${hex2rgba(colorB, 0.13)}, transparent 55%), #04060f` }}
+            className="min-h-screen text-white font-sans overflow-y-auto relative"
+            style={{ 
+                background: isCameraLive 
+                    ? "transparent" 
+                    : `radial-gradient(ellipse 60% 40% at 10% 0%, ${hex2rgba(colorA, 0.13)}, transparent 55%), radial-gradient(ellipse 60% 40% at 90% 0%, ${hex2rgba(colorB, 0.13)}, transparent 55%), #04060f` 
+            }}
             onPointerDown={unlockAudio}
             onTouchStart={unlockAudio}
         >
+            {/* ══ MOBILE CAMERA BACKGROUND FEED ══ */}
+            <video 
+                ref={videoRef} 
+                autoPlay 
+                playsInline 
+                muted 
+                className={`fixed inset-0 w-full h-full object-cover z-[-10] transition-opacity duration-1000 ${isCameraLive ? "opacity-100" : "opacity-0"}`} 
+            />
+            {/* Slight dark overlay over camera to ensure text readability */}
+            {isCameraLive && <div className="fixed inset-0 bg-black/40 z-[-9] pointer-events-none" />}
             {/* ── GLOBAL STYLES ── */}
             <style>{`
                 @keyframes fadeDown  { from { opacity:0; transform:translateY(-14px); } to { opacity:1; transform:none; } }
@@ -554,8 +591,12 @@ function LiveBroadcastInner({ params }) {
                 {/* SCORE HERO + MAT DOTS + OUT QUEUE               */}
                 {/* ════════════════════════════════════════════════ */}
                 <section
-                    className="relative rounded-[2rem] overflow-hidden border border-white/[0.04] shadow-[0_0_80px_rgba(0,0,0,0.6)]"
-                    style={{ background: `linear-gradient(135deg, ${hex2rgba(colorA, 0.12)} 0%, rgba(4,6,15,0.98) 35%, rgba(4,6,15,0.98) 65%, ${hex2rgba(colorB, 0.12)} 100%)` }}
+                    className={`relative rounded-[2rem] overflow-hidden border border-white/[0.04] shadow-[0_0_80px_rgba(0,0,0,0.6)] ${isCameraLive ? "backdrop-blur-xl" : ""}`}
+                    style={{ 
+                        background: isCameraLive
+                            ? `linear-gradient(135deg, ${hex2rgba(colorA, 0.15)} 0%, rgba(4,6,15,0.40) 35%, rgba(4,6,15,0.40) 65%, ${hex2rgba(colorB, 0.15)} 100%)`
+                            : `linear-gradient(135deg, ${hex2rgba(colorA, 0.12)} 0%, rgba(4,6,15,0.98) 35%, rgba(4,6,15,0.98) 65%, ${hex2rgba(colorB, 0.12)} 100%)` 
+                    }}
                 >
                     {/* Live badge + venue */}
                     <div className="flex items-center justify-between px-5 pt-4 pb-1">
