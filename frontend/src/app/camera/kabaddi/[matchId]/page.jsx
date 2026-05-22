@@ -19,12 +19,23 @@ export default function MobileCameraPage({ params }) {
 
     // Orientation detection
     useEffect(() => {
-        const checkOrientation = () => {
-            setIsPortrait(window.innerHeight > window.innerWidth);
+        // matchMedia for robust mobile orientation detection
+        const media = window.matchMedia("(orientation: landscape)");
+        
+        const handler = (e) => {
+            // If it matches landscape, it's NOT portrait. 
+            // Wait a few ms for Android viewport rendering to catch up.
+            setTimeout(() => {
+                setIsPortrait(!e.matches);
+            }, 300);
         };
-        checkOrientation();
-        window.addEventListener("resize", checkOrientation);
-        return () => window.removeEventListener("resize", checkOrientation);
+
+        // Initial check
+        setIsPortrait(!media.matches);
+
+        // Listen for changes
+        media.addEventListener("change", handler);
+        return () => media.removeEventListener("change", handler);
     }, []);
 
     // Initialize Socket.io
@@ -66,10 +77,18 @@ export default function MobileCameraPage({ params }) {
         };
     }, [stopBroadcast]);
 
-    const handleToggleStream = () => {
+    const handleToggleStream = async () => {
         if (isLive) {
             stopBroadcast();
         } else {
+            // Attempt to lock screen orientation to landscape upon user interaction
+            try {
+                if (screen.orientation && screen.orientation.lock) {
+                    await screen.orientation.lock("landscape");
+                }
+            } catch (err) {
+                console.warn("Screen orientation lock failed or not supported:", err);
+            }
             startBroadcast(audioEnabled);
         }
     };
@@ -92,13 +111,12 @@ export default function MobileCameraPage({ params }) {
                 }}
             />
 
-            {/* PORTRAIT WARNING OVERLAY */}
+            {/* PORTRAIT WARNING OVERLAY - Non-blocking floating warning */}
             {isPortrait && (
-                <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-xl p-8 text-center">
-                    <RotateCcw size={64} className="text-red-500 mb-6 animate-[spin_2s_ease-in-out_infinite]" />
-                    <h2 className="text-2xl font-black uppercase tracking-widest text-white mb-4">Rotate Device</h2>
-                    <p className="text-sm text-slate-400 font-bold uppercase tracking-wider leading-relaxed">
-                        Kabaddi broadcasts must be in landscape format. Please rotate your phone to continue.
+                <div className="absolute top-24 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-red-950/80 backdrop-blur-xl border border-red-500/50 px-5 py-3 rounded-full shadow-2xl animate-bounce">
+                    <RotateCcw size={20} className="text-red-400" />
+                    <p className="text-xs text-white font-bold uppercase tracking-widest whitespace-nowrap">
+                        Rotate for better broadcast
                     </p>
                 </div>
             )}
