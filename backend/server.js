@@ -312,6 +312,25 @@ io.on("connection", (socket) => {
     else io.to(targetSocketId).emit(event, payload);
   }
 
+  // ─── Camera Auth & Approval Flow ───
+  socket.on("camera-request-access", ({ roomId, deviceInfo }) => {
+    const rid = normalizeVoiceRoomId(roomId);
+    if (!rid) return;
+    socket.to(rid).emit("camera-access-requested", {
+      socketId: socket.id,
+      deviceInfo,
+      timestamp: Date.now()
+    });
+  });
+
+  socket.on("camera-approve-access", ({ toSocketId }) => {
+    emitToSocketId(toSocketId, "camera-access-approved", { adminSocketId: socket.id });
+  });
+
+  socket.on("camera-deny-access", ({ toSocketId }) => {
+    emitToSocketId(toSocketId, "camera-access-denied", { adminSocketId: socket.id });
+  });
+
   socket.on("voice-join-room", ({ roomId }) => {
     const rid = normalizeVoiceRoomId(roomId);
     if (!rid) return;

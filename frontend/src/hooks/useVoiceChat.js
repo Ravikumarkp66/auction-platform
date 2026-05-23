@@ -182,6 +182,51 @@ export function useVoiceChat(socket, roomId, isAdmin, adminId) {
         setLocalStream(null);
         videoTrackRef.current = null;
       }
+      // Try to find specific device ID for better lens selection on Android
+      let videoConstraints = {
+        facingMode,
+        width: { ideal: 1280, max: 1920 },
+        height: { ideal: 720, max: 1080 },
+        aspectRatio: 16 / 9,
+        frameRate: { ideal: 30, max: 30 },
+      };
+
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = devices.filter(d => d.kind === 'videoinput');
+        
+        // Only use specific device if labels are available (permission granted)
+        if (videoDevices.length > 0 && videoDevices[0].label !== "") {
+          let selectedDevice = null;
+          if (facingMode === "environment") {
+            const backCams = videoDevices.filter(d => {
+              const l = d.label.toLowerCase();
+              return l.includes("back") || l.includes("rear") || l.includes("environment");
+            });
+            // Try to avoid macro/ultrawide by default if standard is available
+            const standardBack = backCams.find(d => {
+              const l = d.label.toLowerCase();
+              return !l.includes("ultrawide") && !l.includes("macro") && !l.includes("depth");
+            });
+            if (standardBack) selectedDevice = standardBack.deviceId;
+            else if (backCams.length > 0) selectedDevice = backCams[0].deviceId;
+          } else {
+            const frontCams = videoDevices.filter(d => {
+              const l = d.label.toLowerCase();
+              return l.includes("front") || l.includes("user");
+            });
+            if (frontCams.length > 0) selectedDevice = frontCams[0].deviceId;
+          }
+
+          if (selectedDevice) {
+            videoConstraints.deviceId = { exact: selectedDevice };
+            delete videoConstraints.facingMode;
+          }
+        }
+      } catch (err) {
+        console.warn("[VoiceChat] enumerateDevices failed, falling back to facingMode", err);
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: audioEnabled ? { 
           echoCancellation: true, 
@@ -190,12 +235,7 @@ export function useVoiceChat(socket, roomId, isAdmin, adminId) {
           channelCount: 1,
           sampleRate: 48000
         } : false,
-        video: {
-          facingMode,
-          width: { ideal: 1280, max: 1920 },
-          height: { ideal: 720, max: 1080 },
-          frameRate: { ideal: 30, max: 30 },
-        },
+        video: videoConstraints,
       });
       localStreamRef.current = stream;
       setLocalStream(stream);
@@ -266,6 +306,49 @@ export function useVoiceChat(socket, roomId, isAdmin, adminId) {
 
       setFacingMode(newMode);
 
+      // Try to find specific device ID for better lens selection on Android
+      let videoConstraints = {
+        facingMode: { exact: newMode },
+        width: { ideal: 1280, max: 1920 },
+        height: { ideal: 720, max: 1080 },
+        aspectRatio: 16 / 9,
+        frameRate: { ideal: 30, max: 30 },
+      };
+
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = devices.filter(d => d.kind === 'videoinput');
+        
+        if (videoDevices.length > 0 && videoDevices[0].label !== "") {
+          let selectedDevice = null;
+          if (newMode === "environment") {
+            const backCams = videoDevices.filter(d => {
+              const l = d.label.toLowerCase();
+              return l.includes("back") || l.includes("rear") || l.includes("environment");
+            });
+            const standardBack = backCams.find(d => {
+              const l = d.label.toLowerCase();
+              return !l.includes("ultrawide") && !l.includes("macro") && !l.includes("depth");
+            });
+            if (standardBack) selectedDevice = standardBack.deviceId;
+            else if (backCams.length > 0) selectedDevice = backCams[0].deviceId;
+          } else {
+            const frontCams = videoDevices.filter(d => {
+              const l = d.label.toLowerCase();
+              return l.includes("front") || l.includes("user");
+            });
+            if (frontCams.length > 0) selectedDevice = frontCams[0].deviceId;
+          }
+
+          if (selectedDevice) {
+            videoConstraints.deviceId = { exact: selectedDevice };
+            delete videoConstraints.facingMode;
+          }
+        }
+      } catch (err) {
+        console.warn("[VoiceChat] enumerateDevices failed, falling back to facingMode", err);
+      }
+
       // 3. Grab the new camera stream
       const newStream = await navigator.mediaDevices.getUserMedia({
         audio: audioEnabled ? { 
@@ -275,12 +358,7 @@ export function useVoiceChat(socket, roomId, isAdmin, adminId) {
           channelCount: 1,
           sampleRate: 48000
         } : false,
-        video: {
-          facingMode: { exact: newMode }, // enforce exact mode
-          width: { ideal: 1280, max: 1920 },
-          height: { ideal: 720, max: 1080 },
-          frameRate: { ideal: 30, max: 30 },
-        },
+        video: videoConstraints,
       });
 
       localStreamRef.current = newStream;
@@ -309,6 +387,81 @@ export function useVoiceChat(socket, roomId, isAdmin, adminId) {
         console.error("[VoiceChat] Fallback switch failed:", fallbackErr);
         setError("Could not switch camera. Hardware unsupported or busy.");
       }
+    }
+  }, [facingMode, publishLive]);
+
+  // ─── Camera Restart (For orientation changes) ─────────────────────────────
+  const restartCamera = useCallback(async (audioEnabled = true) => {
+    if (!localStreamRef.current) return;
+    
+    try {
+      const wasLive = isBroadcasterRef.current;
+
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach((t) => t.stop());
+        localStreamRef.current = null;
+      }
+      setLocalStream(null);
+      videoTrackRef.current = null;
+
+      let videoConstraints = {
+        facingMode: { exact: facingMode },
+        width: { ideal: 1280, max: 1920 },
+        height: { ideal: 720, max: 1080 },
+        aspectRatio: 16 / 9,
+        frameRate: { ideal: 30, max: 30 },
+      };
+
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = devices.filter(d => d.kind === 'videoinput');
+        
+        if (videoDevices.length > 0 && videoDevices[0].label !== "") {
+          let selectedDevice = null;
+          if (facingMode === "environment") {
+            const backCams = videoDevices.filter(d => {
+              const l = d.label.toLowerCase();
+              return l.includes("back") || l.includes("rear") || l.includes("environment");
+            });
+            const standardBack = backCams.find(d => {
+              const l = d.label.toLowerCase();
+              return !l.includes("ultrawide") && !l.includes("macro") && !l.includes("depth");
+            });
+            if (standardBack) selectedDevice = standardBack.deviceId;
+            else if (backCams.length > 0) selectedDevice = backCams[0].deviceId;
+          } else {
+            const frontCams = videoDevices.filter(d => {
+              const l = d.label.toLowerCase();
+              return l.includes("front") || l.includes("user");
+            });
+            if (frontCams.length > 0) selectedDevice = frontCams[0].deviceId;
+          }
+
+          if (selectedDevice) {
+            videoConstraints.deviceId = { exact: selectedDevice };
+            delete videoConstraints.facingMode;
+          }
+        }
+      } catch (err) {}
+
+      const newStream = await navigator.mediaDevices.getUserMedia({
+        audio: audioEnabled ? { 
+          echoCancellation: true, 
+          noiseSuppression: true, 
+          autoGainControl: true,
+          channelCount: 1,
+          sampleRate: 48000
+        } : false,
+        video: videoConstraints,
+      });
+
+      localStreamRef.current = newStream;
+      setLocalStream(newStream);
+      videoTrackRef.current = newStream.getVideoTracks()[0] || null;
+
+      if (wasLive) publishLive();
+    } catch (err) {
+      console.error("[VoiceChat] Restart camera error:", err);
     }
   }, [facingMode, publishLive]);
 
@@ -545,7 +698,7 @@ export function useVoiceChat(socket, roomId, isAdmin, adminId) {
     prepareCamera,
     publishLive,
     startBroadcast, stopBroadcast,
-    switchCamera, adjustZoom,
+    switchCamera, restartCamera, adjustZoom,
     toggleMic, toggleVideo,
     changeVolume,
   };

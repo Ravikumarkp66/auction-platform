@@ -40,6 +40,7 @@ export default function SportsMatchScorer({ params }) {
   const socketRef = useRef(null);
   const voiceSocketRef = useRef(null);
   const [showCameraPanel, setShowCameraPanel] = useState(false);
+  const [cameraRequests, setCameraRequests] = useState([]);
 
   // Hook into the dedicated camera room purely as a viewer to check if the camera is LIVE
   const { isLive: isCameraLive } = useVoiceChat(cameraSocket, `${matchId}_camera`, false);
@@ -112,11 +113,34 @@ export default function SportsMatchScorer({ params }) {
       reconnectionDelay: 1000,
     });
     setCameraSocket(cs);
+    
+    cs.on("camera-access-requested", (request) => {
+      setCameraRequests(prev => {
+        const filtered = prev.filter(r => r.socketId !== request.socketId);
+        return [...filtered, request];
+      });
+      setShowCameraPanel(true);
+    });
+
     return () => {
       vs.disconnect();
       cs.disconnect();
     };
   }, []);
+
+  const approveCameraRequest = (socketId) => {
+    if (cameraSocket) {
+      cameraSocket.emit("camera-approve-access", { toSocketId: socketId });
+    }
+    setCameraRequests(prev => prev.filter(r => r.socketId !== socketId));
+  };
+
+  const denyCameraRequest = (socketId) => {
+    if (cameraSocket) {
+      cameraSocket.emit("camera-deny-access", { toSocketId: socketId });
+    }
+    setCameraRequests(prev => prev.filter(r => r.socketId !== socketId));
+  };
 
   // Client timer loop
   useEffect(() => {
@@ -647,6 +671,11 @@ export default function SportsMatchScorer({ params }) {
           >
             {isCameraLive ? <Video size={15} /> : <Camera size={15} />}
             <span className="hidden lg:inline">{isCameraLive ? "Cam Live" : "Mobile Cam"}</span>
+            {cameraRequests.length > 0 && (
+              <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white shadow-lg animate-bounce">
+                {cameraRequests.length}
+              </span>
+            )}
           </button>
           <button
             onClick={() => setShowStats(s => !s)}
@@ -711,31 +740,63 @@ export default function SportsMatchScorer({ params }) {
 
       {/* Camera Connect Panel */}
       {showCameraPanel && (
-        <div className="p-4 border-b border-white/5 bg-slate-900 shadow-2xl relative overflow-hidden flex flex-col md:flex-row items-center gap-8 justify-center">
+        <div className="p-4 border-b border-white/5 bg-slate-900 shadow-2xl relative overflow-hidden flex flex-col md:flex-row items-start gap-8 justify-center">
           <button onClick={() => setShowCameraPanel(false)} className="absolute top-2 right-2 p-1.5 text-slate-500 hover:text-white hover:bg-white/10 rounded-lg transition">
             <X size={16} />
           </button>
+          
+          {/* QR Code Section */}
           <div className="flex flex-col items-center">
             <div className="p-4 bg-white rounded-xl shadow-xl shadow-black/50">
               <QRCodeSVG value={`${typeof window !== 'undefined' ? window.location.origin : ''}/camera/kabaddi/${matchId}`} size={160} />
             </div>
+            <p className="mt-3 text-[10px] font-black uppercase tracking-widest text-slate-400">Scan to broadcast</p>
           </div>
-          <div className="max-w-md text-center md:text-left">
+
+          {/* Details & Device Management Section */}
+          <div className="max-w-md w-full flex flex-col">
             <div className="flex items-center gap-3 justify-center md:justify-start mb-2">
               <Smartphone size={24} className={isCameraLive ? "text-emerald-400" : "text-slate-400"} />
               <h3 className="text-lg font-black uppercase tracking-widest text-white">Live Mobile Camera</h3>
             </div>
-            <p className="text-xs text-slate-400 mb-4 leading-relaxed font-semibold">
-              Scan this QR code with a mobile phone to instantly turn it into a wireless broadcast camera for this match. Mount the phone on a tripod for the best stadium view!
+            <p className="text-xs text-slate-400 mb-6 leading-relaxed font-semibold text-center md:text-left">
+              Scan this QR code with a mobile phone. You will receive an approval request here before they can broadcast.
             </p>
-            <div className="flex items-center justify-center md:justify-start gap-4">
-              <div className="flex items-center gap-2">
-                <div className={`w-3 h-3 rounded-full ${isCameraLive ? "bg-emerald-500 animate-pulse" : "bg-slate-600"}`} />
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-300">
-                  Status: {isCameraLive ? <span className="text-emerald-400">Connected & Live</span> : "Waiting..."}
-                </span>
+
+            {/* Pending Requests List */}
+            {cameraRequests.length > 0 ? (
+              <div className="space-y-3 w-full">
+                <h4 className="text-[10px] font-black uppercase tracking-widest text-amber-400">Pending Requests ({cameraRequests.length})</h4>
+                {cameraRequests.map(req => {
+                  // Basic parse of user agent for a friendly name
+                  const isIPhone = req.deviceInfo.includes('iPhone');
+                  const isAndroid = req.deviceInfo.includes('Android');
+                  const friendlyName = isIPhone ? "iPhone Device" : isAndroid ? "Android Device" : "Unknown Device";
+                  
+                  return (
+                    <div key={req.socketId} className="flex items-center justify-between p-3 rounded-xl bg-slate-800/80 border border-amber-500/30">
+                      <div>
+                        <p className="text-xs font-bold text-white">{friendlyName}</p>
+                        <p className="text-[9px] text-slate-400 font-mono mt-0.5 truncate max-w-[150px]">{req.deviceInfo}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => denyCameraRequest(req.socketId)} className="px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 text-xs font-bold transition">Deny</button>
+                        <button onClick={() => approveCameraRequest(req.socketId)} className="px-3 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 text-xs font-bold transition shadow-[0_0_15px_rgba(16,185,129,0.2)]">Allow</button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            </div>
+            ) : (
+              <div className="w-full p-4 rounded-xl border border-dashed border-slate-700 bg-slate-800/30 flex items-center justify-center">
+                <div className="flex items-center gap-2">
+                  <div className={`w-3 h-3 rounded-full ${isCameraLive ? "bg-emerald-500 animate-pulse" : "bg-slate-600"}`} />
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-300">
+                    Status: {isCameraLive ? <span className="text-emerald-400">Connected & Live</span> : "Waiting for devices..."}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

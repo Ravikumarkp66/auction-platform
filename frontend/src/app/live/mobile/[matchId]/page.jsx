@@ -515,7 +515,7 @@ function LiveBroadcastInner({ params }) {
                 autoPlay 
                 playsInline 
                 muted 
-                className={`fixed inset-0 w-full h-full object-cover z-[-10] transition-opacity duration-1000 ${isCameraLive ? "opacity-100" : "opacity-0"}`} 
+                className={`fixed inset-0 w-[100vw] h-[100vh] object-contain z-[-10] transition-opacity duration-1000 ${isCameraLive ? "opacity-100" : "opacity-0"}`} 
             />
             {/* Slight dark overlay over camera to ensure text readability */}
             {isCameraLive && <div className="fixed inset-0 bg-black/40 z-[-9] pointer-events-none" />}
