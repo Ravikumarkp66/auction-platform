@@ -39,6 +39,21 @@ export default function MobileCameraPage({ params }) {
         return () => media.removeEventListener("change", handler);
     }, []);
 
+    // Hook into existing WebRTC Voice/Video engine using a dedicated camera room
+    const {
+        isLive,
+        error,
+        localStream,
+        prepareCamera,
+        publishLive,
+        startBroadcast,
+        stopBroadcast,
+        switchCamera,
+        restartCamera,
+        facingMode,
+        viewerCount
+    } = useVoiceChat(socket, `${matchId}_camera`, true, "mobile-camera");
+
     // Initialize Socket.io and handle Approval Flow
     useEffect(() => {
         const s = io(API_URL, {
@@ -70,21 +85,6 @@ export default function MobileCameraPage({ params }) {
 
         return () => s.disconnect();
     }, [matchId, localStream, stopBroadcast]);
-
-    // Hook into existing WebRTC Voice/Video engine using a dedicated camera room
-    const {
-        isLive,
-        error,
-        localStream,
-        prepareCamera,
-        publishLive,
-        startBroadcast,
-        stopBroadcast,
-        switchCamera,
-        restartCamera,
-        facingMode,
-        viewerCount
-    } = useVoiceChat(socket, `${matchId}_camera`, true, "mobile-camera");
 
     // Automatically bind the localStream to the <video> element
     useEffect(() => {
