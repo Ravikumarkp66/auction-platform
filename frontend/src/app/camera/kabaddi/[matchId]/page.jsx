@@ -54,7 +54,7 @@ export default function MobileCameraPage({ params }) {
         viewerCount
     } = useVoiceChat(socket, `${matchId}_camera`, true, "mobile-camera");
 
-    // Initialize Socket.io and handle Approval Flow
+    // Initialize Socket.io ONCE
     useEffect(() => {
         const s = io(API_URL, {
             transports: ["websocket", "polling"],
@@ -62,29 +62,45 @@ export default function MobileCameraPage({ params }) {
             forceNew: true,
         });
         setSocket(s);
+        return () => s.disconnect();
+    }, []);
 
-        s.on("connect", () => {
-            // We join the room but explicitly ask for permission
-            s.emit("voice-join-room", { roomId: `${matchId}_camera` });
-            
+    // Handle Approval Flow Listeners
+    useEffect(() => {
+        if (!socket) return;
+
+        const handleConnect = () => {
+            socket.emit("voice-join-room", { roomId: `${matchId}_camera` });
             const deviceInfo = navigator.userAgent;
-            s.emit("camera-request-access", { roomId: `${matchId}_camera`, deviceInfo });
+            socket.emit("camera-request-access", { roomId: `${matchId}_camera`, deviceInfo });
             setApprovalStatus("requesting");
-        });
+        };
 
-        s.on("camera-access-approved", () => {
+        const handleApproved = () => {
             setApprovalStatus("approved");
-        });
+        };
 
-        s.on("camera-access-denied", () => {
+        const handleDenied = () => {
             setApprovalStatus("denied");
             if (localStream) {
                 stopBroadcast();
             }
-        });
+        };
 
-        return () => s.disconnect();
-    }, [matchId, localStream, stopBroadcast]);
+        if (socket.connected) {
+            handleConnect();
+        }
+
+        socket.on("connect", handleConnect);
+        socket.on("camera-access-approved", handleApproved);
+        socket.on("camera-access-denied", handleDenied);
+
+        return () => {
+            socket.off("connect", handleConnect);
+            socket.off("camera-access-approved", handleApproved);
+            socket.off("camera-access-denied", handleDenied);
+        };
+    }, [socket, matchId, localStream, stopBroadcast]);
 
     // Automatically bind the localStream to the <video> element
     useEffect(() => {
