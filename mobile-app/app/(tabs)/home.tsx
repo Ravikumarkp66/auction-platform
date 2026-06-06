@@ -81,31 +81,7 @@ function StatPill({ label, value }: { label: string; value: string }) {
   );
 }
 
-/** Quick-action grid icon button */
-function QuickAction({ icon, label, color, onPress }: { icon: string; label: string; color: string; onPress: () => void }) {
-  const scale = useRef(new Animated.Value(1)).current;
 
-  const onPressIn  = () => Animated.spring(scale, { toValue: 0.94, useNativeDriver: true }).start();
-  const onPressOut = () => Animated.spring(scale, { toValue: 1,    useNativeDriver: true }).start();
-
-  return (
-    <TouchableOpacity
-      activeOpacity={1}
-      onPress={onPress}
-      onPressIn={onPressIn}
-      onPressOut={onPressOut}
-      style={{ width: '48%' }}
-    >
-      <Animated.View style={[styles.quickCard, { transform: [{ scale }] }]}>
-        {/* Glow ring behind icon */}
-        <View style={[styles.quickIconWrap, { backgroundColor: color + '22', borderColor: color + '55' }]}>
-          <Text style={[styles.quickIcon, { color }]}>{icon}</Text>
-        </View>
-        <Text style={styles.quickLabel}>{label}</Text>
-      </Animated.View>
-    </TouchableOpacity>
-  );
-}
 
 /** Horizontal auction card */
 function AuctionCard({ title, status, teams, date, onPress }: { title: string; status: string; teams: number; date: string; onPress: () => void }) {
@@ -282,35 +258,11 @@ export default function Home() {
           </TouchableOpacity>
         </Animated.View>
 
-        {/* ── Quick Actions grid ── */}
-        <Animated.View style={{ opacity: fadeAnim }}>
-          <View style={styles.gridWrap}>
-            <QuickAction
-              icon="🏆"  label="Auctions"
-              color={COLORS.gold}
-              onPress={() => router.push('/(tabs)/auctions')}
-            />
-            <QuickAction
-              icon="👤"  label="Players"
-              color={COLORS.accent}
-              onPress={() => router.push('/players')}
-            />
-            <QuickAction
-              icon="🏏"  label="Teams"
-              color={COLORS.primary}
-              onPress={() => router.push('/(tabs)/teams')}
-            />
-            <QuickAction
-              icon="📅"  label="Fixtures"
-              color="#A78BFA"
-              onPress={() => {}}
-            />
-          </View>
-        </Animated.View>
 
-        {/* ── Active Auctions ── */}
+
+        {/* ── Upcoming Tournaments ── */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Active Auctions</Text>
+          <Text style={styles.sectionTitle}>Upcoming Tournaments</Text>
           <TouchableOpacity onPress={() => router.push('/(tabs)/auctions')}>
             <Text style={styles.sectionViewAll}>View All →</Text>
           </TouchableOpacity>
@@ -321,17 +273,16 @@ export default function Home() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.horizontalScroll}
         >
-          {allTournaments.slice(0, 5).map(t => {
-            const isLive = t.status === 'active';
-            const isCompleted = t.status === 'completed';
-            const statusText = isLive ? 'LIVE' : isCompleted ? 'COMPLETED' : 'UPCOMING';
+          {allTournaments.filter(t => t.status !== 'completed').slice(0, 5).map(t => {
+            const isLive = t.status === 'live' || t.status === 'active';
+            const statusText = isLive ? 'LIVE' : 'UPCOMING';
             
             return (
               <AuctionCard 
                 key={t._id} 
                 title={t.name}
                 status={statusText}
-                teams={t.numTeams || 0}
+                teams={t.numTeams || t.teamCount || 0}
                 date={new Date(t.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                 onPress={() => router.push(`/auction/${t._id}`)} 
               />
@@ -339,41 +290,48 @@ export default function Home() {
           })}
         </ScrollView>
 
-        {/* ── Services section ── */}
+        {/* ── Quick Stats ── */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Our Services</Text>
+          <Text style={styles.sectionTitle}>Platform Overview</Text>
+        </View>
+        <View style={styles.quickStatsGrid}>
+          <View style={styles.quickStatCard}>
+            <Text style={styles.quickStatValue}>{allTournaments.length || 0}</Text>
+            <Text style={styles.quickStatLabel}>Total{'\n'}Tournaments</Text>
+          </View>
+          <View style={styles.quickStatCard}>
+            <Text style={styles.quickStatValue}>{allTournaments.reduce((sum, t) => sum + (t.playerCount || 0), 0)}</Text>
+            <Text style={styles.quickStatLabel}>Players{'\n'}Registered</Text>
+          </View>
+          <View style={styles.quickStatCard}>
+            <Text style={styles.quickStatValue}>—</Text>
+            <Text style={styles.quickStatLabel}>Highest{'\n'}Bid</Text>
+          </View>
         </View>
 
-        <View style={styles.servicesRow}>
-          {/* Service card 1 */}
-          <TouchableOpacity activeOpacity={0.85} style={styles.serviceCard}>
-            <LinearGradient
-              colors={['#1E2A45', '#0D1226']}
-              style={styles.serviceCardInner}
-            >
-              <Text style={styles.serviceIcon}>⚖️</Text>
-              <Text style={styles.serviceTitle}>Auction{'\n'}Management</Text>
-              <Text style={styles.servicePrice}>₹5,000<Text style={styles.servicePriceSub}>/day</Text></Text>
-              <View style={styles.serviceBtn}>
-                <Text style={styles.serviceBtnText}>Book Now</Text>
+        {/* ── Recent Activity ── */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Recent Activity</Text>
+        </View>
+        <View style={styles.activityList}>
+          {allTournaments.filter(t => t.status === 'completed').length > 0 ? (
+            allTournaments.filter(t => t.status === 'completed').slice(0, 3).map(activity => (
+              <View key={activity._id} style={styles.activityItem}>
+                <View style={styles.activityIcon}>
+                  <Text>🏆</Text>
+                </View>
+                <View style={styles.activityContent}>
+                  <Text style={styles.activityTitle}>{activity.name}</Text>
+                  <Text style={styles.activityDesc}>Successfully completed with {activity.numTeams || 0} teams</Text>
+                </View>
+                <Text style={styles.activityTime}>{new Date(activity.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</Text>
               </View>
-            </LinearGradient>
-          </TouchableOpacity>
-
-          {/* Service card 2 */}
-          <TouchableOpacity activeOpacity={0.85} style={styles.serviceCard}>
-            <LinearGradient
-              colors={['#1E2A45', '#0D1226']}
-              style={styles.serviceCardInner}
-            >
-              <Text style={styles.serviceIcon}>🎙️</Text>
-              <Text style={styles.serviceTitle}>Live{'\n'}Commentary</Text>
-              <Text style={styles.servicePrice}>₹2,000<Text style={styles.servicePriceSub}>/match</Text></Text>
-              <View style={styles.serviceBtn}>
-                <Text style={styles.serviceBtnText}>Book Now</Text>
-              </View>
-            </LinearGradient>
-          </TouchableOpacity>
+            ))
+          ) : (
+            <View style={{ padding: 20, alignItems: 'center' }}>
+              <Text style={{ color: '#9CA3AF', fontSize: 14 }}>No recent activity to show.</Text>
+            </View>
+          )}
         </View>
 
         {/* bottom padding for tab bar */}
@@ -461,4 +419,19 @@ const styles = StyleSheet.create({
   servicePriceSub:  { fontSize: 11, color: COLORS.textMuted, fontWeight: '500' },
   serviceBtn:       { backgroundColor: COLORS.primary + '22', borderWidth: 1, borderColor: COLORS.primary, paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20 },
   serviceBtnText:   { fontSize: 11, fontWeight: '700', color: COLORS.primary },
+
+  // Quick Stats
+  quickStatsGrid: { flexDirection: 'row', paddingHorizontal: 16, gap: 12, marginBottom: 28 },
+  quickStatCard: { flex: 1, backgroundColor: 'rgba(255, 255, 255, 0.02)', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.05)', alignItems: 'center' },
+  quickStatValue: { fontSize: 24, fontWeight: '900', color: COLORS.primary, marginBottom: 8 },
+  quickStatLabel: { fontSize: 11, color: COLORS.textMuted, fontWeight: '600', textAlign: 'center', lineHeight: 14, textTransform: 'uppercase' },
+
+  // Recent Activity
+  activityList: { paddingHorizontal: 16, gap: 12, marginBottom: 20 },
+  activityItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255, 255, 255, 0.02)', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.05)' },
+  activityIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0, 209, 255, 0.1)', alignItems: 'center', justifyContent: 'center', marginRight: 16 },
+  activityContent: { flex: 1 },
+  activityTitle: { fontSize: 14, fontWeight: '700', color: COLORS.text, marginBottom: 4 },
+  activityDesc: { fontSize: 12, color: COLORS.textSub },
+  activityTime: { fontSize: 10, color: COLORS.textMuted, fontWeight: '500', marginLeft: 10 },
 });

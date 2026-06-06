@@ -222,6 +222,12 @@ io.on("connection", (socket) => {
     socket.join(matchId.toString());
   });
 
+  // Join Cricket Match realtime room
+  socket.on("join-cricket-match", (matchId) => {
+    console.log(`🏏 Client ${socket.id} joined cricket match room: ${matchId}`);
+    socket.join(matchId.toString());
+  });
+
   // Handle playerSold event - broadcast to ALL clients (including admin)
   socket.on("playerSold", (data) => {
     console.log("📡 Broadcasting SOLD event:", data);
@@ -460,6 +466,7 @@ app.use("/api/location", require("./routes/locationRoutes"));
 app.use("/api/services", require("./routes/serviceRoutes"));
 app.use("/api/matches", matchRoutes);
 app.use("/api/sports-matches", require("./routes/sportsMatchRoutes"));
+app.use("/api/cricket", require("./routes/cricketRoutes"));
 app.use("/api/settings", require("./routes/settingsRoutes"));
 
 

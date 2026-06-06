@@ -49,13 +49,16 @@ export default function Navbar() {
   const navLinks = [
     { href: '/', label: 'Home' },
     { href: '/auctions', label: 'Live Auction', isLive: true },
-    ...(isAdmin ? [
-      { href: '/services', label: 'Services' },
-      { href: '/about', label: 'About' },
-    ] : []),
+    { href: '/matches', label: 'Score', isScore: true },
   ];
 
-  const isActive = (path) => pathname === path;
+  // Active detection — Score highlights on any scoring/cricket path
+  const SCORE_PATHS = ['/matches', '/live', '/cricket', '/match', '/scoring/matches'];
+  const isActive = (path) => {
+    if (path === '/') return pathname === '/';
+    if (path === '/matches') return SCORE_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'));
+    return pathname === path || pathname.startsWith(path + '/');
+  };
 
   return (
     <>
@@ -118,7 +121,13 @@ export default function Navbar() {
                     {link.label}
                   </span>
                 )}
-                {!link.isLive && link.label}
+                {link.isScore && (
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="text-[13px] leading-none">🏏</span>
+                    {link.label}
+                  </span>
+                )}
+                {!link.isLive && !link.isScore && link.label}
 
                 {isActive(link.href) && !link.isLive && (
                   <motion.div

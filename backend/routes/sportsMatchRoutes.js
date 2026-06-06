@@ -247,4 +247,23 @@ router.post("/:id/undo", async (req, res) => {
   }
 });
 
+/**
+ * Delete a sports match
+ */
+router.delete("/:id", async (req, res) => {
+  try {
+    const match = await SportsMatch.findByIdAndDelete(req.params.id);
+    if (!match) return res.status(404).json({ error: "Sports match not found" });
+    
+    const io = req.app.get("io");
+    if (io) {
+      io.emit("sports-match-deleted", req.params.id);
+    }
+    
+    res.json({ message: "Sports match deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router;

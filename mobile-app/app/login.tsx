@@ -30,7 +30,7 @@ export default function Login() {
         await storage.setItem(USER_ROLE_KEY, result.user.role || 'admin');
         
         // Website behavior: redirects to /admin/dashboard
-        router.replace('/admin/dashboard');
+        router.replace('/(tabs)/admin');
       } else {
         setError(result.message || 'Invalid credentials');
       }

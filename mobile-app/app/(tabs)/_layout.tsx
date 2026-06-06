@@ -1,42 +1,44 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Tabs } from 'expo-router';
-import { Home, Play, Trophy, Users, User } from 'lucide-react-native';
+import { Home, Trophy, Shield, User } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { storage, USER_ROLE_KEY } from '../../lib/storage';
 
 export default function TabLayout() {
+  const [role, setRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    storage.getItem(USER_ROLE_KEY).then(setRole);
+  }, []);
+
   return (
     <Tabs
       screenOptions={{
+        tabBarShowLabel: false, // Remove text under icons
         tabBarActiveTintColor: '#00D1FF',
         tabBarInactiveTintColor: '#9CA3AF',
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '700',
-          marginBottom: 6,
-        },
         tabBarStyle: {
           backgroundColor: 'transparent',
           position: 'absolute',
-          bottom: 20,
-          left: 16,
-          right: 16,
-          borderRadius: 28,
-          height: 80,
+          bottom: 24,
+          left: 24,
+          right: 24,
+          borderRadius: 36,
+          height: 72,
           borderWidth: 1,
-          borderColor: 'rgba(255, 255, 255, 0.05)',
+          borderColor: 'rgba(255, 255, 255, 0.08)',
           shadowColor: '#000000',
-          shadowOffset: { width: 0, height: 12 },
-          shadowOpacity: 0.6,
-          shadowRadius: 24,
-          elevation: 10,
-          paddingTop: 8,
-          paddingBottom: 4,
+          shadowOffset: { width: 0, height: 16 },
+          shadowOpacity: 0.8,
+          shadowRadius: 32,
+          elevation: 12,
+          paddingHorizontal: 12,
         },
         tabBarBackground: () => (
           <LinearGradient
-            colors={['rgba(11, 14, 26, 0.95)', 'rgba(7, 10, 22, 0.95)']}
-            style={{ flex: 1, borderRadius: 24 }}
+            colors={['rgba(11, 14, 26, 0.98)', 'rgba(7, 10, 22, 0.98)']}
+            style={{ flex: 1, borderRadius: 36 }}
             start={{ x: 0, y: 0 }}
             end={{ x: 0, y: 1 }}
           />
@@ -50,14 +52,13 @@ export default function TabLayout() {
         },
         headerTintColor: '#FFFFFF',
       }}>
-      {/* Hide index since it redirects */}
-      <Tabs.Screen
-        name="index"
-        options={{
-          href: null,
-          headerShown: false,
-        }}
-      />
+      {/* Hidden Screens */}
+      <Tabs.Screen name="index" options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="live" options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="teams" options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="two" options={{ href: null, headerShown: false }} />
+
+      {/* Visible Tabs */}
       <Tabs.Screen
         name="home"
         options={{
@@ -65,19 +66,7 @@ export default function TabLayout() {
           headerShown: false,
           tabBarIcon: ({ color, focused }) => (
             <View style={focused ? styles.activeIcon : styles.iconContainer}>
-              <Home size={22} color={color} />
-            </View>
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="live"
-        options={{
-          title: 'Live',
-          headerShown: false,
-          tabBarIcon: ({ color, focused }) => (
-            <View style={focused ? styles.activeIcon : styles.iconContainer}>
-              <Play size={22} color={color} fill={focused ? '#00D1FF' : 'transparent'} />
+              <Home size={focused ? 26 : 24} color={color} />
             </View>
           ),
         }}
@@ -85,23 +74,24 @@ export default function TabLayout() {
       <Tabs.Screen
         name="auctions"
         options={{
-          title: 'Tournaments',
+          title: 'Auctions',
           headerShown: true,
           tabBarIcon: ({ color, focused }) => (
             <View style={focused ? styles.activeIcon : styles.iconContainer}>
-              <Trophy size={22} color={color} />
+              <Trophy size={focused ? 26 : 24} color={color} />
             </View>
           ),
         }}
       />
       <Tabs.Screen
-        name="teams"
+        name="admin"
         options={{
-          title: 'Teams',
+          title: 'Admin',
           headerShown: true,
+          href: role === 'admin' ? '/(tabs)/admin' : null,
           tabBarIcon: ({ color, focused }) => (
             <View style={focused ? styles.activeIcon : styles.iconContainer}>
-              <Users size={22} color={color} />
+              <Shield size={focused ? 26 : 24} color={color} />
             </View>
           ),
         }}
@@ -113,7 +103,7 @@ export default function TabLayout() {
           headerShown: true,
           tabBarIcon: ({ color, focused }) => (
             <View style={focused ? styles.activeIcon : styles.iconContainer}>
-              <User size={22} color={color} />
+              <User size={focused ? 26 : 24} color={color} />
             </View>
           ),
         }}
@@ -125,8 +115,9 @@ export default function TabLayout() {
 const styles = StyleSheet.create({
   activeIcon: {
     backgroundColor: 'rgba(0, 209, 255, 0.15)',
-    padding: 8,
-    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 24,
     shadowColor: '#00D1FF',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.8,
@@ -134,8 +125,12 @@ const styles = StyleSheet.create({
     elevation: 5,
     borderWidth: 1,
     borderColor: 'rgba(0, 209, 255, 0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   iconContainer: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
     alignItems: 'center',
     justifyContent: 'center',
   }

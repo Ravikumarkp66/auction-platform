@@ -1142,7 +1142,10 @@ export default function CreateTournamentWizard() {
     try {
       const res = await fetch(`${API_URL}/api/tournaments`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session?.accessToken}`
+        },
         body: JSON.stringify({
           ...config,
           auctionMode: config.auctionMode || "money",
@@ -1176,7 +1179,10 @@ export default function CreateTournamentWizard() {
           };
           fetch(`${API_URL}/api/rules/${tid}`, {
             method: "PUT",
-            headers: { "Content-Type": "application/json" },
+            headers: { 
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${session?.accessToken}`
+            },
             body: JSON.stringify({ config: effectiveRules }),
           }).catch(err => console.warn("[RULES] Save failed (non-fatal):", err.message));
         }

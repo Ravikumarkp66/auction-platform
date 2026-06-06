@@ -10,25 +10,51 @@ import { LinearGradient } from 'expo-linear-gradient';
 export default function Profile() {
   const router = useRouter();
   const [role, setRole] = React.useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = React.useState<boolean>(false);
 
   React.useEffect(() => {
     storage.getItem(USER_ROLE_KEY).then(setRole);
+    storage.getItem(AUTH_TOKEN_KEY).then(token => setIsAuthenticated(!!token));
   }, []);
 
   const handleLogout = async () => {
     await storage.removeItem(AUTH_TOKEN_KEY);
     await storage.removeItem(USER_ROLE_KEY);
-    router.replace('/');
+    setIsAuthenticated(false);
+    setRole(null);
   };
 
   const menuItems = [
-    ...(role === 'admin' ? [{ icon: <Settings size={20} color="#FF4D6D" />, title: 'Admin Dashboard', route: '/admin/dashboard' }] : []),
-    ...(role !== 'admin' ? [{ icon: <User size={20} color="#7B61FF" />, title: 'Sign In as Admin', route: '/login' }] : []),
-    { icon: <Trophy size={20} color="#00D1FF" />, title: 'Hosted Tournaments', route: '/hosted-tournaments' },
+    { icon: <Trophy size={20} color="#00D1FF" />, title: 'Watched Auctions', route: '/watched' },
     { icon: <Settings size={20} color="#00D1FF" />, title: 'Settings', route: '/settings' },
-    { icon: <HelpCircle size={20} color="#00D1FF" />, title: 'Support', route: '/support' },
-    { icon: <Info size={20} color="#00D1FF" />, title: 'App Intro', route: '/onboarding' },
   ];
+
+  if (!isAuthenticated) {
+    return (
+      <AppContainer style={[styles.container, { justifyContent: 'center', padding: 24 }]}>
+        <StatusBar style="light" />
+        <View style={{ alignItems: 'center', marginBottom: 40 }}>
+          <User size={64} color="#7B61FF" style={{ marginBottom: 24 }} />
+          <Text style={{ fontSize: 24, fontWeight: '900', color: '#FFFFFF', marginBottom: 12 }}>Not Signed In</Text>
+          <Text style={{ fontSize: 14, color: '#9CA3AF', textAlign: 'center' }}>
+            Sign in to track your watched auctions, manage tournaments, and sync your profile.
+          </Text>
+        </View>
+        <TouchableOpacity 
+          style={{ backgroundColor: '#7B61FF', paddingVertical: 16, borderRadius: 12, alignItems: 'center', marginBottom: 16 }}
+          onPress={() => router.push('/login')}
+        >
+          <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 16 }}>Sign In with Email</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={{ backgroundColor: 'rgba(255, 255, 255, 0.05)', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)', paddingVertical: 16, borderRadius: 12, alignItems: 'center' }}
+          onPress={() => router.push('/login')}
+        >
+          <Text style={{ color: '#FFFFFF', fontWeight: '600', fontSize: 16 }}>Continue with Google</Text>
+        </TouchableOpacity>
+      </AppContainer>
+    );
+  }
 
   return (
     <AppContainer style={styles.container}>
@@ -46,7 +72,7 @@ export default function Profile() {
               {role === 'admin' ? 'Tournament Admin' :
                role === 'owner' ? 'Team Owner' :
                role === 'bidder' ? 'Bidder' :
-               role === 'viewer' ? 'Viewer' : 'Loading...'}
+               role === 'viewer' ? 'Viewer' : 'User'}
             </Text>
           </View>
         </View>
@@ -57,7 +83,7 @@ export default function Profile() {
             <TouchableOpacity
               key={index}
               style={styles.menuItem}
-              onPress={() => router.push(item.route as any)}
+              onPress={() => {}}
             >
               <View style={styles.menuItemLeft}>
                 <View style={styles.iconContainer}>

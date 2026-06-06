@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Plus, Zap, Play, ExternalLink, Calendar, Users, ShieldAlert, Maximize2 } from "lucide-react";
+import { Plus, Zap, Play, ExternalLink, Calendar, Users, ShieldAlert, Maximize2, Trash2 } from "lucide-react";
 
 export default function SportsManagementDashboard() {
   const [matches, setMatches] = useState([]);
@@ -29,6 +29,23 @@ export default function SportsManagementDashboard() {
       }
     } catch (err) {
       console.error("Fullscreen failed", err);
+    }
+  };
+
+  const deleteMatch = async (matchId) => {
+    if (!window.confirm("Are you sure you want to delete this match? This action cannot be undone.")) return;
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/sports-matches/${matchId}`, {
+        method: "DELETE"
+      });
+      if (res.ok) {
+        setMatches(matches => matches.filter(m => m._id !== matchId));
+      } else {
+        alert("Failed to delete match");
+      }
+    } catch (err) {
+      console.error("Delete failed", err);
+      alert("Error deleting match");
     }
   };
 
@@ -120,9 +137,14 @@ export default function SportsManagementDashboard() {
                     <span className="bg-red-500/10 text-red-400 text-[10px] font-black tracking-widest uppercase px-2.5 py-0.5 rounded-full border border-red-500/20">
                       Live Match
                     </span>
-                    <span className="text-xs text-slate-400 font-bold uppercase tracking-wider flex items-center gap-1">
-                      📍 {match.venue}
-                    </span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs text-slate-400 font-bold uppercase tracking-wider flex items-center gap-1">
+                        📍 {match.venue}
+                      </span>
+                      <button onClick={() => deleteMatch(match._id)} className="text-slate-500 hover:text-red-500 transition" title="Delete Match">
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
                   </div>
 
                   <div className="flex justify-between items-center bg-slate-950/40 rounded-xl p-4 mb-4 border border-slate-900">
@@ -180,7 +202,12 @@ export default function SportsManagementDashboard() {
                 <div key={match._id} className="bg-slate-900/40 border border-slate-800 rounded-2xl p-5">
                   <div className="flex justify-between items-center mb-3">
                     <span className="text-xs text-slate-400 font-bold">{match.date} @ {match.time}</span>
-                    <span className="text-xs text-slate-400">📍 {match.venue}</span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs text-slate-400">📍 {match.venue}</span>
+                      <button onClick={() => deleteMatch(match._id)} className="text-slate-500 hover:text-red-500 transition" title="Delete Match">
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
                   </div>
                   <div className="flex justify-between items-center bg-slate-950/20 border border-slate-900/60 rounded-xl p-3 mb-4">
                     <span className="font-bold text-sm">{match.teamA.name}</span>
@@ -217,7 +244,7 @@ export default function SportsManagementDashboard() {
                       Completed • Venue: {match.venue} • Winner: <span className="text-emerald-400 font-bold">{match.winner || "Tie"}</span>
                     </p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 items-center">
                     <Link 
                       href={`/live/kabaddi/${match._id}`}
                       target="_blank"
@@ -225,6 +252,9 @@ export default function SportsManagementDashboard() {
                     >
                       <ExternalLink size={12} /> Playback Overlays
                     </Link>
+                    <button onClick={() => deleteMatch(match._id)} className="p-2 text-slate-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition" title="Delete Match">
+                      <Trash2 size={16} />
+                    </button>
                   </div>
                 </div>
               ))}

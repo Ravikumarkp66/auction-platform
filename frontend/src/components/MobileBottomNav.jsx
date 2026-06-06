@@ -4,15 +4,29 @@ import React, { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Home, Zap, Trophy, Users, User } from 'lucide-react';
+import { Home, Zap, User } from 'lucide-react';
 import { isApplicationRoute } from '../lib/applicationRoutes';
+
+// Score icon — custom cricket bat SVG inline as a component
+function CricketIcon({ size = 20, color = 'currentColor', style }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}>
+      <path d="M4 20L14 10" />
+      <path d="M14 10l3-3" />
+      <rect x="14" y="4" width="6" height="4" rx="1" transform="rotate(45 14 4)" fill={color} stroke="none" opacity="0.7" />
+      <circle cx="6" cy="18" r="1.5" fill={color} stroke="none" />
+    </svg>
+  );
+}
+
+const SCORE_PATHS = ['/matches', '/live', '/cricket', '/match', '/scoring/matches'];
 
 const TABS = [
   {
     name: 'Home',
     icon: Home,
     path: '/mobile',
-    color: '#a78bfa',       // violet
+    color: '#a78bfa',
     glow: 'rgba(167,139,250,0.35)',
     gradient: 'from-violet-500 to-violet-600',
   },
@@ -20,32 +34,25 @@ const TABS = [
     name: 'Live',
     icon: Zap,
     path: '/auctions',
-    color: '#f87171',       // red — live feel
+    color: '#f87171',
     glow: 'rgba(248,113,113,0.35)',
     gradient: 'from-red-500 to-orange-500',
-    badge: true,            // pulsing live badge
+    badge: true,
   },
   {
-    name: 'Auctions',
-    icon: Trophy,
-    path: '/auctions',
-    color: '#fbbf24',       // gold
-    glow: 'rgba(251,191,36,0.35)',
-    gradient: 'from-yellow-400 to-amber-500',
-  },
-  {
-    name: 'Teams',
-    icon: Users,
-    path: '/teams',
-    color: '#34d399',       // emerald
+    name: 'Score',
+    iconComponent: CricketIcon,
+    path: '/matches',
+    color: '#34d399',
     glow: 'rgba(52,211,153,0.35)',
     gradient: 'from-emerald-400 to-teal-500',
+    scoreActive: true,  // use multi-path active detection
   },
   {
     name: 'Profile',
     icon: User,
     path: '/login',
-    color: '#60a5fa',       // blue
+    color: '#60a5fa',
     glow: 'rgba(96,165,250,0.35)',
     gradient: 'from-blue-400 to-indigo-500',
   },
@@ -108,9 +115,10 @@ export default function MobileBottomNav() {
             }}
           >
             {TABS.map((tab) => {
-              const isActive =
-                pathname === tab.path ||
-                (tab.path !== '/mobile' && pathname?.startsWith(tab.path));
+              const isActive = tab.scoreActive
+                ? SCORE_PATHS.some(p => pathname === p || pathname?.startsWith(p + '/'))
+                : pathname === tab.path ||
+                  (tab.path !== '/mobile' && pathname?.startsWith(tab.path));
 
               return (
                 <TabItem
@@ -169,15 +177,26 @@ function TabItem({ tab, isActive }) {
             : {}
         }
       >
-        <Icon
-          size={20}
-          style={{
-            color: isActive ? tab.color : 'rgba(148,163,184,0.7)',
-            filter: isActive ? `drop-shadow(0 0 6px ${tab.color})` : 'none',
-            transition: 'all 0.25s ease',
-            strokeWidth: isActive ? 2.5 : 1.75,
-          }}
-        />
+        {tab.iconComponent ? (
+          <tab.iconComponent
+            size={20}
+            color={isActive ? tab.color : 'rgba(148,163,184,0.7)'}
+            style={{
+              filter: isActive ? `drop-shadow(0 0 6px ${tab.color})` : 'none',
+              transition: 'all 0.25s ease',
+            }}
+          />
+        ) : (
+          <Icon
+            size={20}
+            style={{
+              color: isActive ? tab.color : 'rgba(148,163,184,0.7)',
+              filter: isActive ? `drop-shadow(0 0 6px ${tab.color})` : 'none',
+              transition: 'all 0.25s ease',
+              strokeWidth: isActive ? 2.5 : 1.75,
+            }}
+          />
+        )}
 
         {/* Live pulse badge */}
         {tab.badge && (
