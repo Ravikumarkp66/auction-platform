@@ -43,8 +43,10 @@ const navigation = [
   { name: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard, emoji: "D" },
   { name: "Auctions", href: "/admin/tournaments", icon: Trophy, emoji: "A" },
   { name: "Players", href: "/admin/players", icon: User, emoji: "P" },
+  { name: "Teams", href: "/admin/teams", icon: Users, emoji: "T" },
   { name: "Kabaddi", href: "/admin/sports", icon: Trophy, emoji: "K" },
   { name: "Branding", href: "/admin/assets", icon: Palette, emoji: "B" },
+  { name: "Icons", href: "/admin/icons", icon: Star, emoji: "I" },
   { name: "Settings", href: "/admin/settings", icon: ImageIcon, emoji: "S" },
 ];
 

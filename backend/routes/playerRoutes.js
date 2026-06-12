@@ -3,6 +3,7 @@ const router = express.Router();
 const Player = require("../models/Player");
 const Team = require("../models/Team");
 const TournamentRules = require("../models/TournamentRules");
+const RegistrationDraft = require("../models/RegistrationDraft");
 const engine = require("../utils/ruleEngine");
 const mongoose = require("mongoose");
 const authMiddleware = require("../middleware/authMiddleware");
@@ -256,6 +257,19 @@ router.post("/register", async (req, res) => {
         const nextId = lastPlayer ? (lastPlayer.applicationId || 0) + 1 : 1;
         const player = new Player({ ...req.body, applicationId: nextId, status: 'pending', isDeleted: false });
         await player.save();
+        
+        // Clean up the draft once registration is successfully submitted
+        try {
+            if (req.body.mobile) {
+                await RegistrationDraft.findOneAndDelete({ 
+                    tournamentId, 
+                    mobile: String(req.body.mobile).trim() 
+                });
+            }
+        } catch (draftErr) {
+            console.error("Failed to delete draft after registration:", draftErr);
+        }
+
         res.status(201).json(player);
     } catch (err) {
         res.status(400).json({ message: err.message });

@@ -227,7 +227,7 @@ router.get("/apply/:token/draft", async (req, res) => {
 router.put("/apply/:token/draft", async (req, res) => {
   try {
     const { token } = req.params;
-    const { mobile, step, formData, previews, status = "saved" } = req.body || {};
+    const { mobile, step, formData, status = "saved" } = req.body || {};
     if (!mobile) return res.status(400).json({ message: "Mobile is required" });
 
     let tournament;
@@ -243,18 +243,37 @@ router.put("/apply/:token/draft", async (req, res) => {
 
     if (!tournament) return res.status(404).json({ message: "Tournament not found" });
 
+    // Clean up formData to never store large files/base64
+    let safeFormData = { ...formData };
+    for (const key in safeFormData) {
+      const val = safeFormData[key];
+      // remove any string starting with data:image or data:application or very long strings
+      if (typeof val === 'string' && (val.startsWith('data:') || val.length > 50000)) {
+        delete safeFormData[key];
+      }
+      // avoid storing large arrays of file objects
+      if (Array.isArray(val) && val.length > 0 && typeof val[0] === 'object') {
+        if (val[0] instanceof File || val[0].size || val[0].buffer) {
+           delete safeFormData[key];
+        }
+      }
+    }
+
+    // Measure payload size
+    const payloadSize = Buffer.byteLength(JSON.stringify(safeFormData));
+    if (payloadSize > 500 * 1024) {
+       return res.status(413).json({ success: false, message: "Draft payload too large. Cannot exceed 500KB." });
+    }
+
     const draft = await RegistrationDraft.findOneAndUpdate(
       { tournamentId: tournament._id, mobile },
       {
         $set: {
-          token: tournament.applyToken || token,
           mobile,
           step: step || 1,
-          formData: formData || {},
-          previews: previews || {},
+          formData: safeFormData,
           status,
-          tournamentId: tournament._id,
-          tournamentName: tournament.name,
+          tournamentId: tournament._id
         }
       },
       { upsert: true, new: true, setDefaultsOnInsert: true }
@@ -262,7 +281,44 @@ router.put("/apply/:token/draft", async (req, res) => {
 
     res.json({ success: true, draft });
   } catch (err) {
+    if (err.status === 413) {
+       return res.status(413).json({ success: false, message: err.message });
+    }
     res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// GET /api/tournaments/drafts/stats - Monitoring endpoint
+router.get("/drafts/stats", authMiddleware, authorize(['admin']), async (req, res) => {
+  try {
+    const stats = await RegistrationDraft.aggregate([
+      {
+        $project: {
+          size: { $bsonSize: "$$ROOT" }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalCount: { $sum: 1 },
+          avgSize: { $avg: "$size" },
+          maxSize: { $max: "$size" }
+        }
+      }
+    ]);
+
+    if (!stats || stats.length === 0) {
+      return res.json({ totalCount: 0, avgSize: 0, maxSize: 0 });
+    }
+
+    res.json({
+      totalCount: stats[0].totalCount,
+      avgSize: Math.round(stats[0].avgSize),
+      maxSize: stats[0].maxSize
+    });
+  } catch (err) {
+    console.error("Drafts stats error:", err);
+    res.status(500).json({ message: err.message });
   }
 });
 

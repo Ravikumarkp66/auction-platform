@@ -118,7 +118,7 @@ const proxyUrl = (url) => {
   return url;
 };
 
-const hasNonEng = (s) => /[^\x00-\x7F]/.test(s);
+const hasNonEng = (s) => false; // Disabled to allow regional languages
 
 const calculateAge = (dob) => {
   if (!dob) return null;
@@ -363,6 +363,13 @@ export default function CreateTournamentWizard() {
 
   useEffect(() => {
     setMounted(true);
+    
+    // Fetch regional locations
+    fetch(`${API_URL}/api/location/all`)
+      .then(res => res.json())
+      .then(data => { if(Array.isArray(data)) setLocations(data); })
+      .catch(err => console.error("Error fetching locations", err));
+
     // Initialize Google API for Picker
     if (typeof window !== "undefined") {
       const loadGapi = () => {
@@ -393,7 +400,7 @@ export default function CreateTournamentWizard() {
   const [launching, setLaunching] = useState(false);
   const [editTarget, setEditTarget] = useState(null); // { type: 'team'|'icon'|'player', index, url }
   const [driveToken, setDriveToken] = useState(null);
-
+  const [locations, setLocations] = useState([]);
   // Load Drive Token from storage on mount
   useEffect(() => {
     const savedToken = localStorage.getItem("google_drive_token");
@@ -1221,6 +1228,12 @@ export default function CreateTournamentWizard() {
         <Script src="https://accounts.google.com/gsi/client" strategy="lazyOnload" />
       </div>
 
+      <datalist id="locations-list">
+        {locations.map((loc, idx) => (
+          <option key={idx} value={`${loc.taluk} - ${loc.hobli}`} />
+        ))}
+      </datalist>
+
       <ProgressBar step={step} onStepClick={setStep} />
 
       {/* Step separator */}
@@ -1725,9 +1738,8 @@ export default function CreateTournamentWizard() {
                   <div className="space-y-2 pl-3 border-l-2" style={{ borderColor: team.color + "55" }}>
                     {teamIcons.map((icon, ii) => {
                       const globalIdx = icons.findIndex((ic, gi) => ic.teamIdx === ti && (icons.filter((x, xi) => x.teamIdx === ti && xi < gi).length === ii));
-                      const err = errors.icons?.[globalIdx]?.name;
                       return (
-                        <div key={ii} className={`bg-white/3 border ${err ? "border-red-500/40" : "border-white/8"} rounded-xl p-4 flex flex-col md:flex-row gap-4`}>
+                        <div key={ii} className={`bg-white/3 border border-white/8 rounded-xl p-4 flex flex-col md:flex-row gap-4`}>
                           {/* Icon Photo edit */}
                           <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-white/10 bg-white/5 flex items-center justify-center cursor-pointer hover:border-violet-500/50 transition-all shrink-0 group">
                             {icon.imageUrl
@@ -1741,7 +1753,6 @@ export default function CreateTournamentWizard() {
                               }}>
                               <Maximize className="w-4 h-4 text-white" />
                             </div>
-                            {/* No role badge overlay as per user request */}
                           </div>
 
                           <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -1750,18 +1761,19 @@ export default function CreateTournamentWizard() {
                                 onChange={e => {
                                   const ni = [...icons]; ni[globalIdx].name = e.target.value; setIcons(ni);
                                 }}
-                                className={`w-full bg-transparent border-b ${err ? "border-red-500" : "border-white/10"} py-1 font-bold text-white text-sm focus:border-violet-500 outline-none placeholder:text-slate-600 transition-colors`} />
+                                className={`w-full bg-transparent border-b border-white/10 py-1 font-bold text-white text-sm focus:border-violet-500 outline-none placeholder:text-slate-600 transition-colors`} />
                             </div>
                             <input title="Village" placeholder="Village" value={icon.village || "-"}
+                              list="locations-list"
                               onChange={e => {
                                 const ni = [...icons];
                                 ni[globalIdx].village = e.target.value;
                                 setIcons(ni);
                               }}
-                              className="bg-transparent border border-white/10 rounded-lg px-2 py-1 text-xs font-bold text-slate-300 focus:border-violet-500 outline-none placeholder:text-slate-600 transition-colors" />
+                              className="bg-transparent border-b border-white/10 hover:border-white/30 focus:border-violet-500 text-[10px] font-bold outline-none w-full py-1 text-slate-300 transition-colors" />
                             <input title="Contact Number" placeholder="Phone" value={icon.mobile}
                               onChange={e => { const ni = [...icons]; ni[globalIdx].mobile = e.target.value; setIcons(ni); }}
-                              className="bg-transparent border border-white/10 rounded-lg px-2 py-1 text-xs font-bold text-slate-300 focus:border-violet-500 outline-none placeholder:text-slate-600 transition-colors" />
+                              className="bg-transparent border-b border-white/10 hover:border-white/30 focus:border-violet-500 text-[10px] font-bold outline-none w-full py-1 text-slate-300 transition-colors" />
 
                             {/* ── Icon Assignment pills ── */}
                             <div className="col-span-2 md:col-span-4 flex items-center gap-2 pt-1 border-t border-white/5 mt-1">
@@ -1789,6 +1801,9 @@ export default function CreateTournamentWizard() {
       {/* ── STEP 4: Player Pool ── */}
       {step === 4 && (
         <StepCard step={4}>
+          <datalist id="locations-list">
+            {locations.map(loc => <option key={loc} value={loc} />)}
+          </datalist>
           {players.length === 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Option A: Manual/Excel Upload */}

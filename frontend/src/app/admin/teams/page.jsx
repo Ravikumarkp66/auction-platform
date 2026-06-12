@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Users, Search, Save, X, AlertTriangle, ShieldCheck, Trophy, AlertCircle, Edit3, ArrowUpRight, UploadCloud, FileSpreadsheet, Trash2, Undo2 } from "lucide-react";
+import { Users, Search, Save, X, AlertTriangle, ShieldCheck, Trophy, AlertCircle, Edit3, ArrowUpRight, UploadCloud, FileSpreadsheet, Trash2, Undo2, PlusCircle } from "lucide-react";
 import * as XLSX from 'xlsx';
 import { useAuction } from "../layout";
 import { useSession } from "next-auth/react";
@@ -55,29 +55,73 @@ export default function TeamsRegistry() {
     setEditingTeam(team);
     setFormData({
       name: team.name,
-      shortName: team.shortName,
       remainingBudget: team.remainingBudget || 0,
       color: team.color || "#7c3aed"
     });
     setIsManageModalOpen(true);
   };
 
-  const handleSaveClick = () => {
-    setIsManageModalOpen(false);
-    setIsConfirmModalOpen(true);
+  const handleSaveClick = async () => {
+    let logoUrl = formData.logoUrl || "";
+
+    if (formData.logoFile) {
+      try {
+        const fileType = formData.logoFile.type;
+        const { uploadUrl, fileUrl } = await fetch(`${API_URL}/api/upload/get-upload-url?fileType=${fileType}&folder=teams`).then((r) => r.json());
+        await fetch(uploadUrl, { method: "PUT", body: formData.logoFile, headers: { "Content-Type": fileType } });
+        logoUrl = fileUrl;
+      } catch (err) {
+        return alert("Failed to upload logo to S3");
+      }
+    }
+
+    if (!editingTeam) {
+      if (!formData.name) return alert("Team name is required");
+      
+      const generatedShortName = formData.name.substring(0, 3).toUpperCase();
+      
+      try {
+        const res = await fetch(`${API_URL}/api/teams`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session?.accessToken}`
+          },
+          body: JSON.stringify({ ...formData, logoUrl, shortName: generatedShortName, tournamentId: selectedAuction._id })
+        });
+        if (res.ok) {
+          socket.emit("auctionUpdate", { type: "system_refresh", auctionId: selectedAuction._id });
+          setIsManageModalOpen(false);
+          fetchTeams();
+        } else {
+          const errData = await res.json();
+          alert("Error creating team: " + (errData.message || "Unknown error"));
+        }
+      } catch (err) {
+        alert("Error creating team");
+      }
+    } else {
+      // Save logoUrl to formData so handleFinalConfirm uses it
+      setFormData(prev => ({ ...prev, logoUrl }));
+      setIsManageModalOpen(false);
+      setIsConfirmModalOpen(true);
+    }
   };
 
   const handleFinalConfirm = async () => {
     if (confirmText !== "CONFIRM") return;
 
     try {
+      const payload = { ...formData };
+      delete payload.logoFile;
+      
       const res = await fetch(`${API_URL}/api/teams/${editingTeam._id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${session?.accessToken}`
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payload)
       });
 
       if (res.ok) {
@@ -286,6 +330,7 @@ export default function TeamsRegistry() {
             onClick={handleUndoLastImport}
             className="flex items-center gap-2 px-4 py-3 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 rounded-2xl transition-all group animate-in slide-in-from-right-4">
             
+            
               <Undo2 className="w-4 h-4 text-amber-500 group-hover:-rotate-45 transition-transform" />
               <span className="text-[10px] font-black uppercase tracking-widest text-amber-400">Undo Last Import</span>
             </button>
@@ -298,6 +343,24 @@ export default function TeamsRegistry() {
             title="Delete Range">
             
             <Trash2 className="w-4 h-4" />
+          </button>
+
+          {/* Add Team Button */}
+          <button
+            onClick={() => {
+              setEditingTeam(null);
+              setFormData({
+                name: "",
+                shortName: "",
+                remainingBudget: selectedAuction.startingBudget || 1000000,
+                color: "#7c3aed"
+              });
+              setIsManageModalOpen(true);
+            }}
+            className="flex items-center gap-2 px-4 py-3 bg-violet-600/10 hover:bg-violet-600/20 border border-violet-500/30 rounded-2xl transition-all group shadow-lg"
+          >
+            <PlusCircle className="w-4 h-4 text-violet-500 group-hover:scale-110 transition-transform" />
+            <span className="text-[10px] font-black uppercase tracking-widest text-violet-400">Add Team</span>
           </button>
 
           {/* CSV Upload Button */}
@@ -482,7 +545,7 @@ export default function TeamsRegistry() {
       <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
           <div className="bg-[#0f172a] border border-white/10 rounded-[2.5rem] w-full max-w-lg overflow-hidden shadow-2xl">
             <div className="px-8 py-6 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
-               <h2 className="text-xl font-black text-white">Team <span className="text-violet-500">Details</span></h2>
+               <h2 className="text-xl font-black text-white">{!editingTeam ? "Add" : "Team"} <span className="text-violet-500">{!editingTeam ? "Team" : "Details"}</span></h2>
                <button onClick={() => setIsManageModalOpen(false)} className="p-2 hover:bg-white/5 rounded-full transition-colors"><X className="w-5 h-5 text-slate-500" /></button>
             </div>
             
@@ -497,11 +560,12 @@ export default function TeamsRegistry() {
                 
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Drafted Team</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Team Logo (Optional)</label>
                   <input
-                  className="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-violet-500 uppercase"
-                  value={formData.shortName}
-                  onChange={(e) => setFormData({ ...formData, shortName: e.target.value.toUpperCase() })} />
+                  type="file"
+                  accept="image/*"
+                  className="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-bold text-white outline-none focus:border-violet-500 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-violet-500/20 file:text-violet-400 hover:file:bg-violet-500/30 transition-all cursor-pointer"
+                  onChange={(e) => setFormData({ ...formData, logoFile: e.target.files[0] })} />
                 
                 </div>
               </div>
@@ -520,14 +584,26 @@ export default function TeamsRegistry() {
               </div>
             </div>
 
-            <div className="px-8 py-6 bg-white/[0.02] border-t border-white/5 flex gap-3">
-               <button onClick={() => setIsManageModalOpen(false)} className="flex-1 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:bg-white/5 transition-all text-center">Abort</button>
-               <button
-              onClick={handleSaveClick}
-              className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-violet-600 to-cyan-500 text-[10px] font-black uppercase tracking-widest text-white shadow-xl shadow-violet-500/20 hover:scale-105 transition-all">
-              
-                 Stage Updates
-               </button>
+            <div className="px-8 py-6 bg-white/[0.02] border-t border-white/5 flex gap-3 justify-between">
+               {editingTeam && (
+                 <button
+                   onClick={() => {
+                     setIsManageModalOpen(false);
+                     handleDeleteTeam(editingTeam._id, editingTeam.name);
+                   }}
+                   className="px-4 py-3 rounded-2xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-[10px] font-black uppercase tracking-widest text-red-500 transition-all"
+                 >
+                   <Trash2 className="w-4 h-4 inline mr-1" /> Delete
+                 </button>
+               )}
+               <div className="flex gap-3 ml-auto">
+                 <button onClick={() => setIsManageModalOpen(false)} className="px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:bg-white/5 transition-all text-center">Abort</button>
+                 <button
+                   onClick={handleSaveClick}
+                   className="px-6 py-3 rounded-2xl bg-gradient-to-r from-violet-600 to-cyan-500 text-[10px] font-black uppercase tracking-widest text-white shadow-xl shadow-violet-500/20 hover:scale-105 transition-all">
+                   {!editingTeam ? "Create Team" : "Stage Updates"}
+                 </button>
+               </div>
             </div>
           </div>
         </div>

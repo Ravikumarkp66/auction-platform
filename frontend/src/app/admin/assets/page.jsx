@@ -23,12 +23,16 @@ export default function AssetManager() {
 
   useEffect(() => {
     if (selectedAuction?._id) {
-      setAuctionAssets(selectedAuction.assets || {
-        splashUrl: "",
-        backgroundUrl: "",
-        teamCardBgUrl: "",
-        squadBgUrl: "",
-        badges: { leftBadge: "", rightBadge: "" }
+      const assets = selectedAuction.assets || {};
+      setAuctionAssets({
+        splashUrl: assets.splashUrl || "",
+        backgroundUrl: assets.backgroundUrl || "",
+        teamCardBgUrl: assets.teamCardBgUrl || "",
+        squadBgUrl: assets.squadBgUrl || "",
+        badges: {
+          leftBadge: assets.badges?.leftBadge || "",
+          rightBadge: assets.badges?.rightBadge || ""
+        }
       });
       fetchLibrary();
     }

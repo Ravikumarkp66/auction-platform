@@ -198,6 +198,21 @@ const connectDB = async () => {
 
 connectDB();
 
+// ===== DRAFT CLEANUP JOB =====
+// Runs every 24 hours to clean up abandoned drafts (redundancy for TTL index)
+const RegistrationDraft = require("./models/RegistrationDraft");
+setInterval(async () => {
+  try {
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const result = await RegistrationDraft.deleteMany({ createdAt: { $lt: sevenDaysAgo } });
+    if (result.deletedCount > 0) {
+      console.log(`🧹 Explicit cleanup removed ${result.deletedCount} expired registration drafts.`);
+    }
+  } catch (err) {
+    console.error("[CRON] Draft cleanup error:", err);
+  }
+}, 24 * 60 * 60 * 1000);
+
 // Removed redundant express.json() call here as it is already defined on line 75
 app.use("/uploads", express.static("uploads"));
 
