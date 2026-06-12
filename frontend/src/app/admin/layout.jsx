@@ -176,7 +176,7 @@ export default function AdminLayout({ children }) {
       const intervalId = setInterval(fetchPending, 15000); // Check every 15s
       return () => clearInterval(intervalId);
     }
-  }, [status]);
+  }, [status, selectedAuction?._id]);
 
   useEffect(() => {
     if (status === "loading") return;
