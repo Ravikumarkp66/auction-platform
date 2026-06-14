@@ -506,16 +506,7 @@ export default function OverlayPage() {
             backgroundColor: '#000'
           }}
         >
-          {/* 1. TOP LOGO SECTION */}
-          {tourLogo && (
-            <div className="absolute top-[6%] left-1/2 -translate-x-1/2 w-[18%] flex justify-center z-30" style={{ maxWidth: '130px' }}>
-              <img
-                src={getMediaUrl(tourLogo)}
-                alt="Logo"
-                className="w-full h-auto object-contain drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]"
-              />
-            </div>
-          )}
+
 
           {/* 2. SECONDARY SIDE ELEMENTS - Minimized on mobile to focus on timer */}
           <div className="absolute inset-0 z-10 pointer-events-none px-[4%] py-[10%] flex justify-between items-center">
