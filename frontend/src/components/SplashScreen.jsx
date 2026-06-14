@@ -3,7 +3,7 @@
 import { getMediaUrl } from "../lib/apiConfig";
 
 export default function SplashScreen({ src, title }) {
-  const displaySrc = src || "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/banners/1777801051801.png";
+  const displaySrc = src || "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/banners/goravanahalli_bg_1781432915363.png";
   
   return (
     <div className="fixed inset-0 bg-[#0a0f18] flex items-center justify-center overflow-hidden z-[200]">

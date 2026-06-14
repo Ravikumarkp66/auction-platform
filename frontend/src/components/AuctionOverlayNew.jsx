@@ -404,9 +404,156 @@ export default function AuctionOverlayNew({
     );
   };
 
-  const BottomSheetBackdrop = () => (
-    <div className="fixed inset-0 z-30" style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} onClick={() => setActiveBottomTab(null)} />
-  );
+  const BottomDrawer = () => {
+    if (!activeBottomTab || activeBottomTab === 'focus') return null;
+
+    let title = '';
+    let content = null;
+
+    if (activeBottomTab === 'players') {
+      title = 'Tournament Players';
+      const filteredPlayers = allPlayers.filter(p => {
+        if (playerFilter === 'all') return true;
+        return p.role?.toLowerCase() === playerFilter.toLowerCase();
+      });
+
+      content = (
+        <div className="flex flex-col h-full overflow-hidden">
+          {/* Filter Bar */}
+          <div className="flex items-center gap-1.5 overflow-x-auto py-2 px-1 scrollbar-none border-b border-white/5 shrink-0">
+            {['all', 'batsman', 'bowler', 'all-rounder', 'wicket-keeper'].map(role => (
+              <button
+                key={role}
+                onClick={() => setPlayerFilter(role)}
+                className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider shrink-0 transition-all"
+                style={{
+                  background: playerFilter === role ? C.accentSoft : 'rgba(255,255,255,0.03)',
+                  border: `1px solid ${playerFilter === role ? C.accent : 'rgba(255,255,255,0.05)'}`,
+                  color: playerFilter === role ? C.accent : C.textSecondary
+                }}
+              >
+                {role}
+              </button>
+            ))}
+          </div>
+
+          {/* List of Players */}
+          <div className="flex-1 overflow-y-auto py-3 space-y-2 pr-1 no-scrollbar">
+            {isLoadingAllPlayers ? (
+              <div className="py-12 text-center">
+                <div className="inline-block w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: C.accent }}></div>
+                <p className="text-xs mt-3 text-slate-500 uppercase font-bold tracking-widest">Loading players...</p>
+              </div>
+            ) : filteredPlayers.length === 0 ? (
+              <p className="text-center py-12 text-xs text-slate-600 uppercase font-black tracking-widest">No players found</p>
+            ) : (
+              filteredPlayers.map((p, idx) => {
+                const isSold = p.status === 'sold';
+                const isUnsold = p.status === 'unsold';
+                const isPending = p.status === 'pending' || !p.status;
+                const statusColor = isSold ? C.accent : isUnsold ? '#ef4444' : '#6b7280';
+                
+                return (
+                  <div key={p._id || idx} className="flex items-center justify-between p-3 bg-black/30 border border-white/5 rounded-xl">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full overflow-hidden border border-white/10 bg-slate-900 shrink-0">
+                        <img src={getImgUrl(p)} className="w-full h-full object-cover" alt="" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-black text-white uppercase tracking-tight truncate">{p.name}</p>
+                        <p className="text-[9px] font-semibold text-slate-500 uppercase tracking-widest mt-0.5">{p.role}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs font-black" style={{ color: statusColor }}>
+                        {isSold ? `SOLD` : isUnsold ? 'UNSOLD' : 'AVAILABLE'}
+                      </p>
+                      <p className="text-[10px] font-bold text-slate-400 mt-0.5">
+                        {isSold ? formatCurrency(p.soldPrice || p.basePrice || 0, currencyUnit) : `Base: ${formatCurrency(p.basePrice || 100, currencyUnit)}`}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      );
+    } else if (activeBottomTab === 'squads') {
+      title = 'Team Squads';
+      content = (
+        <div className="space-y-2 overflow-y-auto h-full pr-1 no-scrollbar py-1">
+          {teams?.map((team, i) => (
+            <TeamCard 
+              key={team._id || i} 
+              team={team} 
+              index={i} 
+              onClick={() => {
+                setSquadModal({ ...team, __fromPlayers: false });
+                setActiveBottomTab(null);
+              }} 
+            />
+          ))}
+        </div>
+      );
+    } else if (activeBottomTab === 'history') {
+      title = 'Live Bid History';
+      content = (
+        <div className="space-y-2 overflow-y-auto h-full pr-1 no-scrollbar py-1">
+          {(!roundHistory || roundHistory.length === 0) ? (
+            <div className="py-12 text-center border border-dashed border-white/5 rounded-2xl">
+              <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">No bids placed yet</p>
+            </div>
+          ) : (
+            [...roundHistory].reverse().map((h, i) => (
+              <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-black/30 border border-white/5"
+                style={{ background: i === 0 ? C.accentSoft : 'transparent', borderColor: i === 0 ? C.accentBorder : 'rgba(255,255,255,0.05)' }}>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold" style={{ color: i === 0 ? C.accent : C.textSecondary }}>#{roundHistory.length - i}</span>
+                  <span className="text-sm font-black text-white uppercase tracking-tight">{h.team}</span>
+                </div>
+                <span className="text-sm font-black" style={{ color: i === 0 ? C.accent : C.textPrimary }}>{formatCurrency(h.bid, currencyUnit)}</span>
+              </div>
+            ))
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <>
+        {/* Backdrop */}
+        <div className="fixed inset-0 z-30" style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)' }} onClick={() => setActiveBottomTab(null)} />
+        
+        {/* Drawer */}
+        <div className="fixed bottom-[60px] left-0 right-0 z-40 rounded-t-[32px] px-5 pt-5 pb-6 flex flex-col"
+          style={{ 
+            background: C.bgCard, 
+            borderTop: `2px solid ${C.accentBorder}`, 
+            maxHeight: '75vh',
+            boxShadow: '0 -20px 40px rgba(0,0,0,0.5)',
+            animation: 'modalSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards'
+          }}
+        >
+          {/* Drag Handle Bar */}
+          <div className="w-12 h-1 bg-white/10 rounded-full mx-auto mb-4 shrink-0" onClick={() => setActiveBottomTab(null)} />
+          
+          {/* Header */}
+          <div className="flex items-center justify-between mb-4 shrink-0">
+            <h2 className="text-sm font-black uppercase tracking-[0.2em] text-white">{title}</h2>
+            <button onClick={() => setActiveBottomTab(null)} className="p-1.5 rounded-full hover:bg-white/5 transition-all text-slate-400">
+              <X size={16} />
+            </button>
+          </div>
+          
+          {/* Body */}
+          <div className="flex-1 overflow-hidden" id="bottom-drawer-body">
+            {content}
+          </div>
+        </div>
+      </>
+    );
+  };
 
   return (
     <div className="h-screen w-screen text-white overflow-hidden relative flex flex-col" style={{ background: C.bgMain, fontFamily: "'Inter', 'Segoe UI', sans-serif" }}>
@@ -758,6 +905,7 @@ export default function AuctionOverlayNew({
       )}
 
       <SquadModal />
+      <BottomDrawer />
       
       {animatingPlayerCard && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center pointer-events-none" style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)' }}>

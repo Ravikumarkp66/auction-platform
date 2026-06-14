@@ -33,12 +33,12 @@ function LiveAuctionContent({ initialTournament: tournament }) {
   // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [auctionBg, setAuctionBg] = useState('https://auction-platform-kp.s3.ap-south-1.amazonaws.com/banners/1777801051801.png');
+  const [auctionBg, setAuctionBg] = useState('https://auction-platform-kp.s3.ap-south-1.amazonaws.com/banners/goravanahalli_bg_1781432915363.png');
 
   const [currentTournamentId, setCurrentTournamentId] = useState(tournamentId);
   const [activeAssets, setActiveAssets] = useState({
     splashUrl: "",
-    backgroundUrl: "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/banners/1777801051801.png",
+    backgroundUrl: "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/banners/goravanahalli_bg_1781432915363.png",
     badges: { leftBadge: "", rightBadge: "" }
   });
 
@@ -573,7 +573,7 @@ function LiveAuctionContent({ initialTournament: tournament }) {
             ...prev,
             splashUrl: tournament.assets.splashUrl || "",
             logoUrl: tournament.assets.logoUrl || "",
-            backgroundUrl: tournament.assets.backgroundUrl || "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/banners/1777801051801.png",
+            backgroundUrl: tournament.assets.backgroundUrl || "https://auction-platform-kp.s3.ap-south-1.amazonaws.com/banners/goravanahalli_bg_1781432915363.png",
             badges: tournament.assets.badges || { leftBadge: "", rightBadge: "" }
           }));
           if (tournament.assets.backgroundUrl) setAuctionBg(tournament.assets.backgroundUrl);
@@ -854,7 +854,8 @@ function LiveAuctionContent({ initialTournament: tournament }) {
       tournament: {
         _id: selectedAuction?._id || currentTournamentId,
         name: config.name,
-        iconsPerTeam: config.iconsPerTeam
+        iconsPerTeam: config.iconsPerTeam,
+        assets: selectedAuction?.assets || activeAssets
       },
       teams: overlayTeams,
       roundHistory: roundHistory.slice(0, 5),
@@ -1884,7 +1885,7 @@ function LiveAuctionContent({ initialTournament: tournament }) {
       {/* Background Layer - Fixed & Clear */}
       <div className="fixed inset-0 z-0">
         <img
-          src={getMediaUrl(activeAssets.backgroundUrl || 'https://auction-platform-kp.s3.ap-south-1.amazonaws.com/banners/1777801051801.png')}
+          src={getMediaUrl(activeAssets.backgroundUrl || 'https://auction-platform-kp.s3.ap-south-1.amazonaws.com/banners/goravanahalli_bg_1781432915363.png')}
           className="w-full h-full object-cover scale-100"
           alt=""
           style={{
@@ -3511,7 +3512,7 @@ function LiveAuctionWithSplash({ tournamentId, role }) {
       {showSplash &&
       <div className={`fixed inset-0 z-9999 transition-all duration-700 ${fadeOut ? 'opacity-0 scale-110 blur-md' : 'opacity-100 scale-100'}`}>
           <SplashScreen
-          src={getMediaUrl(tournament?.assets?.splashUrl || 'https://auction-platform-kp.s3.ap-south-1.amazonaws.com/banners/1777801051801.png')}
+          src={getMediaUrl(tournament?.assets?.splashUrl || 'https://auction-platform-kp.s3.ap-south-1.amazonaws.com/banners/goravanahalli_bg_1781432915363.png')}
           title={tournament?.name} />
         
         </div>

@@ -50,7 +50,7 @@ export default function OverlayPage() {
   const [language, setLanguage] = useState('en')
   const [breakNow, setBreakNow] = useState(() => Date.now())
   const [focusMode, setFocusMode] = useState(false)
-  const [splashUrl, setSplashUrl] = useState('https://auction-platform-kp.s3.ap-south-1.amazonaws.com/banners/1777801051801.png')
+  const [splashUrl, setSplashUrl] = useState('https://auction-platform-kp.s3.ap-south-1.amazonaws.com/banners/goravanahalli_bg_1781432915363.png')
   const [poolA, setPoolA] = useState([])
   const [poolB, setPoolB] = useState([])
   const [drawEvent, setDrawEvent] = useState(null)
@@ -62,6 +62,32 @@ export default function OverlayPage() {
     width: typeof window !== 'undefined' ? window.innerWidth : 1200,
     height: typeof window !== 'undefined' ? window.innerHeight : 800
   })
+  const [defaultTournamentName, setDefaultTournamentName] = useState('')
+
+  // Fetch active tournament on mount to load initial assets/logo
+  useEffect(() => {
+    let isMounted = true
+    async function fetchActiveTournament() {
+      try {
+        const res = await fetch(`${API_URL}/api/tournaments/status/active`)
+        if (res.ok) {
+          const data = await res.json()
+          if (data && data.tournament && isMounted) {
+            setDefaultTournamentName(data.tournament.name)
+            if (data.tournament.assets?.splashUrl) {
+              setSplashUrl(data.tournament.assets.splashUrl)
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch active tournament:", err)
+      }
+    }
+    fetchActiveTournament()
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
   // Track window size for responsive background switching
   useEffect(() => {
@@ -614,7 +640,9 @@ export default function OverlayPage() {
   if (!auction || !auction.player) {
     const splashTitle = auction?.tournamentName
       ? (auction.tournamentName.toUpperCase().includes('SEASON') ? auction.tournamentName : `${auction.tournamentName} - SEASON 01`)
-      : 'KOLALA PREMIERE LEAGUE - SEASON 01';
+      : (defaultTournamentName
+          ? (defaultTournamentName.toUpperCase().includes('SEASON') ? defaultTournamentName : `${defaultTournamentName} - SEASON 01`)
+          : 'GORAVANAHALLI PREMIERE LEAGUE - SEASON 01');
     return (
       <>
         {voiceOverlay}
