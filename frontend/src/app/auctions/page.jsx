@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { useSession } from "next-auth/react";
-import { Trophy, Play, Users, Calendar, ExternalLink, Clock, XCircle } from "lucide-react";
-import { API_URL, DEFAULT_ASSETS, getMediaUrl } from "../../lib/apiConfig";
+import { Trophy, Play, Users, Calendar, ExternalLink, Clock, XCircle, X, Download, Phone, MapPin, Activity, User, Shield, DollarSign } from "lucide-react";
+import html2canvas from "html2canvas";
+import { API_URL, DEFAULT_ASSETS, getMediaUrl, getProxiedImageUrl, calculateAge } from "../../lib/apiConfig";
 
 export default function AuctionsPage() {
   const { data: session, status } = useSession();
@@ -432,7 +432,7 @@ export default function AuctionsPage() {
               className="px-6 py-3 bg-violet-600 text-white rounded-lg hover:bg-violet-500 transition-colors inline-flex items-center gap-2">
               
                 <Clock className="w-5 h-5" />
-                Refresh for Live Auctions
+Refresh for Live Auctions
               </button>
             </div>
           </div>
@@ -443,25 +443,41 @@ export default function AuctionsPage() {
 }
 
 // ── HELPERS ────────────────────────────────────────────────
-function SquadList({ team, players }) {
+function SquadList({ team, players, onPlayerClick, onDownload, isDownloading }) {
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
-         <Users className="w-4 h-4 text-violet-400" />
-         <h4 className="text-xs md:text-sm font-black text-white uppercase tracking-widest">{team.name} Squad</h4>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/5 pb-3">
+         <div className="flex items-center gap-2">
+            <Users className="w-4 h-4 text-violet-400" />
+            <h4 className="text-xs md:text-sm font-black text-white uppercase tracking-widest">{team.name} Squad</h4>
+         </div>
+         {players.length > 0 && (
+           <button
+             onClick={onDownload}
+             disabled={isDownloading}
+             className="px-3 py-1.5 bg-violet-600/35 hover:bg-violet-600/50 border border-violet-500/30 text-white font-black uppercase tracking-wider text-[10px] rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+           >
+             <Download className={`w-3.5 h-3.5 ${isDownloading ? 'animate-bounce' : ''}`} />
+             {isDownloading ? "Generating..." : "Download Poster"}
+           </button>
+         )}
       </div>
       <div className="grid grid-cols-1 gap-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
         {players.length === 0 ?
         <div className="py-10 text-center border-2 border-dashed border-white/5 rounded-2xl opacity-40 italic text-xs">No players drafted yet</div> :
 
         players.map((p, idx) =>
-        <div key={p._id || idx} className="flex items-center gap-3 p-3 bg-white/5 rounded-xl border border-white/5 group/p hover:border-violet-500/30 transition-all">
+        <div 
+          key={p._id || idx} 
+          onClick={() => onPlayerClick && onPlayerClick(p)}
+          className="flex items-center gap-3 p-3 bg-white/5 rounded-xl border border-white/5 group/p hover:border-violet-500/30 hover:bg-white/[0.07] transition-all cursor-pointer"
+        >
                <div className="w-10 h-10 rounded-lg overflow-hidden border border-white/10 shrink-0">
                   <img src={getMediaUrl(p.photo?.s3 || p.imageUrl || p.image, `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.name}`)} className="w-full h-full object-cover" alt="" />
                </div>
                <div className="flex-1 min-w-0">
                   <p className="text-sm font-black text-white truncate">{p.name}</p>
-                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">{p.role} • {p.village}</p>
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">{p.role} • {p.village || p.town || "---"}</p>
                </div>
                <div className="text-right">
                   <p className="text-xs font-black text-emerald-400">₹{Number(p.soldPrice || p.basePrice || 0).toLocaleString("en-IN")}</p>
@@ -479,6 +495,8 @@ function SquadViewModal({ tournament, onClose }) {
   const [data, setData] = useState({ teams: [], players: [] });
   const [selectedTeam, setSelectedTeam] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [selectedPlayer, setSelectedPlayer] = useState(null);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   useEffect(() => {
     async function fetchSquads() {
@@ -505,6 +523,80 @@ function SquadViewModal({ tournament, onClose }) {
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
   }, [onClose]);
+
+  const getBase64FromUrl = async (url) => {
+    if (!url || typeof url !== 'string') return null;
+    if (url.startsWith('data:')) return url;
+    try {
+      const targetUrl = url.startsWith('http') && !url.includes(API_URL) ? getProxiedImageUrl(url) : getMediaUrl(url);
+      const res = await fetch(targetUrl);
+      if (!res.ok) return null;
+      
+      const blob = await res.blob();
+      if (blob.type.includes('pdf')) {
+        return "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAALEgAACxIB0t1+/AAAABZ0RVh0Q3JlYXRpb24gVGltZQAwOC8wOC8xOFR968AAAAAYdEVYdFNvZnR3YXJlAEFkb2JlIEM2IEltYWdlUmVhZHm7mNoAAAAtSURBVHic7cExAQAAAMKg9U9tCy+gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB+DAx9AAH5XU8AAAAAAElFTkSuQmCC";
+      }
+
+      return await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(blob);
+      });
+    } catch (err) {
+      console.error("Base64 conversion failed:", err);
+      return null;
+    }
+  };
+
+  const downloadSquad = async () => {
+    if (!selectedTeam) return;
+    const element = document.getElementById("squad-download");
+    if (!element) return;
+    
+    setIsDownloading(true);
+    element.style.display = "block";
+    
+    try {
+      const imgs = element.getElementsByTagName("img");
+      const originalSrcs = [];
+      
+      for (let i = 0; i < imgs.length; i++) {
+        const img = imgs[i];
+        originalSrcs.push({ img, src: img.src });
+        const base64 = await getBase64FromUrl(img.src);
+        if (base64) {
+          img.src = base64;
+        }
+      }
+
+      const canvas = await html2canvas(element, {
+        backgroundColor: "#020617",
+        scale: 1.5,
+        useCORS: true,
+        logging: false,
+        allowTaint: true,
+        imageTimeout: 0
+      });
+
+      const link = document.createElement("a");
+      link.download = `${selectedTeam.name || 'squad'}.png`;
+      link.href = canvas.toDataURL("image/png", 0.8);
+      link.click();
+
+      for (const item of originalSrcs) {
+        item.img.src = item.src;
+      }
+    } catch (err) {
+      console.error("Download failed:", err);
+    } finally {
+      element.style.display = "none";
+      setIsDownloading(false);
+    }
+  };
+
+  const squadBg = data.tournament?.assets?.squadBgUrl || DEFAULT_ASSETS.SQUAD_BG;
+  const squadPlayers = selectedTeam ? data.players.filter((p) => String(p.team) === String(selectedTeam._id) || p.team === selectedTeam.name) : [];
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 md:p-4 bg-[#020617]/90 backdrop-blur-md animate-in fade-in">
@@ -555,27 +647,277 @@ function SquadViewModal({ tournament, onClose }) {
 
             <div className="flex-1 overflow-y-auto p-4 md:p-8">
                {loading ?
-            <div className="space-y-4">
+                 <div className="space-y-4">
                     <div className="h-8 w-48 animate-pulse bg-white/5 rounded-lg" />
                     <div className="grid grid-cols-1 gap-2">
                        {Array(5).fill(0).map((_, i) =>
-                <div key={i} className="h-20 w-full animate-pulse bg-white/5 rounded-xl border border-white/5" />
-                )}
+                         <div key={i} className="h-20 w-full animate-pulse bg-white/5 rounded-xl border border-white/5" />
+                       )}
                     </div>
                  </div> :
-            selectedTeam ?
-            <SquadList
-              team={selectedTeam}
-              players={data.players.filter((p) => String(p.team) === String(selectedTeam._id) || p.team === selectedTeam.name)} /> :
-
-
-            <div className="h-full flex flex-col items-center justify-center opacity-30 italic text-sm">
-                    Select a team to view their roster
-                 </div>
-            }
+                 selectedTeam ?
+                   <SquadList
+                     team={selectedTeam}
+                     players={squadPlayers}
+                     onPlayerClick={(p) => setSelectedPlayer(p)}
+                     onDownload={downloadSquad}
+                     isDownloading={isDownloading} /> :
+                   <div className="h-full flex flex-col items-center justify-center opacity-30 italic text-sm">
+                     Select a team to view their roster
+                   </div>
+               }
             </div>
           </div>
        </div>
-    </div>);
 
+       {/* --- DETAILED PLAYER PROFILE POPUP --- */}
+       {selectedPlayer && (
+         <PlayerDetailsModal 
+           player={selectedPlayer} 
+           onClose={() => setSelectedPlayer(null)} 
+         />
+       )}
+
+       {/* --- HIDDEN EXPORT CONTAINER (Off-screen for html2canvas) --- */}
+       {selectedTeam && (
+         <div id="squad-download" style={{
+           position: 'fixed',
+           left: '-5000px',
+           top: '0',
+           width: '1200px',
+           height: 'auto',
+           minHeight: '1200px',
+           background: `url('${getMediaUrl(squadBg)}') center/cover no-repeat`,
+           backgroundColor: '#020617',
+           padding: '60px 40px',
+           display: 'none',
+           zIndex: -9999,
+           fontFamily: 'sans-serif'
+         }}>
+           <div style={{
+             position: 'absolute',
+             inset: 0,
+             background: 'linear-gradient(rgba(15, 23, 42, 0.7), rgba(15, 23, 42, 0.5))',
+             zIndex: 1
+           }}></div>
+
+           <div style={{ 
+             position: 'relative', 
+             zIndex: 3, 
+             display: 'flex', 
+             flexDirection: 'column', 
+             alignItems: 'center', 
+             marginBottom: '50px' 
+           }}>
+             <img 
+               src={getMediaUrl(selectedTeam.logoUrl || selectedTeam.logo || `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedTeam.name)}&background=8b5cf6&color=fff&size=200`)} 
+               crossOrigin="anonymous" 
+               style={{ width: '130px', height: '130px', borderRadius: '50%', border: '6px solid #8b5cf6', objectFit: 'cover', marginBottom: '15px', backgroundColor: 'rgba(255,255,255,0.1)' }} 
+               alt=""
+               onError={(e) => {
+                 e.target.src = getMediaUrl(`https://ui-avatars.com/api/?name=${encodeURIComponent(selectedTeam.name)}&background=8b5cf6&color=fff&size=200`)
+               }}
+             />
+             <h1 style={{ color: 'white', fontSize: '56px', margin: '0', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '4px', textAlign: 'center' }}>{selectedTeam.name}</h1>
+             <div style={{ height: '4px', width: '120px', background: '#8b5cf6', margin: '20px auto' }}></div>
+             <p style={{ color: '#a78bfa', fontSize: '28px', margin: '0', fontWeight: '900', letterSpacing: '2px' }}>OFFICIAL SQUAD</p>
+           </div>
+
+           {(() => {
+             const squadSize = squadPlayers.length;
+             let columns = 5;
+             let imgSize = '100px';
+             let nameSize = '16px';
+             let metaSize = '13px';
+             let contactSize = '11px';
+             let itemWidth = '160px';
+             let gap = '30px 20px';
+
+             if (squadSize > 15 && squadSize <= 24) {
+               columns = 6;
+               imgSize = '85px';
+               nameSize = '14px';
+               metaSize = '12px';
+               contactSize = '10px';
+               itemWidth = '140px';
+               gap = '25px 15px';
+             } else if (squadSize > 24) {
+               columns = 7;
+               imgSize = '70px';
+               nameSize = '12px';
+               metaSize = '11px';
+               contactSize = '9px';
+               itemWidth = '120px';
+               gap = '20px 10px';
+             }
+
+             return (
+               <div style={{ 
+                 position: 'relative', 
+                 zIndex: 3, 
+                 display: 'grid', 
+                 gridTemplateColumns: `repeat(${columns}, 1fr)`, 
+                 gap: gap,
+                 justifyItems: 'center',
+                 padding: '0 40px',
+                 width: '100%'
+               }}>
+                 {squadPlayers.map((player, idx) => (
+                   <div key={idx} style={{ textAlign: 'center', width: itemWidth }}>
+                     <div style={{ position: 'relative', display: 'inline-block' }}>
+                       <img 
+                         src={getMediaUrl(player.photo?.s3 || player.imageUrl || player.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(player.name)}&background=random`)} 
+                         crossOrigin="anonymous" 
+                         style={{ width: imgSize, height: imgSize, borderRadius: '50%', border: '3px solid white', objectFit: 'cover', background: 'rgba(255,255,255,0.1)' }} 
+                         alt=""
+                       />
+                       {player.isIcon && (
+                         <div style={{ position: 'absolute', bottom: '0', right: '0', background: '#8b5cf6', color: 'white', fontSize: '9px', padding: '1px 5px', borderRadius: '10px', fontWeight: 'bold' }}>ICON</div>
+                       )}
+                     </div>
+                     <div style={{ 
+                       color: 'white', 
+                       fontWeight: '900', 
+                       fontSize: nameSize, 
+                       lineHeight: '1.1',
+                       marginTop: '8px', 
+                       marginBottom: '2px',
+                       height: '34px',
+                       display: 'flex',
+                       alignItems: 'center',
+                       justifyContent: 'center',
+                       textAlign: 'center',
+                       textTransform: 'uppercase'
+                     }}>{player.name}</div>
+                     
+                     <div style={{ color: '#a78bfa', fontSize: metaSize, fontWeight: 'bold', marginBottom: '2px' }}>
+                       {player.isIcon ? 'RETAINED' : `₹${(player.soldPrice || player.basePrice || 0).toLocaleString()}`}
+                     </div>
+                     
+                     <div style={{ color: '#ffffff', fontSize: contactSize, fontWeight: '800', opacity: 0.9, marginBottom: '2px' }}>
+                       {player.mobile || player.phone || 'NO CONTACT'}
+                     </div>
+
+                     <div style={{ color: '#fbbf24', fontSize: contactSize, textTransform: 'uppercase', fontWeight: '900', letterSpacing: '0.5px' }}>
+                       {player.role || 'Player'}
+                     </div>
+                   </div>
+                 ))}
+               </div>
+             );
+           })()}
+         </div>
+       )}
+    </div>);
+}
+
+function PlayerDetailsModal({ player, onClose }) {
+  if (!player) return null;
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-2 md:p-6 bg-[#020617]/95 backdrop-blur-md animate-in fade-in duration-300">
+      <div className="max-w-4xl w-full bg-[#0f172a] border border-white/10 rounded-3xl md:rounded-[2.5rem] overflow-hidden shadow-2xl relative max-h-[95vh] flex flex-col md:block overflow-y-auto md:overflow-hidden">
+        <button 
+          onClick={onClose} 
+          className="absolute top-4 right-4 md:top-8 md:right-8 w-10 h-10 md:w-12 md:h-12 bg-white/5 hover:bg-white/10 rounded-full flex items-center justify-center text-slate-400 hover:text-white transition-all z-20 border border-white/5"
+        >
+          <X size={20} />
+        </button>
+
+        <div className="grid grid-cols-1 md:grid-cols-12 h-full">
+          <div className="md:col-span-5 bg-black/40 p-6 md:p-10 flex flex-col items-center gap-6 justify-center border-b md:border-b-0 md:border-r border-white/5">
+            <div className="p-4 md:p-6 rounded-[2rem] md:rounded-[2.5rem] border border-white/10 shadow-2xl flex flex-col items-center gap-4 bg-[#0f172a] w-full max-w-[280px]">
+              <div className="text-center">
+                <h2 className="text-[8px] font-black uppercase tracking-[0.3em] text-violet-400 opacity-80">PLAYER PROFILE</h2>
+                <h1 className="text-xs font-black text-white italic tracking-tighter uppercase">Official Card</h1>
+              </div>
+              
+              <div className="w-44 h-44 md:w-48 md:h-48 rounded-[2rem] overflow-hidden border-4 border-white/10 shadow-xl relative shrink-0">
+                <img
+                  src={getMediaUrl(player.photo?.s3 || player.imageUrl || player.image, `https://api.dicebear.com/7.x/avataaars/svg?seed=${player.name}`)}
+                  className="w-full h-full object-cover" 
+                  alt={player.name} 
+                />
+              </div>
+            
+              <div className="text-center space-y-1 w-full">
+                <h3 className="text-lg md:text-xl font-black text-white italic tracking-tighter leading-tight truncate">{player.name}</h3>
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">
+                  ID #{player.applicationId || player.originalApplicationId || "N/A"}
+                </p>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-2 w-full pt-3 border-t border-white/5">
+                <div className="text-center">
+                  <p className="text-[7px] font-black text-slate-500 uppercase">ROLE</p>
+                  <p className="text-[9px] font-black text-white truncate uppercase">{player.role || "PLAYER"}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-[7px] font-black text-slate-500 uppercase">STYLE</p>
+                  <p className="text-[9px] font-black text-white truncate uppercase">{player.playingStyle || player.battingStyle || "N/A"}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="md:col-span-7 p-6 md:p-12 space-y-8 flex flex-col justify-center">
+            <div>
+              <p className="text-[9px] font-black text-violet-500 uppercase tracking-[0.4em] mb-2 leading-none">Registry Profile Record</p>
+              <h2 className="text-2xl md:text-4xl font-black text-white italic tracking-tight leading-none uppercase">{player.name}</h2>
+              {player.fatherName && (
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-3">
+                  FATHER: <span className="text-white">{player.fatherName}</span>
+                </p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-x-6 gap-y-5">
+              <DetailNode icon={Phone} label="Mobile Number" value={player.mobile || player.phone} color="text-violet-300" />
+              <DetailNode icon={Calendar} label="Age / Date of Birth" value={player.dob ? `${calculateAge(player.dob)} YRS (${new Date(player.dob).toLocaleDateString()})` : (player.age ? `${player.age} YRS` : "---")} />
+              <DetailNode icon={MapPin} label="Taluk / Hobli" value={(player.taluk || player.hobli) ? `${player.taluk || ""} ${player.hobli ? `> ${player.hobli}` : ""}` : "---"} />
+              <DetailNode icon={MapPin} label="Village / Town" value={player.village || player.town || "---"} />
+              <DetailNode icon={Activity} label="Wicket Keeper" value={player.wicketKeeper ? "YES (ACTIVE)" : "NO"} color={player.wicketKeeper ? "text-emerald-400 font-black" : "text-slate-400"} />
+              <DetailNode icon={Shield} label="Draft Status" value={player.status?.toUpperCase() || "AVAILABLE"} color={player.status === "sold" ? "text-emerald-400 font-black" : "text-amber-400 font-black"} />
+              
+              <div className="col-span-2 grid grid-cols-2 gap-4 p-3 bg-white/5 border border-white/5 rounded-2xl">
+                <div>
+                  <p className="text-[7px] font-black text-slate-400 uppercase tracking-wider">Base Price</p>
+                  <p className="text-sm font-black text-slate-300">₹{Number(player.basePrice || 0).toLocaleString("en-IN")}</p>
+                </div>
+                {player.status === "sold" && (
+                  <div>
+                    <p className="text-[7px] font-black text-emerald-400 uppercase tracking-wider">Sold Price</p>
+                    <p className="text-sm font-black text-emerald-400">₹{Number(player.soldPrice || 0).toLocaleString("en-IN")}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            <div className="pt-6 border-t border-white/5 flex">
+              <button 
+                onClick={onClose} 
+                className="w-full py-3.5 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all hover:scale-[1.02]"
+              >
+                Close Profile
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DetailNode({ icon: Icon, label, value, color = "text-white" }) {
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center gap-1.5 opacity-40">
+        <Icon size={12} className="text-slate-400 shrink-0" />
+        <p className="text-[8px] font-black uppercase tracking-widest truncate">{label}</p>
+      </div>
+      <p className={`text-xs font-bold uppercase tracking-wider truncate ${color}`}>
+        {value || "---"}
+      </p>
+    </div>
+  );
 }
