@@ -802,19 +802,27 @@ function PlayersRegistryContent() {
       const total = filtered.length;
       setPdfProgress({ current: 0, total, active: true });
 
-      const base64Images = [];
       const sortedPlayers = [...filtered].sort((a, b) => (a.applicationId || 0) - (b.applicationId || 0));
+      const base64Images = new Array(sortedPlayers.length).fill(null);
+      const batchSize = 20;
 
-      for (let i = 0; i < sortedPlayers.length; i++) {
-        const p = sortedPlayers[i];
-        setPdfProgress((prev) => ({ ...prev, current: i + 1 }));
-
-        const imgUrl = p.imageUrl || p.image;
-        let imgData = null;
-        if (imgUrl) {
-          imgData = await getBase64(imgUrl);
-        }
-        base64Images.push(imgData);
+      for (let i = 0; i < sortedPlayers.length; i += batchSize) {
+        const batch = sortedPlayers.slice(i, i + batchSize);
+        await Promise.all(
+          batch.map(async (p, batchIdx) => {
+            const index = i + batchIdx;
+            const imgUrl = p.imageUrl || p.image;
+            if (imgUrl) {
+              try {
+                const imgData = await getBase64(imgUrl);
+                base64Images[index] = imgData;
+              } catch (err) {
+                console.error("Error loading PDF image", err);
+              }
+            }
+            setPdfProgress((prev) => ({ ...prev, current: Math.min(prev.current + 1, total) }));
+          })
+        );
       }
 
       const rawData = sortedPlayers.map((p, i) => {
