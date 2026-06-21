@@ -215,14 +215,14 @@ function PlayersRegistryContent() {
 
   const sendWhatsAppNotification = (p) => {
     const posterUrl = `${window.location.origin}/card/${p._id}`;
-    const text = `Hi ${p.name}, your application for ${selectedAuction.name} has been *ACCEPTED*! ✅\n\nYour Application ID: *#${p.applicationId}*\n\n🔥 *VIEW YOUR OFFICIAL POSTER:* ${posterUrl}\n\nYou are now in the auction pool. See you at the auction! 🏆`;
+    const text = `Hi ${p.name}, your application for ${selectedAuction.name} has been *ACCEPTED*! \u2705\n\nYour Application ID: *#${p.applicationId}*\n\n\u{1F525} *VIEW YOUR OFFICIAL POSTER:* ${posterUrl}\n\nYou are now in the auction pool. See you at the auction! \u{1F3C6}`;
     const url = `https://wa.me/91${p.mobile}?text=${encodeURIComponent(text)}`;
     window.open(url, "_blank");
   };
 
   const handleOpenWhatsAppModal = (p) => {
     const posterUrl = `${window.location.origin}/card/${p._id}`;
-    const text = `Hi ${p.name}, your application for ${selectedAuction.name} has been *ACCEPTED*! ✅\n\nYour Application ID: *#${p.applicationId}*\n\n🔥 *VIEW YOUR OFFICIAL POSTER:* ${posterUrl}\n\nYou are now in the auction pool. See you at the auction! 🏆`;
+    const text = `Hi ${p.name}, your application for ${selectedAuction.name} has been *ACCEPTED*! \u2705\n\nYour Application ID: *#${p.applicationId}*\n\n\u{1F525} *VIEW YOUR OFFICIAL POSTER:* ${posterUrl}\n\nYou are now in the auction pool. See you at the auction! \u{1F3C6}`;
     setWhatsAppPlayer(p);
     setWhatsAppMessage(text);
     setWhatsAppModalOpen(true);
