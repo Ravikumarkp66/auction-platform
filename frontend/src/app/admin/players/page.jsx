@@ -106,6 +106,14 @@ function PlayersRegistryContent() {
   const [movingPlayerId, setMovingPlayerId] = useState("");
   const [targetPosition, setTargetPosition] = useState("");
   const [isOrdering, setIsOrdering] = useState(false);
+  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
+  const [whatsAppTemplate, setWhatsAppTemplate] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("whatsAppConfirmationTemplate");
+      if (saved) return saved;
+    }
+    return `Hi {name}, your application for {tournament} has been *ACCEPTED*! \u2705\n\nYour Application ID: *#{id}*\n\n\u{1F525} *VIEW YOUR OFFICIAL POSTER:* {url}\n\nYou are now in the auction pool. See you at the auction! \u{1F3C6}`;
+  });
 
   useEffect(() => {
     if (selectedAuction?._id) {
@@ -212,7 +220,12 @@ function PlayersRegistryContent() {
 
   const sendWhatsAppNotification = (p) => {
     const posterUrl = `${window.location.origin}/card/${p._id}`;
-    const text = `Hi ${p.name}, your application for ${selectedAuction.name} has been *ACCEPTED*! \u2705\n\nYour Application ID: *#${p.applicationId}*\n\n\u{1F525} *VIEW YOUR OFFICIAL POSTER:* ${posterUrl}\n\nYou are now in the auction pool. See you at the auction! \u{1F3C6}`;
+    let text = whatsAppTemplate;
+    text = text.replace(/{name}/g, p.name);
+    text = text.replace(/{tournament}/g, selectedAuction.name);
+    text = text.replace(/{id}/g, String(p.applicationId || ""));
+    text = text.replace(/{url}/g, posterUrl);
+
     const url = `https://wa.me/91${p.mobile}?text=${encodeURIComponent(text)}`;
     window.open(url, "_blank");
   };
@@ -1034,6 +1047,13 @@ function PlayersRegistryContent() {
                 
                 <Trash2 className="w-4 h-4" />
               </button>
+              <button
+                onClick={() => setIsTemplateModalOpen(true)}
+                className="p-3 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-2xl hover:bg-emerald-500/20 transition-all active:scale-95 shadow-xl"
+                title="Edit WhatsApp Message Template">
+                
+                <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.458L0 24zm6.59-4.846c1.62.962 3.399 1.47 5.358 1.471 5.514 0 10.002-4.485 10.005-9.998.001-2.671-1.03-5.182-2.902-7.058C17.37 1.704 14.867.674 12.011.674c-5.519 0-10.009 4.488-10.013 10.002-.001 1.953.51 3.864 1.488 5.539L2.505 21.8l5.632-1.477zM16.85 13.91c-.272-.136-1.61-.795-1.86-.886-.25-.09-.43-.136-.61.136-.18.272-.7.886-.855 1.068-.155.18-.31.2-.582.065-.272-.136-1.15-.424-2.19-1.353-.809-.723-1.357-1.616-1.516-1.888-.158-.272-.017-.42.12-.556.122-.122.272-.317.408-.475.136-.158.18-.272.272-.453.09-.18.045-.34-.022-.475-.068-.136-.61-1.47-.836-2.014-.22-.53-.443-.457-.61-.466-.157-.008-.34-.01-.523-.01-.183 0-.48.068-.73.34-.25.272-.955.933-.955 2.275 0 1.341.977 2.637 1.113 2.82.136.18 1.92 2.931 4.654 4.113.65.28 1.157.447 1.554.573.653.208 1.248.179 1.718.109.524-.078 1.61-.658 1.838-1.266.228-.608.228-1.129.16-1.237-.068-.108-.25-.18-.522-.316z"/></svg>
+              </button>
             </div>
           </div>
         </div>
@@ -1580,6 +1600,68 @@ function PlayersRegistryContent() {
           </div>
         </div>
       }
+
+
+      {/* ── EDIT WHATSAPP MESSAGE TEMPLATE MODAL ── */}
+      {isTemplateModalOpen && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="relative w-full max-w-lg bg-slate-900 border border-white/10 rounded-3xl p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between mb-6 pb-4 border-b border-white/5">
+              <div>
+                <p className="text-[9px] font-black text-emerald-400 uppercase tracking-[0.4em] mb-1">WhatsApp Broadcast</p>
+                <h3 className="text-xl font-black text-white uppercase tracking-wider">WhatsApp Template Settings</h3>
+              </div>
+              <button 
+                onClick={() => setIsTemplateModalOpen(false)} 
+                className="p-2 hover:bg-white/5 rounded-full text-slate-400 hover:text-white transition-all border border-white/5"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Default Message Template</label>
+                <textarea
+                  value={whatsAppTemplate}
+                  onChange={(e) => setWhatsAppTemplate(e.target.value)}
+                  rows="9"
+                  className="w-full bg-slate-950 border border-white/10 rounded-2xl p-4 text-xs font-bold text-slate-200 outline-none focus:border-emerald-500 transition-all resize-none custom-scrollbar"
+                />
+              </div>
+
+              <div className="p-4 bg-white/5 border border-white/5 rounded-2xl space-y-2">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Available Placeholder Tags:</span>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[9px] font-bold text-slate-500">
+                  <div><code className="text-violet-400 font-bold">{`{name}`}</code> - Player's Name</div>
+                  <div><code className="text-violet-400 font-bold">{`{id}`}</code> - Application ID</div>
+                  <div><code className="text-violet-400 font-bold">{`{url}`}</code> - Poster Card URL</div>
+                  <div><code className="text-violet-400 font-bold">{`{tournament}`}</code> - Tournament Name</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setIsTemplateModalOpen(false)}
+                className="flex-1 py-4 bg-white/5 hover:bg-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-400 transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  localStorage.setItem("whatsAppConfirmationTemplate", whatsAppTemplate);
+                  setIsTemplateModalOpen(false);
+                  alert("WhatsApp confirmation template saved successfully!");
+                }}
+                className="flex-1 py-4 bg-emerald-600 hover:bg-emerald-500 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white shadow-xl shadow-emerald-500/20 transition-all"
+              >
+                Save Template
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
 
       {/* ── MANAGE/EDIT MODAL ── */}
