@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useSession } from "next-auth/react";
 import { Trophy, Play, Users, Calendar, ExternalLink, Clock, XCircle, X, Download, Phone, MapPin, Activity, User, Shield, DollarSign } from "lucide-react";
 import html2canvas from "html2canvas";
