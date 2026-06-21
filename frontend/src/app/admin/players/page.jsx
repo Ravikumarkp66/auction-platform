@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { User, Search, Plus, Filter, AlertTriangle, ShieldCheck, Check, X, AlertCircle, Hash, Trophy, MousePointer2, Edit3, FileSpreadsheet, RefreshCw, Download, Shuffle, Zap, ShieldAlert, Eye, Trash2, Undo2 } from "lucide-react";
+import { User, Search, Plus, Filter, AlertTriangle, ShieldCheck, Check, X, AlertCircle, Hash, Trophy, MousePointer2, Edit3, FileSpreadsheet, RefreshCw, Download, Shuffle, Zap, ShieldAlert, Eye, Trash2, Undo2, ArrowUpDown } from "lucide-react";
 import * as XLSX from "xlsx";
 import { useAuction } from "../layout";
 import { useSession } from "next-auth/react";
@@ -102,6 +102,10 @@ function PlayersRegistryContent() {
   const [pdfProgress, setPdfProgress] = useState({ current: 0, total: 0, active: false });
   const [isDeleteRangeModalOpen, setIsDeleteRangeModalOpen] = useState(false);
   const [deleteRange, setDeleteRange] = useState({ from: "", to: "" });
+  const [isOrderDrawerOpen, setIsOrderDrawerOpen] = useState(false);
+  const [movingPlayerId, setMovingPlayerId] = useState("");
+  const [targetPosition, setTargetPosition] = useState("");
+  const [isOrdering, setIsOrdering] = useState(false);
 
   useEffect(() => {
     if (selectedAuction?._id) {
@@ -527,6 +531,101 @@ function PlayersRegistryContent() {
     } catch (err) {alert("Revert failed");}
   };
 
+  const handleReorderPlayer = async (playerId, position) => {
+    if (!playerId || !position) return;
+    if (position < 1 || position > players.length) {
+      alert(`Position must be between 1 and ${players.length}`);
+      return;
+    }
+    setIsOrdering(true);
+    try {
+      const res = await fetch(`${API_URL}/api/players/reorder-player`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session?.accessToken}`
+        },
+        body: JSON.stringify({ playerId, targetPosition: position })
+      });
+      if (res.ok) {
+        fetchData();
+        socket.emit("auctionUpdate", { type: "system_refresh", auctionId: selectedAuction._id });
+        setMovingPlayerId("");
+        setTargetPosition("");
+      } else {
+        const err = await res.json();
+        alert(`Reorder failed: ${err.message}`);
+      }
+    } catch (err) {
+      alert("Reorder error");
+    } finally {
+      setIsOrdering(false);
+    }
+  };
+
+  const handleBulkUpdateOrder = async (reorderedList) => {
+    setIsOrdering(true);
+    try {
+      const playerIds = reorderedList.map(p => p._id);
+      const res = await fetch(`${API_URL}/api/players/update-order`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session?.accessToken}`
+        },
+        body: JSON.stringify({ tournamentId: selectedAuction._id, playerIds })
+      });
+      if (res.ok) {
+        fetchData();
+        socket.emit("auctionUpdate", { type: "system_refresh", auctionId: selectedAuction._id });
+      } else {
+        const err = await res.json();
+        alert(`Bulk update failed: ${err.message}`);
+      }
+    } catch (err) {
+      alert("Bulk update error");
+    } finally {
+      setIsOrdering(false);
+    }
+  };
+
+  const moveIndex = (index, delta) => {
+    const targetIndex = index + delta;
+    if (targetIndex < 0 || targetIndex >= players.length) return;
+    const newPlayers = [...players];
+    const [moved] = newPlayers.splice(index, 1);
+    newPlayers.splice(targetIndex, 0, moved);
+    handleBulkUpdateOrder(newPlayers);
+  };
+
+  const moveToEnds = (index, toTop) => {
+    const targetIndex = toTop ? 0 : players.length - 1;
+    if (index === targetIndex) return;
+    const newPlayers = [...players];
+    const [moved] = newPlayers.splice(index, 1);
+    newPlayers.splice(targetIndex, 0, moved);
+    handleBulkUpdateOrder(newPlayers);
+  };
+
+  const handleDragStart = (e, index) => {
+    e.dataTransfer.setData("draggedIndex", index);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e, targetIndex) => {
+    const draggedIndex = parseInt(e.dataTransfer.getData("draggedIndex"));
+    if (draggedIndex === targetIndex) return;
+    
+    const newPlayers = [...players];
+    const [moved] = newPlayers.splice(draggedIndex, 1);
+    newPlayers.splice(targetIndex, 0, moved);
+    
+    handleBulkUpdateOrder(newPlayers);
+  };
+
   const getBase64FromUrl = async (url) => {
     try {
       // Use proxy to avoid CORS issues with S3/Drive
@@ -914,6 +1013,13 @@ function PlayersRegistryContent() {
                 <Shuffle className="w-4 h-4" />
               </button>
               <button
+                onClick={() => setIsOrderDrawerOpen(true)}
+                className="p-3 bg-violet-500/10 text-violet-400 border border-violet-500/20 rounded-2xl hover:bg-violet-500/20 transition-all active:scale-95 shadow-xl"
+                title="Manage Order">
+                
+                <ArrowUpDown className="w-4 h-4" />
+              </button>
+              <button
                 onClick={handleRevertOrder}
                 className="p-3 bg-white/5 text-slate-400 border border-white/10 rounded-2xl hover:bg-white/10 transition-all active:scale-95 shadow-xl"
                 title="Revert to Original Order">
@@ -985,6 +1091,136 @@ function PlayersRegistryContent() {
           </div>
         </div>
       }
+
+      {/* ── AUCTION ORDER MANAGER DRAWER ── */}
+      {isOrderDrawerOpen && (
+        <div className="fixed inset-0 z-[100] flex justify-end">
+          <div 
+            className="absolute inset-0 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-300" 
+            onClick={() => setIsOrderDrawerOpen(false)} 
+          />
+          
+          <div className="relative w-full sm:w-[480px] bg-[#0f172a] border-l border-white/10 h-full shadow-2xl flex flex-col z-10 animate-in slide-in-from-right duration-300">
+            <div className="px-6 py-5 border-b border-white/5 flex items-center justify-between bg-white/[0.01]">
+              <div>
+                <p className="text-[9px] font-black text-violet-500 uppercase tracking-[0.4em] mb-1">Sequence Customizer</p>
+                <h3 className="text-xl font-black text-white uppercase tracking-wider">Auction Order Manager</h3>
+              </div>
+              <button 
+                onClick={() => setIsOrderDrawerOpen(false)} 
+                className="p-2 hover:bg-white/5 rounded-full text-slate-400 hover:text-white transition-all border border-white/5"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-5 border-b border-white/5 bg-black/20 space-y-4">
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 leading-none">Move Player directly to index</p>
+              <div className="grid grid-cols-12 gap-3 items-end">
+                <div className="col-span-6">
+                  <label className="text-[8px] font-bold text-slate-400 uppercase mb-1.5 block">Select Player</label>
+                  <select 
+                    value={movingPlayerId} 
+                    onChange={(e) => setMovingPlayerId(e.target.value)}
+                    className="w-full bg-slate-900 border border-white/10 rounded-xl px-3 py-2.5 text-xs font-bold text-white outline-none focus:border-violet-500 cursor-pointer text-slate-200"
+                  >
+                    <option value="">-- Choose Player --</option>
+                    {players.map(p => (
+                      <option key={p._id} value={p._id}>#{p.applicationId} - {p.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="col-span-3">
+                  <label className="text-[8px] font-bold text-slate-400 uppercase mb-1.5 block">To Position</label>
+                  <input 
+                    type="number"
+                    min="1"
+                    max={players.length}
+                    placeholder={`1-${players.length}`}
+                    value={targetPosition}
+                    onChange={(e) => setTargetPosition(e.target.value)}
+                    className="w-full bg-slate-900 border border-white/10 rounded-xl px-3 py-2.5 text-xs font-bold text-white outline-none focus:border-violet-500"
+                  />
+                </div>
+                <div className="col-span-3">
+                  <button
+                    onClick={() => handleReorderPlayer(movingPlayerId, parseInt(targetPosition))}
+                    disabled={isOrdering || !movingPlayerId || !targetPosition}
+                    className="w-full py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 flex items-center justify-center gap-1.5"
+                  >
+                    Move
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-5 space-y-2 custom-scrollbar">
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 leading-none">Drag elements or use buttons</p>
+              {players.map((p, idx) => (
+                <div
+                  key={p._id}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, idx)}
+                  onDragOver={handleDragOver}
+                  onDrop={(e) => handleDrop(e, idx)}
+                  className="flex items-center justify-between p-3 bg-white/5 border border-white/5 rounded-xl hover:border-violet-500/20 hover:bg-white/[0.07] transition-all cursor-move group/item"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="text-[10px] font-black text-slate-500 bg-white/5 border border-white/5 px-2 py-0.5 rounded-lg shrink-0">
+                      {p.applicationId}
+                    </span>
+                    <span className="text-xs font-bold text-white truncate">{p.name}</span>
+                  </div>
+                  
+                  <div className="flex items-center gap-1 opacity-60 group-hover/item:opacity-100 transition-opacity">
+                    <button 
+                      onClick={() => moveToEnds(idx, true)}
+                      disabled={idx === 0 || isOrdering}
+                      className="p-1 hover:bg-white/10 rounded text-slate-400 hover:text-white disabled:opacity-30"
+                      title="Move to Top"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6"/><path d="M12 2v8"/><path d="M5 2h14"/></svg>
+                    </button>
+                    <button 
+                      onClick={() => moveIndex(idx, -1)}
+                      disabled={idx === 0 || isOrdering}
+                      className="p-1 hover:bg-white/10 rounded text-slate-400 hover:text-white disabled:opacity-30"
+                      title="Move Up"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+                    </button>
+                    <button 
+                      onClick={() => moveIndex(idx, 1)}
+                      disabled={idx === players.length - 1 || isOrdering}
+                      className="p-1 hover:bg-white/10 rounded text-slate-400 hover:text-white disabled:opacity-30"
+                      title="Move Down"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                    </button>
+                    <button 
+                      onClick={() => moveToEnds(idx, false)}
+                      disabled={idx === players.length - 1 || isOrdering}
+                      className="p-1 hover:bg-white/10 rounded text-slate-400 hover:text-white disabled:opacity-30"
+                      title="Move to Bottom"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/><path d="M12 14v8"/><path d="M5 22h14"/></svg>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            <div className="p-5 border-t border-white/5 bg-white/[0.01] flex gap-3">
+              <button 
+                onClick={() => setIsOrderDrawerOpen(false)}
+                className="w-full py-3.5 bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── FILTER TABS ── */}
       <div className="flex p-1 bg-white/5 rounded-2xl border border-white/10 w-full overflow-x-auto no-scrollbar">

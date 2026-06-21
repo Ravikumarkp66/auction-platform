@@ -600,4 +600,87 @@ router.post("/bulk-delete",
         }
     });
 
+// Reorder a single player's position (Admin Only)
+router.post("/reorder-player",
+    authMiddleware,
+    authorize(['admin']),
+    async (req, res) => {
+        try {
+            const { playerId, targetPosition } = req.body;
+            if (!playerId || targetPosition === undefined) {
+                return res.status(400).json({ message: "Player ID and target position required" });
+            }
+
+            const player = await Player.findById(playerId);
+            if (!player) return res.status(404).json({ message: "Player not found" });
+
+            const tournamentId = player.tournamentId;
+            const currentPosition = player.applicationId;
+
+            if (currentPosition === targetPosition) {
+                return res.json({ message: "No change in position" });
+            }
+
+            // Get all normal players sorted by current applicationId
+            const players = await Player.find({ 
+                tournamentId, 
+                isIcon: { $ne: true }, 
+                isDeleted: { $ne: true } 
+            }).sort({ applicationId: 1 });
+
+            // Remove the player from its current index
+            const index = players.findIndex(p => p._id.toString() === playerId);
+            if (index === -1) return res.status(404).json({ message: "Player not in sequence list" });
+
+            const [movedPlayer] = players.splice(index, 1);
+
+            // Target index is targetPosition - 1 (since applicationId is 1-indexed)
+            let targetIndex = targetPosition - 1;
+            if (targetIndex < 0) targetIndex = 0;
+            if (targetIndex > players.length) targetIndex = players.length;
+
+            // Insert player at the target index
+            players.splice(targetIndex, 0, movedPlayer);
+
+            // Re-assign applicationIds to all players in bulk
+            const bulkOps = players.map((p, idx) => ({
+                updateOne: {
+                    filter: { _id: p._id },
+                    update: { $set: { applicationId: idx + 1 } }
+                }
+            }));
+
+            await Player.bulkWrite(bulkOps);
+
+            res.json({ message: "Player reordered successfully" });
+        } catch (err) {
+            res.status(500).json({ message: err.message });
+        }
+    });
+
+// Bulk update player sequence order (Admin Only)
+router.post("/update-order",
+    authMiddleware,
+    authorize(['admin']),
+    async (req, res) => {
+        try {
+            const { tournamentId, playerIds } = req.body;
+            if (!tournamentId || !playerIds || !Array.isArray(playerIds)) {
+                return res.status(400).json({ message: "Tournament ID and player IDs array required" });
+            }
+
+            const bulkOps = playerIds.map((id, index) => ({
+                updateOne: {
+                    filter: { _id: id, tournamentId },
+                    update: { $set: { applicationId: index + 1 } }
+                }
+            }));
+
+            await Player.bulkWrite(bulkOps);
+            res.json({ message: "Player order updated successfully" });
+        } catch (err) {
+            res.status(500).json({ message: err.message });
+        }
+    });
+
 module.exports = router;
