@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { Trophy, ShieldCheck, MapPin, Activity, User, Download, Share2 } from "lucide-react";
 import html2canvas from "html2canvas";
-import { API_URL, getMediaUrl } from "../../../lib/apiConfig";
+import { API_URL, getMediaUrl, getProxiedImageUrl } from "../../../lib/apiConfig";
 
 export default function PublicPlayerCard() {
   const { id } = useParams();
@@ -18,12 +18,39 @@ export default function PublicPlayerCard() {
     return getMediaUrl(url, "/placeholder-player.png");
   };
 
+  const getBase64 = async (url) => {
+    if (!url || typeof url !== 'string') return null;
+    if (url.startsWith('data:')) return url;
+    try {
+      const targetUrl = url.startsWith('http') && !url.includes(API_URL) ? getProxiedImageUrl(url) : getMediaUrl(url);
+      const res = await fetch(targetUrl);
+      if (!res.ok) return null;
+      const blob = await res.blob();
+      return await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.readAsDataURL(blob);
+      });
+    } catch {return null;}
+  };
+
   const downloadAsImage = async () => {
     setIsDownloading(true);
     const element = document.getElementById("poster-canvas");
     if (!element) return;
 
     try {
+      const imgs = element.getElementsByTagName("img");
+      const originalSrcs = [];
+      for (let i = 0; i < imgs.length; i++) {
+        const img = imgs[i];
+        originalSrcs.push({ img, src: img.src });
+        const base64 = await getBase64(img.src);
+        if (base64) {
+          img.src = base64;
+        }
+      }
+
       const canvas = await html2canvas(element, {
         useCORS: true,
         scale: 3,
@@ -61,6 +88,11 @@ export default function PublicPlayerCard() {
       link.download = `${player.name}_Official_Poster.png`;
       link.href = data;
       link.click();
+
+      // Restore original src paths
+      for (const item of originalSrcs) {
+        item.img.src = item.src;
+      }
     } catch (err) {
       console.error("Poster export failed", err);
     } finally {

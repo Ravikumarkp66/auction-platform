@@ -134,6 +134,17 @@ function PlayersRegistryContent() {
     if (!element) return;
 
     try {
+      const imgs = element.getElementsByTagName("img");
+      const originalSrcs = [];
+      for (let i = 0; i < imgs.length; i++) {
+        const img = imgs[i];
+        originalSrcs.push({ img, src: img.src });
+        const base64 = await getBase64FromUrl(img.src);
+        if (base64) {
+          img.src = base64;
+        }
+      }
+
       const canvas = await html2canvas(element, {
         useCORS: true,
         scale: 3,
@@ -164,6 +175,11 @@ function PlayersRegistryContent() {
       link.download = `${p.name}_Official_Poster.png`;
       link.href = data;
       link.click();
+
+      // Restore original src paths
+      for (const item of originalSrcs) {
+        item.img.src = item.src;
+      }
     } catch (err) {
       console.error("Poster export failed", err);
     } finally {

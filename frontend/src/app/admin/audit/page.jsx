@@ -25,12 +25,38 @@ export default function RegistryAuditPage() {
   const [view, setView] = useState("MOBILE"); // MOBILE | AADHAAR | PHOTO | TRASH
   const [selectedPlayer, setSelectedPlayer] = useState(null);
 
+  const getBase64 = async (url) => {
+    if (!url || typeof url !== 'string') return null;
+    if (url.startsWith('data:')) return url;
+    try {
+      const res = await fetch(`${API_URL}/api/proxy-image?url=${encodeURIComponent(url)}`);
+      if (!res.ok) return null;
+      const blob = await res.blob();
+      return await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.readAsDataURL(blob);
+      });
+    } catch {return null;}
+  };
+
   const downloadPosterAsImage = async (p) => {
     setIsCapturing(true);
     const element = document.getElementById("audit-poster-canvas");
     if (!element) return;
 
     try {
+      const imgs = element.getElementsByTagName("img");
+      const originalSrcs = [];
+      for (let i = 0; i < imgs.length; i++) {
+        const img = imgs[i];
+        originalSrcs.push({ img, src: img.src });
+        const base64 = await getBase64(img.src);
+        if (base64) {
+          img.src = base64;
+        }
+      }
+
       const canvas = await html2canvas(element, {
         useCORS: true,
         scale: 3,
@@ -60,6 +86,11 @@ export default function RegistryAuditPage() {
       link.download = `${p.name}_Official_Poster.png`;
       link.href = data;
       link.click();
+
+      // Restore original src paths
+      for (const item of originalSrcs) {
+        item.img.src = item.src;
+      }
     } catch (err) {
       console.error("Poster export failed", err);
     } finally {

@@ -12,7 +12,7 @@ import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import "./team-squad.css"
-import { DEFAULT_ASSETS, API_URL, getMediaUrl } from "@/lib/apiConfig";
+import { DEFAULT_ASSETS, API_URL, getMediaUrl, getProxiedImageUrl } from "@/lib/apiConfig";
 
 
 
@@ -166,6 +166,19 @@ function TeamSquadContent() {
     element.style.display = "block";
     
     try {
+      const imgs = element.getElementsByTagName("img");
+      const originalSrcs = [];
+      
+      // Convert all images to base64 to prevent CORS canvas-tainting issues
+      for (let i = 0; i < imgs.length; i++) {
+        const img = imgs[i];
+        originalSrcs.push({ img, src: img.src });
+        const base64 = await getBase64FromUrl(img.src);
+        if (base64) {
+          img.src = base64;
+        }
+      }
+
       // Slightly lower scale (1.5) for much faster processing while keeping detail
       const canvas = await html2canvas(element, {
         backgroundColor: "#020617",
@@ -180,6 +193,11 @@ function TeamSquadContent() {
       link.download = `${team?.name || 'squad'}.png`;
       link.href = canvas.toDataURL("image/png", 0.8); // 0.8 quality for speed
       link.click();
+
+      // Restore original src paths
+      for (const item of originalSrcs) {
+        item.img.src = item.src;
+      }
     } catch (err) {
       console.error("Download failed:", err);
     } finally {
@@ -187,31 +205,33 @@ function TeamSquadContent() {
     }
   };
    const getBase64FromUrl = async (url) => {
-    if (!url || typeof url !== 'string') return null;
-    try {
-      const proxied = getMediaUrl(url);
-      const res = await fetch(proxied);
-      if (!res.ok) return null;
-      
-      const blob = await res.blob();
+     if (!url || typeof url !== 'string') return null;
+     if (url.startsWith('data:')) return url;
+     try {
+       // Route external URLs through backend proxy to bypass CORS
+       const targetUrl = url.startsWith('http') && !url.includes(API_URL) ? getProxiedImageUrl(url) : getMediaUrl(url);
+       const res = await fetch(targetUrl);
+       if (!res.ok) return null;
+       
+       const blob = await res.blob();
 
-      // Handle PDF or other documents by showing a placeholder icon
-      if (blob.type.includes('pdf')) {
-        // Red PDF placeholder base64
-        return "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAALEgAACxIB0t1+/AAAABZ0RVh0Q3JlYXRpb24gVGltZQAwOC8wOC8xOFR968AAAAAYdEVYdFNvZnR3YXJlAEFkb2JlIEM2IEltYWdlUmVhZHm7mNoAAAAtSURBVHic7cExAQAAAMKg9U9tCy+gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB+DAx9AAH5XU8AAAAAAElFTkSuQmCC";
-      }
+       // Handle PDF or other documents by showing a placeholder icon
+       if (blob.type.includes('pdf')) {
+         // Red PDF placeholder base64
+         return "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAALEgAACxIB0t1+/AAAABZ0RVh0Q3JlYXRpb24gVGltZQAwOC8wOC8xOFR968AAAAAYdEVYdFNvZnR3YXJlAEFkb2JlIEM2IEltYWdlUmVhZHm7mNoAAAAtSURBVHic7cExAQAAAMKg9U9tCy+gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB+DAx9AAH5XU8AAAAAAElFTkSuQmCC";
+       }
 
-      return await new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result);
-        reader.onerror = () => resolve(null);
-        reader.readAsDataURL(blob);
-      });
-    } catch (err) {
-      console.error("Base64 fetch failed:", err);
-      return null;
-    }
-  };
+       return await new Promise((resolve) => {
+         const reader = new FileReader();
+         reader.onloadend = () => resolve(reader.result);
+         reader.onerror = () => resolve(null);
+         reader.readAsDataURL(blob);
+       });
+     } catch (err) {
+       console.error("Base64 fetch failed:", err);
+       return null;
+     }
+   };
 
   const compressImage = (base64, quality = 0.5) => {
     return new Promise((resolve) => {
