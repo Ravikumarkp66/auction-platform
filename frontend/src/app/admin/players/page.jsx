@@ -805,7 +805,7 @@ function PlayersRegistryContent() {
       const sortedPlayers = [...filtered].sort((a, b) => (a.applicationId || 0) - (b.applicationId || 0));
       const base64Images = await Promise.all(
         sortedPlayers.map(async (p) => {
-          const imgUrl = p.imageUrl || p.image;
+          const imgUrl = getImgUrl(p);
           let imgData = null;
           if (imgUrl) {
             try {
