@@ -1,0 +1,33 @@
+import { NextResponse } from 'next/server';
+
+/**
+ * Proxy (Next.js 16): Redirect ALL routes to the root "/" page
+ * which now shows the "We've Moved!" redirect page.
+ * 
+ * This ensures users landing on any old URL (e.g., /auction, /teams, /admin)
+ * are informed about the new website and auto-redirected.
+ */
+export function proxy(req) {
+  const { pathname } = req.nextUrl;
+
+  // Allow the root page and static assets to pass through
+  if (pathname === '/') return NextResponse.next();
+
+  // Redirect everything else to the root
+  const url = req.nextUrl.clone();
+  url.pathname = '/';
+  return NextResponse.redirect(url);
+}
+
+export const config = {
+  matcher: [
+    /*
+     * Match all request paths except for:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico, manifest.webmanifest, icon files (static assets)
+     */
+    '/((?!api|_next/static|_next/image|favicon.ico|manifest.webmanifest|icon-192.png|icon-512.png|apple-icon.png|icon.png).*)',
+  ],
+};

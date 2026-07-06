@@ -1,10 +1,4 @@
 import './globals.css';
-import Navbar from '../components/Navbar';
-import MobileBottomNav from '../components/MobileBottomNav';
-import DynamicBackground from '../components/DynamicBackground';
-import { LanguageProvider } from '../context/LanguageContext';
-import AuthProvider from '../components/AuthProvider';
-
 
 import { Inter, Noto_Sans_Kannada } from 'next/font/google';
 
@@ -12,17 +6,17 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 const noto = Noto_Sans_Kannada({ subsets: ['kannada'], weight: ['400', '700', '900'], variable: '--font-noto' });
 
 export const metadata = {
-  title: 'Lakshmish Cricket Events',
-  description: 'Live Cricket Auction Platform with real-time bidding and tournament management',
+  title: "We've Moved! — Lakshmish Cricket Events",
+  description: 'Lakshmish Cricket Events has moved to a new website. Visit us at lakshmish-cricket-events.vercel.app for faster performance and new features.',
   openGraph: {
     type: 'website',
-    title: 'Lakshmish Cricket Events',
-    description: 'Live Cricket Auction Platform with real-time bidding',
+    title: "We've Moved! — Lakshmish Cricket Events",
+    description: 'Visit our brand new website at lakshmish-cricket-events.vercel.app',
   },
 };
 
 export const viewport = {
-  themeColor: '#0b1020',
+  themeColor: '#06091a',
   width: 'device-width',
   initialScale: 1,
   minimumScale: 1,
@@ -35,22 +29,12 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning className={`dark ${inter.variable} ${noto.variable}`}>
       <head>
-        <meta name="theme-color" content="#0b1020" />
+        <meta name="theme-color" content="#06091a" />
       </head>
-      <body suppressHydrationWarning className="main-container text-slate-50 min-h-screen flex flex-col font-sans antialiased">
-        <DynamicBackground />
-        <AuthProvider>
-
-          <LanguageProvider>
-            <div className="app flex flex-col min-h-screen w-full">
-              <Navbar />
-              <main className="grow">
-                {children}
-              </main>
-              <MobileBottomNav />
-            </div>
-          </LanguageProvider>
-        </AuthProvider>
+      <body suppressHydrationWarning className="text-slate-50 min-h-screen font-sans antialiased bg-[#06091a] overflow-x-hidden">
+        {/* Render children normally — page.js at "/" will show the redirect page.
+            For all other routes, the middleware handles redirection to "/" */}
+        {children}
       </body>
     </html>
   );
