@@ -48,60 +48,6 @@ function FloatingDots() {
   );
 }
 
-/* ─── countdown ring ─── */
-function CountdownRing({ count, total }) {
-  const radius = 38;
-  const circumference = 2 * Math.PI * radius;
-  const progress = ((total - count) / total) * circumference;
-
-  return (
-    <div className="relative inline-flex items-center justify-center">
-      <svg width="96" height="96" className="-rotate-90">
-        <circle
-          cx="48"
-          cy="48"
-          r={radius}
-          fill="none"
-          stroke="rgba(255,255,255,0.06)"
-          strokeWidth="5"
-        />
-        <motion.circle
-          cx="48"
-          cy="48"
-          r={radius}
-          fill="none"
-          stroke="url(#cg)"
-          strokeWidth="5"
-          strokeLinecap="round"
-          strokeDasharray={circumference}
-          animate={{ strokeDashoffset: progress }}
-          transition={{ duration: 0.8, ease: "easeInOut" }}
-        />
-        <defs>
-          <linearGradient id="cg" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#818cf8" />
-            <stop offset="100%" stopColor="#c084fc" />
-          </linearGradient>
-        </defs>
-      </svg>
-      <div className="absolute inset-0 flex items-center justify-center">
-        <AnimatePresence mode="wait">
-          <motion.span
-            key={count}
-            initial={{ scale: 0.5, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 1.5, opacity: 0 }}
-            transition={{ duration: 0.4 }}
-            className="text-3xl font-black bg-gradient-to-br from-white to-indigo-200 bg-clip-text text-transparent"
-          >
-            {count}
-          </motion.span>
-        </AnimatePresence>
-      </div>
-    </div>
-  );
-}
-
 /* ─── main component ─── */
 export default function WeveMovedPage() {
   const [countdown, setCountdown] = useState(COUNTDOWN_SECONDS);
@@ -134,228 +80,209 @@ export default function WeveMovedPage() {
   }, []);
 
   const fadeIn = {
-    hidden: { opacity: 0, y: 16 },
+    hidden: { opacity: 0, y: 12 },
     show: (i) => ({
       opacity: 1,
       y: 0,
-      transition: { duration: 0.5, delay: i * 0.08, ease: [0.22, 1, 0.36, 1] },
+      transition: { duration: 0.4, delay: i * 0.06, ease: [0.22, 1, 0.36, 1] },
     }),
   };
 
   return (
-    <div className="fixed inset-0 overflow-y-auto overflow-x-hidden z-[9999]">
+    <div className="fixed inset-0 z-[9999] bg-[#070b1e] text-slate-50 font-sans antialiased overflow-hidden flex flex-col items-center pt-[11vh] px-4 pb-[env(safe-area-inset-bottom,16px)] select-none">
       {/* ── background ── */}
-      <div className="fixed inset-0 z-0 bg-[#070b1e]">
+      <div className="absolute inset-0 z-0 bg-[#070b1e]">
         {/* single soft gradient orb — GPU-friendly */}
         <div
-          className="absolute top-[-30%] left-[-20%] w-[140vw] h-[80vh] opacity-40"
+          className="absolute top-[-20%] left-[-10%] w-[120vw] h-[60vh] opacity-35"
           style={{
             background:
-              "radial-gradient(ellipse at 40% 30%, rgba(99,102,241,0.35) 0%, rgba(124,58,237,0.15) 40%, transparent 70%)",
+              "radial-gradient(ellipse at 40% 30%, rgba(99,102,241,0.25) 0%, rgba(124,58,237,0.1) 40%, transparent 70%)",
           }}
         />
         <div
-          className="absolute bottom-[-10%] right-[-10%] w-[80vw] h-[50vh] opacity-30"
+          className="absolute bottom-[-10%] right-[-10%] w-[80vw] h-[40vh] opacity-25"
           style={{
             background:
-              "radial-gradient(ellipse at 60% 70%, rgba(168,85,247,0.25) 0%, transparent 70%)",
+              "radial-gradient(ellipse at 60% 70%, rgba(168,85,247,0.18) 0%, transparent 70%)",
           }}
         />
       </div>
 
       <FloatingDots />
 
-      {/* ── content wrapper — centers card on desktop ── */}
-      <div className="relative z-10 flex items-center justify-center min-h-screen px-4 py-6 pb-[env(safe-area-inset-bottom,16px)]">
+      {/* ── content wrapper ── */}
+      <motion.div
+        initial="hidden"
+        animate="show"
+        className="w-[94%] max-w-[420px] flex flex-col items-center z-10"
+      >
+        {/* ── badge & title group ── */}
         <motion.div
-          initial="hidden"
-          animate="show"
-          className="w-full max-w-[460px] flex flex-col items-center"
+          custom={0}
+          variants={fadeIn}
+          className="flex flex-col items-center gap-1 mb-3.5 text-center"
         >
-          {/* ── badge ── */}
-          <motion.div custom={0} variants={fadeIn}>
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-indigo-400/15 bg-indigo-500/8 backdrop-blur-sm mb-5">
-              <span className="text-base">🏏</span>
-              <span className="text-[11px] font-bold tracking-[0.15em] uppercase text-indigo-300">
-                Lakshmish Cricket Events
-              </span>
-            </div>
-          </motion.div>
-
-          {/* ── heading ── */}
-          <motion.h1
-            custom={1}
-            variants={fadeIn}
-            className="flex items-center gap-2.5 text-[28px] sm:text-4xl font-black tracking-tight mb-6"
-          >
-            <Rocket className="w-7 h-7 sm:w-8 sm:h-8 text-indigo-400 shrink-0" />
+          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full border border-indigo-400/20 bg-indigo-500/10 backdrop-blur-sm">
+            <span className="text-[13px] sm:text-[14px]">🏏</span>
+            <span className="text-[13px] sm:text-[14px] font-bold tracking-wider uppercase text-indigo-300">
+              Lakshmish Cricket Events
+            </span>
+          </div>
+          <h1 className="flex items-center gap-2.5 text-[32px] sm:text-[36px] font-black tracking-tight mt-1">
+            <Rocket className="w-8 h-8 text-indigo-400 shrink-0" />
             <span className="bg-gradient-to-r from-white via-indigo-100 to-purple-200 bg-clip-text text-transparent">
               We've Moved!
             </span>
-          </motion.h1>
+          </h1>
+        </motion.div>
 
-          {/* ── glass card ── */}
-          <motion.div
-            custom={2}
-            variants={fadeIn}
-            className="w-full rounded-[20px] border border-white/[0.07] bg-white/[0.04] backdrop-blur-xl p-5 sm:p-6 shadow-[0_8px_40px_rgba(0,0,0,0.3),0_0_60px_rgba(99,102,241,0.06)]"
-          >
-            {/* kannada */}
-            <div className="mb-4">
-              <div className="flex items-center gap-2 mb-2.5">
-                <span className="text-xl">📢</span>
-                <h2 className="text-base sm:text-lg font-bold text-indigo-200">
-                  ಪ್ರಿಯ ಬಳಕೆದಾರರೇ,
-                </h2>
-              </div>
-              <div className="space-y-2 text-[13px] sm:text-sm leading-relaxed text-slate-300 pl-8">
-                <p>
-                  <strong className="text-white font-semibold">
-                    Lakshmish Cricket Events
-                  </strong>{" "}
-                  ಈಗ ಹೊಸ ವೆಬ್‌ಸೈಟ್‌ಗೆ ಸ್ಥಳಾಂತರಗೊಂಡಿದೆ.
-                </p>
-                <p>
-                  ಇನ್ನಷ್ಟು ವೇಗ, ಹೊಸ ವೈಶಿಷ್ಟ್ಯಗಳು ಹಾಗೂ ಉತ್ತಮ ಅನುಭವಕ್ಕಾಗಿ
-                  ದಯವಿಟ್ಟು ನಮ್ಮ ಹೊಸ ವೆಬ್‌ಸೈಟ್‌ಗೆ ಭೇಟಿ ನೀಡಿ.
-                </p>
-              </div>
+        {/* ── single unified glass card ── */}
+        <motion.div
+          custom={1}
+          variants={fadeIn}
+          className="w-full rounded-2xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl p-4.5 shadow-[0_8px_32px_rgba(0,0,0,0.37)]"
+        >
+          {/* kannada */}
+          <div className="mb-3.5">
+            <div className="flex items-center gap-2.5 mb-1.5">
+              <span className="text-xl">📢</span>
+              <h2 className="text-[19px] sm:text-[20px] font-bold text-indigo-200">
+                ಪ್ರಿಯ ಬಳಕೆದಾರರೇ,
+              </h2>
             </div>
-
-            {/* divider */}
-            <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent my-4" />
-
-            {/* english */}
-            <div className="mb-1">
-              <p className="text-[13px] sm:text-sm text-slate-400 leading-relaxed">
-                <span className="text-slate-200 font-medium">Dear Users,</span>
-                <br />
+            <div className="space-y-1.5 text-[17px] sm:text-[18px] leading-relaxed text-slate-300 pl-7.5">
+              <p>
                 <strong className="text-white font-semibold">
                   Lakshmish Cricket Events
                 </strong>{" "}
-                has moved to a new website with improved performance and exciting
-                new features.
+                ಹೊಸ ವೆಬ್‌ಸೈಟ್‌ಗೆ ಸ್ಥಳಾಂತರಗೊಂಡಿದೆ.
+              </p>
+              <p>
+                ಉತ್ತಮ ಅನುಭವಕ್ಕಾಗಿ ದಯವಿಟ್ಟು ಭೇಟಿ ನೀಡಿ.
               </p>
             </div>
-          </motion.div>
+          </div>
 
-          {/* ── new website URL card ── */}
-          <motion.a
-            custom={3}
-            variants={fadeIn}
+          {/* divider */}
+          <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent my-3.5" />
+
+          {/* english */}
+          <div className="mb-3.5">
+            <p className="text-[17px] sm:text-[18px] text-slate-350 leading-relaxed pl-7.5">
+              <strong className="text-white font-semibold">
+                Lakshmish Cricket Events
+              </strong>{" "}
+              has moved to a new website with improved performance and new features.
+            </p>
+          </div>
+
+          {/* divider */}
+          <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent my-3.5" />
+
+          {/* URL box inside the card */}
+          <a
             href={NEW_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="w-full mt-4 rounded-2xl border border-indigo-400/15 bg-gradient-to-br from-indigo-500/[0.07] to-purple-500/[0.04] backdrop-blur-lg p-4 flex flex-col items-center gap-2 active:scale-[0.98] transition-transform"
+            className="flex items-center justify-between gap-2 p-3 rounded-xl border border-indigo-400/15 bg-indigo-500/[0.04] active:bg-indigo-500/[0.1] transition-all"
           >
-            <div className="flex items-center gap-1.5 text-indigo-300">
-              <Globe className="w-4 h-4" />
-              <span className="text-[11px] font-bold tracking-wider uppercase">
-                New Website
+            <div className="flex items-center gap-2">
+              <Globe className="w-4 h-4 text-indigo-400" />
+              <span className="text-[13px] sm:text-[14px] font-semibold text-slate-400 uppercase tracking-wider">
+                New Address
               </span>
             </div>
-            <span className="text-[13px] sm:text-sm font-mono font-semibold text-white/90 text-center break-all leading-snug flex items-center gap-1.5">
+            <span className="text-[15px] sm:text-[16px] font-mono font-bold text-indigo-300 flex items-center gap-1">
               {NEW_URL.replace("https://", "")}
               <ExternalLink className="w-3.5 h-3.5 text-indigo-400/60 shrink-0" />
             </span>
-          </motion.a>
-
-          {/* ── countdown ── */}
-          <motion.div
-            custom={4}
-            variants={fadeIn}
-            className="mt-6 flex flex-col items-center gap-2"
-          >
-            <p className="text-[11px] sm:text-xs text-slate-500 tracking-wide uppercase font-medium">
-              {countdown > 0
-                ? `Redirecting in ${countdown}s...`
-                : "Redirecting now..."}
-            </p>
-            {countdown > 0 ? (
-              <CountdownRing count={countdown} total={COUNTDOWN_SECONDS} />
-            ) : (
-              <motion.div
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                className="w-24 h-24 flex items-center justify-center"
-              >
-                <div className="w-6 h-6 rounded-full border-2 border-indigo-400 border-t-transparent animate-spin" />
-              </motion.div>
-            )}
-          </motion.div>
-
-          {/* ── buttons ── */}
-          <motion.div
-            custom={5}
-            variants={fadeIn}
-            className="w-full mt-6 flex flex-col gap-3"
-          >
-            {/* primary */}
-            <a
-              href={NEW_URL}
-              className="relative flex items-center justify-center gap-2.5 w-full h-[52px] rounded-2xl font-semibold text-white text-[15px] overflow-hidden active:scale-[0.97] transition-transform"
-            >
-              <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl" />
-              <div className="absolute inset-0 rounded-2xl shadow-[0_4px_20px_rgba(99,102,241,0.35)]" />
-              <span className="relative flex items-center gap-2">
-                <Rocket className="w-4 h-4" />
-                ಹೊಸ ವೆಬ್‌ಸೈಟ್‌ಗೆ ಭೇಟಿ ನೀಡಿ
-                <ArrowRight className="w-4 h-4" />
-              </span>
-            </a>
-
-            {/* secondary */}
-            <button
-              onClick={handleCopy}
-              className="flex items-center justify-center gap-2 w-full h-[48px] rounded-2xl font-semibold text-[14px] border border-white/10 bg-white/[0.04] text-slate-300 active:scale-[0.97] active:bg-white/[0.08] transition-all"
-            >
-              <AnimatePresence mode="wait">
-                {copied ? (
-                  <motion.span
-                    key="done"
-                    initial={{ scale: 0.8, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    exit={{ scale: 0.8, opacity: 0 }}
-                    className="flex items-center gap-2 text-emerald-400"
-                  >
-                    <Check className="w-4 h-4" />
-                    Copied!
-                  </motion.span>
-                ) : (
-                  <motion.span
-                    key="copy"
-                    initial={{ scale: 0.8, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    exit={{ scale: 0.8, opacity: 0 }}
-                    className="flex items-center gap-2"
-                  >
-                    <Copy className="w-4 h-4" />
-                    Copy Website Link
-                  </motion.span>
-                )}
-              </AnimatePresence>
-            </button>
-          </motion.div>
-
-          {/* ── footer ── */}
-          <motion.div
-            custom={6}
-            variants={fadeIn}
-            className="mt-6 text-center space-y-0.5"
-          >
-            <p className="text-[12px] sm:text-[13px] text-slate-500">
-              🏏 Thank you for being part of the{" "}
-              <strong className="text-slate-400">
-                Lakshmish Cricket Events
-              </strong>{" "}
-              family.
-            </p>
-            <p className="text-[11px] text-slate-600">
-              See you on our new website! ❤️
-            </p>
-          </motion.div>
+          </a>
         </motion.div>
-      </div>
+
+        {/* ── countdown pill ── */}
+        <motion.div
+          custom={2}
+          variants={fadeIn}
+          className="mt-3.5 flex items-center justify-center"
+        >
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-indigo-400/20 bg-indigo-500/10 backdrop-blur-sm">
+            <div className="w-2 h-2 rounded-full bg-indigo-400 animate-ping" />
+            <span className="text-[14px] sm:text-[15px] font-bold text-indigo-300">
+              {countdown > 0
+                ? `Auto-redirecting in ${countdown}s`
+                : "Redirecting now..."}
+            </span>
+          </div>
+        </motion.div>
+
+        {/* ── action buttons ── */}
+        <motion.div
+          custom={3}
+          variants={fadeIn}
+          className="w-full mt-4 flex flex-col gap-3"
+        >
+          {/* primary */}
+          <a
+            href={NEW_URL}
+            className="relative flex items-center justify-center gap-2 w-full h-[52px] rounded-2xl font-bold text-white text-[18px] sm:text-[19px] overflow-hidden active:scale-[0.97] transition-transform"
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl" />
+            <div className="absolute inset-0 rounded-2xl shadow-[0_4px_16px_rgba(99,102,241,0.3)]" />
+            <span className="relative flex items-center gap-1.5">
+              <Rocket className="w-5 h-5" />
+              ಹೊಸ ವೆಬ್‌ಸೈಟ್‌ಗೆ ಭೇಟಿ ನೀಡಿ
+              <ArrowRight className="w-5 h-5" />
+            </span>
+          </a>
+
+          {/* secondary */}
+          <button
+            onClick={handleCopy}
+            className="flex items-center justify-center gap-2 w-full h-[48px] rounded-2xl font-bold text-[17px] sm:text-[18px] border border-white/10 bg-white/[0.04] text-slate-300 active:scale-[0.97] active:bg-white/[0.08] transition-all"
+          >
+            <AnimatePresence mode="wait">
+              {copied ? (
+                <motion.span
+                  key="done"
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.8, opacity: 0 }}
+                  className="flex items-center gap-2 text-emerald-400"
+                >
+                  <Check className="w-4 h-4" />
+                  Copied!
+                </motion.span>
+              ) : (
+                <motion.span
+                  key="copy"
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.8, opacity: 0 }}
+                  className="flex items-center gap-2"
+                >
+                  <Copy className="w-4 h-4" />
+                  Copy Website Link
+                </motion.span>
+              )}
+            </AnimatePresence>
+          </button>
+        </motion.div>
+
+        {/* ── footer ── */}
+        <motion.div
+          custom={4}
+          variants={fadeIn}
+          className="mt-4 text-center space-y-0.5"
+        >
+          <p className="text-[13px] sm:text-[14px] text-slate-500">
+            🏏 Lakshmish Cricket Events
+          </p>
+          <p className="text-[11px] sm:text-[12px] text-slate-600">
+            See you on our new website! ❤️
+          </p>
+        </motion.div>
+      </motion.div>
     </div>
   );
 }
