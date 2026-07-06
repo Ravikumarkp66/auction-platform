@@ -77,30 +77,23 @@ export default function WeveMovedPage() {
   }, []);
 
   const fadeIn = {
-    hidden: { opacity: 0, y: 10 },
+    hidden: { opacity: 0, y: 12 },
     show: (i) => ({
       opacity: 1,
       y: 0,
-      transition: { duration: 0.35, delay: i * 0.05, ease: [0.22, 1, 0.36, 1] },
+      transition: { duration: 0.4, delay: i * 0.05, ease: [0.22, 1, 0.36, 1] },
     }),
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#070b1e] text-slate-50 font-sans antialiased overflow-hidden flex flex-col justify-start pt-12 px-5 pb-6 select-none relative z-10">
+    <div className="min-h-screen w-full bg-[#070b1e] text-slate-50 font-sans antialiased overflow-x-hidden flex flex-col justify-start pt-14 px-[2.5vw] pb-8 select-none relative z-10">
       {/* ── background ── */}
       <div className="absolute inset-0 z-0 bg-[#070b1e] pointer-events-none">
         <div
-          className="absolute top-0 left-0 w-full h-[50vh] opacity-35"
+          className="absolute top-0 left-0 w-full h-[60vh] opacity-35"
           style={{
             background:
-              "radial-gradient(circle at top, rgba(99,102,241,0.2) 0%, rgba(124,58,237,0.05) 50%, transparent 100%)",
-          }}
-        />
-        <div
-          className="absolute bottom-[-10%] right-[-10%] w-[80vw] h-[40vh] opacity-25"
-          style={{
-            background:
-              "radial-gradient(ellipse at 60% 70%, rgba(168,85,247,0.18) 0%, transparent 70%)",
+              "radial-gradient(circle at top, rgba(99,102,241,0.22) 0%, rgba(124,58,237,0.06) 50%, transparent 100%)",
           }}
         />
       </div>
@@ -108,23 +101,19 @@ export default function WeveMovedPage() {
       <FloatingDots />
 
       {/* ── content wrapper ── */}
-      <div className="w-[94vw] max-w-[420px] mx-auto flex flex-col items-center z-10 flex-grow justify-between">
+      <div className="w-[95vw] mx-auto flex flex-col items-stretch z-10 flex-grow gap-6">
         
-        {/* Top Content Block */}
-        <div className="w-full flex flex-col items-stretch text-left">
-          
+        {/* Top Header Group */}
+        <div className="w-full flex flex-col items-center text-center mt-2">
           {/* Logo Badge */}
           <motion.div
             custom={0}
             variants={fadeIn}
             initial="hidden"
             animate="show"
-            className="flex items-center gap-2 mb-2"
+            className="flex items-center justify-center gap-2 mb-2"
           >
-            <span className="text-[22px]">🏏</span>
-            <span className="text-[14px] font-black tracking-wider uppercase text-indigo-400">
-              Lakshmish Cricket Events
-            </span>
+            <span className="text-[32px]">🏏</span>
           </motion.div>
 
           {/* Heading */}
@@ -133,30 +122,31 @@ export default function WeveMovedPage() {
             variants={fadeIn}
             initial="hidden"
             animate="show"
-            className="flex items-center gap-3 text-[38px] font-black tracking-tight mb-5 leading-none"
+            className="text-[42px] font-black tracking-tight leading-tight bg-gradient-to-r from-white via-indigo-100 to-purple-200 bg-clip-text text-transparent mt-1"
           >
-            <Rocket className="w-9 h-9 text-indigo-400 shrink-0" />
-            <span className="bg-gradient-to-r from-white via-indigo-100 to-purple-200 bg-clip-text text-transparent">
-              We've Moved!
-            </span>
+            We've Moved!
           </motion.h1>
+        </div>
 
+        {/* Message block */}
+        <div className="w-full flex flex-col items-stretch gap-5">
           {/* Kannada Message */}
           <motion.div
             custom={2}
             variants={fadeIn}
             initial="hidden"
             animate="show"
-            className="mb-4"
+            className="text-center px-1"
           >
-            <div className="flex items-center gap-2 mb-1.5">
-              <span className="text-xl">📢</span>
+            <div className="flex flex-col items-center gap-1.5 mb-2.5">
+              <span className="text-2xl">📢</span>
               <h2 className="text-[20px] font-bold text-indigo-200">
                 ಪ್ರಿಯ ಬಳಕೆದಾರರೇ,
               </h2>
             </div>
-            <p className="text-[18px] leading-relaxed text-slate-200 font-medium">
-              <strong className="text-white font-bold">Lakshmish Cricket Events</strong> ಹೊಸ ವೆಬ್‌ಸೈಟ್‌ಗೆ ಸ್ಥಳಾಂತರಗೊಂಡಿದೆ. ಉತ್ತಮ ಅನುಭವಕ್ಕಾಗಿ ದಯವಿಟ್ಟು ಭೇಟಿ ನೀಡಿ.
+            <p className="text-[20px] leading-relaxed text-slate-100 font-extrabold">
+              Lakshmish Cricket Events <br />
+              ಈಗ ಹೊಸ ವೆಬ್ಸೈಟ್ನಲ್ಲಿ ಲಭ್ಯವಿದೆ.
             </p>
           </motion.div>
 
@@ -166,58 +156,69 @@ export default function WeveMovedPage() {
             variants={fadeIn}
             initial="hidden"
             animate="show"
-            className="mb-5"
+            className="text-center px-1"
           >
-            <p className="text-[16px] leading-relaxed text-slate-350 font-medium">
-              <strong className="text-white font-bold">Lakshmish Cricket Events</strong> has moved to a new website with improved performance and new features.
+            <p className="text-[18px] leading-relaxed text-slate-350 font-semibold">
+              Lakshmish Cricket Events is now available on our new website.
             </p>
           </motion.div>
 
-          {/* Website Address Block with Divider lines */}
+          {/* New Website Tag */}
           <motion.div
             custom={4}
             variants={fadeIn}
             initial="hidden"
             animate="show"
-            className="border-t border-b border-white/10 py-4 mb-4 w-full"
+            className="flex items-center justify-center gap-1.5 text-indigo-400 font-bold uppercase tracking-wider text-[14px]"
           >
-            <a
-              href={NEW_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex flex-col gap-1.5 w-full bg-white/[0.03] active:bg-white/[0.08] p-3.5 rounded-xl border border-white/5 transition-all"
-            >
-              <div className="flex items-center gap-1.5 text-indigo-300">
-                <Globe className="w-4 h-4" />
-                <span className="text-[12px] font-bold tracking-wider uppercase">
-                  New Website Address
-                </span>
-              </div>
-              <span className="text-[18px] font-mono font-bold text-white flex items-center justify-between gap-1.5 break-all">
-                {NEW_URL.replace("https://", "")}
-                <ExternalLink className="w-4.5 h-4.5 text-indigo-400 shrink-0" />
-              </span>
-            </a>
+            <span>👇 ಹೊಸ ವೆಬ್ಸೈಟ್ / New Website</span>
           </motion.div>
 
-          {/* Countdown & Redirect Progress Section */}
+          {/* Website Address Block */}
           <motion.div
             custom={5}
             variants={fadeIn}
             initial="hidden"
             animate="show"
-            className="flex flex-col items-center justify-center my-2 text-center"
+            className="border-t border-b border-white/10 py-5 w-full"
           >
-            {/* Huge Number */}
-            <span className="text-[76px] font-black leading-none bg-gradient-to-b from-white via-indigo-100 to-indigo-300 bg-clip-text text-transparent">
+            <a
+              href={NEW_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex flex-col items-center justify-center gap-2 w-full bg-white/[0.02] active:bg-white/[0.07] py-4 px-3 rounded-2xl border border-white/5 transition-all"
+            >
+              <div className="flex items-center gap-2 text-indigo-300 mb-0.5">
+                <Globe className="w-5 h-5" />
+                <span className="text-[13px] font-extrabold tracking-wider uppercase">
+                  Website Address
+                </span>
+              </div>
+              <span className="text-[21px] sm:text-[22px] font-mono font-black text-white tracking-tight break-all flex items-center justify-center gap-2">
+                {NEW_URL.replace("https://", "")}
+                <ExternalLink className="w-5 h-5 text-indigo-400 shrink-0" />
+              </span>
+            </a>
+          </motion.div>
+
+          {/* Countdown Block */}
+          <motion.div
+            custom={6}
+            variants={fadeIn}
+            initial="hidden"
+            animate="show"
+            className="flex flex-col items-center justify-center text-center my-1"
+          >
+            {/* Giant Number */}
+            <span className="text-[72px] font-black leading-none bg-gradient-to-b from-white to-indigo-300 bg-clip-text text-transparent">
               {countdown}
             </span>
-            <span className="text-[14px] font-bold tracking-wide uppercase text-indigo-300 mt-1">
+            <span className="text-[15px] font-bold tracking-wide uppercase text-indigo-300 mt-1.5">
               {countdown > 0 ? "Redirecting to new site..." : "Redirecting now..."}
             </span>
 
             {/* Progress Bar */}
-            <div className="w-[180px] h-2 bg-white/10 rounded-full overflow-hidden mt-3 relative">
+            <div className="w-[200px] h-2 bg-white/10 rounded-full overflow-hidden mt-4 relative">
               <motion.div
                 className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full"
                 initial={{ width: "100%" }}
@@ -226,35 +227,34 @@ export default function WeveMovedPage() {
               />
             </div>
           </motion.div>
-
         </div>
 
         {/* Bottom Actions Block */}
         <motion.div
-          custom={6}
+          custom={7}
           variants={fadeIn}
           initial="hidden"
           animate="show"
-          className="w-full flex flex-col gap-3 mt-4"
+          className="w-full flex flex-col gap-3.5 mt-auto pt-4"
         >
-          {/* primary */}
+          {/* Primary Button (60px height) */}
           <a
             href={NEW_URL}
-            className="relative flex items-center justify-center gap-2.5 w-full h-[56px] rounded-2xl font-bold text-white text-[19px] overflow-hidden active:scale-[0.98] transition-transform"
+            className="relative flex items-center justify-center gap-2.5 w-full h-[60px] rounded-2xl font-bold text-white text-[20px] overflow-hidden active:scale-[0.98] transition-transform"
           >
             <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl" />
-            <div className="absolute inset-0 rounded-2xl shadow-[0_4px_16px_rgba(99,102,241,0.35)]" />
-            <span className="relative flex items-center gap-1.5">
-              <Rocket className="w-5.5 h-5.5" />
-              ಹೊಸ ವೆಬ್‌ಸೈಟ್‌ಗೆ ಭೇಟಿ ನೀಡಿ
-              <ArrowRight className="w-5.5 h-5.5" />
+            <div className="absolute inset-0 rounded-2xl shadow-[0_4px_20px_rgba(99,102,241,0.4)]" />
+            <span className="relative flex items-center gap-2">
+              <Rocket className="w-6 h-6" />
+              ಹೊಸ ವೆಬ್ಸೈಟ್ಗೆ ಭೇಟಿ ನೀಡಿ
+              <ArrowRight className="w-6 h-6" />
             </span>
           </a>
 
-          {/* secondary */}
+          {/* Secondary Button */}
           <button
             onClick={handleCopy}
-            className="flex items-center justify-center gap-2 w-full h-[48px] rounded-2xl font-bold text-[17px] border border-white/10 bg-white/[0.04] text-slate-300 active:scale-[0.98] active:bg-white/[0.08] transition-all"
+            className="flex items-center justify-center gap-2 w-full h-[52px] rounded-2xl font-bold text-[18px] border border-white/10 bg-white/[0.04] text-slate-300 active:scale-[0.98] active:bg-white/[0.08] transition-all"
           >
             <AnimatePresence mode="wait">
               {copied ? (
@@ -265,7 +265,7 @@ export default function WeveMovedPage() {
                   exit={{ scale: 0.8, opacity: 0 }}
                   className="flex items-center gap-2 text-emerald-400"
                 >
-                  <Check className="w-4 h-4" />
+                  <Check className="w-5 h-5" />
                   Copied!
                 </motion.span>
               ) : (
@@ -276,12 +276,19 @@ export default function WeveMovedPage() {
                   exit={{ scale: 0.8, opacity: 0 }}
                   className="flex items-center gap-2"
                 >
-                  <Copy className="w-4 h-4" />
+                  <Copy className="w-5 h-5" />
                   Copy Link
                 </motion.span>
               )}
             </AnimatePresence>
           </button>
+
+          {/* Footer Thank You */}
+          <div className="text-center mt-3">
+            <span className="text-[15px] text-slate-500 font-semibold tracking-wider uppercase">
+              ❤️ Thank You
+            </span>
+          </div>
         </motion.div>
       </div>
     </div>
